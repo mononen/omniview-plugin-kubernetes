@@ -1,6 +1,6 @@
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
-import React from 'React'
+import React from 'react'
 import ClusterOverviewCard from './components/ClusterOverviewCard'
 
 type Props = {
