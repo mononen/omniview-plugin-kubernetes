@@ -114,6 +114,7 @@ const EndpointsTable: React.FC = () => {
       idAccessor="metadata.uid"
       memoizer="metadata.uid,metadata.resourceVersion,subsets"
       drawer={drawer}
+      createEnabled={false}
     />
   )
 }

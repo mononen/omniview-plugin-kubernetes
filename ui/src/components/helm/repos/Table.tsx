@@ -582,6 +582,7 @@ const HelmRepoTable: React.FC = () => {
         memoizer="name"
         drawer={drawer}
         hideNamespaceSelector
+        createEnabled={false}
         toolbarActions={
           <Button
             size="xs"

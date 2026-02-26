@@ -44,6 +44,7 @@ import { useDynamicResourceColumns } from '../../tables/ColumnFilter/useDynamicR
 import { useStoredState } from '../hooks/useStoredState';
 import { useConnectionNamespaces } from '../hooks/useConnectionNamespaces';
 import { TableDrawerContext } from './TableDrawerContext';
+import { CreateResourceButton } from '../../kubernetes/actions/create';
 
 export type Memoizer = string | string[] | ((data: any) => string);
 
@@ -126,6 +127,8 @@ export type Props<T = any> = {
   hideNamespaceSelector?: boolean;
   /** Optional toolbar actions rendered to the right of the search bar */
   toolbarActions?: React.ReactNode;
+  /** Show a "Create" button in the toolbar. Defaults to true. */
+  createEnabled?: boolean;
 };
 
 const defaultData: any[] = []
@@ -138,6 +141,7 @@ const ResourceTableContainer: React.FC<Props> = ({
   drawer,
   hideNamespaceSelector,
   toolbarActions,
+  createEnabled = true,
 }) => {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }]);
   const [columnVisibility, setColumnVisibility] = useStoredState<VisibilityState>(`kubernetes-${connectionID}-${resourceKey}-column-visibility`, visibilityFromColumnDefs(columns));
@@ -412,6 +416,7 @@ const ResourceTableContainer: React.FC<Props> = ({
           />
           <Box sx={{ flex: 1 }} />
           <Stack direction='row' gap={1} alignItems='center'>
+            {createEnabled && <CreateResourceButton connectionID={connectionID} resourceKey={resourceKey} />}
             {toolbarActions}
             {hasNamespaceColumn && !hideNamespaceSelector && (
               <NamespaceSelect

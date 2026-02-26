@@ -22,6 +22,7 @@ const EventTable: React.FC = () => {
       resourceKey={resourceKey}
       idAccessor='metadata.uid'
       memoizer='metadata.uid,metadata.resourceVersion'
+      createEnabled={false}
     />
   )
 }

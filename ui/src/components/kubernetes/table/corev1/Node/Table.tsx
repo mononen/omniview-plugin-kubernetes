@@ -237,6 +237,7 @@ const NodeTable: React.FC = () => {
       idAccessor='metadata.uid'
       memoizer={'metadata.uid,metadata.resourceVersion'}
       drawer={drawer}
+      createEnabled={false}
     />
   )
 }

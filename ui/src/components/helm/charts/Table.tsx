@@ -148,6 +148,7 @@ const HelmChartTable: React.FC = () => {
       memoizer="id"
       drawer={drawer}
       hideNamespaceSelector
+      createEnabled={false}
     />
   );
 };

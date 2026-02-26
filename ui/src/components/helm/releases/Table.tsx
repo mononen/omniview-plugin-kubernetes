@@ -96,6 +96,7 @@ const HelmReleaseTable: React.FC = () => {
       idAccessor="name"
       memoizer="name,version"
       drawer={drawer}
+      createEnabled={false}
     />
   );
 };
