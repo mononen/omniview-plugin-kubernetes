@@ -66,15 +66,15 @@ export const RowContainer: React.FC<Props> = ({
       onMouseEnter={(e) => {
         if (!isSelected) {
           e.currentTarget.style.backgroundColor = 'var(--ov-state-hover)';
-          for (const td of e.currentTarget.querySelectorAll<HTMLElement>('[data-pinned]')) {
-            td.style.backgroundColor = 'var(--ov-bg-base)';
-          }
+        }
+        for (const td of e.currentTarget.querySelectorAll<HTMLElement>('[data-pinned]')) {
+          td.style.backgroundColor = 'var(--ov-bg-base)';
         }
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.backgroundColor = isSelected ? 'var(--ov-accent-subtle)' : 'var(--ov-bg-base)';
         for (const td of e.currentTarget.querySelectorAll<HTMLElement>('[data-pinned]')) {
-          td.style.backgroundColor = 'inherit';
+          td.style.backgroundColor = 'var(--ov-bg-base)';
         }
       }}
     >
@@ -105,7 +105,8 @@ export const RowContainer: React.FC<Props> = ({
               color: 'var(--ov-fg-default)',
               borderBottom: '1px solid var(--ov-border-muted)',
               lineHeight: '30px',
-              ...getCommonPinningStyles(cell.column, false)
+              ...getCommonPinningStyles(cell.column, false),
+              ...(cell.column.getIsPinned() ? { backgroundColor: 'var(--ov-bg-base)' } : {}),
             }}
           >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
