@@ -23,6 +23,7 @@ const ConfigMapTable: React.FC = () => {
         header: 'Immmutable',
         accessorFn: (row) => !!row.immutable,
         cell: ({ getValue }) => (getValue() as boolean) ? <LuCircleCheck /> : '',
+        size: 100,
         meta: {
           defaultHidden: true,
         }

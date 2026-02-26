@@ -22,12 +22,14 @@ const SecretTable: React.FC = () => {
         id: 'type',
         header: 'Type',
         accessorKey: 'type',
+        size: 150,
       },
       {
         id: 'immutable',
         header: 'Immmutable',
         accessorFn: (row) => !!row.immutable,
         cell: ({ getValue }) => (getValue() as boolean) ? <LuCircleCheck /> : '',
+        size: 100,
         meta: {
           defaultHidden: true,
         }

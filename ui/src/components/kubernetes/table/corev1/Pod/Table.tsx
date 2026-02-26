@@ -200,6 +200,7 @@ const PodTable: React.FC = () => {
         id: 'schedulerName',
         header: 'Scheduler Name',
         accessorKey: 'spec.schedulerName',
+        size: 150,
         cell: CopyableCell,
         meta: {
           defaultHidden: true,
@@ -209,6 +210,7 @@ const PodTable: React.FC = () => {
         id: 'hostname',
         header: 'Hostname',
         accessorKey: 'spec.hostname',
+        size: 150,
         cell: CopyableCell,
         meta: {
           defaultHidden: true,

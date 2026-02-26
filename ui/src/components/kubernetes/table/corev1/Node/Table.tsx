@@ -118,7 +118,8 @@ const NodeTable: React.FC = () => {
         id: 'conditions',
         header: 'Conditions',
         accessorFn: (row) => row?.status?.conditions,
-        cell: ({ getValue }) => <ConditionsCell conditions={getValue() as Condition[] | undefined} />
+        cell: ({ getValue }) => <ConditionsCell conditions={getValue() as Condition[] | undefined} />,
+        size: 250,
       }
     ], { connectionID: id, resourceKey }),
     [],
