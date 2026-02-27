@@ -10,6 +10,9 @@ export type PodMetricEntry = {
 /** Map keyed by "namespace/podName" → { cpuMillicores, memoryBytes } */
 export type PodMetricsMap = Map<string, PodMetricEntry>;
 
+/** Stable empty map — avoids creating a new reference on every render when metrics haven't loaded */
+const EMPTY_MAP: PodMetricsMap = new Map();
+
 // Metric IDs for CPU usage (millicores)
 const CPU_METRIC_IDS = new Set(["cpu_usage", "prom_cpu_usage_rate"]);
 // Metric IDs for memory usage (bytes)
@@ -109,7 +112,7 @@ export function usePodMetricsBatch(opts: {
   });
 
   return {
-    metricsMap: query.data ?? new Map(),
+    metricsMap: query.data ?? EMPTY_MAP,
     isLoading: query.isLoading,
   };
 }

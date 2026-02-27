@@ -15,6 +15,7 @@ import { LuCircleCheck, LuCircleAlert, LuCircleSlash, LuX } from 'react-icons/lu
 import { useInformerState, InformerResourceState } from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
 import { parseResourceKey, formatGroup } from '../../utils/resourceKey';
+import { useStableObject } from '../../hooks/useStableRef';
 
 interface SyncProgressDialogProps {
   open: boolean;
@@ -50,7 +51,7 @@ function StateIcon({ state }: { state: InformerResourceState }) {
 }
 
 /** Per-group progress summary */
-function GroupProgress({ items }: { items: ResourceItem[] }) {
+const GroupProgress = React.memo(function GroupProgress({ items }: { items: ResourceItem[] }) {
   const total = items.length;
   const done = items.filter(i => isTerminal(i.state)).length;
   const allDone = done === total;
@@ -78,9 +79,17 @@ function GroupProgress({ items }: { items: ResourceItem[] }) {
       </Text>
     </Box>
   );
+});
+
+/**
+ * Wrapper: returns null when closed to avoid all hook subscriptions / re-renders.
+ */
+export default function SyncProgressDialog(props: SyncProgressDialogProps) {
+  if (!props.open) return null;
+  return <SyncProgressDialogInner {...props} />;
 }
 
-export default function SyncProgressDialog({
+function SyncProgressDialogInner({
   open,
   onClose,
   clusterName,
@@ -89,8 +98,8 @@ export default function SyncProgressDialog({
 }: SyncProgressDialogProps) {
   const { summary, syncProgress, isFullySynced } = useInformerState({ pluginID, connectionID });
 
-  const resources = summary.data?.resources ?? {};
-  const resourceCounts = summary.data?.resourceCounts ?? {};
+  const resources = useStableObject(summary.data?.resources ?? {});
+  const resourceCounts = useStableObject(summary.data?.resourceCounts ?? {});
   const totalResources = summary.data?.totalResources ?? 0;
 
   // Count resources that have reached a terminal state (synced, error, cancelled)
@@ -108,7 +117,7 @@ export default function SyncProgressDialog({
     return count;
   }, [resources]);
 
-  // Group resources by API group
+  // Group resources by API group, sorted with Core first
   const grouped = React.useMemo(() => {
     const groups: Record<string, ResourceItem[]> = {};
 
@@ -117,6 +126,11 @@ export default function SyncProgressDialog({
       const label = formatGroup(group);
       if (!groups[label]) groups[label] = [];
       groups[label].push({ key, kind, state, count: resourceCounts[key] ?? 0 });
+    }
+
+    // Sort items within each group
+    for (const items of Object.values(groups)) {
+      items.sort((a, b) => a.kind.localeCompare(b.kind));
     }
 
     // Sort groups alphabetically, but put "Core" first
@@ -129,13 +143,13 @@ export default function SyncProgressDialog({
 
   const percent = Math.round(syncProgress * 100);
 
-  const handleRetry = async (resourceKey: string) => {
+  const handleRetry = React.useCallback(async (resourceKey: string) => {
     try {
       await ResourceClient.EnsureInformerForResource(pluginID, connectionID, resourceKey);
     } catch (err) {
       console.error('Failed to retry informer:', err);
     }
-  };
+  }, [pluginID, connectionID]);
 
   return (
     <Dialog
@@ -222,7 +236,7 @@ export default function SyncProgressDialog({
               </Text>
               <GroupProgress items={items} />
             </Box>
-            {items.sort((a, b) => a.kind.localeCompare(b.kind)).map(({ key, kind, state, count }) => (
+            {items.map(({ key, kind, state, count }) => (
               <Box
                 key={key}
                 sx={{

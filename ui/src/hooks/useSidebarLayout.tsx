@@ -9,6 +9,7 @@ import { SiHelm } from "react-icons/si";
 import DynamicIcon from "../components/shared/Icon";
 import { IsImage } from "../utils/url";
 import { toResourceKey } from "../utils/resourceKey";
+import { useStableObject } from "./useStableRef";
 
 type Opts = {
   connectionID: string;
@@ -39,17 +40,32 @@ function resolveIcon(icon: string | React.ReactNode | undefined, size = 16): Rea
 }
 
 
-// --- Informer state badges ---
+// --- Module-level icon constants (allocated once, reused forever) ---
 
-const SyncingBadge = () => <CircularProgress size={10} thickness={5} sx={{ color: 'var(--ov-accent-fg, #58a6ff)' }} />;
-const ErrorBadge = () => <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'error.main', flexShrink: 0 }} />;
+const ICON_GAUGE = <LuGauge />;
+const ICON_SERVER = <LuServer />;
+const ICON_CLOUD_LIGHTNING = <LuCloudLightning />;
+const ICON_LAYERS = <LuLayers2 />;
+const ICON_BOXES = <LuBoxes />;
+const ICON_CLIPBOARD = <LuClipboard />;
+const ICON_NETWORK = <LuNetwork />;
+const ICON_DATABASE = <LuDatabase />;
+const ICON_LOCK = <LuLock />;
+const ICON_TICKET = <LuTicket />;
+const ICON_HELM = <SiHelm />;
+const ICON_BLOCKS = <LuBlocks />;
+
+// --- Module-level badge JSX constants ---
+
+const SYNCING_BADGE = <CircularProgress size={10} thickness={5} sx={{ color: 'var(--ov-accent-fg, #58a6ff)' }} />;
+const ERROR_BADGE = <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'error.main', flexShrink: 0 }} />;
 
 /** Get a badge for a nav item based on its informer state */
 const getStateBadge = (navId: string, states?: Record<string, InformerResourceState>): React.ReactNode | undefined => {
   if (!states) return undefined;
   const state = states[toResourceKey(navId)];
-  if (state === InformerResourceState.Syncing || state === InformerResourceState.Pending) return <SyncingBadge />;
-  if (state === InformerResourceState.Error) return <ErrorBadge />;
+  if (state === InformerResourceState.Syncing || state === InformerResourceState.Pending) return SYNCING_BADGE;
+  if (state === InformerResourceState.Error) return ERROR_BADGE;
   return undefined;
 };
 
@@ -63,8 +79,8 @@ const getGroupBadge = (children: NavMenuItem[], states?: Record<string, Informer
     if (state === InformerResourceState.Syncing || state === InformerResourceState.Pending) hasSyncing = true;
     if (state === InformerResourceState.Error) hasError = true;
   }
-  if (hasError) return <ErrorBadge />;
-  if (hasSyncing) return <SyncingBadge />;
+  if (hasError) return ERROR_BADGE;
+  if (hasSyncing) return SYNCING_BADGE;
   return undefined;
 };
 
@@ -115,7 +131,7 @@ const calculateFullLayout = (data: Record<string, types.ResourceGroup>, informer
   });
 
   const sections: NavSection[] = [
-    { title: '', items: [{ id: '__dashboard__', label: 'Dashboard', icon: <LuGauge /> }, ...coreSection] },
+    { title: '', items: [{ id: '__dashboard__', label: 'Dashboard', icon: ICON_GAUGE }, ...coreSection] },
     { title: 'Custom Resource Definitions', items: crdSection },
   ];
 
@@ -272,18 +288,18 @@ const calculateModernLayout = (data: Record<string, types.ResourceGroup>, inform
     {
       title: '',
       items: [
-        { id: '__dashboard__', label: 'Dashboard', icon: <LuGauge /> },
-        { id: 'core_v1_Node', label: 'Nodes', icon: <LuServer />, badge: getStateBadge('core_v1_Node', informerStates) },
-        { id: 'events_v1_Event', label: 'Events', icon: <LuCloudLightning />, badge: getStateBadge('events_v1_Event', informerStates) },
-        { id: 'core_v1_Namespace', label: 'Namespaces', icon: <LuLayers2 />, badge: getStateBadge('core_v1_Namespace', informerStates) },
-        { id: 'workload', label: 'Workload', icon: <LuBoxes />, children: workloadSorted, badge: getGroupBadge(workloadSorted, informerStates) },
-        { id: 'config', label: 'Config', icon: <LuClipboard />, children: configSorted, badge: getGroupBadge(configSorted, informerStates) },
-        { id: 'network', label: 'Networking', icon: <LuNetwork />, children: networkSorted, badge: getGroupBadge(networkSorted, informerStates) },
-        { id: 'storage', label: 'Storage', icon: <LuDatabase />, children: storageSorted, badge: getGroupBadge(storageSorted, informerStates) },
-        { id: 'access_control', label: 'Access Control', icon: <LuLock />, children: accessSorted, badge: getGroupBadge(accessSorted, informerStates) },
-        { id: 'admission_control', label: 'Admission Control', icon: <LuTicket />, children: admissionSorted, badge: getGroupBadge(admissionSorted, informerStates) },
-        { id: 'helm', label: 'Helm', icon: <SiHelm />, children: helmSorted, badge: getGroupBadge(helmSorted, informerStates) },
-        { id: 'crd', label: 'Custom Resource Definitions', icon: <LuBlocks />, children: crdSorted, badge: getGroupBadge(crdSorted, informerStates) },
+        { id: '__dashboard__', label: 'Dashboard', icon: ICON_GAUGE },
+        { id: 'core_v1_Node', label: 'Nodes', icon: ICON_SERVER, badge: getStateBadge('core_v1_Node', informerStates) },
+        { id: 'events_v1_Event', label: 'Events', icon: ICON_CLOUD_LIGHTNING, badge: getStateBadge('events_v1_Event', informerStates) },
+        { id: 'core_v1_Namespace', label: 'Namespaces', icon: ICON_LAYERS, badge: getStateBadge('core_v1_Namespace', informerStates) },
+        { id: 'workload', label: 'Workload', icon: ICON_BOXES, children: workloadSorted, badge: getGroupBadge(workloadSorted, informerStates) },
+        { id: 'config', label: 'Config', icon: ICON_CLIPBOARD, children: configSorted, badge: getGroupBadge(configSorted, informerStates) },
+        { id: 'network', label: 'Networking', icon: ICON_NETWORK, children: networkSorted, badge: getGroupBadge(networkSorted, informerStates) },
+        { id: 'storage', label: 'Storage', icon: ICON_DATABASE, children: storageSorted, badge: getGroupBadge(storageSorted, informerStates) },
+        { id: 'access_control', label: 'Access Control', icon: ICON_LOCK, children: accessSorted, badge: getGroupBadge(accessSorted, informerStates) },
+        { id: 'admission_control', label: 'Admission Control', icon: ICON_TICKET, children: admissionSorted, badge: getGroupBadge(admissionSorted, informerStates) },
+        { id: 'helm', label: 'Helm', icon: ICON_HELM, children: helmSorted, badge: getGroupBadge(helmSorted, informerStates) },
+        { id: 'crd', label: 'Custom Resource Definitions', icon: ICON_BLOCKS, children: crdSorted, badge: getGroupBadge(crdSorted, informerStates) },
       ]
     },
   ];
@@ -297,36 +313,55 @@ const calculateModernLayout = (data: Record<string, types.ResourceGroup>, inform
 export const useSidebarLayout = ({ connectionID }: Opts) => {
   const { settings } = usePluginContext()
   const { groups } = useResourceGroups({ pluginID: 'kubernetes', connectionID });
-  const { summary } = useInformerState({ pluginID: 'kubernetes', connectionID });
+  const { summary, isFullySynced } = useInformerState({ pluginID: 'kubernetes', connectionID });
 
-  const informerStates = summary.data?.resources;
+  // Stabilize the informerStates reference so we don't recalculate on every
+  // event when the actual values haven't changed.
+  const informerStates = useStableObject(summary.data?.resources);
 
   const [layout, setLayout] = React.useState<Array<NavSection>>([])
   const [isLoading, setIsLoading] = React.useState<boolean>(true)
 
+  // Track whether we've ever computed a layout (for debounce logic)
+  const hasInitialLayout = React.useRef(false);
+
   /**
-   * Renders the full layout divided by the API groups
+   * Renders the full layout divided by the API groups.
+   * During active sync, debounce updates by 500ms to avoid re-computing
+   * the full sidebar layout on every informer state change.
    */
   React.useEffect(() => {
     if (!groups.data) {
       return
     }
 
-    setIsLoading(true)
+    const compute = () => {
+      setIsLoading(true)
+      switch (settings['kubernetes.layout']) {
+        case "modern":
+          setLayout(calculateModernLayout(groups.data!, informerStates))
+          break
+        case "full":
+          setLayout(calculateFullLayout(groups.data!, informerStates))
+          break
+        default:
+          setLayout(calculateModernLayout(groups.data!, informerStates))
+          break
+      }
+      setIsLoading(false)
+      hasInitialLayout.current = true;
+    };
 
-    switch (settings['kubernetes.layout']) {
-      case "modern":
-        setLayout(calculateModernLayout(groups.data, informerStates))
-        break
-      case "full":
-        setLayout(calculateFullLayout(groups.data, informerStates))
-        break
-      default:
-        setLayout(calculateModernLayout(groups.data, informerStates))
-        break
+    // No debounce on first layout or when fully synced
+    if (!hasInitialLayout.current || isFullySynced) {
+      compute();
+      return;
     }
-    setIsLoading(false)
-  }, [groups.data, settings['kubernetes.layout'], informerStates])
+
+    // Debounce during active sync to avoid hundreds of recalculations
+    const timer = setTimeout(compute, 500);
+    return () => clearTimeout(timer);
+  }, [groups.data, settings['kubernetes.layout'], informerStates, isFullySynced])
 
   return {
     layout,
