@@ -1,10 +1,6 @@
-import { SearchRounded, Clear } from '@mui/icons-material';
 import { TextField } from '@omniviewdev/ui/inputs';
 import React from 'react';
-
-// @omniviewdev/ui
-
-// Icons
+import { LuSearch, LuX } from 'react-icons/lu';
 
 type Props = {
   /** Placeholder for the search input. */
@@ -28,7 +24,7 @@ const SearchInput: React.FC<Props> = ({ placeholder, value, onChange, autoFocus 
   // Recompute only if the value changes
   const hasValue = React.useMemo(() => value !== '', [value]);
   const endAdornment = React.useMemo(
-    () => (hasValue ? <Clear onClick={handleClear} sx={{ cursor: 'pointer' }} /> : null),
+    () => (hasValue ? <LuX onClick={handleClear} style={{ cursor: 'pointer' }} /> : null),
     [hasValue, handleClear],
   );
 
@@ -40,20 +36,20 @@ const SearchInput: React.FC<Props> = ({ placeholder, value, onChange, autoFocus 
       placeholder={placeholder ?? 'Search'}
       // eslint-disable-next-line jsx-a11y/no-autofocus
       autoFocus={autoFocus}
-      startAdornment={<SearchRounded color="primary" />}
+      startAdornment={<LuSearch />}
       endAdornment={endAdornment}
       value={value}
       onChange={(e) => {
         onChange(e);
       }}
       sx={{
-        flexBasis: '500px',
+        flexBasis: '240px',
         display: 'flex',
         boxShadow: 'none',
         minWidth: {
-          md: 400,
-          lg: 400,
-          xl: 500,
+          md: 200,
+          lg: 240,
+          xl: 280,
         },
         '--wails-draggable': 'no-drag',
       }}

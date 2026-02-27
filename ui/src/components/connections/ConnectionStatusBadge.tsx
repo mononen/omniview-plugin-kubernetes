@@ -8,6 +8,7 @@ type Props = {
 
 const ConnectionStatusBadge: React.FC<Props> = ({ isConnected, children }) => (
   <Badge
+    dot
     color="success"
     invisible={!isConnected}
     size="sm"

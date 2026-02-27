@@ -29,13 +29,13 @@ const ColumnPicker: React.FC<Props> = ({ allColumns, visibleColumns, onToggleCol
   return (
     <>
       <IconButton
-        size="sm"
+        size="xs"
         emphasis="ghost"
         color="neutral"
         onClick={() => setOpen((prev) => !prev)}
         title="Select visible columns"
       >
-        <LuColumns3 size={14} />
+        <LuColumns3 size={12} />
       </IconButton>
       {open && (
         <>

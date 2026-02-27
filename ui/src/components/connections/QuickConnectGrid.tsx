@@ -4,8 +4,8 @@ import { TextField } from '@omniviewdev/ui/inputs';
 import { Stack } from '@omniviewdev/ui/layout';
 import { Tooltip } from '@omniviewdev/ui/overlays';
 import { Text } from '@omniviewdev/ui/typography';
-import React, { useMemo, useState } from 'react';
-import { LuSearch, LuFolderPlus } from 'react-icons/lu';
+import React, { useEffect, useMemo, useState } from 'react';
+import { LuSearch, LuFolderPlus, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
 
 import type { EnrichedConnection } from '../../types/clusters';
 
@@ -24,7 +24,9 @@ const QuickConnectGrid: React.FC<Props> = ({
   onToggleFavorite,
   onCreateFolder,
 }) => {
+  const PAGE_SIZE = 40;
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -44,6 +46,14 @@ const QuickConnectGrid: React.FC<Props> = ({
     });
   }, [connections, search]);
 
+  // Reset to first page when filtered results change
+  useEffect(() => {
+    setPage(0);
+  }, [filtered.length]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   return (
     <Stack gap={1} sx={{ px: 0.5, pt: 0.5 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
@@ -62,16 +72,43 @@ const QuickConnectGrid: React.FC<Props> = ({
             </Tooltip>
           )}
         </Stack>
-        <TextField
-          size="sm"
-          placeholder="Search clusters..."
-          startAdornment={<LuSearch size={14} />}
-          value={search}
-          onChange={(e) => setSearch(e)}
-          // eslint-disable-next-line jsx-a11y/no-autofocus
-          autoFocus
-          sx={{ maxWidth: 240 }}
-        />
+        <Stack direction="row" alignItems="center" gap={0.75}>
+          {totalPages > 1 && (
+            <Stack direction="row" alignItems="center" gap={0.25}>
+              <IconButton
+                size="sm"
+                emphasis="ghost"
+                color="neutral"
+                disabled={page === 0}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                <LuChevronLeft size={16} />
+              </IconButton>
+              <Text size="xs" sx={{ color: 'var(--ov-fg-muted)', whiteSpace: 'nowrap' }}>
+                {page + 1} / {totalPages}
+              </Text>
+              <IconButton
+                size="sm"
+                emphasis="ghost"
+                color="neutral"
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                <LuChevronRight size={16} />
+              </IconButton>
+            </Stack>
+          )}
+          <TextField
+            size="sm"
+            placeholder="Search clusters..."
+            startAdornment={<LuSearch size={14} />}
+            value={search}
+            onChange={(e) => setSearch(e)}
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus
+            sx={{ maxWidth: 240 }}
+          />
+        </Stack>
       </Stack>
       {filtered.length === 0 ? (
         <Text size="sm" sx={{ textAlign: 'center', py: 3, opacity: 0.5 }}>
@@ -81,11 +118,11 @@ const QuickConnectGrid: React.FC<Props> = ({
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
             gap: 1,
           }}
         >
-          {filtered.map((enriched) => (
+          {paged.map((enriched) => (
             <RowHandler
               key={enriched.connection.id}
               enriched={enriched}

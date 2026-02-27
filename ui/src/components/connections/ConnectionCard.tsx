@@ -51,7 +51,7 @@ const ConnectionCard: React.FC<Props> = ({
       }}
       onClick={onClick}
     >
-      <Stack gap={1.5}>
+      <Stack gap={0.75}>
         {/* Header row */}
         <Stack direction="row" alignItems="center" gap={1}>
           <ConnectionStatusBadge isConnected={isConnected}>
@@ -83,41 +83,46 @@ const ConnectionCard: React.FC<Props> = ({
           <FavoriteButton isFavorite={isFavorite} onToggle={onToggleFavorite} />
         </Stack>
 
-        {/* Details */}
-        <Stack gap={0.5}>
-          <Stack direction="row" alignItems="center" gap={0.75}>
-            <ProviderIcon provider={provider} size={14} />
-            <Text size="xs">{String(connection.labels?.cluster ?? '')}</Text>
+        {/* Details + context menu */}
+        <Stack direction="row" alignItems="flex-end" gap={0.5}>
+          <Stack gap={0.25} sx={{ flex: 1, minWidth: 0 }}>
+            <Stack direction="row" alignItems="center" gap={0.75}>
+              <ProviderIcon provider={provider} size={14} />
+              <Text size="xs">{String(connection.labels?.cluster ?? '')}</Text>
+            </Stack>
+            {connection.labels?.kubeconfig && (
+              <Text size="xs" noWrap sx={{ opacity: 0.6 }}>
+                {String(connection.labels.kubeconfig)}
+              </Text>
+            )}
+            {connection.labels?.user && (
+              <Text size="xs" sx={{ opacity: 0.6 }}>
+                {String(connection.labels.user)}
+              </Text>
+            )}
           </Stack>
-          {connection.labels?.kubeconfig && (
-            <Text size="xs" noWrap sx={{ opacity: 0.6 }}>
-              {String(connection.labels.kubeconfig)}
-            </Text>
-          )}
-          {connection.labels?.user && (
-            <Text size="xs" sx={{ opacity: 0.6 }}>
-              {String(connection.labels.user)}
-            </Text>
-          )}
-        </Stack>
-
-        {/* Footer */}
-        <Stack direction="row" justifyContent="flex-end" onClick={(e) => e.stopPropagation()}>
-          <ConnectionContextMenu
-            connectionId={connection.id}
-            connectionName={displayName}
-            isConnected={isConnected}
-            isFavorite={isFavorite}
-            customGroups={customGroups}
-            onConnect={onConnect}
-            onDisconnect={onDisconnect}
-            onToggleFavorite={onToggleFavorite}
-            onAssignToGroup={onAssignToGroup}
-            onRemoveFromGroup={onRemoveFromGroup}
-            onCreateFolder={onCreateFolder}
-            onCopyId={onCopyId}
-            onDelete={onDelete}
-          />
+          <Stack
+            direction="row"
+            alignItems="center"
+            sx={{ flexShrink: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ConnectionContextMenu
+              connectionId={connection.id}
+              connectionName={displayName}
+              isConnected={isConnected}
+              isFavorite={isFavorite}
+              customGroups={customGroups}
+              onConnect={onConnect}
+              onDisconnect={onDisconnect}
+              onToggleFavorite={onToggleFavorite}
+              onAssignToGroup={onAssignToGroup}
+              onRemoveFromGroup={onRemoveFromGroup}
+              onCreateFolder={onCreateFolder}
+              onCopyId={onCopyId}
+              onDelete={onDelete}
+            />
+          </Stack>
         </Stack>
       </Stack>
     </Card>

@@ -142,7 +142,7 @@ const HubSection: React.FC<Props> = ({
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
               gap: 1,
               py: 0.5,
               px: 0.5,

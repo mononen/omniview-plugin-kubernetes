@@ -1,4 +1,6 @@
 import Box from '@mui/material/Box';
+import { IconButton } from '@omniviewdev/ui/buttons';
+import { LuChevronLeft, LuChevronRight } from 'react-icons/lu';
 import {
   usePluginContext,
   useConnection,
@@ -153,11 +155,12 @@ const GridCardWrapper: React.FC<{
 
 /* ---- shared table styles ---- */
 const thSx: React.CSSProperties = {
-  padding: '4px 8px',
+  padding: '2px 8px',
   textAlign: 'left',
   verticalAlign: 'middle',
   borderBottom: '1px solid var(--ov-border-default, rgba(255,255,255,0.08))',
   whiteSpace: 'nowrap',
+  height: 28,
 };
 
 const ConnectionTable: React.FC<Props> = ({
@@ -180,48 +183,98 @@ const ConnectionTable: React.FC<Props> = ({
   const allConnections = grouped.groups.flatMap((g) => g.connections);
   const isFlat = groupBy === 'none';
 
+  const PAGE_SIZE = 40;
+  const [page, setPage] = React.useState(0);
+
+  // Reset to first page when source data changes
+  const dataKey = grouped.groups.map((g) => g.key).join(',');
+  React.useEffect(() => {
+    setPage(0);
+  }, [dataKey]);
+
   if (viewMode === 'grid') {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {grouped.groups.map((group) => (
-          <ConnectionGroupComp
-            key={group.key}
-            groupKey={group.key}
-            label={group.label}
-            count={group.connections.length}
-            provider={group.provider}
-            isCollapsed={collapsedGroups.has(group.key)}
-            onToggleCollapse={() => onToggleCollapse(group.key)}
-            hideHeader={isFlat}
-          >
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: 1.5,
-                p: isFlat ? 0 : 1,
-              }}
+        {grouped.groups.map((group) => {
+          // Paginate only flat (ungrouped) views
+          const connections = isFlat
+            ? group.connections.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+            : group.connections;
+          const totalPages = isFlat ? Math.ceil(group.connections.length / PAGE_SIZE) : 1;
+
+          return (
+            <ConnectionGroupComp
+              key={group.key}
+              groupKey={group.key}
+              label={group.label}
+              count={group.connections.length}
+              provider={group.provider}
+              isCollapsed={collapsedGroups.has(group.key)}
+              onToggleCollapse={() => onToggleCollapse(group.key)}
+              hideHeader={isFlat}
             >
-              {group.connections.map((enriched) => (
-                <GridCardWrapper
-                  key={enriched.connection.id}
-                  enriched={enriched}
-                  customGroups={customGroups}
-                  onToggleFavorite={() => onToggleFavorite(enriched.connection.id)}
-                  onAssignToGroup={(gId) => onAssignToGroup(gId, enriched.connection.id)}
-                  onRemoveFromGroup={
-                    onRemoveFromGroup
-                      ? (gId) => onRemoveFromGroup(gId, enriched.connection.id)
-                      : undefined
-                  }
-                  onCreateFolder={onCreateFolder}
-                  onDelete={() => onDeleteRequest(enriched.connection.id, enriched.displayName)}
-                  onRecordAccess={() => onRecordAccess(enriched.connection.id)}
-                />
-              ))}
-            </Box>
-          </ConnectionGroupComp>
-        ))}
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
+                  gap: 1.5,
+                  p: isFlat ? 0 : 1,
+                }}
+              >
+                {connections.map((enriched) => (
+                  <GridCardWrapper
+                    key={enriched.connection.id}
+                    enriched={enriched}
+                    customGroups={customGroups}
+                    onToggleFavorite={() => onToggleFavorite(enriched.connection.id)}
+                    onAssignToGroup={(gId) => onAssignToGroup(gId, enriched.connection.id)}
+                    onRemoveFromGroup={
+                      onRemoveFromGroup
+                        ? (gId) => onRemoveFromGroup(gId, enriched.connection.id)
+                        : undefined
+                    }
+                    onCreateFolder={onCreateFolder}
+                    onDelete={() => onDeleteRequest(enriched.connection.id, enriched.displayName)}
+                    onRecordAccess={() => onRecordAccess(enriched.connection.id)}
+                  />
+                ))}
+              </Box>
+              {isFlat && totalPages > 1 && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 1,
+                    py: 1.5,
+                  }}
+                >
+                  <IconButton
+                    size="sm"
+                    emphasis="ghost"
+                    color="neutral"
+                    disabled={page === 0}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    <LuChevronLeft size={16} />
+                  </IconButton>
+                  <Text size="sm" sx={{ color: 'var(--ov-fg-muted)' }}>
+                    Page {page + 1} of {totalPages}
+                  </Text>
+                  <IconButton
+                    size="sm"
+                    emphasis="ghost"
+                    color="neutral"
+                    disabled={page >= totalPages - 1}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    <LuChevronRight size={16} />
+                  </IconButton>
+                </Box>
+              )}
+            </ConnectionGroupComp>
+          );
+        })}
       </Box>
     );
   }
@@ -263,9 +316,9 @@ const ConnectionTable: React.FC<Props> = ({
             >
               <thead>
                 <tr
-                  style={{ backgroundColor: 'var(--ov-bg-surface-inset, rgba(255,255,255,0.02))' }}
+                  style={{ backgroundColor: 'var(--ov-bg-surface-inset, rgba(255,255,255,0.02))', height: 28 }}
                 >
-                  <th style={{ ...thSx, width: 32, padding: '4px' }} />
+                  <th style={{ ...thSx, width: 32, padding: '2px 4px' }} />
                   <th style={{ ...thSx, width: '40%' }}>
                     <Text
                       size="xs"
@@ -300,7 +353,7 @@ const ConnectionTable: React.FC<Props> = ({
                       </Text>
                     </th>
                   ))}
-                  <th style={{ ...thSx, width: 36, position: 'relative', textAlign: 'right' }}>
+                  <th style={{ ...thSx, width: 36, padding: '0 4px', position: 'relative', textAlign: 'right' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', position: 'relative' }}>
                       <ColumnPicker
                         allColumns={allLabelKeys}
