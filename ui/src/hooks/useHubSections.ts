@@ -6,6 +6,7 @@ import type {
   HubSectionConfig,
   HubSectionType,
 } from '../types/clusters';
+import { computeEffectiveMembers } from '../utils/folderRules';
 
 export interface HubSectionData {
   config: HubSectionConfig;
@@ -121,7 +122,7 @@ export function useHubSections({
                 variant: 'list' as const,
               };
             }
-            const memberSet = new Set(group.connectionIds);
+            const memberSet = computeEffectiveMembers(group.connectionIds, group.ruleSet, enrichedConnections);
             return {
               config,
               title: group.name,

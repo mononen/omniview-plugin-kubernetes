@@ -4,6 +4,7 @@ import { useCallback, useMemo } from 'react';
 import type {
   ConnectionOverride,
   ConnectionGroup,
+  FolderRuleSet,
   RecentEntry,
   HubSectionConfig,
 } from '../types/clusters';
@@ -132,7 +133,7 @@ export function useClusterPreferences(pluginID: string) {
   );
 
   const updateGroup = useCallback(
-    async (groupId: string, updates: { name?: string; color?: string; icon?: string; customImage?: string }) => {
+    async (groupId: string, updates: { name?: string; color?: string; icon?: string; customImage?: string; ruleSet?: FolderRuleSet }) => {
       const current = customGroups ?? [];
       await setCustomGroups(
         current.map((g) => {

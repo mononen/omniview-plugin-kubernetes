@@ -16,6 +16,7 @@ import type {
 } from '../types/clusters';
 import { LEGACY_GROUP_ALIASES, LEGACY_SORT_ALIASES } from '../types/clusters';
 import { detectProvider, getProviderLabel } from '../utils/providers';
+import { computeEffectiveMembers } from '../utils/folderRules';
 
 interface UseConnectionGroupingOpts {
   connections: types.Connection[];
@@ -219,7 +220,8 @@ function groupConnections(
     const assigned = new Set<string>();
 
     for (const group of customGroups) {
-      const groupConns = connections.filter((c) => group.connectionIds.includes(c.connection.id));
+      const memberSet = computeEffectiveMembers(group.connectionIds, group.ruleSet, connections);
+      const groupConns = connections.filter((c) => memberSet.has(c.connection.id));
       if (groupConns.length > 0) {
         groups.push({ key: group.id, label: group.name, connections: groupConns });
         groupConns.forEach((c) => assigned.add(c.connection.id));

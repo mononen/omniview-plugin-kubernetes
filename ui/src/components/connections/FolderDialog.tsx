@@ -5,17 +5,21 @@ import { TextField, FormField } from '@omniviewdev/ui/inputs';
 import { Stack } from '@omniviewdev/ui/layout';
 import { Modal } from '@omniviewdev/ui/overlays';
 import { Text } from '@omniviewdev/ui/typography';
-import React, { useState, useRef, useMemo } from 'react';
-import { LuUpload, LuX, LuImage } from 'react-icons/lu';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
+import { LuUpload, LuX, LuImage, LuChevronDown, LuChevronRight } from 'react-icons/lu';
 
+import type { EnrichedConnection, FolderRuleSet } from '../../types/clusters';
 import { processImageFile } from '../../utils/avatarUtils';
 import { FOLDER_ICON_MAP, PRESET_COLORS } from '../../utils/folderIcons';
+import { compileRuleSet, matchConnections } from '../../utils/folderRules';
+import RuleBuilder from './RuleBuilder';
 
 export interface FolderDialogValues {
   name: string;
   color: string;
   icon: string;
   customImage?: string;
+  ruleSet?: FolderRuleSet;
 }
 
 type Props = {
@@ -23,6 +27,7 @@ type Props = {
   mode: 'create' | 'edit';
   initial?: Partial<FolderDialogValues>;
   existingNames?: string[];
+  enrichedConnections?: EnrichedConnection[];
   onSubmit: (values: FolderDialogValues) => void;
   onDelete?: () => void;
   onClose: () => void;
@@ -116,11 +121,14 @@ const PresetIconButton: React.FC<{
 
 // ── Main component ───────────────────────────────────────────────────────────
 
+const EMPTY_RULE_SET: FolderRuleSet = { logic: 'and', rules: [] };
+
 const FolderDialog: React.FC<Props> = ({
   open,
   mode,
   initial,
   existingNames = [],
+  enrichedConnections = [],
   onSubmit,
   onDelete,
   onClose,
@@ -134,7 +142,52 @@ const FolderDialog: React.FC<Props> = ({
   const [iconTab, setIconTab] = useState<IconTab>(initial?.customImage ? 'custom' : 'icons');
   const [dragOver, setDragOver] = useState(false);
   const [imageError, setImageError] = useState('');
+  const [ruleSet, setRuleSet] = useState<FolderRuleSet>(initial?.ruleSet ?? EMPTY_RULE_SET);
+  const [rulesExpanded, setRulesExpanded] = useState((initial?.ruleSet?.rules.length ?? 0) > 0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Rules helpers ───────────────────────────────────────────────────────
+
+  const availableFields = useMemo(() => {
+    const fields: { value: string; label: string }[] = [
+      { value: 'name', label: 'Name' },
+      { value: 'id', label: 'ID' },
+      { value: 'provider', label: 'Provider' },
+      { value: 'isConnected', label: 'Connected' },
+      { value: 'tag', label: 'Tag' },
+    ];
+    const labelKeys = new Set<string>();
+    const dataKeys = new Set<string>();
+    for (const conn of enrichedConnections) {
+      if (conn.connection.labels) {
+        for (const key of Object.keys(conn.connection.labels)) labelKeys.add(key);
+      }
+      if (conn.connection.data) {
+        for (const key of Object.keys(conn.connection.data as Record<string, unknown>)) dataKeys.add(key);
+      }
+    }
+    for (const key of [...labelKeys].sort()) {
+      fields.push({ value: `label:${key}`, label: `Label: ${key}` });
+    }
+    for (const key of [...dataKeys].sort()) {
+      fields.push({ value: `data:${key}`, label: `Data: ${key}` });
+    }
+    return fields;
+  }, [enrichedConnections]);
+
+  const matchCount = useMemo(() => {
+    if (ruleSet.rules.length === 0) return 0;
+    const compiled = compileRuleSet(ruleSet);
+    return matchConnections(compiled, enrichedConnections).size;
+  }, [ruleSet, enrichedConnections]);
+
+  const handleRuleSetChange = useCallback((rs: FolderRuleSet) => {
+    setRuleSet(rs);
+  }, []);
+
+  const toggleRulesExpanded = useCallback(() => {
+    setRulesExpanded((prev) => !prev);
+  }, []);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -208,6 +261,7 @@ const FolderDialog: React.FC<Props> = ({
       color,
       icon,
       customImage: iconTab === 'custom' ? customImage : undefined,
+      ruleSet: ruleSet.rules.length > 0 ? ruleSet : undefined,
     });
   };
 
@@ -411,6 +465,35 @@ const FolderDialog: React.FC<Props> = ({
                     </Text>
                   )}
                 </Stack>
+              )}
+            </Stack>
+
+            {/* Auto-match Rules (collapsible) */}
+            <Stack gap={0.75}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                gap={0.5}
+                onClick={toggleRulesExpanded}
+                sx={{ cursor: 'pointer', userSelect: 'none' }}
+              >
+                {rulesExpanded ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}
+                <Text weight="semibold" size="sm">
+                  Auto-match Rules
+                </Text>
+                {ruleSet.rules.length > 0 && (
+                  <Text size="xs" sx={{ opacity: 0.5 }}>
+                    ({ruleSet.rules.length})
+                  </Text>
+                )}
+              </Stack>
+              {rulesExpanded && (
+                <RuleBuilder
+                  ruleSet={ruleSet}
+                  onChange={handleRuleSetChange}
+                  matchCount={matchCount}
+                  availableFields={availableFields}
+                />
               )}
             </Stack>
           </Stack>

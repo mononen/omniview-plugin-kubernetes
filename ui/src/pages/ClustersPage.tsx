@@ -217,7 +217,7 @@ export default function ClustersPage(): React.ReactElement {
       setFolderDialog({
         mode: 'edit',
         groupId,
-        initial: { name: group.name, color: group.color, icon: group.icon, customImage: group.customImage },
+        initial: { name: group.name, color: group.color, icon: group.icon, customImage: group.customImage, ruleSet: group.ruleSet },
       });
     },
     [preferences.customGroups],
@@ -226,7 +226,7 @@ export default function ClustersPage(): React.ReactElement {
   const handleFolderSubmit = React.useCallback(
     async (values: FolderDialogValues) => {
       if (folderDialog?.mode === 'edit' && folderDialog.groupId) {
-        await preferences.updateGroup(folderDialog.groupId, values);
+        await preferences.updateGroup(folderDialog.groupId, { ...values, ruleSet: values.ruleSet });
         showSnackbar({ status: 'success', message: `Folder '${values.name}' updated` });
       } else {
         const newGroup: ConnectionGroup = {
@@ -238,6 +238,7 @@ export default function ClustersPage(): React.ReactElement {
           connectionIds: folderDialog?.pendingConnectionId
             ? [folderDialog.pendingConnectionId]
             : [],
+          ruleSet: values.ruleSet,
         };
         await preferences.addGroup(newGroup);
         showSnackbar({ status: 'success', message: `Folder '${values.name}' created` });
@@ -402,6 +403,7 @@ export default function ClustersPage(): React.ReactElement {
           mode={folderDialog.mode}
           initial={folderDialog.initial}
           existingNames={preferences.customGroups.map((g) => g.name)}
+          enrichedConnections={hubEnriched}
           onSubmit={(values) => { void handleFolderSubmit(values); }}
           onDelete={folderDialog.mode === 'edit' ? () => { void handleFolderDelete(); } : undefined}
           onClose={() => setFolderDialog(null)}

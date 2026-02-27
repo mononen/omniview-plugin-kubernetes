@@ -37,6 +37,33 @@ export interface FilterState {
   labels?: Record<string, string[]>;
 }
 
+// ── Folder auto-match rule types ──────────────────────────────────────────────
+
+export type RuleField =
+  | 'name' | 'id' | 'provider' | 'tag' | 'isConnected'
+  | `label:${string}`
+  | `data:${string}`;
+
+export type RuleOperator =
+  | 'equals' | 'not_equals' | 'contains' | 'not_contains'
+  | 'matches_regex' | 'exists' | 'not_exists';
+
+export interface FolderRule {
+  id: string;
+  field: RuleField;
+  operator: RuleOperator;
+  value: string;
+}
+
+export type RuleLogic = 'and' | 'or';
+
+export interface FolderRuleSet {
+  logic: RuleLogic;
+  rules: FolderRule[];
+}
+
+// ── Connection group ──────────────────────────────────────────────────────────
+
 export interface ConnectionGroup {
   id: string;
   name: string;
@@ -44,6 +71,7 @@ export interface ConnectionGroup {
   icon?: string;
   customImage?: string; // data URI (data:image/png;base64,... or data:image/svg+xml;base64,...)
   connectionIds: string[];
+  ruleSet?: FolderRuleSet;
 }
 
 export interface MetricConfig {
