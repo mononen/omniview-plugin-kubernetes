@@ -20,19 +20,25 @@ const selectCellCheckboxSx = {
 
 /**
  * Render a selectbox for a row of the generic resource table.
+ *
+ * IMPORTANT: `checked` is passed as a primitive boolean prop rather than being
+ * read via `row.getIsSelected()` inside this component. This is required
+ * because the React Compiler auto-memoizes component output based on prop
+ * identity. Since the TanStack `row` object reference is stable (the row
+ * model is cached when only selection state changes), the compiler would
+ * treat re-renders as no-ops and produce a stale `checked` value.
+ * By receiving a primitive boolean, the compiler correctly detects the change.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const SelectCell = ({ row }: { row: Row<any> }) => (
-  <Box
-    sx={selectCellContainerSx}
-  >
+export const SelectCell = ({ row, checked }: { row: Row<any>; checked: boolean }) => (
+  <Box sx={selectCellContainerSx}>
     <Checkbox
       size="small"
-      checked={row.getIsSelected()}
-      onChange={(event) => {
-        row.toggleSelected(event.target.checked);
+      checked={checked}
+      onChange={(_event, value) => {
+        row.toggleSelected(value);
       }}
-      aria-label="Select node"
+      aria-label="Select row"
       sx={selectCellCheckboxSx}
     />
   </Box>

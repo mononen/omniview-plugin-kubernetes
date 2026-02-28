@@ -91,8 +91,20 @@ const parseColumnDef = ({
   const defs: Array<ColumnDef<Record<string, unknown>>> = [
     {
       id: 'select',
-      header: SelectBoxHeader,
-      cell: SelectBoxRow,
+      header: ({ table }) => {
+        'use no memo';
+        return (
+          <SelectBoxHeader
+            checked={table.getIsAllPageRowsSelected()}
+            indeterminate={table.getIsSomePageRowsSelected()}
+            onToggle={(checked: boolean) => table.toggleAllPageRowsSelected(checked)}
+          />
+        );
+      },
+      cell: ({ row, table }) => {
+        'use no memo';
+        return <SelectBoxRow row={row} checked={!!table.getState().rowSelection[row.id]} />;
+      },
       size: 40,
       enableSorting: false,
       enableHiding: false,

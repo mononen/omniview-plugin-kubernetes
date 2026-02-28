@@ -33,6 +33,7 @@ export const RowContainer: React.FC<Props> = ({
   row,
   onRowClick,
 }) => {
+  'use no memo';
   const resizedSet: Set<string> = React.useMemo(
     () => new Set(JSON.parse(resizedColumnIds) as string[]),
     [resizedColumnIds],

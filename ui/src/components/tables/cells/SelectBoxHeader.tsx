@@ -1,6 +1,5 @@
 import Box from '@mui/material/Box';
 import { Checkbox } from '@omniviewdev/ui/inputs';
-import { type Table } from '@tanstack/react-table';
 
 // ---------------------------------------------------------------------------
 // Static styles
@@ -14,15 +13,24 @@ const selectBoxSx = {
   maxWidth: 24,
 } as const;
 
-export const SelectBoxHeader = ({ table }: { table: Table<Record<string, unknown>> }) => (
+export const SelectBoxHeader = ({
+  checked,
+  indeterminate,
+  onToggle,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  onToggle: (checked: boolean) => void;
+}) => (
   <Box sx={selectBoxSx}>
     <Checkbox
       size="sm"
-      checked={table.getIsAllPageRowsSelected()}
-      onChange={(checked) => {
-        table.toggleAllPageRowsSelected(checked);
+      checked={checked}
+      indeterminate={indeterminate}
+      onChange={(value) => {
+        onToggle(value);
       }}
-      aria-label="Select all nodes"
+      aria-label="Select all rows"
     />
   </Box>
 );

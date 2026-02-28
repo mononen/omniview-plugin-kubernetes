@@ -43,6 +43,7 @@ export const RowContainer: React.FC<Props> = ({
   isSelected,
   row,
 }) => {
+  'use no memo';
   // const { showResourceSidebar } = useRightDrawer();
 
   // Use the provided ref callback to measure items

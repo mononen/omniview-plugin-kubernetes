@@ -537,7 +537,7 @@ const ResourceTableContainer: React.FC<Props> = ({
                 memoizer={memoizer}
                 virtualizer={virtualizer}
                 virtualRow={virtualRow}
-                isSelected={rowSelection[row.id]}
+                isSelected={!!rowSelection[row.id]}
                 columnVisibility={JSON.stringify(columnVisibility)}
               />
             );

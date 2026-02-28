@@ -1,6 +1,5 @@
 import Box from '@mui/material/Box';
 import Checkbox from '@mui/material/Checkbox';
-import { type Table } from '@tanstack/react-table';
 
 const selectHeaderContainerSx = {
   display: 'flex',
@@ -20,20 +19,29 @@ const selectHeaderCheckboxSx = {
 
 /**
  * Render a selectbox for the header of the generic resource table.
+ *
+ * Accepts primitive props (`checked`, `indeterminate`, `onToggle`) rather than
+ * reading from the TanStack `table` instance directly. This ensures the React
+ * Compiler correctly detects state changes — see selectColumn.tsx for details.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const SelectBoxHeader = ({ table }: { table: Table<any> }) => (
-  <Box
-    sx={selectHeaderContainerSx}
-  >
+export const SelectBoxHeader = ({
+  checked,
+  indeterminate,
+  onToggle,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  onToggle: (checked: boolean) => void;
+}) => (
+  <Box sx={selectHeaderContainerSx}>
     <Checkbox
       size="small"
-      checked={table.getIsAllPageRowsSelected()}
-      indeterminate={table.getIsSomePageRowsSelected()}
-      onChange={(event) => {
-        table.toggleAllPageRowsSelected(event.target.checked);
+      checked={checked}
+      indeterminate={indeterminate}
+      onChange={(_event, value) => {
+        onToggle(value);
       }}
-      aria-label="Select all nodes"
+      aria-label="Select all rows"
       sx={selectHeaderCheckboxSx}
     />
   </Box>

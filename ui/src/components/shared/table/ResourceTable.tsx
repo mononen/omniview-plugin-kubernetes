@@ -112,6 +112,7 @@ import ResourceTableBody from './ResourceTableBody';
 import { TableDrawerContext } from './TableDrawerContext';
 import { ColumnMeta } from './types';
 import { useColumnSizeVars } from './useColumnSizeVars';
+import { useRowSelectionCleanup } from './useRowSelectionCleanup';
 import { getCommonPinningStyles } from './utils';
 
 
@@ -249,6 +250,16 @@ const ResourceTableContainer: React.FC<Props> = ({
     resourceKey,
     idAccessor: 'metadata.uid',
   });
+
+  // Prune stale entries from rowSelection when resources are deleted (e.g. during
+  // rolling updates). Orphaned UIDs in rowSelection cause the header "select all"
+  // checkbox and per-row checkboxes to desync from the actual row highlight state.
+  useRowSelectionCleanup(
+    resources.data?.result || defaultData,
+    'metadata.uid',
+    setRowSelection,
+  );
+
   const showSyncingIndicator = isSyncing && (resources.data?.result?.length ?? 0) > 0;
   const { labels, setLabels, annotations, setAnnotations, columnDefs } = useDynamicResourceColumns({
     connectionID,

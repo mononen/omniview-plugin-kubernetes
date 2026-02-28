@@ -14,15 +14,15 @@ const selectBoxSx = {
   maxWidth: 24,
 } as const;
 
-export const SelectBoxRow = ({ row }: { row: Row<Record<string, unknown>> }) => (
+export const SelectBoxRow = ({ row, checked }: { row: Row<Record<string, unknown>>; checked: boolean }) => (
   <Box sx={selectBoxSx}>
     <Checkbox
       size="sm"
-      checked={row.getIsSelected()}
-      onChange={(checked) => {
-        row.toggleSelected(checked);
+      checked={checked}
+      onChange={(value) => {
+        row.toggleSelected(value);
       }}
-      aria-label="Select node"
+      aria-label="Select row"
     />
   </Box>
 );
