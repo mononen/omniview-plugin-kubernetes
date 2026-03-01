@@ -14,6 +14,18 @@ const config: StorybookConfig = {
   framework: {
     name: "@storybook/react-vite",
     options: {},
-  }
+  },
+
+  viteFinal(config) {
+    // Strip the omniviewExternals plugin so Storybook resolves real modules
+    // from node_modules instead of window.__OMNIVIEW_SHARED__ shims.
+    config.plugins = (config.plugins ?? []).filter((p) => {
+      const name = p && typeof p === 'object' && 'name' in p
+        ? (p as { name: string }).name
+        : undefined;
+      return !name?.startsWith('omniview-');
+    });
+    return config;
+  },
 };
 export default config;
