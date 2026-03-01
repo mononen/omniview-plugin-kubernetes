@@ -1,6 +1,5 @@
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
 import { Chip, ClipboardText } from '@omniviewdev/ui';
 import { Stack } from '@omniviewdev/ui/layout';
 import { Text } from '@omniviewdev/ui/typography';
@@ -9,6 +8,7 @@ import type { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
 
 import ConditionChip from '../../../../../shared/ConditionChip';
+import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ResourceLinkChip from '../../../../../shared/ResourceLinkChip';
 
 const sectionBorderSx = {
@@ -32,8 +32,6 @@ const bodyBgSx = {
   bgcolor: 'background.level1',
 } as const;
 
-const entryGridSx = { minHeight: 22, alignItems: 'center' } as const;
-const entryLabelSx = { color: 'neutral.300' } as const;
 const entryValueSx = { fontWeight: 600, fontSize: 12 } as const;
 const chipSx = { borderRadius: 1 } as const;
 const cidrValueSx = {
@@ -57,29 +55,6 @@ const typeColor = (
     default:
       return 'neutral';
   }
-};
-
-const StatusEntry: React.FC<{
-  label: string;
-  value?: string | React.ReactNode;
-}> = ({ label, value }) => {
-  if (value === undefined || value === null) return null;
-  return (
-    <Grid container spacing={0} sx={entryGridSx}>
-      <Grid size={3}>
-        <Text sx={entryLabelSx} size="xs">
-          {label}
-        </Text>
-      </Grid>
-      <Grid size={9}>
-        {typeof value === 'string' ? (
-          <ClipboardText value={value} variant="inherit" sx={entryValueSx} />
-        ) : (
-          value
-        )}
-      </Grid>
-    </Grid>
-  );
 };
 
 interface Props {
@@ -119,10 +94,10 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
         </Stack>
         {conditions && conditions.length > 0 && (
           <Stack direction="row" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
-            {conditions.map((condition) => (
+            {(conditions as Condition[]).map((condition) => (
               <ConditionChip
                 key={condition.type}
-                condition={condition as unknown as Condition}
+                condition={condition}
               />
             ))}
           </Stack>
@@ -131,10 +106,10 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
       <Divider />
       <Box sx={bodyBgSx}>
         {clusterIP && clusterIP !== 'None' && (
-          <StatusEntry label="Cluster IP" value={clusterIP} />
+          <LabeledEntry labelSize={3} label="Cluster IP" value={clusterIP} />
         )}
         {clusterIP === 'None' && (
-          <StatusEntry
+          <LabeledEntry labelSize={3}
             label="Cluster IP"
             value={
               <Chip size="xs" emphasis="outline" color="neutral" sx={chipSx} label="None (Headless)" />
@@ -142,7 +117,7 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
           />
         )}
         {clusterIPs && clusterIPs.length > 1 && (
-          <StatusEntry
+          <LabeledEntry labelSize={3}
             label="Cluster IPs"
             value={
               <Stack direction="row" gap={0.5} flexWrap="wrap">
@@ -154,7 +129,7 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
           />
         )}
         {externalIPs && externalIPs.length > 0 && (
-          <StatusEntry
+          <LabeledEntry labelSize={3}
             label="External IPs"
             value={
               <Stack direction="row" gap={0.5} flexWrap="wrap">
@@ -165,18 +140,18 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
             }
           />
         )}
-        {externalName && <StatusEntry label="External Name" value={externalName} />}
+        {externalName && <LabeledEntry labelSize={3} label="External Name" value={externalName} />}
         {lbIngress && lbIngress.length > 0 &&
           lbIngress.map((ing, i) => (
             <React.Fragment key={ing.hostname || ing.ip || i}>
               {ing.hostname && (
-                <StatusEntry label="LB Hostname" value={ing.hostname} />
+                <LabeledEntry labelSize={3} label="LB Hostname" value={ing.hostname} />
               )}
-              {ing.ip && <StatusEntry label="LB IP" value={ing.ip} />}
+              {ing.ip && <LabeledEntry labelSize={3} label="LB IP" value={ing.ip} />}
             </React.Fragment>
           ))}
         {lbSourceRanges && lbSourceRanges.length > 0 && (
-          <StatusEntry
+          <LabeledEntry labelSize={3}
             label="LB Source Ranges"
             value={
               <Stack direction="row" gap={0.5} flexWrap="wrap">
@@ -188,12 +163,12 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
           />
         )}
         {healthCheckNodePort != null && healthCheckNodePort > 0 && (
-          <StatusEntry label="Health Check Port" value={String(healthCheckNodePort)} />
+          <LabeledEntry labelSize={3} label="Health Check Port" value={String(healthCheckNodePort)} />
         )}
 
         {/* Endpoints link */}
         {connectionID && svcName && (
-          <StatusEntry
+          <LabeledEntry labelSize={3}
             label="Endpoints"
             value={
               <ResourceLinkChip

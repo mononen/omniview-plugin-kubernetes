@@ -27,7 +27,7 @@ export const EndpointSliceSidebar: React.FC<Props> = ({ ctx }) => {
         <EndpointSliceInfoSection slice={slice} />
       </Stack>
 
-      <SliceEndpointsSection endpoints={slice.endpoints} connectionID={connectionID} />
+      <SliceEndpointsSection endpoints={slice.endpoints ?? []} connectionID={connectionID} />
     </Stack>
   );
 };

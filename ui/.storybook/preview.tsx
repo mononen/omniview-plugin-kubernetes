@@ -12,10 +12,6 @@ import { RightDrawerContext, SnackbarProvider } from "@omniviewdev/runtime";
 import { NotificationStackProvider } from "@omniviewdev/ui/feedback";
 import { AppTheme } from "@omniviewdev/ui/theme";
 
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
-});
-
 const noopDrawerContext = {
   openDrawer: () => {},
   closeDrawer: () => {},
@@ -25,7 +21,12 @@ const noopDrawerContext = {
   isOpen: false,
 };
 
-const withProviders = (Story: React.FC) => (
+const withProviders = (Story: React.FC) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
+  });
+
+  return (
   <QueryClientProvider client={queryClient}>
     <AppTheme defaultMode="dark">
       <NotificationStackProvider>
@@ -37,7 +38,8 @@ const withProviders = (Story: React.FC) => (
       </NotificationStackProvider>
     </AppTheme>
   </QueryClientProvider>
-);
+  );
+};
 
 const preview: Preview = {
   parameters: {

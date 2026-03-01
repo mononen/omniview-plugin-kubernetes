@@ -16,6 +16,23 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/** Shared decorator factory — all Service stories use the same container shell. */
+function withDrawer(title: string) {
+  return [
+    (Story: React.FC) => (
+      <ResourceDrawerContainer
+        type="core::v1::Service"
+        icon="LuNetwork"
+        title={title}
+        open
+        onClose={() => {}}
+      >
+        <Story />
+      </ResourceDrawerContainer>
+    ),
+  ];
+}
+
 // -- LoadBalancer (default mock) ------------------------------------------
 
 export const LoadBalancer: Story = {
@@ -25,21 +42,8 @@ export const LoadBalancer: Story = {
       resource: { connectionID: 'ctx-1', id: 'frontend', key: 'core::v1::Service' },
     },
   },
+  decorators: withDrawer(data.metadata.name),
 };
-
-LoadBalancer.decorators = [
-  (Story, c) => (
-    <ResourceDrawerContainer
-      type="core::v1::Service"
-      icon="LuNetwork"
-      title={c.args.ctx.data?.metadata?.name ?? ''}
-      open
-      onClose={() => {}}
-    >
-      <Story />
-    </ResourceDrawerContainer>
-  ),
-];
 
 // -- ClusterIP ------------------------------------------------------------
 
@@ -70,21 +74,8 @@ export const ClusterIP: Story = {
       resource: { connectionID: 'ctx-1', id: 'backend-api', key: 'core::v1::Service' },
     },
   },
+  decorators: withDrawer('backend-api'),
 };
-
-ClusterIP.decorators = [
-  (Story) => (
-    <ResourceDrawerContainer
-      type="core::v1::Service"
-      icon="LuNetwork"
-      title="backend-api"
-      open
-      onClose={() => {}}
-    >
-      <Story />
-    </ResourceDrawerContainer>
-  ),
-];
 
 // -- NodePort -------------------------------------------------------------
 
@@ -112,21 +103,8 @@ export const NodePort: Story = {
       resource: { connectionID: 'ctx-1', id: 'nginx-nodeport', key: 'core::v1::Service' },
     },
   },
+  decorators: withDrawer('nginx-nodeport'),
 };
-
-NodePort.decorators = [
-  (Story) => (
-    <ResourceDrawerContainer
-      type="core::v1::Service"
-      icon="LuNetwork"
-      title="nginx-nodeport"
-      open
-      onClose={() => {}}
-    >
-      <Story />
-    </ResourceDrawerContainer>
-  ),
-];
 
 // -- Headless (ClusterIP: None) -------------------------------------------
 
@@ -153,18 +131,5 @@ export const Headless: Story = {
       resource: { connectionID: 'ctx-1', id: 'postgres-headless', key: 'core::v1::Service' },
     },
   },
+  decorators: withDrawer('postgres-headless'),
 };
-
-Headless.decorators = [
-  (Story) => (
-    <ResourceDrawerContainer
-      type="core::v1::Service"
-      icon="LuNetwork"
-      title="postgres-headless"
-      open
-      onClose={() => {}}
-    >
-      <Story />
-    </ResourceDrawerContainer>
-  ),
-];

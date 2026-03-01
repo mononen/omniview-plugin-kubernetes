@@ -309,23 +309,22 @@ const PortDetail: React.FC<{ label: string; value: string }> = ({ label, value }
 // ---------------------------------------------------------------------------
 
 const ServicePortsSection: React.FC<Props> = ({ service, connectionID, resourceID }) => {
-  const ports = service.spec?.ports;
-  if (!ports || ports.length === 0) return null;
-
-  const svcType = service.spec?.type || 'ClusterIP';
-  const showNodePort = svcType === 'NodePort' || svcType === 'LoadBalancer';
-
-  // Port forward state
+  // Port forward state — hooks must be called unconditionally
   const [configAnchor, setConfigAnchor] = React.useState<HTMLElement | null>(null);
   const [configPort, setConfigPort] = React.useState<ServicePort | null>(null);
-
-  const canForward = !!connectionID && !!resourceID;
 
   const { sessions, forward, close } = useResourcePortForwarder({
     pluginID: 'kubernetes',
     connectionID: connectionID || '',
     resourceID: resourceID || '',
   });
+
+  const ports = service.spec?.ports;
+  if (!ports || ports.length === 0) return null;
+
+  const svcType = service.spec?.type || 'ClusterIP';
+  const showNodePort = svcType === 'NodePort' || svcType === 'LoadBalancer';
+  const canForward = !!connectionID && !!resourceID;
 
   const portMap =
     sessions.data?.reduce(

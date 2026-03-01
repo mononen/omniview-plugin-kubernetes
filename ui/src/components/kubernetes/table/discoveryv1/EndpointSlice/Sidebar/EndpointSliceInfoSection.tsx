@@ -85,21 +85,23 @@ const EndpointSliceInfoSection: React.FC<Props> = ({ slice }) => {
           />
         </Stack>
       </Box>
-      <Divider />
-      <Box sx={bodyBgSx}>
-        {ports && ports.length > 0 && (
-          <Box>
-            <Text size="xs" weight="semibold" sx={subLabelSx}>
-              Ports
-            </Text>
-            <Stack direction="row" gap={0.5} flexWrap="wrap">
-              {ports.map((port, i) => (
-                <PortChip key={`${port.protocol}-${port.port}-${i}`} port={port} />
-              ))}
-            </Stack>
+      {ports && ports.length > 0 && (
+        <>
+          <Divider />
+          <Box sx={bodyBgSx}>
+            <Box>
+              <Text size="xs" weight="semibold" sx={subLabelSx}>
+                Ports
+              </Text>
+              <Stack direction="row" gap={0.5} flexWrap="wrap">
+                {ports.map((port, i) => (
+                  <PortChip key={`${port.protocol}-${port.port}-${i}`} port={port} />
+                ))}
+              </Stack>
+            </Box>
           </Box>
-        )}
-      </Box>
+        </>
+      )}
     </Box>
   );
 };

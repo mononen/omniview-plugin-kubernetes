@@ -1,13 +1,13 @@
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Chip, ClipboardText } from '@omniviewdev/ui';
+import { Chip } from '@omniviewdev/ui';
 import { Stack } from '@omniviewdev/ui/layout';
 import { Text } from '@omniviewdev/ui/typography';
 import type { IngressClass } from 'kubernetes-types/networking/v1';
 import React from 'react';
 
+import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 
 const sectionBorderSx = {
@@ -31,37 +31,11 @@ const bodyBgSx = {
   bgcolor: 'background.level1',
 } as const;
 
-const entryGridSx = { minHeight: 22, alignItems: 'center' } as const;
-const entryLabelSx = { color: 'neutral.300' } as const;
-const entryValueSx = { fontWeight: 600, fontSize: 12 } as const;
 const chipSx = { borderRadius: 1 } as const;
 
 interface Props {
   ctx: DrawerContext<IngressClass>;
 }
-
-const ConfigEntry: React.FC<{
-  label: string;
-  value?: string | React.ReactNode;
-}> = ({ label, value }) => {
-  if (value === undefined || value === null) return null;
-  return (
-    <Grid container spacing={0} sx={entryGridSx}>
-      <Grid size={4}>
-        <Text sx={entryLabelSx} size="xs">
-          {label}
-        </Text>
-      </Grid>
-      <Grid size={8}>
-        {typeof value === 'string' ? (
-          <ClipboardText value={value} variant="inherit" sx={entryValueSx} />
-        ) : (
-          value
-        )}
-      </Grid>
-    </Grid>
-  );
-};
 
 export const IngressClassSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) {
@@ -99,7 +73,7 @@ export const IngressClassSidebar: React.FC<Props> = ({ ctx }) => {
           </Box>
           <Divider />
           <Box sx={bodyBgSx}>
-            <ConfigEntry label="Controller" value={spec?.controller} />
+            <LabeledEntry label="Controller" value={spec?.controller} />
           </Box>
         </Box>
 
@@ -113,11 +87,11 @@ export const IngressClassSidebar: React.FC<Props> = ({ ctx }) => {
             </Box>
             <Divider />
             <Box sx={bodyBgSx}>
-              {params.apiGroup && <ConfigEntry label="API Group" value={params.apiGroup} />}
-              <ConfigEntry label="Kind" value={params.kind} />
-              <ConfigEntry label="Name" value={params.name} />
-              {params.namespace && <ConfigEntry label="Namespace" value={params.namespace} />}
-              {params.scope && <ConfigEntry label="Scope" value={params.scope} />}
+              {params.apiGroup && <LabeledEntry label="API Group" value={params.apiGroup} />}
+              <LabeledEntry label="Kind" value={params.kind} />
+              <LabeledEntry label="Name" value={params.name} />
+              {params.namespace && <LabeledEntry label="Namespace" value={params.namespace} />}
+              {params.scope && <LabeledEntry label="Scope" value={params.scope} />}
             </Box>
           </Box>
         )}

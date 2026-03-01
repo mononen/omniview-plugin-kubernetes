@@ -35,7 +35,7 @@ vi.mock('@omniviewdev/ui/buttons', () => ({
     children: React.ReactNode;
     onClick?: (e: React.MouseEvent) => void;
   }) => (
-    <button onClick={onClick} data-testid="button">{children}</button>
+    <button type="button" onClick={onClick} data-testid="button">{children}</button>
   ),
 }));
 

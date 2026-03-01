@@ -45,7 +45,10 @@ const addrRowSx = { minHeight: 20, alignItems: 'center' } as const;
 /** Build a resourceKey from an ObjectReference's apiVersion + kind */
 function refToResourceKey(apiVersion?: string, kind?: string): string {
   if (!apiVersion || !kind) return '';
-  return `${apiVersion.replace('/', '::')}::${kind}`;
+  const group = apiVersion.includes('/')
+    ? apiVersion.replace('/', '::')
+    : `core::${apiVersion}`;
+  return `${group}::${kind}`;
 }
 
 const AddressRow: React.FC<{
@@ -79,14 +82,14 @@ const AddressRow: React.FC<{
             label={addr.nodeName}
           />
         ) : null}
-        {addr.targetRef && connectionID ? (
+        {addr.targetRef && connectionID && addr.targetRef.name ? (
           <ResourceLinkChip
             connectionID={connectionID}
             resourceKey={
               refToResourceKey(addr.targetRef.apiVersion, addr.targetRef.kind) ||
               `core::v1::${addr.targetRef.kind || 'Pod'}`
             }
-            resourceID={addr.targetRef.name || ''}
+            resourceID={addr.targetRef.name}
             resourceName={addr.targetRef.name}
             namespace={addr.targetRef.namespace}
           />

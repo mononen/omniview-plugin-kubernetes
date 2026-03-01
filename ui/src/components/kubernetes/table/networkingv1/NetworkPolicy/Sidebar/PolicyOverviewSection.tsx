@@ -100,9 +100,9 @@ const PolicyOverviewSection: React.FC<Props> = ({ policy }) => {
                 />
               ))}
             {matchExpressions &&
-              matchExpressions.map((expr) => (
+              matchExpressions.map((expr, i) => (
                 <Chip
-                  key={expr.key}
+                  key={`${expr.key}|${expr.operator}|${expr.values?.join(',') ?? i}`}
                   size="xs"
                   emphasis="soft"
                   color="neutral"

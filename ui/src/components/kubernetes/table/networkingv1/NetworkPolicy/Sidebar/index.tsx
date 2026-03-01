@@ -24,6 +24,21 @@ const denyAllSx = {
 
 const chipSx = { borderRadius: 1 } as const;
 
+const DenyAllBanner: React.FC<{ direction: 'Ingress' | 'Egress' }> = ({ direction }) => (
+  <Box sx={denyAllSx}>
+    <Text weight="semibold" size="sm">
+      {direction}
+    </Text>
+    <Chip
+      size="xs"
+      emphasis="soft"
+      color="danger"
+      sx={chipSx}
+      label="Deny All"
+    />
+  </Box>
+);
+
 interface Props {
   ctx: DrawerContext<NetworkPolicy>;
 }
@@ -40,9 +55,13 @@ export const NetworkPolicySidebar: React.FC<Props> = ({ ctx }) => {
   // Deny-all detection:
   // When policyTypes includes a direction but the corresponding rules array is
   // empty or absent, it means all traffic in that direction is denied.
+  // Per K8s spec: when policyTypes is empty, Ingress is always implied,
+  // and Egress is implied when spec.egress is defined.
   const hasIngressType =
     policyTypes.includes('Ingress') || (policyTypes.length === 0 && spec != null);
-  const hasEgressType = policyTypes.includes('Egress');
+  const hasEgressType =
+    policyTypes.includes('Egress') ||
+    (policyTypes.length === 0 && spec?.egress !== undefined);
 
   const denyAllIngress = hasIngressType && (!spec?.ingress || spec.ingress.length === 0);
   const denyAllEgress = hasEgressType && (!spec?.egress || spec.egress.length === 0);
@@ -54,39 +73,13 @@ export const NetworkPolicySidebar: React.FC<Props> = ({ ctx }) => {
         <PolicyOverviewSection policy={policy} />
       </Stack>
 
-      {denyAllIngress && (
-        <Box sx={denyAllSx}>
-          <Text weight="semibold" size="sm">
-            Ingress
-          </Text>
-          <Chip
-            size="xs"
-            emphasis="soft"
-            color="danger"
-            sx={chipSx}
-            label="Deny All"
-          />
-        </Box>
-      )}
+      {denyAllIngress && <DenyAllBanner direction="Ingress" />}
 
       {spec?.ingress && spec.ingress.length > 0 && (
         <NetworkPolicyRulesSection direction="Ingress" rules={spec.ingress} />
       )}
 
-      {denyAllEgress && (
-        <Box sx={denyAllSx}>
-          <Text weight="semibold" size="sm">
-            Egress
-          </Text>
-          <Chip
-            size="xs"
-            emphasis="soft"
-            color="danger"
-            sx={chipSx}
-            label="Deny All"
-          />
-        </Box>
-      )}
+      {denyAllEgress && <DenyAllBanner direction="Egress" />}
 
       {spec?.egress && spec.egress.length > 0 && (
         <NetworkPolicyRulesSection direction="Egress" rules={spec.egress} />

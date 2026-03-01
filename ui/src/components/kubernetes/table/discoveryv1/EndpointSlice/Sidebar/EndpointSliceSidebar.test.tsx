@@ -133,6 +133,13 @@ describe('EndpointSliceInfoSection', () => {
 // ---------------------------------------------------------------------------
 
 describe('SliceEndpointsSection', () => {
+  it('returns null when endpoints is undefined', () => {
+    const { container } = render(
+      <SliceEndpointsSection endpoints={undefined} />,
+    );
+    expect(container.innerHTML).toBe('');
+  });
+
   it('returns null when endpoints array is empty', () => {
     const { container } = render(
       <SliceEndpointsSection endpoints={[]} />,

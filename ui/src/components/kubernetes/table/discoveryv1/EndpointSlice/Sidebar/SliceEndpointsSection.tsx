@@ -37,7 +37,10 @@ const addrValueSx = { fontWeight: 600, fontSize: 11 } as const;
 /** Build a resourceKey from an ObjectReference's apiVersion + kind */
 function refToResourceKey(apiVersion?: string, kind?: string): string {
   if (!apiVersion || !kind) return '';
-  return `${apiVersion.replace('/', '::')}::${kind}`;
+  const group = apiVersion.includes('/')
+    ? apiVersion.replace('/', '::')
+    : `core::${apiVersion}`;
+  return `${group}::${kind}`;
 }
 
 const ConditionChips: React.FC<{ ep: Endpoint }> = ({ ep }) => {
@@ -78,12 +81,12 @@ const ConditionChips: React.FC<{ ep: Endpoint }> = ({ ep }) => {
 };
 
 interface Props {
-  endpoints: Endpoint[];
+  endpoints?: Endpoint[];
   connectionID?: string;
 }
 
 const SliceEndpointsSection: React.FC<Props> = ({ endpoints, connectionID }) => {
-  if (endpoints.length === 0) return null;
+  if (!endpoints || endpoints.length === 0) return null;
 
   const sections: ExpandableSection[] = endpoints.map((ep: Endpoint, idx: number) => {
     const primaryAddr = ep.addresses[0] || '';
@@ -169,14 +172,14 @@ const SliceEndpointsSection: React.FC<Props> = ({ endpoints, connectionID }) => 
                 label={`node: ${ep.nodeName}`}
               />
             ) : null}
-            {ep.targetRef && connectionID ? (
+            {ep.targetRef && connectionID && ep.targetRef.name ? (
               <ResourceLinkChip
                 connectionID={connectionID}
                 resourceKey={
                   refToResourceKey(ep.targetRef.apiVersion, ep.targetRef.kind) ||
                   `core::v1::${ep.targetRef.kind || 'Pod'}`
                 }
-                resourceID={ep.targetRef.name || ''}
+                resourceID={ep.targetRef.name}
                 resourceName={ep.targetRef.name}
                 namespace={ep.targetRef.namespace}
               />
