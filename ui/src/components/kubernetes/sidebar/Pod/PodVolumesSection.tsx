@@ -259,7 +259,7 @@ const PodVolumesSection: React.FC<Props> = ({ pod, connectionID, namespace }) =>
   return (
     <Box>
       <SectionHeading label="Volumes" count={volumes.length} />
-      <ExpandableSections sections={sections} size="sm" />
+      <ExpandableSections sections={sections} size="sm" sx={{ gap: 1 }} />
     </Box>
   );
 };

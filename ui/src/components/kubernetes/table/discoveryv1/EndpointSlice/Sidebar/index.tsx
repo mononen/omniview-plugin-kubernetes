@@ -1,34 +1,33 @@
 import { DrawerContext } from '@omniviewdev/runtime';
 import { Stack } from '@omniviewdev/ui/layout';
-import { EndpointSlice } from 'kubernetes-types/discovery/v1';
+import type { EndpointSlice } from 'kubernetes-types/discovery/v1';
 import React from 'react';
 
-// material-ui
-
-// types
-
-// project-imports
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
+
+import EndpointSliceInfoSection from './EndpointSliceInfoSection';
+import SliceEndpointsSection from './SliceEndpointsSection';
 
 interface Props {
   ctx: DrawerContext<EndpointSlice>;
 }
 
-/**
- * Renders a sidebar for a EndpointSlice resource
- */
 export const EndpointSliceSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) {
     return null;
   }
 
-  const data = ctx.data;
+  const slice = ctx.data;
+  const connectionID = ctx.resource?.connectionID || '';
 
-  // compose your component here
   return (
     <Stack direction="column" width={'100%'} spacing={2}>
-      <ObjectMetaSection data={data.metadata} />
-      {/** TODO: fill this in with more data */}
+      <Stack direction="column" spacing={0.5}>
+        <ObjectMetaSection data={slice.metadata} />
+        <EndpointSliceInfoSection slice={slice} />
+      </Stack>
+
+      <SliceEndpointsSection endpoints={slice.endpoints ?? []} connectionID={connectionID} />
     </Stack>
   );
 };
