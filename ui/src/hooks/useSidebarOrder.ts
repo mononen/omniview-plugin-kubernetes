@@ -31,15 +31,22 @@ function reorderByIds<T extends { id: string }>(items: T[], order: string[]): T[
 
 /**
  * Recursively apply stored child ordering at every nesting level.
+ * Guards against invalid persisted shape (e.g. from localStorage) before using order.children.
  */
 function applyChildOrder(items: NavMenuItem[], order: SidebarOrder): NavMenuItem[] {
+  const childrenMap =
+    order !== null && typeof order === 'object' && order.children !== null && typeof order.children === 'object'
+      ? order.children
+      : null;
+
   return items.map((item) => {
     if (!item.children?.length) return item;
 
-    const childOrder = order.children[item.id];
-    const reordered = childOrder?.length
-      ? reorderByIds(item.children, childOrder)
-      : item.children;
+    const childOrder = childrenMap ? childrenMap[item.id] : undefined;
+    const reordered =
+      Array.isArray(childOrder) && childOrder.length > 0
+        ? reorderByIds(item.children, childOrder)
+        : item.children;
 
     return { ...item, children: applyChildOrder(reordered, order) };
   });
@@ -48,12 +55,20 @@ function applyChildOrder(items: NavMenuItem[], order: SidebarOrder): NavMenuItem
 /**
  * Apply a stored sidebar order on top of a computed layout.
  * Returns a new array — never mutates the input.
+ * Guards against invalid persisted shape before using order.items / order.children.
  */
 export function applyOrder(
   layout: NavSection[],
   order: SidebarOrder | null,
 ): NavSection[] {
-  if (!order || !layout.length) return layout;
+  if (!layout.length) return layout;
+  if (
+    order === null ||
+    typeof order !== 'object' ||
+    !Array.isArray(order.items)
+  ) {
+    return layout;
+  }
 
   return layout.map((section) => {
     const reorderedItems = applyChildOrder(
