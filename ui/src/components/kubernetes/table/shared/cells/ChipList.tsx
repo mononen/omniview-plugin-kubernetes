@@ -24,10 +24,6 @@ export const ChipListCell = ({ getValue }: { getValue: () => unknown }) => {
 };
 
 const ChipList: React.FC<Props> = ({ values }) => {
-  if (!values?.length) {
-    return null;
-  }
-
   return (
     <Stack
       direction={'row'}

@@ -160,8 +160,16 @@ const PersistentVolumeTable: React.FC = () => {
       memoizer="metadata.uid,metadata.resourceVersion,status.phase"
       drawer={drawer}
       toolbarFilters={[
-        { columnId: 'phase', placeholder: 'All Phases', accessor: (r: PersistentVolume) => r?.status?.phase },
-        { columnId: 'storageClass', placeholder: 'All Storage Classes', accessor: (r: PersistentVolume) => r?.spec?.storageClassName || undefined },
+        {
+          columnId: 'phase',
+          placeholder: 'All Phases',
+          accessor: (r: PersistentVolume) => r?.status?.phase ?? 'Unknown',
+        },
+        {
+          columnId: 'storageClass',
+          placeholder: 'All Storage Classes',
+          accessor: (r: PersistentVolume) => r?.spec?.storageClassName ?? '—',
+        },
       ]}
     />
   );

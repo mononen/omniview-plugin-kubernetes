@@ -6,7 +6,7 @@ import { FilterFn } from '@tanstack/react-table';
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const inclusionFilter: FilterFn<any> = (row, columnId, value: string[]) => {
-  if (!value?.length) {
+  if (!Array.isArray(value) || !value.length) {
     return true;
   }
 
@@ -20,7 +20,7 @@ export const inclusionFilter: FilterFn<any> = (row, columnId, value: string[]) =
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const ownerRefFilter: FilterFn<any> = (row, columnId, value: string[]) => {
-  if (!value?.length) {
+  if (!Array.isArray(value) || !value.length) {
     return true;
   }
   const refs = row.getValue(columnId) as Array<{ name?: string }> | undefined;

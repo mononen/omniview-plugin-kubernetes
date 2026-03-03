@@ -317,12 +317,16 @@ const ResourceTableContainer: React.FC<Props> = ({
     // Inject toolbar extra filter values (skip namespace — already handled above)
     for (const [colId, values] of Object.entries(extraFilterValues)) {
       if (colId === 'namespace' || !values.length) continue;
+
+      // Restrict merging to only those extraFilterValues whose colId is currently defined in the active toolbar filters
+      if (toolbarFilters && !toolbarFilters.some((f) => f.columnId === colId)) continue;
+
       filters = filters.filter((f) => f.id !== colId);
       filters.push({ id: colId, value: values });
     }
 
     return filters;
-  }, [columnFilters, sharedNamespaces, hasNamespaceColumn, extraFilterValues]);
+  }, [columnFilters, sharedNamespaces, hasNamespaceColumn, extraFilterValues, toolbarFilters]);
 
   // Intercept onColumnFiltersChange to redirect namespace changes to the shared hook
   const handleColumnFiltersChange = React.useCallback(
@@ -524,7 +528,7 @@ const ResourceTableContainer: React.FC<Props> = ({
                 <CreateResourceButton connectionID={connectionID} resourceKey={resourceKey} />
               )}
               {toolbarActions}
-              {toolbarFilters
+              {toolbarFilters && toolbarFilters.length > 0
                 ? toolbarFilters.map((filter) =>
                     filter.columnId === 'namespace' ? (
                       <NamespaceSelect

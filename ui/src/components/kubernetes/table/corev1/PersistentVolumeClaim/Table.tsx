@@ -160,8 +160,16 @@ const PersistentVolumeClaimTable: React.FC = () => {
       memoizer="metadata.uid,metadata.resourceVersion"
       drawer={drawer}
       toolbarFilters={[
-        { columnId: 'status', placeholder: 'All Phases', accessor: (r: PersistentVolumeClaim) => r?.status?.phase },
-        { columnId: 'storageClass', placeholder: 'All Storage Classes', accessor: (r: PersistentVolumeClaim) => r?.spec?.storageClassName || undefined },
+        {
+          columnId: 'status',
+          placeholder: 'All Phases',
+          accessor: (r: PersistentVolumeClaim) => r?.status?.phase ?? 'Pending',
+        },
+        {
+          columnId: 'storageClass',
+          placeholder: 'All Storage Classes',
+          accessor: (r: PersistentVolumeClaim) => r?.spec?.storageClassName ?? '—',
+        },
         { columnId: 'namespace', placeholder: 'All Namespaces', accessor: (r: PersistentVolumeClaim) => r?.metadata?.namespace },
       ]}
     />

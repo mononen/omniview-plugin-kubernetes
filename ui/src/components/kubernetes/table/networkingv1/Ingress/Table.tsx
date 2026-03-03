@@ -179,7 +179,11 @@ const IngressTable: React.FC = () => {
       memoizer="metadata.uid,metadata.resourceVersion,spec.rules"
       drawer={drawer}
       toolbarFilters={[
-        { columnId: 'ingressClass', placeholder: 'All Classes', accessor: (r: Ingress) => r?.spec?.ingressClassName || undefined },
+        {
+          columnId: 'ingressClass',
+          placeholder: 'All Classes',
+          accessor: (r: Ingress) => r?.spec?.ingressClassName || '—',
+        },
         { columnId: 'namespace', placeholder: 'All Namespaces', accessor: (r: Ingress) => r?.metadata?.namespace },
       ]}
     />

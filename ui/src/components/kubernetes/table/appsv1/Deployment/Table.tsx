@@ -367,7 +367,11 @@ const DeploymentTable: React.FC = () => {
         memoizer="metadata.uid,metadata.resourceVersion,status.observedGeneration"
         drawer={drawer}
         toolbarFilters={[
-          { columnId: 'strategy', placeholder: 'All Strategies', accessor: (r: Deployment) => r?.spec?.strategy?.type },
+          {
+            columnId: 'strategy',
+            placeholder: 'All Strategies',
+            accessor: (r: Deployment) => r?.spec?.strategy?.type ?? 'RollingUpdate',
+          },
           { columnId: 'namespace', placeholder: 'All Namespaces', accessor: (r: Deployment) => r?.metadata?.namespace },
         ]}
       />
