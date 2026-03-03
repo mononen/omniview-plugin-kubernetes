@@ -54,6 +54,7 @@ function applyChildOrder(items: NavMenuItem[], order: SidebarOrder): NavMenuItem
 
 /**
  * Apply a stored sidebar order on top of a computed layout.
+ * Recurses into the full tree so grandchild order is restored too.
  * Returns a new array — never mutates the input.
  * Guards against invalid persisted shape before using order.items / order.children.
  */
