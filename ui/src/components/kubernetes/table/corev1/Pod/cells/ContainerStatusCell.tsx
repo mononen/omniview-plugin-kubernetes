@@ -33,7 +33,7 @@ export const ContainerStatusCell: React.FC<Props> = ({ data, initData }) => {
     }
 
     if (status.state?.terminated) {
-      if (status.state.terminated.reason === 'Completed') {
+      if (status.state.terminated.reason === 'Completed' || status.state.terminated.exitCode === 0) {
         return theme.palette.grey[800];
       }
 
@@ -93,12 +93,12 @@ export const ContainerStatusCell: React.FC<Props> = ({ data, initData }) => {
     >
       {containers.map((status) => (
         <Tooltip key={status.name} variant="rich" placement="top" content={renderTooltipContent(status)}>
-          <div style={chipStyle(getColor(status))} />
+          <div tabIndex={0} style={chipStyle(getColor(status))} />
         </Tooltip>
       ))}
       {initContainers.map((status) => (
         <Tooltip key={`init-${status.name}`} variant="rich" placement="top" content={renderTooltipContent(status, true)}>
-          <div style={chipStyle(getColor(status), true)} />
+          <div tabIndex={0} style={chipStyle(getColor(status), true)} />
         </Tooltip>
       ))}
     </Stack>
