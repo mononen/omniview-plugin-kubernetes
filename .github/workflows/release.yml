@@ -23,7 +23,7 @@ jobs:
         run: |
           VERSION=${{ github.event_name == 'push' && github.ref_name || format('v{0}', inputs.version) }}
           VERSION="${VERSION#v}"
-          cd ui && npm version "$VERSION" --no-git-tag-version
+          cd ui && jq --arg v "$VERSION" '.version = $v' package.json > tmp.json && mv tmp.json package.json
       - name: Push version update
         run: |
           git config user.name "github-actions[bot]"
