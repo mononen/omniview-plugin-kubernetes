@@ -13,7 +13,27 @@ permissions:
   contents: write
 
 jobs:
+  set-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'push' && github.sha || github.ref }}
+      - name: Set package.json version from tag
+        run: |
+          VERSION=${{ github.event_name == 'push' && github.ref_name || format('v{0}', inputs.version) }}
+          VERSION="${VERSION#v}"
+          cd ui && npm version "$VERSION" --no-git-tag-version
+      - name: Push version update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ui/package.json
+          git commit -m "chore: set package.json version to ${GITHUB_REF_NAME#v}" || true
+          git push origin HEAD:main
+
   publish:
+    needs: set-version
     uses: omniviewdev/publish-plugin-action/.github/workflows/build-and-publish.yml@v1
     with:
       go-version: '1.25'
@@ -23,6 +43,7 @@ jobs:
       version: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', inputs.version) }}
       go-entry: ./pkg
       ui-path: ./ui
+      ref: main
     secrets:
       api-key: ${{ secrets.OMNIVIEW_API_KEY }}
 
