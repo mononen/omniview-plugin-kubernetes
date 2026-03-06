@@ -341,8 +341,15 @@ func (r *RepoResourcerWithActions) executeRefresh(input resource.ActionInput) (*
 		return nil, fmt.Errorf("repository %s not found", input.ID)
 	}
 
-	// OCI registries don't have a downloadable index file.
+	// OCI registries don't have a downloadable index file — validate connectivity.
 	if registry.IsOCI(entry.URL) {
+		if err := validateOCIRegistry(
+			entry.URL, entry.Username, entry.Password,
+			entry.CertFile, entry.KeyFile, entry.CAFile,
+			entry.InsecureSkipTLSverify, false,
+		); err != nil {
+			return nil, fmt.Errorf("OCI registry validation failed: %w", err)
+		}
 		return &resource.ActionResult{
 			Success: true,
 			Data: map[string]interface{}{

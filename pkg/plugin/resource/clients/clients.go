@@ -60,6 +60,8 @@ func (cs *ClientSet) StopFactory() {
 
 // ResetFactoryLifecycle reinitializes the factory lifecycle state so that
 // EnsureFactoryStarted and StopFactory can operate on a replacement factory.
+// Callers MUST ensure StopFactory and Shutdown have completed before calling
+// this method — concurrent access during reset is not safe.
 func (cs *ClientSet) ResetFactoryLifecycle() {
 	cs.factoryStartOnce = sync.Once{}
 	cs.factoryStopOnce = sync.Once{}

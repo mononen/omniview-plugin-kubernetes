@@ -63,7 +63,10 @@ func TestConvertDefinition_ColumnDefs(t *testing.T) {
 
 	col1 := result.ColumnDefs[1]
 	assert.Equal(t, "namespace", col1.ID)
+	assert.Equal(t, "Namespace", col1.Header)
+	assert.Equal(t, "metadata.namespace", col1.Accessors)
 	assert.True(t, col1.Hidden)
+	assert.Equal(t, 150, col1.Width)
 }
 
 func TestConvertDefinition_EmptyColumns(t *testing.T) {
@@ -150,6 +153,7 @@ func TestBuildRegistrations_DefaultSyncOnConnect(t *testing.T) {
 			"%s should have SyncOnConnect policy", key)
 		return // only need to verify one
 	}
+	t.Fatal("no base resourcer with SyncOnConnect policy found")
 }
 
 func TestBuildRegistrations_DefinitionsAttached(t *testing.T) {

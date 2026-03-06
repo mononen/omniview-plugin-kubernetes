@@ -16,12 +16,8 @@ import (
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	"github.com/omniview/kubernetes/pkg/utils"
-	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
@@ -69,10 +65,9 @@ func (p *kubeConnectionProvider) DestroyClient(_ context.Context, client *client
 	if client == nil {
 		return nil
 	}
-	// Shut down per-namespace factories first.
-	client.ShutdownNamespaceFactories()
-	// Signal the main factory to stop, then shut it down.
+	// Signal the main factory to stop first, then shut down all factories.
 	client.StopFactory()
+	client.ShutdownNamespaceFactories()
 	if client.DynamicInformerFactory != nil {
 		client.DynamicInformerFactory.Shutdown()
 	}
@@ -199,30 +194,19 @@ func (p *kubeConnectionProvider) CheckConnection(_ context.Context, conn *types.
 }
 
 // GetNamespaces returns the available namespaces for the connection.
-func (p *kubeConnectionProvider) GetNamespaces(_ context.Context, client *clients.ClientSet) ([]string, error) {
-	if client == nil {
+func (p *kubeConnectionProvider) GetNamespaces(ctx context.Context, client *clients.ClientSet) ([]string, error) {
+	if client == nil || client.KubeClient == nil {
 		return nil, fmt.Errorf("client is required")
 	}
-	if client.DynamicInformerFactory == nil {
-		return nil, fmt.Errorf("DynamicInformerFactory is not initialized")
-	}
-	lister := client.DynamicInformerFactory.
-		ForResource(corev1.SchemeGroupVersion.WithResource("namespaces")).
-		Lister()
 
-	resources, err := lister.List(labels.Everything())
+	nsList, err := client.KubeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list namespaces: %w", err)
 	}
 
-	namespaces := make([]string, 0, len(resources))
-	for _, r := range resources {
-		obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(r)
-		if err != nil {
-			return nil, err
-		}
-		res := unstructured.Unstructured{Object: obj}
-		namespaces = append(namespaces, res.GetName())
+	namespaces := make([]string, 0, len(nsList.Items))
+	for _, ns := range nsList.Items {
+		namespaces = append(namespaces, ns.Name)
 	}
 
 	return namespaces, nil
@@ -440,6 +424,9 @@ func (p *kubeConnectionProvider) ResolveScope(ctx context.Context, client *clien
 
 // discoverAccessibleNamespaces lists namespaces the current user can access.
 func (p *kubeConnectionProvider) discoverAccessibleNamespaces(ctx context.Context, client *clients.ClientSet) ([]string, error) {
+	if client == nil || client.KubeClient == nil {
+		return nil, fmt.Errorf("client is required for namespace discovery")
+	}
 	nsList, err := client.KubeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list namespaces: %w", err)
@@ -482,6 +469,9 @@ func (p *kubeConnectionProvider) GetEditorSchemas(ctx context.Context, client *c
 	session := resource.SessionFromContext(ctx)
 	if session == nil || session.Connection == nil {
 		return nil, fmt.Errorf("no connection in context")
+	}
+	if client == nil || client.Clientset == nil {
+		return nil, fmt.Errorf("client is required for schema fetching")
 	}
 
 	registeredKeys := make([]string, 0, len(resourceMap))
@@ -619,8 +609,9 @@ func findDefinitionKeyV1(defs map[string]interface{}, meta resource.ResourceMeta
 	}
 
 	suffix := "." + meta.Kind
+	versionSegment := "." + meta.Version + "."
 	for key := range defs {
-		if strings.HasSuffix(key, suffix) && strings.Contains(key, meta.Version) {
+		if strings.HasSuffix(key, suffix) && strings.Contains(key, versionSegment) {
 			return key
 		}
 	}

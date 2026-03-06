@@ -357,17 +357,6 @@ func processPodWatchEvents(
 						return
 					}
 				}
-				// Also emit for any sources in the current payload not in prev
-				// (rare but defensive).
-				for _, src := range sources {
-					if _, ok := prev[src.ID]; !ok {
-						select {
-						case eventCh <- logs.SourceEvent{Type: logs.SourceRemoved, Source: src}:
-						case <-ctx.Done():
-							return
-						}
-					}
-				}
 			}
 		}
 	}

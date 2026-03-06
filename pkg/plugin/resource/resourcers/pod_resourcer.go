@@ -264,6 +264,9 @@ func (p *PodResourcer) GetEvents(ctx context.Context, client *clients.ClientSet,
 
 // getK8sEvents is a shared helper for fetching Kubernetes events.
 func getK8sEvents(ctx context.Context, client *clients.ClientSet, namespace, fieldSelector string, limit int32) ([]resource.ResourceEvent, error) {
+	if client == nil || client.KubeClient == nil {
+		return nil, fmt.Errorf("client is required for event retrieval")
+	}
 	opts := metav1.ListOptions{
 		FieldSelector: fieldSelector,
 	}
