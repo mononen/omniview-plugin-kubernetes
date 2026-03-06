@@ -142,6 +142,10 @@ func TestBuildRegistrations_DefaultSyncOnConnect(t *testing.T) {
 		if !ok {
 			continue
 		}
+		// Skip SyncNever resources — we want to verify a default (SyncOnConnect) one.
+		if base.SyncPolicy() == resource.SyncNever {
+			continue
+		}
 		assert.Equal(t, resource.SyncOnConnect, base.SyncPolicy(),
 			"%s should have SyncOnConnect policy", key)
 		return // only need to verify one

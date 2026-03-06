@@ -230,7 +230,7 @@ func resolvePodsToSources(
 		}
 		eventCh := make(chan logs.SourceEvent, 16)
 		result.Events = eventCh
-		go watchPodsAsSourceEvents(ctx, clients, namespace, selector, opts.Target, initialKnown, eventCh)
+		go watchPodsAsSourceEvents(ctx, clients, namespace, selector, opts.Target, pods.ResourceVersion, initialKnown, eventCh)
 	}
 
 	return result, nil
@@ -243,6 +243,7 @@ func watchPodsAsSourceEvents(
 	namespace string,
 	selector labels.Selector,
 	target string,
+	resourceVersion string,
 	initialKnown map[string]map[string]struct{},
 	eventCh chan<- logs.SourceEvent,
 ) {
@@ -250,7 +251,10 @@ func watchPodsAsSourceEvents(
 
 	watcher, err := clients.Clientset.CoreV1().Pods(namespace).Watch(
 		ctx.Context,
-		metav1.ListOptions{LabelSelector: selector.String()},
+		metav1.ListOptions{
+			LabelSelector:   selector.String(),
+			ResourceVersion: resourceVersion,
+		},
 	)
 	if err != nil {
 		return

@@ -58,6 +58,14 @@ func (cs *ClientSet) StopFactory() {
 	})
 }
 
+// ResetFactoryLifecycle reinitializes the factory lifecycle state so that
+// EnsureFactoryStarted and StopFactory can operate on a replacement factory.
+func (cs *ClientSet) ResetFactoryLifecycle() {
+	cs.factoryStartOnce = sync.Once{}
+	cs.factoryStopOnce = sync.Once{}
+	cs.factoryStopCh = nil
+}
+
 // GetOrCreateNamespaceFactory returns a DynamicSharedInformerFactory scoped to a
 // single namespace. Factories are created lazily and cached for reuse.
 // The returned factory is NOT started — callers must call Start() after registering

@@ -13,6 +13,7 @@ import (
 	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/repo"
 )
@@ -176,10 +177,15 @@ func (r *RepoResourcer) Create(
 		InsecureSkipTLSverify: insecureSkipTLS,
 	}
 
-	if !registry.IsOCI(url) {
+	if registry.IsOCI(url) {
+		// OCI registries don't have index.yaml — validate by connecting.
+		if err := validateOCIRegistry(url, username, password, certFile, keyFile, caFile, insecureSkipTLS, false); err != nil {
+			return nil, err
+		}
+	} else {
 		// Download the index to validate the repo.
 		settings := cli.New()
-		chartRepo, err := repo.NewChartRepository(entry, nil)
+		chartRepo, err := repo.NewChartRepository(entry, getter.All(settings))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create chart repository: %w", err)
 		}
@@ -348,7 +354,7 @@ func (r *RepoResourcerWithActions) executeRefresh(input resource.ActionInput) (*
 	}
 
 	settings := cli.New()
-	chartRepo, err := repo.NewChartRepository(entry, nil)
+	chartRepo, err := repo.NewChartRepository(entry, getter.All(settings))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chart repository: %w", err)
 	}
@@ -438,13 +444,13 @@ func (r *RepoResourcerWithActions) executeAdd(input resource.ActionInput) (*reso
 
 	if registry.IsOCI(url) {
 		// OCI registries don't have index.yaml -- validate by connecting.
-		if err := r.validateOCIRegistry(url, username, password, certFile, keyFile, caFile, insecureSkipTLS, plainHTTP); err != nil {
+		if err := validateOCIRegistry(url, username, password, certFile, keyFile, caFile, insecureSkipTLS, plainHTTP); err != nil {
 			return nil, err
 		}
 	} else {
 		// Traditional HTTP(S) repository -- validate by downloading the index.
 		settings := cli.New()
-		chartRepo, err := repo.NewChartRepository(entry, nil)
+		chartRepo, err := repo.NewChartRepository(entry, getter.All(settings))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create chart repository: %w", err)
 		}
@@ -471,7 +477,7 @@ func (r *RepoResourcerWithActions) executeAdd(input resource.ActionInput) (*reso
 // credentials are provided) or by creating a registry client and verifying
 // the connection. OCI registries (oci://) don't use index.yaml files so we
 // can't use the standard DownloadIndexFile validation path.
-func (r *RepoResourcerWithActions) validateOCIRegistry(
+func validateOCIRegistry(
 	url, username, password, certFile, keyFile, caFile string,
 	insecureSkipTLS, plainHTTP bool,
 ) error {

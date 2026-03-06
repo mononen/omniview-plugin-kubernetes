@@ -238,7 +238,7 @@ func (p *PodResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ r
 			LastTransitionTime: &lt,
 		})
 
-		if c.Type == corev1.PodReady && c.Status != corev1.ConditionTrue && health.Status != resource.HealthUnhealthy {
+		if c.Type == corev1.PodReady && c.Status != corev1.ConditionTrue && pod.Status.Phase == corev1.PodRunning && health.Status != resource.HealthUnhealthy {
 			health.Status = resource.HealthDegraded
 			health.Reason = c.Reason
 			if health.Reason == "" {

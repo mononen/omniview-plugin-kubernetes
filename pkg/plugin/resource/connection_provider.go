@@ -359,6 +359,9 @@ func (p *kubeConnectionProvider) WatchConnections(ctx context.Context) (<-chan [
 
 // RefreshClient re-reads the kubeconfig and replaces all client components in-place.
 func (p *kubeConnectionProvider) RefreshClient(ctx context.Context, client *clients.ClientSet) error {
+	if client == nil {
+		return fmt.Errorf("nil client passed to RefreshClient")
+	}
 	session := resource.SessionFromContext(ctx)
 	if session == nil || session.Connection == nil {
 		return fmt.Errorf("no session/connection in context")
@@ -385,6 +388,7 @@ func (p *kubeConnectionProvider) RefreshClient(ctx context.Context, client *clie
 		fresh.Dynamic,
 		clients.DefaultResyncPeriod,
 	)
+	client.ResetFactoryLifecycle()
 	return nil
 }
 
@@ -588,7 +592,7 @@ func fetchOpenAPISchemasV1(connectionID string, client *clients.ClientSet, regis
 
 			defBytes, err := json.Marshal(def)
 			if err != nil {
-				continue
+				return nil, fmt.Errorf("failed to marshal schema definition for %s: %w", key, err)
 			}
 
 			schemas = append(schemas, resource.EditorSchema{

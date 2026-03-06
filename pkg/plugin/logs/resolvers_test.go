@@ -16,10 +16,10 @@ import (
 
 // runProcessPodWatchEvents runs processPodWatchEvents in a goroutine and
 // closes eventCh when it returns (mirroring watchPodsAsSourceEvents behavior).
-func runProcessPodWatchEvents(ctx context.Context, watcher watch.Interface, target string, eventCh chan logs.SourceEvent) {
+func runProcessPodWatchEvents(ctx context.Context, watcher watch.Interface, target string, initialKnown map[string]map[string]struct{}, eventCh chan logs.SourceEvent) {
 	go func() {
 		defer close(eventCh)
-		processPodWatchEvents(ctx, watcher, target, nil, eventCh)
+		processPodWatchEvents(ctx, watcher, target, initialKnown, eventCh)
 	}()
 }
 
@@ -39,7 +39,7 @@ func TestProcessPodWatchEvents_AddModifyDelete(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	runProcessPodWatchEvents(ctx, fw, "", eventCh)
+	runProcessPodWatchEvents(ctx, fw, "", nil, eventCh)
 
 	// 1. ADDED — pod with containers [app, sidecar]
 	fw.Add(&corev1.Pod{
@@ -125,7 +125,7 @@ func TestProcessPodWatchEvents_ModifiedRemovesContainer(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	runProcessPodWatchEvents(ctx, fw, "", eventCh)
+	runProcessPodWatchEvents(ctx, fw, "", nil, eventCh)
 
 	// ADDED with [app, sidecar]
 	fw.Add(&corev1.Pod{
@@ -164,6 +164,37 @@ func TestProcessPodWatchEvents_ModifiedRemovesContainer(t *testing.T) {
 	assert.Equal(t, "web/sidecar", events[2].Source.ID)
 }
 
+func TestProcessPodWatchEvents_SeededKnownSources(t *testing.T) {
+	fw := watch.NewFake()
+	eventCh := make(chan logs.SourceEvent, 32)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Seed with existing pod so MODIFIED with unchanged containers emits nothing.
+	initialKnown := map[string]map[string]struct{}{
+		"web": {"web/app": {}, "web/sidecar": {}},
+	}
+	runProcessPodWatchEvents(ctx, fw, "", initialKnown, eventCh)
+
+	// MODIFIED — same containers as initially known
+	fw.Modify(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "web", Namespace: "default"},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{Name: "app", Image: "nginx"},
+				{Name: "sidecar", Image: "envoy"},
+			},
+		},
+	})
+
+	fw.Stop()
+	events := collectEvents(eventCh)
+
+	// No events should be emitted — all sources were already known.
+	require.Len(t, events, 0)
+}
+
 func TestProcessPodWatchEvents_TargetFilter(t *testing.T) {
 	fw := watch.NewFake()
 	eventCh := make(chan logs.SourceEvent, 32)
@@ -171,7 +202,7 @@ func TestProcessPodWatchEvents_TargetFilter(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	runProcessPodWatchEvents(ctx, fw, "app", eventCh)
+	runProcessPodWatchEvents(ctx, fw, "app", nil, eventCh)
 
 	fw.Add(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Name: "web", Namespace: "default"},
@@ -216,7 +247,7 @@ func TestProcessPodWatchEvents_NonPodObjectIgnored(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	runProcessPodWatchEvents(ctx, fw, "", eventCh)
+	runProcessPodWatchEvents(ctx, fw, "", nil, eventCh)
 
 	// Send a non-pod object
 	fw.Action(watch.Added, &runtime.Unknown{Raw: []byte("not a pod")})
@@ -247,7 +278,7 @@ func TestProcessPodWatchEvents_ModifiedNoChange(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	runProcessPodWatchEvents(ctx, fw, "", eventCh)
+	runProcessPodWatchEvents(ctx, fw, "", nil, eventCh)
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Name: "web", Namespace: "default"},
@@ -278,7 +309,7 @@ func TestProcessPodWatchEvents_MultiplePods(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	runProcessPodWatchEvents(ctx, fw, "", eventCh)
+	runProcessPodWatchEvents(ctx, fw, "", nil, eventCh)
 
 	// Add two different pods
 	fw.Add(&corev1.Pod{
@@ -322,7 +353,7 @@ func TestProcessPodWatchEvents_ModifiedForUnknownPod(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	runProcessPodWatchEvents(ctx, fw, "", eventCh)
+	runProcessPodWatchEvents(ctx, fw, "", nil, eventCh)
 
 	// MODIFIED without prior ADDED — treats all containers as new
 	fw.Modify(&corev1.Pod{

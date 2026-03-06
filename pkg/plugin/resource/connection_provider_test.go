@@ -44,11 +44,11 @@ func TestLoadConnections_NoSession(t *testing.T) {
 	assert.Contains(t, err.Error(), "no session")
 }
 
-func TestRefreshClient_NoSession(t *testing.T) {
+func TestRefreshClient_NilClient(t *testing.T) {
 	p := &kubeConnectionProvider{logger: zap.NewNop().Sugar()}
 	err := p.RefreshClient(context.Background(), nil)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no session")
+	assert.Contains(t, err.Error(), "nil client")
 }
 
 func TestDestroyClient_NilClient(t *testing.T) {
