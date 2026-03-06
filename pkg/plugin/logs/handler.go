@@ -7,7 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/omniviewdev/plugin-sdk/pkg/logs"
+	"github.com/omniviewdev/plugin-sdk/pkg/v1/logs"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
 
 	"github.com/omniview/kubernetes/pkg/utils"
@@ -25,8 +25,21 @@ func PodLogHandler(ctx *types.PluginContext, req logs.LogStreamRequest) (io.Read
 	// may point to the parent resource rather than the actual pod.
 	pod := req.Labels["pod"]
 	namespace := req.Labels["namespace"]
+	if pod == "" || namespace == "" {
+		rpod, rns := extractPodIdentity(req.ResourceData)
+		if pod == "" {
+			pod = rpod
+		}
+		if namespace == "" {
+			namespace = rns
+		}
+	}
+
 	if pod == "" {
-		pod, namespace = extractPodIdentity(req.ResourceData)
+		return nil, fmt.Errorf("pod name is required but not found in labels or resource data")
+	}
+	if namespace == "" {
+		return nil, fmt.Errorf("namespace is required but not found in labels or resource data")
 	}
 
 	// Container comes from labels first (resolved sources), then target selection

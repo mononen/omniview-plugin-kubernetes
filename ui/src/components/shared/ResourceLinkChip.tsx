@@ -71,12 +71,17 @@ const ResourceLinkChip: React.FC<Props> = ({
     return null;
   }
 
-  const handleClick = () => {
+  const handleClick: React.MouseEventHandler = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
     showResourceSidebar({
       pluginID,
       connectionID,
       resourceKey,
       resourceID,
+      // Keep drawer title consistent with row-click behavior (actual resource ID/name),
+      // while allowing chip label text to stay contextual (kind/type/etc).
       resourceName: resourceID,
       namespace,
     });

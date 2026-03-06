@@ -2,8 +2,10 @@ package main
 
 import (
 	"flag"
+	"log"
 
 	"github.com/omniview/kubernetes/pkg/plugin/exec"
+	"github.com/omniview/kubernetes/pkg/plugin/klogconfig"
 	pluginlogs "github.com/omniview/kubernetes/pkg/plugin/logs"
 	pluginmetric "github.com/omniview/kubernetes/pkg/plugin/metric"
 	"github.com/omniview/kubernetes/pkg/plugin/networker"
@@ -20,18 +22,29 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// klogFS is a dedicated FlagSet for klog flags, keeping them isolated from the
+// global flag.CommandLine so flag.Parse() is never called on the global set
+// (which can exit the process on unknown args from the plugin host).
+var klogFS = flag.NewFlagSet("klog", flag.ContinueOnError)
+
 func init() {
-	// 1) Initialize klog’s flags
-	klog.InitFlags(nil)
+	// 1) Initialize klog's flags on our local FlagSet.
+	klog.InitFlags(klogFS)
 
-	// 2) Send logs to stderr (so you see them in your console)
-	flag.Set("logtostderr", "true")
+	// 2) Configure safe defaults.
+	if err := klogconfig.ConfigureDefaults(klogFS); err != nil {
+		log.Printf("failed to configure klog defaults: %v", err)
+	}
 
-	// 3) Set the verbosity level (6 gives you List/Watch errors, retries, etc)
-	flag.Set("v", "6")
+	// 3) Parse the local FlagSet (not the global one).
+	if err := klogFS.Parse(nil); err != nil {
+		log.Printf("failed to parse klog flags: %v", err)
+	}
 
-	// 4) Parse all flags (this must come *after* setting the flag defaults)
-	flag.Parse()
+	// 4) Redirect klog output through Go's standard log package. The std log
+	// package caches os.Stderr at init time (before go-plugin may replace it),
+	// so writes through log.Writer() are reliably captured by the engine.
+	klog.SetOutput(log.Writer())
 }
 
 func main() {
@@ -53,6 +66,7 @@ func main() {
 					DefaultPath:  "~/.kube",
 				},
 			},
+			klogconfig.Setting(),
 			{
 				ID:          "shell",
 				Label:       "Shell",
@@ -102,6 +116,10 @@ func main() {
 			},
 		},
 	})
+
+	if err := klogconfig.ApplyFromProvider(klogFS, plugin.SettingsProvider); err != nil {
+		log.Printf("failed to apply client log level setting: %v", err)
+	}
 
 	// Register the capabilities
 	resource.Register(plugin)
