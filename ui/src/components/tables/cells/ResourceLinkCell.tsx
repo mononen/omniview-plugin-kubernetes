@@ -1,5 +1,5 @@
 import { useRightDrawer } from '@omniviewdev/runtime';
-import { type types } from '@omniviewdev/runtime/models';
+import { type resource } from '@omniviewdev/runtime/models';
 import { Chip } from '@omniviewdev/ui';
 import { Tooltip } from '@omniviewdev/ui/overlays';
 import type { SemanticColor } from '@omniviewdev/ui/types';
@@ -55,7 +55,7 @@ function kindFromKey(key: string): string {
   return parts[parts.length - 1];
 }
 
-type Props = types.ResourceLink & {
+type Props = resource.ResourceLink & {
   value: string | Record<string, unknown>;
   metadata?: ResourceMetadata;
 };
@@ -82,7 +82,7 @@ const ResourceLinkCell: React.FC<Props> = ({
 
   let namespace = '';
   if (namespaced) {
-    namespace = get(value, namespaceAccessor, metadata?.namespace ?? '');
+    namespace = get(value, namespaceAccessor, metadata?.namespace ?? '') as string;
   }
 
   const resourceID: string = typeof value === 'string' ? value : (get(value, idAccessor, '') as string);

@@ -84,7 +84,8 @@ type Props = {
   annotations: Record<string, boolean>;
   setAnnotations: (vals: Record<string, boolean>) => void;
   anchorEl: HTMLElement | undefined;
-  columns: Array<Column<Record<string, unknown>>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  columns: Array<Column<any>>;
   onClose: () => void;
   onClick: React.MouseEventHandler<HTMLButtonElement>;
 };

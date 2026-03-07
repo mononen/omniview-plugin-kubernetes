@@ -299,7 +299,7 @@ const ResourceTableContainer: React.FC<Props> = ({
     setAnnotations((prev) => ({ ...prev, ...vals }));
   };
 
-  const allColumns = [...columns, ...columnDefs];
+  const allColumns = [...columns, ...columnDefs] as ColumnDef<KubernetesResourceObject, any>[];
 
   // Auto-detect whether this resource has a namespace column
   const hasNamespaceColumn = allColumns.some((col) => col.id === 'namespace');
