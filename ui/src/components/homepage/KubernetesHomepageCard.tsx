@@ -244,7 +244,11 @@ const KubernetesHomepageCard: React.FC<HomepageCardProps> = ({ config }) => {
 
   const handleDisconnect = async (connectionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    await disconnect(PLUGIN_ID, connectionId);
+    try {
+      await disconnect(PLUGIN_ID, connectionId);
+    } catch (err) {
+      console.error(`Failed to disconnect ${connectionId}:`, err);
+    }
   };
 
   if (isLoading || connections.isLoading) {
