@@ -8,7 +8,7 @@ import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import { LuFolder } from 'react-icons/lu';
 import { Avatar } from '@omniviewdev/ui';
 import { Text } from '@omniviewdev/ui/typography';
-import { useConnections, useConnectionStatus } from '@omniviewdev/runtime';
+import { useConnections, useConnectionStatus, usePluginRouter } from '@omniviewdev/runtime';
 import type { HomepageCardProps } from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
 import { type types } from '@omniviewdev/runtime/models';
@@ -204,6 +204,7 @@ const KubernetesHomepageCard: React.FC<HomepageCardProps> = ({ config }) => {
   const maxItems = config.maxItems ?? 5;
   const sections = Array.isArray(config.sections) ? config.sections : [];
 
+  const { navigate } = usePluginRouter();
   const { connections } = useConnections({ plugin: PLUGIN_ID });
   const { entries: allStatusEntries, disconnect } = useConnectionStatus();
   const { favorites, recentConnections, customGroups, connectionOverrides, isLoading, recordAccess } =
@@ -239,7 +240,7 @@ const KubernetesHomepageCard: React.FC<HomepageCardProps> = ({ config }) => {
       }
     }
     await recordAccess(connectionId);
-    window.location.hash = `/_plugin/${PLUGIN_ID}/cluster/${encodeURIComponent(connectionId)}/resources`;
+    navigate(`/cluster/${encodeURIComponent(connectionId)}/resources`);
   };
 
   const handleDisconnect = async (connectionId: string, e: React.MouseEvent) => {
