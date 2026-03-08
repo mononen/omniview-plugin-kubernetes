@@ -16,6 +16,7 @@ import { useClusterPreferences } from '../../hooks/useClusterPreferences';
 import type { ConnectionOverride, ConnectionGroup } from '../../types/clusters';
 import ConnectionStatusBadge from '../connections/ConnectionStatusBadge';
 import NamedAvatar from '../shared/NamedAvatar';
+import ConnectedClusterCard from './ConnectedClusterCard';
 
 const PLUGIN_ID = 'kubernetes';
 
@@ -93,6 +94,7 @@ type ClusterChipProps = {
   hasErrors?: boolean;
   onClick: () => void;
   onDisconnect?: (e: React.MouseEvent) => void;
+  stretch?: boolean;
 };
 
 const ClusterChip: React.FC<ClusterChipProps> = ({
@@ -104,13 +106,14 @@ const ClusterChip: React.FC<ClusterChipProps> = ({
   hasErrors,
   onClick,
   onDisconnect,
+  stretch,
 }) => {
   const displayName = override?.displayName ?? conn?.name ?? id;
   const avatar = override?.avatar ?? conn?.avatar;
   const avatarColor = override?.avatarColor;
 
   return (
-    <Box sx={chipSx} onClick={onClick}>
+    <Box sx={stretch ? { ...chipSx, display: 'flex', maxWidth: 'none' } : chipSx} onClick={onClick}>
       <ConnectionStatusBadge isConnected={isConnected}>
         {avatar ? (
           <Avatar size="sm" src={avatar} sx={avatarSx} />
@@ -243,14 +246,13 @@ const KubernetesHomepageCard: React.FC<HomepageCardProps> = ({ config }) => {
           {connectedEntries.length === 0 ? (
             <EmptySectionNote message="No clusters connected" />
           ) : (
-            <Box sx={chipGridSx}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 0.75 }}>
               {connectedEntries.slice(0, maxItems).map((entry) => (
-                <ClusterChip
+                <ConnectedClusterCard
                   key={entry.connectionID}
-                  id={entry.connectionID}
+                  connectionID={entry.connectionID}
                   conn={connMap[entry.connectionID]}
                   override={connectionOverrides[entry.connectionID]}
-                  isConnected
                   isSyncing={entry.isSyncing}
                   hasErrors={entry.hasErrors}
                   onClick={() => void handleOpen(entry.connectionID)}
