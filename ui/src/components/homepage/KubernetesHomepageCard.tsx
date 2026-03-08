@@ -202,7 +202,7 @@ const FolderChip: React.FC<FolderChipProps> = ({ group }) => (
 
 const KubernetesHomepageCard: React.FC<HomepageCardProps> = ({ config }) => {
   const maxItems = config.maxItems ?? 5;
-  const { sections } = config;
+  const sections = Array.isArray(config.sections) ? config.sections : [];
 
   const { connections } = useConnections({ plugin: PLUGIN_ID });
   const { entries: allStatusEntries, disconnect } = useConnectionStatus();
