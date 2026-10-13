@@ -2,6 +2,10 @@ name: Release Plugin
 
 # Publishes to the marketplace in the OMNIVIEW_API_URL repository variable.
 # The tag is the version: push v1.2.3 and 1.2.3 is what gets published.
+#
+# Runs on the homelab runners so it can talk to the marketplace API inside the
+# cluster instead of through the public hostname. The archives themselves are
+# still uploaded to the public storage hostname the API signs upload links for.
 
 on:
   push:
@@ -11,6 +15,10 @@ on:
       version:
         description: 'Version to publish (e.g. 0.3.0)'
         required: true
+      dry-run:
+        description: 'Build and package only; do not publish'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -20,7 +28,7 @@ env:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: [homelab]
     steps:
       - uses: actions/checkout@v4
 
@@ -40,6 +48,8 @@ jobs:
             echo "::error::'$RAW' is not a semantic version"
             exit 1
           fi
+          # Fail before the build if the marketplace cannot be reached from this runner.
+          curl -fsS --retry 3 --max-time 15 "${OMNIVIEW_API_URL%/}/v1/health" > /dev/null
           echo "value=$version" >> "$GITHUB_OUTPUT"
           echo "platforms=${PLATFORMS// /,}" >> "$GITHUB_OUTPUT"
 
@@ -57,10 +67,20 @@ jobs:
           cache: pnpm
           cache-dependency-path: ui/pnpm-lock.yaml
 
+      # Cluster DNS drops the odd lookup; a failed download is retried rather than failing the job.
+      - name: Download modules
+        run: |
+          for attempt in 1 2 3 4 5; do
+            go mod download && exit 0
+            echo "go mod download failed (attempt $attempt), retrying"; sleep 10
+          done
+          exit 1
+
       - name: Build and package
         run: hack/package.sh "${{ steps.version.outputs.value }}" $PLATFORMS
 
       - name: Publish to marketplace
+        if: ${{ !inputs.dry-run }}
         uses: omniviewdev/publish-plugin-action@v1
         with:
           api-key: ${{ secrets.OMNIVIEW_API_KEY }}
