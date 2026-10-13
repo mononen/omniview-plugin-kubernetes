@@ -29,6 +29,12 @@ const builtinTabs: Record<string, string> = {
   metrics: 'Metrics',
 };
 
+const EXTENSION_TAB_PREFIX = 'ext/';
+
+/** URL segment for a plugin-contributed dashboard tab. */
+export const extensionTabPath = (ext: { id: string; meta?: unknown }): string =>
+  (ext.meta as { path?: string } | undefined)?.path ?? encodeURIComponent(ext.id);
+
 export const DashboardLayout: React.FC = () => {
   const { pluginPath, navigate } = usePluginRouter();
 
@@ -40,8 +46,14 @@ export const DashboardLayout: React.FC = () => {
 
   // Determine the active tab from the last path segment.
   // pluginPath is e.g. "/cluster/abc/resources" (overview) or "/cluster/abc/resources/metrics"
+  // Extension tabs live under "ext/<path>" so they can never shadow a resource key.
   const lastSegment = pluginPath.split('/').pop() ?? '';
-  const activeTab = lastSegment in builtinTabs ? lastSegment : '';
+  const extensionMatch = /\/ext\/([^/]+)$/.exec(pluginPath);
+  const activeTab = extensionMatch
+    ? `${EXTENSION_TAB_PREFIX}${extensionMatch[1]}`
+    : lastSegment in builtinTabs
+      ? lastSegment
+      : '';
 
   return (
     <Box
@@ -68,7 +80,7 @@ export const DashboardLayout: React.FC = () => {
         {extensionTabs.map((ext) => (
           <MuiTab
             key={ext.id}
-            value={(ext.meta as { path?: string } | undefined)?.path ?? ext.id}
+            value={`${EXTENSION_TAB_PREFIX}${extensionTabPath(ext)}`}
             label={ext.label}
             sx={dashboardTabItemSx}
           />

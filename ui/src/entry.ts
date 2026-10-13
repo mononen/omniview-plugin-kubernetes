@@ -116,6 +116,7 @@ import ClusterResourcesPage from './pages/ClusterResourcesPage';
 import ClustersPage from './pages/ClustersPage';
 import ClusterDashboardPage from './pages/dashboard';
 import ClusterDashboardBenchmarksPage from './pages/dashboard/benchmarks';
+import ClusterDashboardExtensionPage from './pages/dashboard/extension';
 import ClusterDashboardMetricsPage from './pages/dashboard/metrics';
 import ClusterDashboardOverviewPage from './pages/dashboard/overview';
 
@@ -288,6 +289,7 @@ const routes: Array<RouteObject> = [
               { path: '', index: true, Component: ClusterDashboardOverviewPage },
               { path: 'metrics', Component: ClusterDashboardMetricsPage },
               { path: 'benchmarks', Component: ClusterDashboardBenchmarksPage },
+              { path: 'ext/:tabPath', Component: ClusterDashboardExtensionPage },
             ],
           },
           // admissionregistration.v1
