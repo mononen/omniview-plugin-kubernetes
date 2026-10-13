@@ -23,7 +23,13 @@ import { useClusterPreferences } from '../hooks/useClusterPreferences';
 import { useSidebarLayout } from '../hooks/useSidebarLayout';
 import { useSidebarOrder, applyOrder } from '../hooks/useSidebarOrder';
 import Layout from '../layouts/resource';
-import { CLUSTER_PAGE_PREFIX, clusterPageIcon, clusterPagePath, useClusterPages } from './extension';
+import {
+  CLUSTER_PAGE_PREFIX,
+  clusterPageChildren,
+  clusterPageIcon,
+  clusterPagePath,
+  useClusterPages,
+} from './extension';
 import { stringAvatar } from '../utils/color';
 
 const rootSx = {
@@ -79,11 +85,22 @@ export default function ClusterResourcesPage(): React.ReactElement {
     if (clusterPages.length === 0 || ordered.length === 0) return ordered;
 
     // Pages contributed by other plugins sit directly under Dashboard.
-    const pageItems = clusterPages.map((page) => ({
-      id: `${CLUSTER_PAGE_PREFIX}${clusterPagePath(page)}`,
-      label: page.label,
-      icon: clusterPageIcon(page) ?? <LuPuzzle />,
-    }));
+    const pageItems = clusterPages.map((page) => {
+      const id = `${CLUSTER_PAGE_PREFIX}${clusterPagePath(page)}`;
+      const children = clusterPageChildren(page).map((child) => ({
+        id: `${id}/${child.path}`,
+        label: child.label,
+        icon: child.icon,
+      }));
+      return {
+        id,
+        label: page.label,
+        icon: clusterPageIcon(page) ?? <LuPuzzle />,
+        // The page itself is a destination, not just a group header.
+        selectable: true,
+        ...(children.length > 0 ? { children } : {}),
+      };
+    });
     const [first, ...rest] = ordered;
     const at = first.items.findIndex((item) => item.id === '__dashboard__') + 1;
     return [{ ...first, items: [...first.items.slice(0, at), ...pageItems, ...first.items.slice(at)] }, ...rest];
@@ -175,7 +192,7 @@ export default function ClusterResourcesPage(): React.ReactElement {
   // Dashboard routes end with 'resources', 'metrics', or 'benchmarks'.
   const DASHBOARD_TABS = new Set(['resources', 'metrics', 'benchmarks']);
   const lastSegment = location.pathname.split('/').pop() ?? '';
-  const pageMatch = /\/page\/([^/]+)$/.exec(location.pathname);
+  const pageMatch = /\/resources\/page\/(.+)$/.exec(location.pathname);
   const selected = pageMatch
     ? `${CLUSTER_PAGE_PREFIX}${pageMatch[1]}`
     : DASHBOARD_TABS.has(lastSegment)

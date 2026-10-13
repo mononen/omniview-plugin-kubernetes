@@ -295,6 +295,7 @@ const routes: Array<RouteObject> = [
           },
           // Pages contributed by other plugins
           { path: 'page/:pagePath', Component: ClusterExtensionPage },
+          { path: 'page/:pagePath/:subPath', Component: ClusterExtensionPage },
           // admissionregistration.v1
           {
             path: 'admissionregistration_v1_MutatingWebhookConfiguration',
