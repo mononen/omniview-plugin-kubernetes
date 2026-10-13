@@ -1,58 +1,80 @@
 name: Release Plugin
 
+# Publishes to the marketplace in the OMNIVIEW_API_URL repository variable.
+# The tag is the version: push v1.2.3 and 1.2.3 is what gets published.
+
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (e.g., 0.1.0)'
+        description: 'Version to publish (e.g. 0.3.0)'
         required: true
 
 permissions:
   contents: write
 
+env:
+  PLATFORMS: darwin_arm64 darwin_amd64 linux_amd64 linux_arm64 windows_amd64
+
 jobs:
-  set-version:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        env:
+          RAW: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+          OMNIVIEW_API_URL: ${{ vars.OMNIVIEW_API_URL }}
+        run: |
+          # Without api-url the publish action falls back to the upstream marketplace.
+          if [ -z "$OMNIVIEW_API_URL" ]; then
+            echo "::error::Repository variable OMNIVIEW_API_URL is not set"
+            exit 1
+          fi
+          version="${RAW#v}"
+          if ! echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$RAW' is not a semantic version"
+            exit 1
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          echo "platforms=${PLATFORMS// /,}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v5
         with:
-          ref: ${{ github.event_name == 'push' && github.sha || github.ref }}
-      - name: Set package.json version from tag
-        run: |
-          VERSION=${{ github.event_name == 'push' && github.ref_name || format('v{0}', inputs.version) }}
-          VERSION="${VERSION#v}"
-          cd ui && jq --arg v "$VERSION" '.version = $v' package.json > tmp.json && mv tmp.json package.json
-      - name: Push version update
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ui/package.json
-          git commit -m "chore: set package.json version to ${GITHUB_REF_NAME#v}" || true
-          git push origin HEAD:main
+          go-version-file: go.mod
 
-  publish:
-    needs: set-version
-    uses: omniviewdev/publish-plugin-action/.github/workflows/build-and-publish.yml@v1
-    with:
-      go-version: '1.25'
-      plugin-id: kubernetes
-      publisher-slug: omniview
-      api-url: https://api.staging.omniview.dev
-      version: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', inputs.version) }}
-      go-entry: ./pkg
-      ui-path: ./ui
-    secrets:
-      api-key: ${{ secrets.OMNIVIEW_API_KEY }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
-  github-release:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    steps:
-      - name: Create GitHub Release
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - name: Build and package
+        run: hack/package.sh "${{ steps.version.outputs.value }}" $PLATFORMS
+
+      - name: Publish to marketplace
+        uses: omniviewdev/publish-plugin-action@v1
+        with:
+          api-key: ${{ secrets.OMNIVIEW_API_KEY }}
+          api-url: ${{ vars.OMNIVIEW_API_URL }}
+          publisher-slug: mononen
+          plugin-id: kubernetes
+          version: ${{ steps.version.outputs.value }}
+          artifact-path: dist/
+          architectures: ${{ steps.version.outputs.platforms }}
+
+      - name: Create GitHub release
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          files: dist/*.tar.gz
