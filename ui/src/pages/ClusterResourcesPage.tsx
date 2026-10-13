@@ -12,7 +12,7 @@ import { IconButton } from '@omniviewdev/ui/buttons';
 import { Stack } from '@omniviewdev/ui/layout';
 import { Text } from '@omniviewdev/ui/typography';
 import React from 'react';
-import { LuCog, LuLock, LuLockOpen, LuRotateCcw } from 'react-icons/lu';
+import { LuCog, LuLock, LuLockOpen, LuPuzzle, LuRotateCcw } from 'react-icons/lu';
 import { Outlet, useParams } from 'react-router-dom';
 
 import DraggableNavMenu from '../components/kubernetes/sidebar/DraggableNavMenu';
@@ -23,6 +23,7 @@ import { useClusterPreferences } from '../hooks/useClusterPreferences';
 import { useSidebarLayout } from '../hooks/useSidebarLayout';
 import { useSidebarOrder, applyOrder } from '../hooks/useSidebarOrder';
 import Layout from '../layouts/resource';
+import { CLUSTER_PAGE_PREFIX, clusterPageIcon, clusterPagePath, useClusterPages } from './extension';
 import { stringAvatar } from '../utils/color';
 
 const rootSx = {
@@ -72,7 +73,21 @@ export default function ClusterResourcesPage(): React.ReactElement {
   const { connectionOverrides } = useClusterPreferences('kubernetes');
   const { layout: rawLayout } = useSidebarLayout({ connectionID: id });
   const { order, setOrder, isEditing, setIsEditing, resetOrder } = useSidebarOrder();
-  const layout = React.useMemo(() => applyOrder(rawLayout, order), [rawLayout, order]);
+  const clusterPages = useClusterPages();
+  const layout = React.useMemo(() => {
+    const ordered = applyOrder(rawLayout, order);
+    if (clusterPages.length === 0 || ordered.length === 0) return ordered;
+
+    // Pages contributed by other plugins sit directly under Dashboard.
+    const pageItems = clusterPages.map((page) => ({
+      id: `${CLUSTER_PAGE_PREFIX}${clusterPagePath(page)}`,
+      label: page.label,
+      icon: clusterPageIcon(page) ?? <LuPuzzle />,
+    }));
+    const [first, ...rest] = ordered;
+    const at = first.items.findIndex((item) => item.id === '__dashboard__') + 1;
+    return [{ ...first, items: [...first.items.slice(0, at), ...pageItems, ...first.items.slice(at)] }, ...rest];
+  }, [rawLayout, order, clusterPages]);
   const { location, navigate } = usePluginRouter();
   const [savedExpandedState, setSavedExpandedState] = useStoredState<Record<string, boolean>>(
     `kubernetes-${id}-sidebar-expanded`,
@@ -160,7 +175,12 @@ export default function ClusterResourcesPage(): React.ReactElement {
   // Dashboard routes end with 'resources', 'metrics', or 'benchmarks'.
   const DASHBOARD_TABS = new Set(['resources', 'metrics', 'benchmarks']);
   const lastSegment = location.pathname.split('/').pop() ?? '';
-  const selected = DASHBOARD_TABS.has(lastSegment) ? '__dashboard__' : lastSegment;
+  const pageMatch = /\/page\/([^/]+)$/.exec(location.pathname);
+  const selected = pageMatch
+    ? `${CLUSTER_PAGE_PREFIX}${pageMatch[1]}`
+    : DASHBOARD_TABS.has(lastSegment)
+      ? '__dashboard__'
+      : lastSegment;
 
   const handleSelect = React.useCallback(
     (resourceID: string) => {
