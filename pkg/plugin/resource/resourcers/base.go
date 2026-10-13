@@ -105,6 +105,20 @@ var (
 	_ resource.RelationshipDeclarer          = (*KubernetesResourcerBase[MetaAccessor])(nil)
 )
 
+// extractMetadata pulls UID, Labels, and CreatedAt from an unstructured object
+// for inclusion in watch event payloads.
+func extractMetadata(u *unstructured.Unstructured) resource.ResourceMetadata {
+	meta := resource.ResourceMetadata{
+		UID:    string(u.GetUID()),
+		Labels: u.GetLabels(),
+	}
+	if t := u.GetCreationTimestamp(); !t.IsZero() {
+		ts := t.Time
+		meta.CreatedAt = &ts
+	}
+	return meta
+}
+
 // ============================ CRUD METHODS ============================ //
 
 func (s *KubernetesResourcerBase[T]) Get(
@@ -342,6 +356,7 @@ func makeEventHandler(meta resource.ResourceMeta, sink resource.WatchEventSink) 
 				Key:       meta.Key(),
 				ID:        u.GetName(),
 				Namespace: u.GetNamespace(),
+				Metadata:  extractMetadata(u),
 			})
 		},
 		UpdateFunc: func(_, newObj interface{}) {
@@ -358,6 +373,7 @@ func makeEventHandler(meta resource.ResourceMeta, sink resource.WatchEventSink) 
 				Key:       meta.Key(),
 				ID:        u.GetName(),
 				Namespace: u.GetNamespace(),
+				Metadata:  extractMetadata(u),
 			})
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -406,6 +422,51 @@ func (s *KubernetesResourcerBase[T]) watchUnscoped(
 	meta resource.ResourceMeta,
 	sink resource.WatchEventSink,
 ) error {
+	// Pre-flight: verify the resource actually exists on this cluster before
+	// creating an informer.  Without this check the DynamicInformerFactory
+	// starts a reflector that retries list+watch in a loop, spamming logs for
+	// resources the API server advertises in discovery but doesn't serve (e.g.
+	// beta versions behind disabled feature gates).
+	_, probeErr := client.DynamicClient.Resource(s.resourceType).List(ctx, v1.ListOptions{Limit: 1})
+	if probeErr != nil {
+		classified := classifyWatchError(probeErr)
+		if classified.isNotFound {
+			log.Printf("[k8s-watch] %s: pre-flight probe 404, skipping watch", meta.Key())
+			sink.OnStateChange(resource.WatchStateEvent{
+				ResourceKey: meta.Key(),
+				State:       resource.WatchStateSkipped,
+				Message:     classified.message,
+				ErrorCode:   classified.code,
+			})
+			<-ctx.Done()
+			return nil
+		}
+		if classified.isMethodNotAllowed {
+			log.Printf("[k8s-watch] %s: pre-flight probe 405, skipping watch", meta.Key())
+			sink.OnStateChange(resource.WatchStateEvent{
+				ResourceKey: meta.Key(),
+				State:       resource.WatchStateSkipped,
+				Message:     classified.message,
+				ErrorCode:   classified.code,
+			})
+			<-ctx.Done()
+			return nil
+		}
+		if classified.isForbidden {
+			log.Printf("[k8s-watch] %s: pre-flight probe forbidden, skipping watch", meta.Key())
+			sink.OnStateChange(resource.WatchStateEvent{
+				ResourceKey: meta.Key(),
+				State:       resource.WatchStateForbidden,
+				Message:     classified.message,
+				ErrorCode:   classified.code,
+			})
+			<-ctx.Done()
+			return nil
+		}
+		// Other errors (transient network issues, etc.) — fall through and let
+		// the informer attempt normally so it can retry with backoff.
+	}
+
 	// Register the informer with the factory BEFORE starting it.
 	informer := client.DynamicInformerFactory.ForResource(s.resourceType).Informer()
 	client.EnsureFactoryStarted()
@@ -521,6 +582,7 @@ func (s *KubernetesResourcerBase[T]) watchUnscoped(
 				Key:       meta.Key(),
 				ID:        u.GetName(),
 				Namespace: u.GetNamespace(),
+				Metadata:  extractMetadata(u),
 			})
 		}
 	}
@@ -553,6 +615,40 @@ func (s *KubernetesResourcerBase[T]) watchScoped(
 	namespaces []string,
 ) error {
 	log.Printf("[k8s-watch] %s: starting scoped watch for %d namespaces", meta.Key(), len(namespaces))
+
+	// Pre-flight: verify the resource exists on this cluster using the first
+	// namespace.  This avoids creating per-namespace informers (and their
+	// reflectors) for resources the API server advertises but doesn't serve.
+	if len(namespaces) > 0 {
+		_, probeErr := client.DynamicClient.Resource(s.resourceType).Namespace(namespaces[0]).List(ctx, v1.ListOptions{Limit: 1})
+		if probeErr != nil {
+			classified := classifyWatchError(probeErr)
+			if classified.isNotFound {
+				log.Printf("[k8s-watch] %s: pre-flight probe 404, skipping scoped watch", meta.Key())
+				sink.OnStateChange(resource.WatchStateEvent{
+					ResourceKey: meta.Key(),
+					State:       resource.WatchStateSkipped,
+					Message:     classified.message,
+					ErrorCode:   classified.code,
+				})
+				<-ctx.Done()
+				return nil
+			}
+			if classified.isMethodNotAllowed {
+				log.Printf("[k8s-watch] %s: pre-flight probe 405, skipping scoped watch", meta.Key())
+				sink.OnStateChange(resource.WatchStateEvent{
+					ResourceKey: meta.Key(),
+					State:       resource.WatchStateSkipped,
+					Message:     classified.message,
+					ErrorCode:   classified.code,
+				})
+				<-ctx.Done()
+				return nil
+			}
+			// For forbidden/other errors, fall through — individual namespaces
+			// may have different permissions.
+		}
+	}
 
 	sink.OnStateChange(resource.WatchStateEvent{
 		ResourceKey: meta.Key(),
@@ -671,6 +767,7 @@ func (s *KubernetesResourcerBase[T]) watchScoped(
 				Key:       meta.Key(),
 				ID:        u.GetName(),
 				Namespace: u.GetNamespace(),
+				Metadata:  extractMetadata(u),
 			})
 		}
 	}
