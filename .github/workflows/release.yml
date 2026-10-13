@@ -3,7 +3,9 @@ name: Release Plugin
 # Publishes to the marketplace in the OMNIVIEW_API_URL repository variable.
 # The tag is the version: push v1.2.3 and 1.2.3 is what gets published.
 #
-# Runs on the homelab runners so it can talk to the marketplace API inside the
+# The build runs on a GitHub-hosted runner: five cross-compiles take about five
+# minutes there and close to an hour on the 2-CPU homelab runners. Publishing
+# runs on the homelab runners so it can talk to the marketplace API inside the
 # cluster instead of through the public hostname. The archives themselves are
 # still uploaded to the public storage hostname the API signs upload links for.
 
@@ -27,8 +29,11 @@ env:
   PLATFORMS: darwin_arm64 darwin_amd64 linux_amd64 linux_arm64 windows_amd64
 
 jobs:
-  publish:
-    runs-on: [homelab]
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+      platforms: ${{ steps.version.outputs.platforms }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,20 +41,12 @@ jobs:
         id: version
         env:
           RAW: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
-          OMNIVIEW_API_URL: ${{ vars.OMNIVIEW_API_URL }}
         run: |
-          # Without api-url the publish action falls back to the upstream marketplace.
-          if [ -z "$OMNIVIEW_API_URL" ]; then
-            echo "::error::Repository variable OMNIVIEW_API_URL is not set"
-            exit 1
-          fi
           version="${RAW#v}"
           if ! echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
             echo "::error::'$RAW' is not a semantic version"
             exit 1
           fi
-          # Fail before the build if the marketplace cannot be reached from this runner.
-          curl -fsS --retry 3 --max-time 15 "${OMNIVIEW_API_URL%/}/v1/health" > /dev/null
           echo "value=$version" >> "$GITHUB_OUTPUT"
           echo "platforms=${PLATFORMS// /,}" >> "$GITHUB_OUTPUT"
 
@@ -67,17 +64,52 @@ jobs:
           cache: pnpm
           cache-dependency-path: ui/pnpm-lock.yaml
 
-      # Cluster DNS drops the odd lookup; a failed download is retried rather than failing the job.
-      - name: Download modules
-        run: |
-          for attempt in 1 2 3 4 5; do
-            go mod download && exit 0
-            echo "go mod download failed (attempt $attempt), retrying"; sleep 10
-          done
-          exit 1
-
       - name: Build and package
         run: hack/package.sh "${{ steps.version.outputs.value }}" $PLATFORMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-archives
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: [homelab]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin-archives
+          path: dist
+
+      - name: Check marketplace
+        env:
+          OMNIVIEW_API_URL: ${{ vars.OMNIVIEW_API_URL }}
+        run: |
+          # Without api-url the publish action falls back to the upstream marketplace.
+          if [ -z "$OMNIVIEW_API_URL" ]; then
+            echo "::error::Repository variable OMNIVIEW_API_URL is not set"
+            exit 1
+          fi
+          curl -fsS --retry 3 --max-time 15 "${OMNIVIEW_API_URL%/}/v1/health" > /dev/null
+
+      # Cluster DNS drops the odd lookup and the publish action does not retry
+      # an upload, so resolve the storage host once, with retries, and pin it.
+      - name: Pin storage host
+        env:
+          STORAGE_HOST: ${{ vars.OMNIVIEW_STORAGE_HOST }}
+        run: |
+          [ -n "$STORAGE_HOST" ] || exit 0
+          for attempt in 1 2 3 4 5; do
+            ip=$(getent ahostsv4 "$STORAGE_HOST" | awk 'NR==1 {print $1}')
+            if [ -n "$ip" ]; then
+              echo "$ip $STORAGE_HOST" | sudo tee -a /etc/hosts
+              exit 0
+            fi
+            echo "lookup of $STORAGE_HOST failed (attempt $attempt), retrying"; sleep 5
+          done
+          exit 1
 
       - name: Publish to marketplace
         if: ${{ !inputs.dry-run }}
@@ -87,9 +119,9 @@ jobs:
           api-url: ${{ vars.OMNIVIEW_API_URL }}
           publisher-slug: mononen
           plugin-id: kubernetes
-          version: ${{ steps.version.outputs.value }}
+          version: ${{ needs.build.outputs.version }}
           artifact-path: dist/
-          architectures: ${{ steps.version.outputs.platforms }}
+          architectures: ${{ needs.build.outputs.platforms }}
 
       - name: Create GitHub release
         if: github.event_name == 'push'
