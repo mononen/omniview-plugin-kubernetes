@@ -495,7 +495,6 @@ const PodTable: React.FC = () => {
         connectionID={id}
         resourceKey={resourceKey}
         idAccessor="metadata.uid"
-        memoizer={'metadata.uid,metadata.resourceVersion,status.phase'}
         drawer={drawer}
         toolbarFilters={[
           { columnId: 'node', placeholder: 'All Nodes', accessor: (r: Pod) => r?.spec?.nodeName },

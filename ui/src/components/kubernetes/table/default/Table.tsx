@@ -53,7 +53,6 @@ const DefaultTable: React.FC = () => {
       connectionID={id}
       resourceKey={key}
       idAccessor="metadata.name"
-      memoizer={'metadata.uid,metadata.resourceVersion'}
       drawer={drawer}
     />
   );

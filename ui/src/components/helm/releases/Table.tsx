@@ -112,7 +112,6 @@ const HelmReleaseTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="name"
-      memoizer="name,version"
       drawer={drawer}
       createEnabled={false}
     />

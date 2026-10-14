@@ -131,7 +131,6 @@ const NetworkPolicyTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.uid"
-      memoizer="metadata.uid,metadata.resourceVersion,spec.policyTypes"
       drawer={drawer}
     />
   );

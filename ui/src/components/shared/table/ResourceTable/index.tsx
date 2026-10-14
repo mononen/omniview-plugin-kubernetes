@@ -1,5 +1,5 @@
 import { DataTable, Progress, Skeleton } from '@omniviewdev/base-ui';
-import { useResources, DrawerComponent } from '@omniviewdev/runtime';
+import { useResources, useRightDrawer, DrawerComponent } from '@omniviewdev/runtime';
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -10,6 +10,7 @@ import {
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
+  type Row,
   type RowSelectionState,
 } from '@tanstack/react-table';
 import get from 'lodash.get';
@@ -20,11 +21,16 @@ const SKELETON_ROWS = Array.from({ length: 8 }, (_, i) => `skel-${i}`);
 /** Sorting, resizing and pinning UI come from DataTable.Header; the rest is ours. */
 const TABLE_FEATURES = { sorting: true, columnResizing: true, columnPinning: true };
 
+/** Body row height in px; ResourceTable.module.css sets the same height on the cells. */
+const ROW_HEIGHT = 30;
+
+/** Clicks in these columns act on their own control instead of opening the drawer. */
+const NON_DRAWER_COLUMNS = new Set(['select', 'menu']);
+
 import type { KubernetesResourceObject } from '../../../../types/resource';
 import { plural } from '../../../../utils/language';
 import { useDynamicResourceColumns } from '../../../tables/ColumnFilter/useDynamicResourceColumns';
 
-import ResourceTableBody from '../ResourceTableBody';
 import { TableDrawerContext } from '../TableDrawerContext';
 import { ColumnMeta } from '../types';
 import { useRowSelectionCleanup } from '../useRowSelectionCleanup';
@@ -35,8 +41,6 @@ import { useStoredState } from '@/hooks/useStoredState';
 import ResourceTableErrorState from './ResourceTableErrorState';
 import styles from './ResourceTable.module.css';
 import ResourceTableToolbar from './ResourceTableToolbar';
-
-export type Memoizer = string | string[] | ((data: KubernetesResourceObject) => string);
 
 export type ToolbarFilterDef = {
   /** TanStack column ID this filter targets. */
@@ -54,7 +58,6 @@ export type Props<T = any> = {
   resourceKey: string;
   columns: Array<ColumnDef<T> & ColumnMeta>;
   idAccessor: string;
-  memoizer?: Memoizer;
   drawer?: DrawerComponent;
   /** Hide the namespace selector (for non-namespaced resources like Helm Charts) */
   hideNamespaceSelector?: boolean;
@@ -92,7 +95,6 @@ const ResourceTableContainer: React.FC<Props> = ({
   connectionID,
   resourceKey,
   columns,
-  memoizer,
   drawer,
   hideNamespaceSelector,
   toolbarActions,
@@ -232,17 +234,34 @@ const ResourceTableContainer: React.FC<Props> = ({
     },
   });
 
-  // Track which columns have been user-resized (changes infrequently)
-  const resizedColumnIds = useMemo(() => JSON.stringify(Object.keys(columnSizing)), [columnSizing]);
-
   const hasResizedColumns = Object.keys(columnSizing).length > 0;
 
-  const columnVisibilityKey = useMemo(
-    () => JSON.stringify({ columnVisibility, customCols: columnDefs.length }),
-    [columnVisibility, columnDefs.length],
+  const { openDrawer } = useRightDrawer();
+  const onRowClick = React.useCallback(
+    (row: Row<KubernetesResourceObject>, event: React.MouseEvent<HTMLTableRowElement>) => {
+      if (drawer === undefined) {
+        return;
+      }
+      // The row's <td>s follow its visible cells, so the clicked cell's index gives its column
+      const td = (event.target as Element).closest('td');
+      const index = td ? Array.prototype.indexOf.call(event.currentTarget.children, td) : -1;
+      const columnId = row.getVisibleCells()[index]?.column.id;
+      if (columnId && NON_DRAWER_COLUMNS.has(columnId)) {
+        return;
+      }
+      openDrawer(drawer, {
+        data: row.original,
+        resource: {
+          id: row.id,
+          name: row.original?.metadata?.name ?? row.id,
+          key: resourceKey,
+          connectionID,
+          pluginID: 'kubernetes',
+        },
+      });
+    },
+    [drawer, connectionID, openDrawer, resourceKey],
   );
-
-  const parentRef = React.useRef<HTMLDivElement>(null);
 
   const placeHolderText = () => {
     const keyparts = resourceKey.split('::');
@@ -269,6 +288,7 @@ const ResourceTableContainer: React.FC<Props> = ({
           table={table}
           features={TABLE_FEATURES}
           stickyHeader
+          hoverable
           className={styles.root}
         >
           {showSyncingIndicator && (
@@ -302,7 +322,6 @@ const ResourceTableContainer: React.FC<Props> = ({
             allFlatColumns={table.getAllFlatColumns()}
           />
           <DataTable.Container
-            ref={parentRef}
             className={styles.container}
             data-syncing={showSyncingIndicator ? 'true' : undefined}
             aria-labelledby={'table-title'}
@@ -321,16 +340,12 @@ const ResourceTableContainer: React.FC<Props> = ({
                 ))}
               </tbody>
             ) : (
-              <ResourceTableBody
-                table={table}
-                tableContainerRef={parentRef}
-                connectionID={connectionID}
-                resourceKey={resourceKey}
-                columnVisibility={columnVisibilityKey}
-                resizedColumnIds={resizedColumnIds}
-                rowSelection={rowSelection}
-                drawer={drawer}
-                memoizer={memoizer}
+              <DataTable.VirtualBody
+                className={styles.body}
+                estimateRowSize={ROW_HEIGHT}
+                fixedRowHeight
+                overscan={15}
+                onRowClick={onRowClick}
               />
             )}
           </DataTable.Container>

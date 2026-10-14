@@ -305,7 +305,6 @@ This field is beta-level. It can be used when the \`JobPodFailurePolicy\` featur
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.uid"
-      memoizer="metadata.uid,metadata.resourceVersion,status.completionTime"
       drawer={drawer}
       toolbarFilters={[
         { columnId: 'controlledBy', placeholder: 'All Controllers', accessor: (r: Job) => r?.metadata?.ownerReferences?.[0]?.name },

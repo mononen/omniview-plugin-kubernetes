@@ -1,8 +1,8 @@
 /*
- * Resource table body. The frame, header, sorting and resizing come from
- * base-ui DataTable; the body is ours so rows can be memoized per resource
- * version and open the drawer on click. Colours use DataTable's private
- * custom properties, which are inherited from DataTable.Root.
+ * Resource table layout. The frame, header and virtualized body come from
+ * base-ui DataTable; .body only tightens the body rows to the plugin's
+ * compact density. Colours use DataTable's private custom properties,
+ * which are inherited from DataTable.Root.
  */
 
 .outer {
@@ -45,47 +45,29 @@
   z-index: 3;
 }
 
+/* DataTable cells read these from the nearest ancestor that sets them */
 .body {
-  display: grid;
-  position: relative;
+  --_ov-row-height: 30px;
+  --_ov-cell-padding-inline: 8px;
+  --_ov-cell-padding-block: 0;
+  font-size: 0.75rem;
 }
 
-.row {
-  display: flex;
-  position: absolute;
-  width: 100%;
-  height: 30px;
+.body > tr {
   cursor: pointer;
-  background: var(--ov-color-bg-base);
   -webkit-user-select: text;
   user-select: text;
 }
 
-.cell {
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  box-sizing: border-box;
-  padding: 0 8px;
+/* Opaque so sticky pinned cells cover the cells scrolling under them;
+   DataTable's hover and selected backgrounds are more specific and win */
+.body td {
+  background-color: var(--ov-color-bg-base);
   white-space: nowrap;
+}
+
+.body td > span {
   text-overflow: ellipsis;
-  font-size: 0.75rem;
-  line-height: 30px;
-  color: var(--ov-color-fg-default);
-  border-bottom: 1px solid var(--_ov-dt-divider, var(--ov-color-border-muted));
-  background: inherit;
-}
-
-.cell[data-pinned] {
-  background: var(--ov-color-bg-base);
-}
-
-.row:hover {
-  background: var(--_ov-dt-row-hover, var(--ov-color-state-hover));
-}
-
-.row[data-selected='true'] {
-  background: var(--_ov-dt-row-selected, var(--ov-color-state-selected));
 }
 
 .skeletonRow {

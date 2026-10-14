@@ -77,7 +77,6 @@ const PriorityClassTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.uid"
-      memoizer="metadata.uid,metadata.resourceVersion"
       drawer={drawer}
     />
   );
