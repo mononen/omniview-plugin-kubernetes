@@ -44,7 +44,13 @@
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^5.0.1",
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.0",
     "@eslint/js": "^9.39.3",
+    "@mui/icons-material": "^7.3.8",
+    "@mui/material": "^7.3.8",
+    "@mui/x-charts": "^8.27.0",
+    "@omniviewdev/ui": "^0.3.0",
     "@omniviewdev/vite-plugin": "^0.3.0",
     "@storybook/addon-docs": "10.2.13",
     "@storybook/addon-links": "10.2.13",

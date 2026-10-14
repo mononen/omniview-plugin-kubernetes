@@ -7,6 +7,9 @@ import "@omniviewdev/editors/styles.css";
 
 import { ThemeProvider } from "@omniviewdev/base-ui";
 import { RightDrawerContext, SnackbarProvider } from "@omniviewdev/runtime";
+// The published runtime's SnackbarProvider still needs the legacy notification
+// stack; the plugin itself does not import @omniviewdev/ui.
+import { NotificationStackProvider } from "@omniviewdev/ui/feedback";
 
 const noopDrawerContext = {
   openDrawer: () => {},
@@ -25,11 +28,13 @@ const withProviders = (Story: React.FC) => {
   return (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider initialTheme="dark" persist={false}>
-      <SnackbarProvider>
-        <RightDrawerContext.Provider value={noopDrawerContext}>
-          <Story />
-        </RightDrawerContext.Provider>
-      </SnackbarProvider>
+      <NotificationStackProvider>
+        <SnackbarProvider>
+          <RightDrawerContext.Provider value={noopDrawerContext}>
+            <Story />
+          </RightDrawerContext.Provider>
+        </SnackbarProvider>
+      </NotificationStackProvider>
     </ThemeProvider>
   </QueryClientProvider>
   );

@@ -27,9 +27,11 @@ const pageStyle: React.CSSProperties = {
   flexDirection: 'column',
 };
 
+// EventsTable scrolls its own list, so the frame clips instead of adding a
+// second set of scrollbars.
 const eventsContainerStyle: React.CSSProperties = {
   height: 'clamp(300px, 40vh, 600px)',
-  overflow: 'auto',
+  overflow: 'hidden',
   border: '1px solid var(--ov-color-border-default)',
   borderRadius: 4,
 };
