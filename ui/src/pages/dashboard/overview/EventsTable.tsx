@@ -25,12 +25,14 @@ const countAgeStyle: React.CSSProperties = { display: 'flex', alignItems: 'cente
 const loadingStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBlock: 32 };
 
 const toolbarStyle: React.CSSProperties = {
+  flexShrink: 0,
   paddingInline: 12,
   paddingBlock: 6,
   borderBottom: '1px solid var(--ov-color-border-default)',
 };
 
-const eventListStyle: React.CSSProperties = { flex: 1, overflow: 'auto' };
+// Rows truncate rather than scroll sideways; only the list scrolls vertically.
+const eventListStyle: React.CSSProperties = { flex: 1, minHeight: 0, overflowX: 'hidden', overflowY: 'auto' };
 
 const emptyStateStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBlock: 32 };
 
@@ -42,7 +44,7 @@ const ageTextStyle: React.CSSProperties = { whiteSpace: 'nowrap' };
 
 const rootStyle: React.CSSProperties = { height: '100%' };
 
-const searchFieldStyle: React.CSSProperties = { width: 180 };
+const searchFieldStyle: React.CSSProperties = { width: 180, minWidth: 0, flexShrink: 1 };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -307,8 +309,8 @@ const EventsTable: React.FC<Props> = ({ events, loading, connectionID }) => {
   return (
     <Stack direction="column" spacing={0} style={rootStyle}>
       {/* Toolbar: filter chips + search */}
-      <Stack direction="row" align="center" justify="between" style={toolbarStyle}>
-        <Stack direction="row" align="center" spacing={1}>
+      <Stack direction="row" align="center" justify="between" wrap style={toolbarStyle}>
+        <Stack direction="row" align="center" spacing={1} wrap>
           {(['all', 'Normal', 'Warning'] as EventFilter[]).map((f) => (
             <Chip
               key={f}
@@ -331,7 +333,7 @@ const EventsTable: React.FC<Props> = ({ events, loading, connectionID }) => {
         </Stack>
 
         <SearchInput
-          size="xs"
+          size="sm"
           placeholder="Search events..."
           aria-label="Search events"
           // eslint-disable-next-line jsx-a11y/no-autofocus
