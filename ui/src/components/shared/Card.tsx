@@ -1,23 +1,18 @@
-// @omniviewdev/ui
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import { Card as UiCard, Avatar, Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Card as UiCard, Chip, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
 // project imports
 import Icon from './Icon';
 
-const outerCardSx = { p: 0, gap: 0 } as const;
+const outerCardStyle: React.CSSProperties = { padding: 0, gap: 0, minWidth: 0 };
 
-const headerStackSx = { p: 1 } as const;
+const headerStackStyle: React.CSSProperties = { padding: 8 };
 
-const avatarSx = { maxHeight: 16, maxWidth: 16, borderRadius: 4 } as const;
+const iconImageStyle: React.CSSProperties = { maxHeight: 16, maxWidth: 16, borderRadius: 4 };
 
-const chipSx = { borderRadius: '4px' } as const;
+const chipStyle: React.CSSProperties = { borderRadius: 4 };
 
-const bodyBoxSx = { p: 1 } as const;
+const bodyStyle: React.CSSProperties = { padding: 8 };
 
 export interface Props {
   title: string;
@@ -31,23 +26,13 @@ export interface Props {
  */
 export const Card: React.FC<Props> = ({ title, titleDecorator, icon, children }) => {
   return (
-    <UiCard variant="outlined" sx={outerCardSx}>
-      <Stack
-        direction="row"
-        gap={1}
-        sx={headerStackSx}
-        alignItems="center"
-        justifyContent="space-between"
-      >
-        <Stack direction="row" alignItems="center" gap={1}>
+    <UiCard style={outerCardStyle}>
+      <Stack direction="row" spacing={2} align="center" justify="between" style={headerStackStyle}>
+        <Stack direction="row" align="center" spacing={2}>
           {icon &&
             (typeof icon === 'string' ? (
               icon.startsWith('http') ? (
-                <Avatar
-                  src={icon}
-                  size="sm"
-                  sx={avatarSx}
-                />
+                <img src={icon} alt="" style={iconImageStyle} />
               ) : (
                 <Icon name={icon} size={14} />
               )
@@ -60,19 +45,15 @@ export const Card: React.FC<Props> = ({ title, titleDecorator, icon, children })
         </Stack>
         {titleDecorator &&
           (typeof titleDecorator === 'string' || typeof titleDecorator === 'number' ? (
-            <Chip
-              sx={chipSx}
-              size="sm"
-              color="primary"
-              emphasis="outline"
-              label={String(titleDecorator)}
-            />
+            <Chip style={chipStyle} size="sm" color="brand" variant="outline">
+              {String(titleDecorator)}
+            </Chip>
           ) : (
             titleDecorator
           ))}
       </Stack>
-      <Divider />
-      <Box sx={bodyBoxSx}>{children}</Box>
+      <Separator />
+      <div style={bodyStyle}>{children}</div>
     </UiCard>
   );
 };

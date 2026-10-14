@@ -1,6 +1,5 @@
+import { Stack, Text } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import type { ValidatingAdmissionPolicy } from 'kubernetes-types/admissionregistration/v1';
 import React from 'react';
 
@@ -10,6 +9,11 @@ import LabeledEntry from '../../../../../shared/LabeledEntry';
 import MatchResourcesSection from '../../../../../shared/MatchResourcesSection';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import SidebarSection from '../../../../../shared/SidebarSection';
+const codeTextStyle: React.CSSProperties = { fontFamily: 'var(--ov-font-mono)', whiteSpace: 'pre-wrap' };
+
+const cardContentStyle = { paddingInline: 8, paddingBlock: 4 } as const;
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<ValidatingAdmissionPolicy>;
@@ -32,8 +36,8 @@ export const ValidatingAdmissionPolicySidebar: React.FC<Props> = ({ ctx }) => {
     title: `Validation ${i + 1}`,
     defaultExpanded: i === 0,
     children: (
-      <Stack direction="column" gap={0.5} sx={{ px: 1, py: 0.5 }}>
-        <Text size="xs" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+      <Stack direction="column" spacing={1} style={cardContentStyle}>
+        <Text size="xs" style={codeTextStyle}>
           {v.expression}
         </Text>
         {v.message && <LabeledEntry label="Message" value={v.message} />}
@@ -48,8 +52,8 @@ export const ValidatingAdmissionPolicySidebar: React.FC<Props> = ({ ctx }) => {
   const auditSections: ExpandableSection[] = (auditAnnotations || []).map((a, i) => ({
     title: a.key || `Annotation ${i + 1}`,
     children: (
-      <Stack direction="column" gap={0.5} sx={{ px: 1, py: 0.5 }}>
-        <Text size="xs" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+      <Stack direction="column" spacing={1} style={cardContentStyle}>
+        <Text size="xs" style={codeTextStyle}>
           {a.valueExpression}
         </Text>
       </Stack>
@@ -59,8 +63,8 @@ export const ValidatingAdmissionPolicySidebar: React.FC<Props> = ({ ctx }) => {
   const matchConditionSections: ExpandableSection[] = (matchConditions || []).map((mc, i) => ({
     title: mc.name || `Condition ${i + 1}`,
     children: (
-      <Stack direction="column" gap={0.5} sx={{ px: 1, py: 0.5 }}>
-        <Text size="xs" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+      <Stack direction="column" spacing={1} style={cardContentStyle}>
+        <Text size="xs" style={codeTextStyle}>
           {mc.expression}
         </Text>
       </Stack>
@@ -70,8 +74,8 @@ export const ValidatingAdmissionPolicySidebar: React.FC<Props> = ({ ctx }) => {
   const variableSections: ExpandableSection[] = (variables || []).map((v, i) => ({
     title: v.name || `Variable ${i + 1}`,
     children: (
-      <Stack direction="column" gap={0.5} sx={{ px: 1, py: 0.5 }}>
-        <Text size="xs" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+      <Stack direction="column" spacing={1} style={cardContentStyle}>
+        <Text size="xs" style={codeTextStyle}>
           {v.expression}
         </Text>
       </Stack>
@@ -79,14 +83,14 @@ export const ValidatingAdmissionPolicySidebar: React.FC<Props> = ({ ctx }) => {
   }));
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={vap.metadata} />
 
         <SidebarSection
           title="Configuration"
           headerRight={conditions.length > 0 ? (
-            <Stack direction="row" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
+            <Stack direction="row" spacing={1} wrap justify="end">
               {conditions.map((c) => (
                 <ConditionChip key={c.type} condition={c} />
               ))}

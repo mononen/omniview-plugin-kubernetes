@@ -1,7 +1,6 @@
-import Box from '@mui/material/Box';
 import TagInput from '../../components/connections/TagInput';
 
-import { tagsContainerSx } from './constants';
+import { tagsContainerStyle } from './constants';
 import SectionWrapper from './SectionWrapper';
 
 function TagsSection({
@@ -18,9 +17,9 @@ function TagsSection({
       title="Tags"
       description="Organize clusters by environment, team, or any custom category."
     >
-      <Box sx={tagsContainerSx}>
+      <div style={tagsContainerStyle}>
         <TagInput tags={tags} availableTags={availableTags} onChange={onChange} />
-      </Box>
+      </div>
     </SectionWrapper>
   );
 }

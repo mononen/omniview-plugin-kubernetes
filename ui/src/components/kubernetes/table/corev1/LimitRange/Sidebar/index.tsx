@@ -1,10 +1,12 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { LimitRange } from 'kubernetes-types/core/v1';
 import React from 'react';
 
 import LimitRangeItemSection from '../../../../../shared/LimitRangeItemSection';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<LimitRange>;
@@ -24,7 +26,7 @@ export const LimitRangeSidebar: React.FC<Props> = ({ ctx }) => {
   }> | undefined;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <ObjectMetaSection data={lr.metadata} />
       <LimitRangeItemSection limits={limits} />
     </Stack>

@@ -1,45 +1,23 @@
-// Material-ui
-import Box from '@mui/material/Box';
-import DialogContent from '@mui/material/DialogContent';
-import Divider from '@mui/material/Divider';
-import { Chip } from '@omniviewdev/ui';
-import { IconButton } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, IconButton, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import { type FC } from 'react';
 import { LuX } from 'react-icons/lu';
 
 import DynamicIcon from '../components/DynamicIcon';
 
-const decoratorChipSx = { borderRadius: 'sm' } as const;
+import styles from './SidebarContainer.module.css';
 
-const containerSx = {
-  borderRadius: 'md',
-  p: 1,
+const containerStyle: React.CSSProperties = {
+  borderRadius: 6,
+  padding: 8,
   display: 'flex',
   flexDirection: 'column',
-  gap: 1,
+  gap: 8,
   maxHeight: 'calc(100vh - 64px)',
   minHeight: 'calc(100vh - 64px)',
   overflow: 'auto',
-} as const;
+};
 
-const titleChipSx = { borderRadius: 'sm' } as const;
-
-const titleTextSx = { flexGrow: 1 } as const;
-
-const dialogContentSx = {
-  gap: 2,
-  p: 0.5,
-  overflowY: 'auto',
-  maxWidth: '100%',
-  overflowX: 'hidden',
-  scrollbarWidth: 'none',
-  '&::-webkit-scrollbar': {
-    display: 'none',
-  },
-  'ms-overflow-style': 'none',
-} as const;
+const titleTextStyle: React.CSSProperties = { flexGrow: 1 };
 
 type Props = {
   icon?: string | React.ReactNode;
@@ -66,43 +44,32 @@ const ResourceDrawerDecorator: FC<{
   return (
     <Chip
       size="lg"
-      emphasis="soft"
-      sx={decoratorChipSx}
-      startAdornment={typeof icon === 'string' ? <DynamicIcon name={icon} size={16} /> : icon}
-      label={
-        <Text weight="semibold" size="sm">
-          {type}
-        </Text>
-      }
-    />
+      variant="soft"
+      startDecorator={typeof icon === 'string' ? <DynamicIcon name={icon} size={16} /> : icon}
+    >
+      <Text weight="semibold" size="sm">
+        {type}
+      </Text>
+    </Chip>
   );
 };
 
 const ResourceDrawerContainer: FC<Props> = ({ icon, type, title, children }) => (
-  <Box
-    sx={containerSx}
-  >
-    <Stack direction="row" alignItems="center" justifyContent={'space-between'}>
-      <Chip
-        size="lg"
-        emphasis="ghost"
-        sx={titleChipSx}
-        label={<Text sx={titleTextSx}>{title}</Text>}
-      />
-      <Stack direction="row" gap={1}>
+  <div style={containerStyle}>
+    <Stack direction="row" align="center" justify="between">
+      <Chip size="lg" variant="ghost">
+        <Text style={titleTextStyle}>{title}</Text>
+      </Chip>
+      <Stack direction="row" spacing={2}>
         <ResourceDrawerDecorator icon={icon ?? 'LuBox'} type={type} />
-        <IconButton emphasis="outline" size="sm" onClick={() => {}}>
+        <IconButton variant="outline" size="sm" aria-label="Close" onClick={() => {}}>
           <LuX size={20} />
         </IconButton>
       </Stack>
     </Stack>
-    <Divider />
-    <DialogContent
-      sx={dialogContentSx}
-    >
-      {children}
-    </DialogContent>
-  </Box>
+    <Separator />
+    <div className={styles.content}>{children}</div>
+  </div>
 );
 
 export default ResourceDrawerContainer;

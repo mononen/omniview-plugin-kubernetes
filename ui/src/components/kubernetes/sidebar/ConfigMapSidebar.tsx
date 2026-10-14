@@ -1,6 +1,5 @@
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
+import { Chip, Stack } from '@omniviewdev/base-ui';
 import { ConfigMap } from 'kubernetes-types/core/v1';
 import React from 'react';
 import { LuCode } from 'react-icons/lu';
@@ -9,7 +8,7 @@ import CodeEditor from '../../shared/CodeEditor';
 import ExpandableSections from '../../shared/ExpandableSections';
 import ObjectMetaSection from '../../shared/ObjectMetaSection';
 
-const configsChipSx = { borderRadius: 'sm', mb: 1 } as const;
+const configsChipStyle: React.CSSProperties = { borderRadius: 'var(--ov-radius-sm)', marginBottom: 8 };
 
 interface Props {
   ctx: DrawerContext<ConfigMap>;
@@ -27,17 +26,13 @@ export const ConfigMapSidebar: React.FC<Props> = ({ ctx }) => {
 
   // compose your component here
   return (
-    <Stack direction="column" width={'100%'} spacing={2}>
+    <Stack direction="column" spacing={4} style={{ width: '100%' }}>
       <ObjectMetaSection data={configMap.metadata} />
 
       <div>
-        <Chip
-          sx={configsChipSx}
-          size="md"
-          emphasis="soft"
-          startAdornment={<LuCode />}
-          label="Configs"
-        />
+        <Chip style={configsChipStyle} size="md" variant="soft" startDecorator={<LuCode />}>
+          Configs
+        </Chip>
         {configMap.data !== undefined && (
           <ExpandableSections
             sections={Object.entries(configMap.data).map(([key, value], idx) => ({

@@ -1,5 +1,4 @@
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
+import { Avatar, Chip, Spinner, Text } from '@omniviewdev/base-ui';
 import {
   usePluginRouter,
   usePluginContext,
@@ -7,8 +6,6 @@ import {
   useSnackbar,
 } from '@omniviewdev/runtime';
 import { types } from '@omniviewdev/runtime/models';
-import { Avatar, Chip } from '@omniviewdev/ui';
-import { Text } from '@omniviewdev/ui/typography';
 import React from 'react';
 
 import type { EnrichedConnection, ConnectionGroup } from '../../types/clusters';
@@ -33,18 +30,21 @@ type Props = {
 
 const rowStyle = { cursor: 'pointer' } as const;
 
-const nameRowSx = { display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 } as const;
+const nameRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  minWidth: 0,
+};
 
-const descriptionSx = { color: 'var(--ov-fg-faint)', flexShrink: 1, minWidth: 0 } as const;
-
-const columnValueSx = { color: 'var(--ov-fg-muted)' } as const;
+const descriptionStyle: React.CSSProperties = { flexShrink: 1, minWidth: 0 };
 
 const truncate = (input: string) => (input.length > 60 ? `${input.substring(0, 60)}...` : input);
 
 const tdSx: React.CSSProperties = {
   padding: '3px 8px',
   verticalAlign: 'middle',
-  borderBottom: '1px solid var(--ov-border-default, rgba(255,255,255,0.06))',
+  borderBottom: '1px solid var(--ov-color-border-default)',
 };
 
 const ConnectionTableItem: React.FC<Props> = ({
@@ -153,11 +153,11 @@ const ConnectionTableItem: React.FC<Props> = ({
       style={rowStyle}
       onMouseOver={(e) => {
         (e.currentTarget as HTMLElement).style.backgroundColor =
-          'var(--ov-bg-surface-hover, rgba(255,255,255,0.04))';
+          'var(--ov-color-state-hover)';
       }}
       onFocus={(e) => {
         (e.currentTarget as HTMLElement).style.backgroundColor =
-          'var(--ov-bg-surface-hover, rgba(255,255,255,0.04))';
+          'var(--ov-color-state-hover)';
       }}
       onMouseOut={(e) => {
         (e.currentTarget as HTMLElement).style.backgroundColor = '';
@@ -173,36 +173,38 @@ const ConnectionTableItem: React.FC<Props> = ({
 
       {/* Name */}
       <td onClick={handleClick} style={{ ...tdSx }}>
-        <Box sx={nameRowSx}>
+        <div style={nameRowStyle}>
           <ConnectionStatusBadge isConnected={isConnected}>
             {enriched.avatar ? (
-              <Avatar size="sm" src={enriched.avatar} />
+              <Avatar size="sm" shape="rounded" src={enriched.avatar} />
             ) : (
               <NamedAvatar value={displayName} color={enriched.avatarColor} />
             )}
           </ConnectionStatusBadge>
           <ProviderIcon provider={provider} size={14} />
-          <Text weight="semibold" size="sm" noWrap>
+          <Text weight="semibold" size="sm" truncate>
             {displayName}
           </Text>
           {Boolean(displayDescription) && (
-            <Text size="xs" noWrap sx={descriptionSx}>
+            <Text size="xs" tone="subtle" truncate style={descriptionStyle}>
               {displayDescription}
             </Text>
           )}
           {enriched.tags.length > 0 &&
             enriched.tags.map((tag) => (
-              <Chip key={tag} size="xs" emphasis="soft" color="warning" label={tag} />
+              <Chip key={tag} size="xs" variant="soft" color="warning">
+                {tag}
+              </Chip>
             ))}
-          {connecting && <CircularProgress size={14} />}
-        </Box>
+          {connecting && <Spinner size="xs" />}
+        </div>
       </td>
 
       {/* Visible label columns */}
       {visibleColumns.map((col) => (
         <td key={`${id}-${col}`} onClick={handleClick} style={{ ...tdSx }}>
           {labels?.[col] ? (
-            <Text size="xs" noWrap sx={columnValueSx}>
+            <Text size="xs" tone="muted" truncate>
               {truncate(String(labels[col]))}
             </Text>
           ) : null}

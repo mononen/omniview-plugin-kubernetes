@@ -1,7 +1,6 @@
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import type { Condition } from 'kubernetes-types/meta/v1';
+import { Chip, Stack } from '@omniviewdev/base-ui';
 import { formatRelative } from 'date-fns';
+import type { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
 
 import ConditionChip from './ConditionChip';
@@ -42,9 +41,9 @@ const JobStatusSection: React.FC<Props> = ({ status, conditions }) => {
   return (
     <SidebarSection
       title="Status"
-      headerLeft={<Chip size="xs" emphasis="soft" color={phase.color} label={phase.label} />}
+      headerLeft={<Chip size="xs" variant="soft" color={phase.color}>{phase.label}</Chip>}
       headerRight={conditions && conditions.length > 0 ? (
-        <Stack direction="row" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
+        <Stack direction="row" spacing={1} wrap justify="end">
           {conditions.map((c) => (
             <ConditionChip key={c.type} condition={c} />
           ))}

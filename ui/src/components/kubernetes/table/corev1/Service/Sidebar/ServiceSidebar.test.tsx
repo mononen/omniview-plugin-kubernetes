@@ -9,39 +9,22 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 // Mocks
 // ---------------------------------------------------------------------------
 
-vi.mock('@omniviewdev/ui', () => ({
-  Chip: ({ label, color, emphasis }: {
-    label?: string;
-    color?: string;
-    emphasis?: string;
-  }) => (
-    <span data-testid="chip" data-color={color} data-emphasis={emphasis}>{label}</span>
-  ),
-  ClipboardText: ({ value }: { value?: string }) => (
-    <span data-testid="clipboard-text">{value}</span>
-  ),
-}));
-
-vi.mock('@omniviewdev/ui/layout', () => ({
-  Stack: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock('@omniviewdev/ui/typography', () => ({
-  Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-}));
-
-vi.mock('@omniviewdev/ui/buttons', () => ({
-  Button: ({ children, onClick }: {
-    children: React.ReactNode;
-    onClick?: (e: React.MouseEvent) => void;
-  }) => (
-    <button type="button" onClick={onClick} data-testid="button">{children}</button>
-  ),
-}));
-
-vi.mock('@omniviewdev/ui/overlays', () => ({
-  Tooltip: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
+vi.mock('@omniviewdev/base-ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@omniviewdev/base-ui')>();
+  return {
+    ...actual,
+    Chip: ({ children, color, variant }: {
+      children?: React.ReactNode;
+      color?: string;
+      variant?: string;
+    }) => (
+      <span data-testid="chip" data-color={color} data-variant={variant}>{children}</span>
+    ),
+    ClipboardText: ({ value }: { value?: string }) => (
+      <span data-testid="clipboard-text">{value}</span>
+    ),
+  };
+});
 
 // Port-forward mock — mutable so individual tests can override sessions
 let mockPortForwarder = {
@@ -60,14 +43,6 @@ vi.mock('@omniviewdev/runtime/models', () => ({
 
 vi.mock('@omniviewdev/runtime/runtime', () => ({
   BrowserOpenURL: vi.fn(),
-}));
-
-// Prevent MUI Popover portal/transition issues in tests
-vi.mock('@mui/material/Popover', () => ({
-  default: ({ children, open }: {
-    children: React.ReactNode;
-    open: boolean;
-  }) => (open ? <div data-testid="popover">{children}</div> : null),
 }));
 
 vi.mock('../../../../../shared/ObjectMetaSection', () => ({
@@ -124,8 +99,9 @@ vi.mock('../../../../../shared/Icon', () => ({
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 
-import ServiceStatusSection from './ServiceStatusSection';
 import ServicePortsSection from './ServicePortsSection';
+import ServiceStatusSection from './ServiceStatusSection';
+
 import ServiceSidebar from './index';
 
 // ---------------------------------------------------------------------------
@@ -162,7 +138,7 @@ describe('ServiceStatusSection', () => {
   it('renders ClusterIP type chip with primary color', () => {
     render(<ServiceStatusSection service={makeService()} />);
     const chip = screen.getByText('ClusterIP');
-    expect(chip).toHaveAttribute('data-color', 'primary');
+    expect(chip).toHaveAttribute('data-color', 'brand');
   });
 
   it('renders NodePort type chip with warning color', () => {

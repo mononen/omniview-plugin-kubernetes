@@ -1,13 +1,12 @@
-import Box from '@mui/material/Box';
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import type { metric } from '@omniviewdev/runtime/models';
-import { MetricsPanel } from '@omniviewdev/ui/charts';
+import { MetricsPanel } from '../../../../components/shared/charts';
 import type {
   TimeSeriesDef,
   ChartTimeRange,
   MetricFormat,
   ChartAnnotation,
-} from '@omniviewdev/ui/charts';
+} from '../../../../components/shared/charts';
 import React, { useMemo } from 'react';
 import {
   LuCpu,
@@ -42,10 +41,10 @@ interface ClusterMetricsSectionProps {
 // ---------------------------------------------------------------------------
 
 const CHART_COLORS = [
-  'var(--ov-accent, #3b82f6)',
-  'var(--ov-accent-secondary, #8b5cf6)',
-  '#22c55e',
-  '#f97316',
+  'var(--ov-color-brand-500)',
+  'var(--ov-color-secondary)',
+  'var(--ov-color-success)',
+  'var(--ov-color-warning)',
 ];
 
 function formatCores(v: number | null): string {
@@ -161,7 +160,7 @@ const CLUSTER_CHARTS: ChartDef[] = [
       prom_cluster_network_transmit_rate: 'Transmit',
     },
     colors: {
-      prom_cluster_network_receive_rate: '#22c55e',
+      prom_cluster_network_receive_rate: 'var(--ov-color-success)',
       prom_cluster_network_transmit_rate: CHART_COLORS[0],
     },
     valueFormat: 'bytes',
@@ -176,8 +175,8 @@ const CLUSTER_CHARTS: ChartDef[] = [
       prom_cluster_disk_write_rate: 'Write',
     },
     colors: {
-      prom_cluster_disk_read_rate: '#22c55e',
-      prom_cluster_disk_write_rate: '#f97316',
+      prom_cluster_disk_read_rate: 'var(--ov-color-success)',
+      prom_cluster_disk_write_rate: 'var(--ov-color-warning)',
     },
     valueFormat: 'bytes',
     unit: '/s',
@@ -202,17 +201,17 @@ const CLUSTER_CHARTS: ChartDef[] = [
     colors: {
       prom_cluster_load1: CHART_COLORS[0],
       prom_cluster_load5: CHART_COLORS[1],
-      prom_cluster_load15: '#22c55e',
+      prom_cluster_load15: 'var(--ov-color-success)',
     },
     valueFormat: 'number',
   },
 ];
 
-const chartGridSx = {
+const chartGridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-  gap: 1.5,
-} as const;
+  gap: 12,
+};
 
 const NAMESPACE_CHARTS: ChartDef[] = [
   {
@@ -241,7 +240,7 @@ const NAMESPACE_CHARTS: ChartDef[] = [
       prom_cluster_network_transmit_rate: 'Transmit',
     },
     colors: {
-      prom_cluster_network_receive_rate: '#22c55e',
+      prom_cluster_network_receive_rate: 'var(--ov-color-success)',
       prom_cluster_network_transmit_rate: CHART_COLORS[0],
     },
     valueFormat: 'bytes',
@@ -252,7 +251,7 @@ const NAMESPACE_CHARTS: ChartDef[] = [
     icon: <LuRotateCcw size={ICON_SIZE} />,
     metricIDs: ['prom_namespace_container_restarts'],
     labels: { prom_namespace_container_restarts: 'Restart Rate' },
-    colors: { prom_namespace_container_restarts: '#ef4444' },
+    colors: { prom_namespace_container_restarts: 'var(--ov-color-danger)' },
     valueFormat: 'rate',
   },
 ];
@@ -356,9 +355,7 @@ const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
   if (activeCharts.length === 0 && !isLoading) return null;
 
   return (
-    <Box
-      sx={chartGridSx}
-    >
+    <div style={chartGridStyle}>
       {(isLoading && activeCharts.length === 0 ? charts : activeCharts).map((def) => {
         const series: TimeSeriesDef[] = [];
         for (const id of def.metricIDs) {
@@ -384,7 +381,7 @@ const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
               annotations.push({
                 value: val,
                 label: def.annotationLabels?.[id] ?? id,
-                color: 'var(--ov-fg-muted, #888)',
+                color: 'var(--ov-color-fg-muted)',
                 lineStyle: 'dashed',
               });
             }
@@ -410,7 +407,7 @@ const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
           />
         );
       })}
-    </Box>
+    </div>
   );
 };
 

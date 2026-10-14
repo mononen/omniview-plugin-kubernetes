@@ -132,8 +132,8 @@ vi.mock('../../layouts/resource', () => ({
   },
 }));
 
-vi.mock('@omniviewdev/ui/overlays', () => ({
-  Tooltip: ({ title, children }: { title: string; children: React.ReactNode }) => <span data-tooltip={title}>{children}</span>,
+vi.mock('../../components/shared/SimpleTooltip', () => ({
+  default: ({ content, children }: { content: string; children: React.ReactNode }) => <span data-tooltip={content}>{children}</span>,
 }));
 
 vi.mock('../../utils/color', () => ({

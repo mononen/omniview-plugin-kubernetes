@@ -1,5 +1,5 @@
 import { type types } from '@omniviewdev/runtime/models';
-import { Stack } from '@omniviewdev/ui/layout';
+import { Stack } from '@omniviewdev/base-ui';
 import InfoRow from './InfoRow';
 import SectionWrapper from './SectionWrapper';
 
@@ -12,7 +12,7 @@ function ClusterInfoSection({ conn, formatTime }: { conn: types.Connection; form
       title="Cluster Info"
       description="Read-only information discovered from the cluster."
     >
-      <Stack direction="column" gap={0}>
+      <Stack direction="column" spacing={0}>
         <InfoRow
           label="Server"
           value={connData?.server_url != null ? String(connData.server_url) : (connLabels?.server ?? undefined)}

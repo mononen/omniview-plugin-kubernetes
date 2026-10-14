@@ -1,8 +1,5 @@
-import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
+import { Spinner, Stack } from '@omniviewdev/base-ui';
 import { useResources } from '@omniviewdev/runtime';
-import { CircularProgress } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 
@@ -25,6 +22,17 @@ interface ClusterBenchmarkResult {
   score?: number;
 }
 
+const loadingStyle: React.CSSProperties = {
+  display: 'flex',
+  height: '100%',
+  width: '100%',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flex: 1,
+};
+
+const pageStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', width: '100%' };
+
 const ClusterDashboardBenchmarksPage: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
@@ -36,16 +44,9 @@ const ClusterDashboardBenchmarksPage: React.FC = () => {
 
   if (resources.isLoading) {
     return (
-      <Box
-        display="flex"
-        height="100%"
-        width="100%"
-        alignItems="center"
-        justifyContent="center"
-        flex={1}
-      >
-        <CircularProgress />
-      </Box>
+      <div style={loadingStyle}>
+        <Spinner size="lg" />
+      </div>
     );
   }
 
@@ -54,8 +55,8 @@ const ClusterDashboardBenchmarksPage: React.FC = () => {
   const firstResult: ClusterBenchmarkResult | undefined = results[0];
 
   return (
-    <Grid container>
-      <Grid size={12}>
+    <div style={pageStyle}>
+      <div>
         <ClusterOverviewCard
           cluster={id}
           icon={'SiKubernetes'}
@@ -64,10 +65,10 @@ const ClusterDashboardBenchmarksPage: React.FC = () => {
           failing={firstResult?.summary?.danger ?? 0}
           score={firstResult?.score ?? 0}
         />
-      </Grid>
+      </div>
       {/** A bit ugly and space innefficient, clean up later */}
-      <Grid size={12}>
-        <Stack direction="row" gap={1}>
+      <div>
+        <Stack direction="row" spacing={2}>
           {Object.entries(firstResult?.summary_by_category ?? {}).map(
             ([category, summary]) => (
               <ScorecardChart
@@ -80,8 +81,8 @@ const ClusterDashboardBenchmarksPage: React.FC = () => {
             ),
           )}
         </Stack>
-      </Grid>
-      <Grid size={12}>
+      </div>
+      <div>
         <CodeEditor
           original={JSON.stringify(firstResult ?? {}, null, '\t')}
           value={JSON.stringify(firstResult ?? {}, null, '\t')}
@@ -89,8 +90,8 @@ const ClusterDashboardBenchmarksPage: React.FC = () => {
           filename={'report.json'}
           height={'100%'}
         />
-      </Grid>
-    </Grid>
+      </div>
+    </div>
   );
 };
 

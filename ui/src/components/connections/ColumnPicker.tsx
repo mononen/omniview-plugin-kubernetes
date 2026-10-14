@@ -1,9 +1,8 @@
-import Box from '@mui/material/Box';
-import { IconButton } from '@omniviewdev/ui/buttons';
-import { Checkbox } from '@omniviewdev/ui/inputs';
-import { Text } from '@omniviewdev/ui/typography';
+import { Checkbox, IconButton, Popover, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 import { LuColumns3 } from 'react-icons/lu';
+
+import styles from './Connections.module.css';
 
 type Props = {
   allColumns: string[];
@@ -11,46 +10,22 @@ type Props = {
   onToggleColumn: (column: string) => void;
 };
 
-const backdropStyle = { position: 'fixed', inset: 0, zIndex: 999 } as const;
-
-const dropdownSx = {
-  position: 'absolute',
-  right: 0,
-  top: '100%',
-  mt: 0.5,
-  zIndex: 1000,
-  borderRadius: 'var(--ov-radius-md, 6px)',
-  boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+const popupStyle: React.CSSProperties = {
   minWidth: 160,
   maxHeight: 280,
   overflow: 'auto',
-  py: 0.5,
-  px: 0.5,
-  border: '1px solid var(--ov-border-default, rgba(255,255,255,0.08))',
-  bgcolor: 'var(--ov-bg-surface, #1e1e1e)',
-} as const;
+  padding: 4,
+};
 
-const headingSx = {
-  px: 0.5,
-  pb: 0.25,
-  color: 'var(--ov-fg-muted)',
+const headingStyle: React.CSSProperties = {
+  display: 'block',
+  padding: '0 4px 2px',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
   fontSize: '0.625rem',
-} as const;
+};
 
-const columnRowSx = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 0.75,
-  py: 0.25,
-  px: 0.5,
-  cursor: 'pointer',
-  borderRadius: 'var(--ov-radius-sm, 4px)',
-  '&:hover': { bgcolor: 'var(--ov-bg-surface-hover, rgba(255,255,255,0.05))' },
-} as const;
-
-const columnLabelSx = { userSelect: 'none' } as const;
+const columnLabelStyle: React.CSSProperties = { userSelect: 'none' };
 
 function formatColumnName(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -68,54 +43,42 @@ const ColumnPicker: React.FC<Props> = ({ allColumns, visibleColumns, onToggleCol
   });
 
   return (
-    <>
-      <IconButton
-        size="xs"
-        emphasis="ghost"
-        color="neutral"
-        onClick={() => setOpen((prev) => !prev)}
-        title="Select visible columns"
-      >
-        <LuColumns3 size={12} />
-      </IconButton>
-      {open && (
-        <>
-          {/* Backdrop */}
-          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-          <div
-            style={backdropStyle}
-            onClick={() => setOpen(false)}
-          />
-          <Box
-            sx={dropdownSx}
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger
+        render={
+          <IconButton
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            title="Select visible columns"
+            aria-label="Select visible columns"
           >
-            <Text
-              size="xs"
-              weight="semibold"
-              sx={headingSx}
-            >
+            <LuColumns3 size={12} />
+          </IconButton>
+        }
+      />
+      <Popover.Portal>
+        <Popover.Positioner side="bottom" align="end" sideOffset={4}>
+          <Popover.Popup style={popupStyle}>
+            <Text size="xs" weight="semibold" tone="muted" style={headingStyle}>
               Visible Columns
             </Text>
             {sorted.map((col) => (
-              <Box
-                key={col}
-                onClick={() => onToggleColumn(col)}
-                sx={columnRowSx}
-              >
+              <label key={col} className={styles.columnRow}>
                 <Checkbox
                   size="sm"
                   checked={visibleColumns.includes(col)}
-                  onChange={() => onToggleColumn(col)}
+                  onCheckedChange={() => onToggleColumn(col)}
                 />
-                <Text size="xs" sx={columnLabelSx}>
+                <Text size="xs" style={columnLabelStyle}>
                   {formatColumnName(col)}
                 </Text>
-              </Box>
+              </label>
             ))}
-          </Box>
-        </>
-      )}
-    </>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   );
 };
 

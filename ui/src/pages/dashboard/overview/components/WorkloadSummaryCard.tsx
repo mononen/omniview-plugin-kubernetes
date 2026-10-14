@@ -1,21 +1,9 @@
-import Box from '@mui/material/Box';
-import Skeleton from '@mui/material/Skeleton';
-import { StatCard } from '@omniviewdev/ui';
+import { Skeleton, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
-const skeletonSx = { borderRadius: 1, height: '100%', minHeight: 88 } as const;
+import styles from './WorkloadSummaryCard.module.css';
 
-const statCardSx = { height: '100%' } as const;
-
-const clickableWrapperSx = {
-  cursor: 'pointer',
-  height: '100%',
-  borderRadius: 1,
-  transition: 'box-shadow 0.15s',
-  '&:hover > .MuiCard-root': {
-    borderColor: 'var(--ov-accent-default)',
-  },
-} as const;
+const skeletonStyle: React.CSSProperties = { borderRadius: 4, height: '100%', minHeight: 88 };
 
 type StatusEntry = {
   label: string;
@@ -32,13 +20,13 @@ type Props = {
   onClick?: () => void;
 };
 
-/** Map status breakdown to a single accent color for the card value. */
-function deriveColor(statuses: StatusEntry[]): 'primary' | 'warning' | 'danger' {
+/** Map status breakdown to a single accent colour token for the card value. */
+function deriveColor(statuses: StatusEntry[]): string {
   const hasDanger = statuses.some((s) => s.color === 'danger' && s.count > 0);
   const hasWarning = statuses.some((s) => s.color === 'warning' && s.count > 0);
-  if (hasDanger) return 'danger';
-  if (hasWarning) return 'warning';
-  return 'primary';
+  if (hasDanger) return 'var(--ov-color-danger)';
+  if (hasWarning) return 'var(--ov-color-warning)';
+  return 'var(--ov-color-brand-500)';
 }
 
 /** Build a compact description from the visible statuses. */
@@ -57,29 +45,34 @@ const WorkloadSummaryCard: React.FC<Props> = ({
   onClick,
 }) => {
   if (loading) {
-    return <Skeleton variant="rounded" sx={skeletonSx} />;
+    return <Skeleton variant="rounded" style={skeletonStyle} />;
   }
 
-  const card = (
-    <StatCard
-      value={total}
-      label={title}
-      description={deriveDescription(statuses)}
-      icon={icon}
-      color={deriveColor(statuses)}
-      sx={statCardSx}
-    />
+  const content = (
+    <>
+      <div className={styles.header}>
+        <div>
+          <div className={styles.value} style={{ color: deriveColor(statuses) }}>
+            {total}
+          </div>
+          <Text as="div" size="sm" tone="muted" className={styles.label}>
+            {title}
+          </Text>
+        </div>
+        {icon && <div className={styles.icon}>{icon}</div>}
+      </div>
+      <Text as="div" size="xs" tone="subtle" className={styles.description}>
+        {deriveDescription(statuses)}
+      </Text>
+    </>
   );
 
-  if (!onClick) return card;
+  if (!onClick) return <div className={styles.card}>{content}</div>;
 
   return (
-    <Box
-      onClick={onClick}
-      sx={clickableWrapperSx}
-    >
-      {card}
-    </Box>
+    <button type="button" onClick={onClick} className={`${styles.card} ${styles.clickable}`}>
+      {content}
+    </button>
   );
 };
 

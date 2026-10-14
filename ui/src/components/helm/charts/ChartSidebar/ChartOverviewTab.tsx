@@ -1,8 +1,5 @@
+import { Card, Chip, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
-import Box from '@mui/material/Box';
-import { Card, Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import { LuExternalLink } from 'react-icons/lu';
 
 import type { HelmChart } from './types';
@@ -13,43 +10,39 @@ interface Props {
   dependencies: NonNullable<HelmChart['dependencies']>;
 }
 
-const sectionCardSx = { p: 1.25, borderRadius: 'sm' } as const;
+const sectionCardStyle: React.CSSProperties = { padding: 10, borderRadius: 4 };
 
-const sectionHeadingSx = { mb: 0.5 } as const;
+const sectionHeadingStyle: React.CSSProperties = { display: 'block', marginBottom: 4 };
 
-const maintainerTextSx = { color: 'neutral.300' } as const;
+const maintainerLinkStyle: React.CSSProperties = {
+  marginLeft: 4,
+  color: 'var(--ov-color-accent-strong)',
+  textDecoration: 'none',
+};
 
-const maintainerLinkSx = { ml: 0.5, color: 'primary.300', textDecoration: 'none' } as const;
-
-const depRepoSx = { color: 'neutral.500' } as const;
-
-const ChartOverviewTab: React.FC<Props> = ({
-  maintainers,
-  keywords,
-  dependencies,
-}) => (
-  <Stack direction="column" spacing={1.5}>
+const ChartOverviewTab: React.FC<Props> = ({ maintainers, keywords, dependencies }) => (
+  <Stack direction="column" spacing={3}>
     {/* Maintainers */}
     {maintainers.length > 0 && (
-      <Card sx={sectionCardSx} emphasis="outline">
-        <Text weight="semibold" size="sm" sx={sectionHeadingSx}>
+      <Card style={sectionCardStyle} variant="outline">
+        <Text weight="semibold" size="sm" style={sectionHeadingStyle}>
           Maintainers
         </Text>
-        <Stack direction="column" spacing={0.5}>
+        <Stack direction="column" spacing={1}>
           {maintainers.map((m) => (
-            <Text key={`${m.name}-${m.email ?? ''}-${m.url ?? ''}`} size="xs" sx={maintainerTextSx}>
+            <Text key={`${m.name}-${m.email ?? ''}-${m.url ?? ''}`} size="xs" tone="muted">
               {m.name}
               {m.email ? ` <${m.email}>` : ''}
               {m.url && (
-                <Box
-                  component="a"
+                <a
                   href={m.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  sx={maintainerLinkSx}
+                  style={maintainerLinkStyle}
+                  aria-label={`${m.name} homepage`}
                 >
                   <LuExternalLink size={10} />
-                </Box>
+                </a>
               )}
             </Text>
           ))}
@@ -59,13 +52,15 @@ const ChartOverviewTab: React.FC<Props> = ({
 
     {/* Keywords */}
     {keywords.length > 0 && (
-      <Card sx={sectionCardSx} emphasis="outline">
-        <Text weight="semibold" size="sm" sx={sectionHeadingSx}>
+      <Card style={sectionCardStyle} variant="outline">
+        <Text weight="semibold" size="sm" style={sectionHeadingStyle}>
           Keywords
         </Text>
-        <Stack direction="row" spacing={0.5} flexWrap="wrap">
+        <Stack direction="row" spacing={1} wrap>
           {keywords.map((kw) => (
-            <Chip key={kw} size="sm" emphasis="soft" color="neutral" label={kw} />
+            <Chip key={kw} size="sm" variant="soft" color="neutral">
+              {kw}
+            </Chip>
           ))}
         </Stack>
       </Card>
@@ -73,21 +68,23 @@ const ChartOverviewTab: React.FC<Props> = ({
 
     {/* Dependencies */}
     {dependencies.length > 0 && (
-      <Card sx={sectionCardSx} emphasis="outline">
-        <Text weight="semibold" size="sm" sx={sectionHeadingSx}>
+      <Card style={sectionCardStyle} variant="outline">
+        <Text weight="semibold" size="sm" style={sectionHeadingStyle}>
           Dependencies
         </Text>
-        <Stack direction="column" spacing={0.5}>
+        <Stack direction="column" spacing={1}>
           {dependencies.map((dep) => (
-            <Stack key={dep.name} direction="row" spacing={1} alignItems="center">
+            <Stack key={dep.name} direction="row" spacing={2} align="center">
               <Text size="xs" weight="semibold">
                 {dep.name}
               </Text>
               {dep.version && (
-                <Chip size="sm" emphasis="soft" color="neutral" label={dep.version} />
+                <Chip size="sm" variant="soft" color="neutral">
+                  {dep.version}
+                </Chip>
               )}
               {dep.repository && (
-                <Text size="xs" sx={depRepoSx}>
+                <Text size="xs" tone="subtle">
                   {dep.repository}
                 </Text>
               )}

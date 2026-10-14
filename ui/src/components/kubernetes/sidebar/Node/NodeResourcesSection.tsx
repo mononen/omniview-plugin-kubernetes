@@ -1,22 +1,15 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import LinearProgress from '@mui/material/LinearProgress';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Progress, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import type { Node } from 'kubernetes-types/core/v1';
 import React from 'react';
 
 import { convertKubernetesByteUnits } from '../../../../utils/convert';
+import { sectionBodyStyle, sectionBorderStyle, sectionTitleStyle } from '../shared/sectionStyles';
 
-const outerBoxSx = { borderRadius: 1, border: '1px solid', borderColor: 'divider' } as const;
-const titleAreaSx = { py: 0.5, px: 1 } as const;
-const contentAreaSx = { py: 0.5, px: 1, bgcolor: 'background.level1' } as const;
-const resourceRowSx = { py: 0.25 } as const;
-const resourceLabelSx = { fontWeight: 600, minWidth: 60 } as const;
-const capacityTextSx = { color: 'neutral.300' } as const;
-const usageBarRowSx = { mt: 0.25 } as const;
-const progressBarSx = { flex: 1, height: 6, borderRadius: 3 } as const;
-const usageTextSx = { color: 'neutral.400', minWidth: 44, textAlign: 'right' } as const;
+const resourceRowStyle: React.CSSProperties = { paddingBlock: 2 };
+const resourceLabelStyle: React.CSSProperties = { fontWeight: 600, minWidth: 60 };
+const usageBarRowStyle: React.CSSProperties = { marginTop: 2 };
+const progressBarStyle: React.CSSProperties = { flex: 1, height: 6, borderRadius: 3 };
+const usageTextStyle: React.CSSProperties = { minWidth: 44, textAlign: 'right' };
 
 interface Props {
   node: Node;
@@ -37,31 +30,31 @@ const ResourceRow: React.FC<{
   usage?: number; // 0..100 percent
   usageLabel?: string;
 }> = ({ label, capacity, allocatable, usage, usageLabel }) => (
-  <Box sx={resourceRowSx}>
-    <Stack direction="row" justifyContent="space-between" alignItems="center">
-      <Text size="xs" sx={resourceLabelSx}>
+  <div style={resourceRowStyle}>
+    <Stack direction="row" spacing={0} justify="between" align="center">
+      <Text size="xs" style={resourceLabelStyle}>
         {label}
       </Text>
-      <Stack direction="row" gap={1.5} alignItems="center">
-        <Text size="xs" sx={capacityTextSx}>
+      <Stack direction="row" spacing={3} align="center">
+        <Text size="xs" tone="muted">
           {allocatable ?? '-'} / {capacity ?? '-'}
         </Text>
       </Stack>
     </Stack>
     {usage != null && (
-      <Stack direction="row" gap={1} alignItems="center" sx={usageBarRowSx}>
-        <LinearProgress
-          variant="determinate"
+      <Stack direction="row" spacing={2} align="center" style={usageBarRowStyle}>
+        <Progress
           value={Math.min(usage, 100)}
-          color={usage > 90 ? 'error' : usage > 70 ? 'warning' : 'primary'}
-          sx={progressBarSx}
+          size="xs"
+          color={usage > 90 ? 'danger' : usage > 70 ? 'warning' : 'brand'}
+          style={progressBarStyle}
         />
-        <Text size="xs" sx={usageTextSx}>
+        <Text size="xs" tone="subtle" style={usageTextStyle}>
           {usageLabel || `${usage.toFixed(1)}%`}
         </Text>
       </Stack>
     )}
-  </Box>
+  </div>
 );
 
 /** Parse a Kubernetes CPU quantity like "4" or "4000m" to millicores. */
@@ -109,14 +102,14 @@ const NodeResourcesSection: React.FC<Props> = ({
   const memPercent = memoryUsage != null && memCap ? (memoryUsage / memCap) * 100 : undefined;
 
   return (
-    <Box sx={outerBoxSx}>
-      <Box sx={titleAreaSx}>
+    <div style={sectionBorderStyle}>
+      <div style={sectionTitleStyle}>
         <Text weight="semibold" size="sm">
           Resources
         </Text>
-      </Box>
-      <Divider />
-      <Box sx={contentAreaSx}>
+      </div>
+      <Separator />
+      <div style={sectionBodyStyle}>
         <ResourceRow
           label="CPU"
           capacity={capacity?.cpu}
@@ -147,8 +140,8 @@ const NodeResourcesSection: React.FC<Props> = ({
           })}
         />
         <ResourceRow label="Pods" capacity={capacity?.pods} allocatable={allocatable?.pods} />
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

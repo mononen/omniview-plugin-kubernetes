@@ -1,23 +1,23 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Stack, Text, Separator } from '@omniviewdev/base-ui';
 import type { RuntimeClass } from 'kubernetes-types/node/v1';
 import React from 'react';
 
-const infoEntryGridSx = { minHeight: 22, alignItems: 'center' } as const;
+const span4Style: React.CSSProperties = { gridColumn: 'span 4', minWidth: 0 };
+const span8Style: React.CSSProperties = { gridColumn: 'span 8', minWidth: 0 };
 
-const infoEntryLabelSx = { color: 'neutral.300' } as const;
+const stackStyle1 = { gap: 6 } as const;
 
-const infoEntryValueSx = { fontWeight: 600, fontSize: 12 } as const;
+const infoEntryGridStyle: React.CSSProperties = { minHeight: 22, alignItems: 'center', display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))' };
 
-const sectionBorderSx = { borderRadius: 1, border: '1px solid', borderColor: 'divider' } as const;
+const infoEntryLabelStyle: React.CSSProperties = { color: 'var(--ov-color-fg-muted)' };
 
-const sectionHeaderSx = { py: 0.5, px: 1 } as const;
+const infoEntryValueStyle: React.CSSProperties = { fontWeight: 600, fontSize: 12 };
 
-const overheadBodySx = { py: 0.5, px: 1, bgcolor: 'background.level1' } as const;
+const sectionBorderStyle: React.CSSProperties = { borderRadius: 4, border: '1px solid', borderColor: 'var(--ov-color-border-default)' };
+
+const sectionHeaderStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8 };
+
+const overheadBodyStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8, background: 'var(--ov-color-bg-surface-raised)' };
 
 interface Props {
   data: RuntimeClass;
@@ -26,18 +26,18 @@ interface Props {
 const InfoEntry: React.FC<{ label: string; value?: string }> = ({ label, value }) => {
   if (!value) return null;
   return (
-    <Grid container spacing={0} sx={infoEntryGridSx}>
-      <Grid size={4}>
-        <Text sx={infoEntryLabelSx} size="xs">
+    <div style={infoEntryGridStyle}>
+      <div style={span4Style}>
+        <Text style={infoEntryLabelStyle} size="xs">
           {label}
         </Text>
-      </Grid>
-      <Grid size={8}>
-        <Text sx={infoEntryValueSx} size="xs" noWrap>
+      </div>
+      <div style={span8Style}>
+        <Text style={infoEntryValueStyle} size="xs" truncate>
           {value}
         </Text>
-      </Grid>
-    </Grid>
+      </div>
+    </div>
   );
 };
 
@@ -45,27 +45,27 @@ const RuntimeClassHandlerSection: React.FC<Props> = ({ data }) => {
   const overhead = data.overhead?.podFixed;
 
   return (
-    <Box sx={sectionBorderSx}>
-      <Box sx={sectionHeaderSx}>
-        <Stack direction="row" gap={0.75} alignItems="center">
+    <div style={sectionBorderStyle}>
+      <div style={sectionHeaderStyle}>
+        <Stack direction="row" spacing={0} align="center" style={stackStyle1}>
           <Text weight="semibold" size="sm">
             Runtime
           </Text>
-          <Chip size="sm" variant="outlined">
+          <Chip size="sm" variant="outline">
             {data.handler ?? '—'}
           </Chip>
         </Stack>
-      </Box>
+      </div>
       {overhead && Object.keys(overhead).length > 0 && (
         <>
-          <Divider />
-          <Box sx={overheadBodySx}>
+          <Separator />
+          <div style={overheadBodyStyle}>
             <InfoEntry label="CPU Overhead" value={overhead.cpu} />
             <InfoEntry label="Memory Overhead" value={overhead.memory} />
-          </Box>
+          </div>
         </>
       )}
-    </Box>
+    </div>
   );
 };
 

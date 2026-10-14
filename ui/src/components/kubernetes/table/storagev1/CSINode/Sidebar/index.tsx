@@ -1,6 +1,5 @@
-import { Chip } from '@omniviewdev/ui';
+import { Chip, Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { CSINode } from 'kubernetes-types/storage/v1';
 import React from 'react';
 
@@ -8,7 +7,11 @@ import ExpandableSections, { type ExpandableSection } from '../../../../../share
 import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 
-const chipSx = { borderRadius: 1 } as const;
+const cardContentStyle = { paddingInline: 8, paddingBlock: 4 } as const;
+
+const fullWidthStyle = { width: '100%' } as const;
+
+const chipStyle = { borderRadius: 4 } as const;
 
 interface Props {
   ctx: DrawerContext<CSINode>;
@@ -24,15 +27,15 @@ export const CSINodeSidebar: React.FC<Props> = ({ ctx }) => {
     title: driver.name || `Driver ${i + 1}`,
     defaultExpanded: i === 0,
     children: (
-      <Stack direction="column" gap={0.5} sx={{ px: 1, py: 0.5 }}>
+      <Stack direction="column" spacing={1} style={cardContentStyle}>
         <LabeledEntry label="Node ID" value={driver.nodeID} />
         {driver.topologyKeys && driver.topologyKeys.length > 0 && (
           <LabeledEntry
             label="Topology Keys"
             value={
-              <Stack direction="row" gap={0.5} flexWrap="wrap">
+              <Stack direction="row" spacing={1} wrap>
                 {driver.topologyKeys.map((key) => (
-                  <Chip key={key} size="xs" emphasis="soft" color="neutral" label={key} sx={chipSx} />
+                  <Chip key={key} size="xs" color="neutral" style={chipStyle}>{key}</Chip>
                 ))}
               </Stack>
             }
@@ -46,7 +49,7 @@ export const CSINodeSidebar: React.FC<Props> = ({ ctx }) => {
   }));
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <ObjectMetaSection data={node.metadata} />
       {sections.length > 0 && <ExpandableSections sections={sections} />}
     </Stack>

@@ -1,5 +1,4 @@
-import { IconButton } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
+import { IconButton, Stack } from '@omniviewdev/base-ui';
 import React from 'react';
 import { LuList, LuLayoutGrid } from 'react-icons/lu';
 
@@ -11,20 +10,24 @@ type Props = {
 };
 
 const ViewModeToggle: React.FC<Props> = ({ value, onChange }) => (
-  <Stack direction="row" alignItems="center" gap={0.25}>
+  <Stack direction="row" align="center" style={{ gap: 2 }}>
     <IconButton
       size="sm"
-      emphasis={value === 'list' ? 'soft' : 'ghost'}
-      color={value === 'list' ? 'primary' : 'neutral'}
+      variant={value === 'list' ? 'soft' : 'ghost'}
+      color={value === 'list' ? 'brand' : 'neutral'}
       onClick={() => onChange('list')}
+      aria-label="List view"
+      aria-pressed={value === 'list'}
     >
       <LuList size={18} />
     </IconButton>
     <IconButton
       size="sm"
-      emphasis={value === 'grid' ? 'soft' : 'ghost'}
-      color={value === 'grid' ? 'primary' : 'neutral'}
+      variant={value === 'grid' ? 'soft' : 'ghost'}
+      color={value === 'grid' ? 'brand' : 'neutral'}
       onClick={() => onChange('grid')}
+      aria-label="Grid view"
+      aria-pressed={value === 'grid'}
     >
       <LuLayoutGrid size={18} />
     </IconButton>

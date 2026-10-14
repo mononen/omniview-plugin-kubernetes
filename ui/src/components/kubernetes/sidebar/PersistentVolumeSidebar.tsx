@@ -1,9 +1,7 @@
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
+import { Stack } from '@omniviewdev/base-ui';
 import { PersistentVolume } from 'kubernetes-types/core/v1';
 import React from 'react';
-
-// material-ui
 
 // project-imports
 import ObjectMetaSection from '../../shared/ObjectMetaSection';
@@ -22,7 +20,7 @@ export const PersistentVolumeSidebar: React.FC<Props> = ({ ctx }) => {
   const pv = ctx.data;
 
   return (
-    <Stack direction="column" width={'100%'} spacing={1}>
+    <Stack direction="column" spacing={2} style={{ width: '100%' }}>
       <ObjectMetaSection data={pv.metadata} />
       <pre>{JSON.stringify(ctx.data, null, 2)}</pre>;
     </Stack>

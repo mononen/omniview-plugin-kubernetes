@@ -1,9 +1,4 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
-import { Card, Chip, ClipboardText } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Card, Chip, ClipboardText, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import { formatRelative } from 'date-fns';
 import { ObjectMeta } from 'kubernetes-types/meta/v1';
 import React from 'react';
@@ -15,19 +10,22 @@ import ResourceLinkChip, { ownerRefToResourceKey } from '../../../../ResourceLin
 // Static styles
 // ---------------------------------------------------------------------------
 
-const gridAlignSx = { alignItems: 'center' } as const;
-const entryTitleSx = { color: 'neutral.300' } as const;
-const clipboardTextSx = { fontSize: 12, fontWeight: 600 } as const;
-const cardSx = { p: 0, gap: 0, borderRadius: 1 } as const;
-const cardHeaderSx = { py: 0.5, px: 1 } as const;
-const cardBodySx = {
-  py: 0.5,
-  px: 1,
-  backgroundColor: 'background.level1',
+const entryGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 9fr)',
+  alignItems: 'center',
+};
+const cellStyle: React.CSSProperties = { minWidth: 0 };
+const clipboardTextStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, width: '100%', minWidth: 0 };
+const cardStyle: React.CSSProperties = { padding: 0, gap: 0, borderRadius: 4, minWidth: 0 };
+const cardHeaderStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8 };
+const cardBodyStyle: React.CSSProperties = {
+  paddingBlock: 4,
+  paddingInline: 8,
   borderBottomRightRadius: 6,
   borderBottomLeftRadius: 6,
-} as const;
-const chipSx = { borderRadius: 2 } as const;
+};
+const chipStyle: React.CSSProperties = { borderRadius: 8 };
 
 interface Props {
   data?: ObjectMeta;
@@ -39,20 +37,20 @@ const ObjectMetaEntry: React.FC<{
   title: string;
   value: string | React.ReactNode | undefined;
 }> = ({ title, value }) => (
-  <Grid container spacing={0}>
-    <Grid size={3} sx={gridAlignSx}>
-      <Text sx={entryTitleSx} size="xs">
+  <div style={entryGridStyle}>
+    <div style={cellStyle}>
+      <Text tone="muted" size="xs">
         {title}
       </Text>
-    </Grid>
-    <Grid size={9} sx={gridAlignSx}>
+    </div>
+    <div style={cellStyle}>
       {typeof value === 'string' ? (
-        <ClipboardText value={value} variant="inherit" sx={clipboardTextSx} />
+        <ClipboardText value={value} truncate style={clipboardTextStyle} />
       ) : (
         value
       )}
-    </Grid>
-  </Grid>
+    </div>
+  </div>
 );
 
 const MetadataSection: React.FC<Props> = ({ data, connectionID }) => {
@@ -61,18 +59,15 @@ const MetadataSection: React.FC<Props> = ({ data, connectionID }) => {
   }
 
   return (
-    <Stack direction="column" gap={0.5}>
-      <Card
-        sx={cardSx}
-        variant="outlined"
-      >
-        <Box sx={cardHeaderSx}>
+    <Stack direction="column" spacing={1}>
+      <Card style={cardStyle}>
+        <div style={cardHeaderStyle}>
           <Text weight="semibold" size="sm">
             Metadata
           </Text>
-        </Box>
-        <Divider />
-        <Box sx={cardBodySx}>
+        </div>
+        <Separator />
+        <div style={cardBodyStyle}>
           <ObjectMetaEntry title="Name" value={data.name} />
           {data.namespace && <ObjectMetaEntry title="Namespace" value={data.namespace} />}
           {data.creationTimestamp && (
@@ -92,7 +87,7 @@ const MetadataSection: React.FC<Props> = ({ data, connectionID }) => {
             <ObjectMetaEntry
               title={data.ownerReferences?.length > 1 ? 'Owners' : 'Owner'}
               value={
-                <Stack direction="row">
+                <Stack direction="row" spacing={2}>
                   {data.ownerReferences.map((ref) =>
                     connectionID ? (
                       <ResourceLinkChip
@@ -104,14 +99,9 @@ const MetadataSection: React.FC<Props> = ({ data, connectionID }) => {
                         namespace={data.namespace}
                       />
                     ) : (
-                      <Chip
-                        key={ref.uid}
-                        size="sm"
-                        emphasis="soft"
-                        color="primary"
-                        sx={chipSx}
-                        label={ref.kind}
-                      />
+                      <Chip key={ref.uid} size="sm" variant="soft" color="brand" style={chipStyle}>
+                        {ref.kind}
+                      </Chip>
                     ),
                   )}
                 </Stack>
@@ -122,22 +112,17 @@ const MetadataSection: React.FC<Props> = ({ data, connectionID }) => {
             <ObjectMetaEntry
               title="Finalizers"
               value={
-                <Stack direction="row">
+                <Stack direction="row" spacing={2}>
                   {data.finalizers.map((finalizer) => (
-                    <Chip
-                      key={finalizer}
-                      size="sm"
-                      emphasis="soft"
-                      color="primary"
-                      sx={chipSx}
-                      label={finalizer}
-                    />
+                    <Chip key={finalizer} size="sm" variant="soft" color="brand" style={chipStyle}>
+                      {finalizer}
+                    </Chip>
                   ))}
                 </Stack>
               }
             />
           )}
-        </Box>
+        </div>
       </Card>
       {data.annotations && <KVCard title="Annotations" kvs={data.annotations} />}
       {data.labels && <KVCard title="Labels" kvs={data.labels} />}

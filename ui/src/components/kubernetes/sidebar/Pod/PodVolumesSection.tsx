@@ -1,29 +1,14 @@
-import Box from '@mui/material/Box';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip } from '@omniviewdev/base-ui';
 import type { Pod, Volume } from 'kubernetes-types/core/v1';
 import React from 'react';
 
 import DetailsCard, { DetailsCardEntry } from '../../../shared/DetailsCard';
 import ExpandableSections from '../../../shared/ExpandableSections';
 import ResourceLinkChip from '../../../shared/ResourceLinkChip';
+import SectionHeading from '../shared/SectionHeading';
+import { roundedChipStyle } from '../shared/sectionStyles';
 
-const sectionHeadingLabelSx = {
-  color: 'text.secondary',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  fontSize: 11,
-  flexShrink: 0,
-} as const;
-
-const chipBorderRadiusSx = { borderRadius: 1, flexShrink: 0 } as const;
-
-const sectionHeadingDividerSx = { flex: 1, height: '1px', bgcolor: 'divider' } as const;
-
-const sectionHeadingStackSx = { mb: 0.75 } as const;
-
-const volumeChipSx = { borderRadius: 1 } as const;
+const expandableSectionsStyle: React.CSSProperties = { gap: 8 };
 
 interface Props {
   pod: Pod;
@@ -219,27 +204,6 @@ function getVolumeInfo(
   return { type: 'Unknown', details: [] };
 }
 
-// ── IDE-style section heading ──
-const SectionHeading: React.FC<{ label: string; count: number }> = ({ label, count }) => (
-  <Stack direction="row" alignItems="center" gap={1} sx={sectionHeadingStackSx}>
-    <Text
-      size="xs"
-      weight="semibold"
-      sx={sectionHeadingLabelSx}
-    >
-      {label}
-    </Text>
-    <Chip
-      size="xs"
-      emphasis="outline"
-      color="primary"
-      sx={chipBorderRadiusSx}
-      label={String(count)}
-    />
-    <Box sx={sectionHeadingDividerSx} />
-  </Stack>
-);
-
 const PodVolumesSection: React.FC<Props> = ({ pod, connectionID, namespace }) => {
   const volumes = pod.spec?.volumes;
   if (!volumes || volumes.length === 0) return null;
@@ -250,17 +214,19 @@ const PodVolumesSection: React.FC<Props> = ({ pod, connectionID, namespace }) =>
       icon: 'LuHardDrive',
       title: volume.name,
       endDecorator: (
-        <Chip size="xs" emphasis="outline" color="primary" sx={volumeChipSx} label={type} />
+        <Chip size="xs" variant="outline" color="brand" style={roundedChipStyle}>
+          {type}
+        </Chip>
       ),
       children: details.length > 0 ? <DetailsCard data={details} /> : null,
     };
   });
 
   return (
-    <Box>
+    <div>
       <SectionHeading label="Volumes" count={volumes.length} />
-      <ExpandableSections sections={sections} size="sm" sx={{ gap: 1 }} />
-    </Box>
+      <ExpandableSections sections={sections} size="sm" style={expandableSectionsStyle} />
+    </div>
   );
 };
 

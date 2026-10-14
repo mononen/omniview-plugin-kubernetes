@@ -1,5 +1,5 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { EndpointSlice } from 'kubernetes-types/discovery/v1';
 import React from 'react';
 
@@ -7,6 +7,8 @@ import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 
 import EndpointSliceInfoSection from './EndpointSliceInfoSection';
 import SliceEndpointsSection from './SliceEndpointsSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<EndpointSlice>;
@@ -21,8 +23,8 @@ export const EndpointSliceSidebar: React.FC<Props> = ({ ctx }) => {
   const connectionID = ctx.resource?.connectionID || '';
 
   return (
-    <Stack direction="column" width={'100%'} spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={slice.metadata} />
         <EndpointSliceInfoSection slice={slice} />
       </Stack>

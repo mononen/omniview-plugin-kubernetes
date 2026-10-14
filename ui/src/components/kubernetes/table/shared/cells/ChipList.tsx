@@ -1,14 +1,9 @@
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
+import { Chip } from '@omniviewdev/base-ui';
 
-const chipListStackSx = {
-  scrollbarWidth: 'none',
-  '&::-webkit-scrollbar': {
-    display: 'none',
-  },
-} as const;
+import styles from './cells.module.css';
+import { squareChipStyle } from './styles';
 
-const chipSx = { borderRadius: '2px' } as const;
+const chipListStyle = { gap: 2 } as const;
 
 type Props = {
   values: string[];
@@ -25,16 +20,13 @@ export const ChipListCell = ({ getValue }: { getValue: () => unknown }) => {
 
 const ChipList: React.FC<Props> = ({ values }) => {
   return (
-    <Stack
-      direction={'row'}
-      overflow={'scroll'}
-      gap={0.25}
-      sx={chipListStackSx}
-    >
+    <div className={styles.scrollRow} style={chipListStyle}>
       {values.map((value) => (
-        <Chip key={value} size={'sm'} sx={chipSx} emphasis="outline" label={value} />
+        <Chip key={value} size="sm" variant="outline" style={squareChipStyle}>
+          {value}
+        </Chip>
       ))}
-    </Stack>
+    </div>
   );
 };
 

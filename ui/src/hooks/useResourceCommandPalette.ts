@@ -1,9 +1,15 @@
+import type { CommandItem } from '@omniviewdev/editors';
 import { usePluginData } from '@omniviewdev/runtime';
-import type { CommandItem } from '@omniviewdev/ui/editors';
-import type { NavSection, NavMenuItem } from '@omniviewdev/ui/sidebars';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
+import type { NavSection, NavMenuItem } from '../types/navigation';
+
+
 const MAX_RECENT = 8;
+
+/** Prefix for the ids of the duplicated "Recent" entries (command ids must be unique). */
+const RECENT_PREFIX = 'recent:';
+const RECENT_GROUP = 'Recent';
 
 /**
  * Recursively flatten NavSection[] into CommandItem[].
@@ -28,7 +34,7 @@ function flattenSections(sections: NavSection[]): { items: CommandItem[]; catego
           id: child.id,
           label: child.label,
           icon: child.icon,
-          category,
+          group: category,
           description: formatDescription(child.id),
         });
       }
@@ -48,7 +54,7 @@ function flattenSections(sections: NavSection[]): { items: CommandItem[]; catego
           id: item.id,
           label: item.label,
           icon: item.icon,
-          category: cat,
+          group: cat,
           description: formatDescription(item.id),
         });
       }
@@ -100,6 +106,15 @@ export function useResourceCommandPalette({
       .filter((it): it is CommandItem => it !== undefined);
   }, [recentIDs, items]);
 
+  // Full command list: recents first (in their own group), then every resource type
+  const commands = useMemo<CommandItem[]>(
+    () => [
+      ...recentItems.map((it) => ({ ...it, id: `${RECENT_PREFIX}${it.id}`, group: RECENT_GROUP })),
+      ...items,
+    ],
+    [recentItems, items],
+  );
+
   // Keyboard shortcut: Cmd+K / Ctrl+K
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -118,7 +133,11 @@ export function useResourceCommandPalette({
   }, []);
 
   const handleSelect = useCallback(
-    (item: CommandItem) => {
+    (selected: CommandItem) => {
+      const id = selected.id.startsWith(RECENT_PREFIX)
+        ? selected.id.slice(RECENT_PREFIX.length)
+        : selected.id;
+      const item = { ...selected, id };
       // Update recents: prepend, dedupe, cap
       const updated = [item.id, ...recentIDs.filter((id) => id !== item.id)].slice(0, MAX_RECENT);
       void setRecentIDs(updated);
@@ -136,5 +155,6 @@ export function useResourceCommandPalette({
     items,
     categories,
     recentItems,
+    commands,
   };
 }

@@ -1,15 +1,16 @@
+import { Chip, Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
 import type { Job } from 'kubernetes-types/batch/v1';
 import type { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
 
-import { Stack } from '@omniviewdev/ui/layout';
 import JobStatusSection from '../../../../../shared/JobStatusSection';
 import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import SidebarSection from '../../../../../shared/SidebarSection';
 import WorkloadPortsCard from '../../../../../shared/WorkloadPortsCard';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<Job>;
@@ -24,15 +25,15 @@ export const JobSidebar: React.FC<Props> = ({ ctx }) => {
   const conditions = (status?.conditions || []) as Condition[];
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={job.metadata} />
 
         <JobStatusSection status={status} conditions={conditions} />
 
         <SidebarSection
           title="Configuration"
-          headerLeft={spec?.suspend && <Chip size="xs" emphasis="soft" color="warning" label="Suspended" />}
+          headerLeft={spec?.suspend && <Chip size="xs" color="warning">Suspended</Chip>}
         >
           <LabeledEntry label="Completions" value={spec?.completions !== undefined ? String(spec.completions) : undefined} />
           <LabeledEntry label="Parallelism" value={spec?.parallelism !== undefined ? String(spec.parallelism) : undefined} />

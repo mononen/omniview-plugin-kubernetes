@@ -4,7 +4,6 @@ import {
   useResourceMutations,
   useRightDrawer,
 } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import { ColumnDef, FilterFn } from '@tanstack/react-table';
 import { Ingress } from 'kubernetes-types/networking/v1';
 import React from 'react';
@@ -15,17 +14,13 @@ import { createStandardViews } from '../../../../shared/sidebar/createDrawerView
 import ResourceTable from '../../../../shared/table/ResourceTable';
 import IngressSidebar from '../../../sidebar/Ingress';
 import ResourceLinkCell from '../../corev1/Pod/cells/ResourceLinkCell';
+import cellStyles from '../../shared/cells/cells.module.css';
 import { ChipListCell } from '../../shared/cells/ChipList';
 import { CopyableCell } from '../../shared/cells/CopyableCell';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 import { inclusionFilter } from '../../shared/filters';
 
-const hideScrollbarSx = {
-  scrollbarWidth: 'none',
-  '&::-webkit-scrollbar': {
-    display: 'none',
-  },
-} as const;
+const scrollRowStyle = { gap: 2 } as const;
 
 const resourceKey = 'networking::v1::Ingress';
 
@@ -101,12 +96,7 @@ const IngressTable: React.FC = () => {
               }
 
               return (
-                <Stack
-                  direction={'row'}
-                  overflow={'scroll'}
-                  gap={0.25}
-                  sx={hideScrollbarSx}
-                >
+                <div className={cellStyles.scrollRow} style={scrollRowStyle}>
                   {val.map((v) => (
                     <ResourceLinkCell
                       key={v}
@@ -116,7 +106,7 @@ const IngressTable: React.FC = () => {
                       resourceName={v}
                     />
                   ))}
-                </Stack>
+                </div>
               );
             },
           },

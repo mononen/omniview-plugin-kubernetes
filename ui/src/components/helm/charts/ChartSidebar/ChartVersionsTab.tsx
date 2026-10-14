@@ -1,9 +1,7 @@
+import { Chip, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
-import Box from '@mui/material/Box';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 
+import styles from './ChartVersionsTab.module.css';
 import type { ChartVersion } from './types';
 import { formatDate, relativeTime } from './utils';
 
@@ -14,20 +12,11 @@ interface Props {
   loading?: boolean;
 }
 
-const versionsListSx = {
-  border: '1px solid',
-  borderColor: 'neutral.800',
-  borderRadius: 'sm',
-  overflow: 'hidden',
-} as const;
+const appVersionStyle: React.CSSProperties = { minWidth: 80, flexShrink: 0 };
 
-const appVersionSx = { color: 'neutral.500', minWidth: 80, flexShrink: 0 } as const;
+const badgesStackStyle: React.CSSProperties = { flex: 1, minWidth: 0 };
 
-const badgesStackSx = { flex: 1, minWidth: 0 } as const;
-
-const dateTextSx = { color: 'neutral.600', flexShrink: 0 } as const;
-
-const emptyTextSx = { color: 'neutral.400' } as const;
+const dateTextStyle: React.CSSProperties = { flexShrink: 0 };
 
 const ChartVersionsTab: React.FC<Props> = ({
   versions,
@@ -37,20 +26,16 @@ const ChartVersionsTab: React.FC<Props> = ({
 }) => (
   <>
     {versions.length > 0 ? (
-      <Stack
-        direction="column"
-        spacing={0}
-        sx={versionsListSx}
-      >
-        {versions.map((v, i) => {
+      <div className={styles.list}>
+        {versions.map((v) => {
           const isSelected = v.version === selectedVersion;
           return (
-            <Stack
+            <div
               key={v.version}
-              direction="row"
-              alignItems="center"
               role="button"
               tabIndex={0}
+              aria-pressed={isSelected}
+              className={isSelected ? `${styles.row} ${styles.rowSelected}` : styles.row}
               onClick={() => onVersionChange(v.version)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -58,63 +43,50 @@ const ChartVersionsTab: React.FC<Props> = ({
                   onVersionChange(v.version);
                 }
               }}
-              sx={{
-                px: 1.25,
-                py: 0.625,
-                cursor: 'pointer',
-                borderBottom: i < versions.length - 1 ? '1px solid' : 'none',
-                borderColor: 'neutral.800',
-                bgcolor: isSelected
-                  ? 'rgba(var(--mui-palette-primary-mainChannel) / 0.08)'
-                  : 'transparent',
-                '&:hover': {
-                  bgcolor: isSelected
-                    ? 'rgba(var(--mui-palette-primary-mainChannel) / 0.12)'
-                    : 'action.hover',
-                },
-              }}
             >
               {/* Version */}
               <Text
                 size="xs"
                 weight={isSelected ? 'semibold' : undefined}
-                sx={{
-                  minWidth: 100,
-                  color: isSelected ? 'primary.300' : 'neutral.100',
-                }}
+                tone={isSelected ? 'brand' : 'default'}
+                style={{ minWidth: 100 }}
               >
                 {v.version}
               </Text>
 
               {/* App version */}
-              <Text size="xs" sx={appVersionSx}>
-                {v.appVersion || '\u2014'}
+              <Text size="xs" tone="subtle" style={appVersionStyle}>
+                {v.appVersion || '—'}
               </Text>
 
               {/* Badges */}
-              <Stack direction="row" spacing={0.5} sx={badgesStackSx}>
+              <Stack direction="row" spacing={1} style={badgesStackStyle}>
                 {isSelected && (
-                  <Chip size="sm" emphasis="soft" color="primary" label="Selected" />
+                  <Chip size="sm" variant="soft" color="brand">
+                    Selected
+                  </Chip>
                 )}
                 {v.deprecated && (
-                  <Chip size="sm" emphasis="soft" color="warning" label="Deprecated" />
+                  <Chip size="sm" variant="soft" color="warning">
+                    Deprecated
+                  </Chip>
                 )}
               </Stack>
 
               {/* Date */}
               {v.created && (
-                <Box component="span" title={formatDate(v.created)}>
-                  <Text size="xs" sx={dateTextSx}>
+                <span title={formatDate(v.created)}>
+                  <Text size="xs" tone="subtle" style={dateTextStyle}>
                     {relativeTime(v.created)}
                   </Text>
-                </Box>
+                </span>
               )}
-            </Stack>
+            </div>
           );
         })}
-      </Stack>
+      </div>
     ) : (
-      <Text size="sm" sx={emptyTextSx}>
+      <Text size="sm" tone="muted">
         {loading ? 'Loading versions...' : 'No versions available'}
       </Text>
     )}

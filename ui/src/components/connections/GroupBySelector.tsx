@@ -1,7 +1,8 @@
-import { Select } from '@omniviewdev/ui/inputs';
 import React from 'react';
 
 import type { GroupByMode, ConnectionAttribute } from '../../types/clusters';
+
+import SimpleSelect from './SimpleSelect';
 
 type Props = {
   value: GroupByMode;
@@ -13,6 +14,8 @@ type Props = {
 
 // Base connection attributes always shown (if they have 2+ distinct values)
 const BASE_ATTRIBUTES = new Set(['kubeconfig', 'cluster', 'user']);
+
+const selectStyle: React.CSSProperties = { minWidth: 140 };
 
 const GroupBySelector: React.FC<Props> = ({
   value,
@@ -26,13 +29,14 @@ const GroupBySelector: React.FC<Props> = ({
   const hasTags = availableTags.length > 0;
 
   return (
-    <Select
+    <SimpleSelect
       size="sm"
+      aria-label="Group by"
       value={value}
       onChange={(newValue) => {
         if (newValue) onChange(newValue as GroupByMode);
       }}
-      sx={{ minWidth: 140 }}
+      style={selectStyle}
       options={[
         { value: 'none', label: 'No Grouping' },
         { value: 'favorites', label: 'Favorites' },

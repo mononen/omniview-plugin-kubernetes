@@ -1,7 +1,5 @@
-import { Chip } from '@omniviewdev/ui';
+import { Chip, Stack, Text } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import type { FlowSchema } from 'kubernetes-types/flowcontrol/v1';
 import type { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
@@ -13,7 +11,12 @@ import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import ResourceLinkChip from '../../../../../shared/ResourceLinkChip';
 import SidebarSection from '../../../../../shared/SidebarSection';
 
-const chipSx = { borderRadius: 1 } as const;
+const cardContentStyle = { paddingInline: 8, paddingBlock: 4 } as const;
+
+const stackStyle1 = { gap: 2 } as const;
+const fullWidthStyle = { width: '100%' } as const;
+
+const chipStyle = { borderRadius: 4 } as const;
 
 interface Props {
   ctx: DrawerContext<FlowSchema>;
@@ -33,46 +36,39 @@ export const FlowSchemaSidebar: React.FC<Props> = ({ ctx }) => {
     title: `Rule ${i + 1}`,
     defaultExpanded: i === 0,
     children: (
-      <Stack direction="column" gap={0.5} sx={{ px: 1, py: 0.5 }}>
+      <Stack direction="column" spacing={1} style={cardContentStyle}>
         {rule.subjects && rule.subjects.length > 0 && (
-          <Stack direction="column" gap={0.25}>
-            <Text size="xs" sx={{ color: 'neutral.400' }}>Subjects</Text>
-            <Stack direction="row" gap={0.5} flexWrap="wrap">
+          <Stack direction="column" spacing={0} style={stackStyle1}>
+            <Text size="xs" tone="muted">Subjects</Text>
+            <Stack direction="row" spacing={1} wrap>
               {rule.subjects.map((subj, si) => (
-                <Chip
-                  key={si}
-                  size="xs"
-                  emphasis="soft"
-                  color="neutral"
-                  label={subj.kind === 'User' ? `User: ${subj.user?.name}` :
+                <Chip key={si} size="xs" color="neutral" style={chipStyle}>{subj.kind === 'User' ? `User: ${subj.user?.name}` :
                          subj.kind === 'Group' ? `Group: ${subj.group?.name}` :
                          subj.kind === 'ServiceAccount' ? `SA: ${subj.serviceAccount?.namespace}/${subj.serviceAccount?.name}` :
-                         subj.kind}
-                  sx={chipSx}
-                />
+                         subj.kind}</Chip>
               ))}
             </Stack>
           </Stack>
         )}
         {rule.resourceRules && rule.resourceRules.length > 0 && (
-          <Stack direction="column" gap={0.25}>
-            <Text size="xs" sx={{ color: 'neutral.400' }}>Resource Rules</Text>
+          <Stack direction="column" spacing={0} style={stackStyle1}>
+            <Text size="xs" tone="muted">Resource Rules</Text>
             {rule.resourceRules.map((rr, ri) => (
-              <Stack key={ri} direction="row" gap={0.5} flexWrap="wrap">
-                {rr.verbs?.map((v) => <Chip key={v} size="xs" emphasis="soft" color="neutral" label={v} sx={chipSx} />)}
-                {rr.apiGroups?.map((g, gi) => <Chip key={`g-${gi}`} size="xs" emphasis="outline" color="primary" label={g || '*'} sx={chipSx} />)}
-                {rr.resources?.map((r) => <Chip key={r} size="xs" emphasis="outline" color="info" label={r} sx={chipSx} />)}
+              <Stack key={ri} direction="row" spacing={1} wrap>
+                {rr.verbs?.map((v) => <Chip key={v} size="xs" color="neutral" style={chipStyle}>{v}</Chip>)}
+                {rr.apiGroups?.map((g, gi) => <Chip key={`g-${gi}`} size="xs" color="brand" variant="outline" style={chipStyle}>{g || '*'}</Chip>)}
+                {rr.resources?.map((r) => <Chip key={r} size="xs" color="info" variant="outline" style={chipStyle}>{r}</Chip>)}
               </Stack>
             ))}
           </Stack>
         )}
         {rule.nonResourceRules && rule.nonResourceRules.length > 0 && (
-          <Stack direction="column" gap={0.25}>
-            <Text size="xs" sx={{ color: 'neutral.400' }}>Non-Resource Rules</Text>
+          <Stack direction="column" spacing={0} style={stackStyle1}>
+            <Text size="xs" tone="muted">Non-Resource Rules</Text>
             {rule.nonResourceRules.map((nr, ni) => (
-              <Stack key={ni} direction="row" gap={0.5} flexWrap="wrap">
-                {nr.verbs?.map((v) => <Chip key={v} size="xs" emphasis="soft" color="neutral" label={v} sx={chipSx} />)}
-                {nr.nonResourceURLs?.map((u) => <Chip key={u} size="xs" emphasis="outline" color="primary" label={u} sx={chipSx} />)}
+              <Stack key={ni} direction="row" spacing={1} wrap>
+                {nr.verbs?.map((v) => <Chip key={v} size="xs" color="neutral" style={chipStyle}>{v}</Chip>)}
+                {nr.nonResourceURLs?.map((u) => <Chip key={u} size="xs" color="brand" variant="outline" style={chipStyle}>{u}</Chip>)}
               </Stack>
             ))}
           </Stack>
@@ -82,14 +78,14 @@ export const FlowSchemaSidebar: React.FC<Props> = ({ ctx }) => {
   }));
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={fs.metadata} />
 
         <SidebarSection
           title="Configuration"
           headerRight={conditions.length > 0 ? (
-            <Stack direction="row" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
+            <Stack direction="row" spacing={1} wrap justify="end">
               {conditions.map((c) => <ConditionChip key={c.type} condition={c} />)}
             </Stack>
           ) : undefined}

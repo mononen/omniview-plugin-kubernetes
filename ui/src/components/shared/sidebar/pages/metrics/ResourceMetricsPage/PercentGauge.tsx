@@ -1,10 +1,7 @@
-import Box from '@mui/material/Box';
-import LinearProgress from '@mui/material/LinearProgress';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Progress, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
-import { gaugeWrapperSx, gaugeHeaderSx, gaugeLabelSx, gaugeValueSx, gaugeBarSx } from './constants';
+import { gaugeWrapperStyle, gaugeHeaderStyle, gaugeValueStyle } from './constants';
 
 interface PercentGaugeProps {
   label: string;
@@ -12,24 +9,19 @@ interface PercentGaugeProps {
 }
 
 const PercentGauge: React.FC<PercentGaugeProps> = ({ label, value }) => {
-  const color = value >= 90 ? 'error' : value >= 70 ? 'warning' : 'primary';
+  const color = value >= 90 ? 'danger' : value >= 70 ? 'warning' : 'brand';
   return (
-    <Box sx={gaugeWrapperSx}>
-      <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={gaugeHeaderSx}>
-        <Text size="xs" sx={gaugeLabelSx}>
+    <div style={gaugeWrapperStyle}>
+      <Stack direction="row" justify="between" align="baseline" style={gaugeHeaderStyle}>
+        <Text size="xs" tone="muted">
           {label}
         </Text>
-        <Text size="xs" weight="semibold" sx={gaugeValueSx}>
+        <Text size="xs" weight="semibold" style={gaugeValueStyle}>
           {value.toFixed(1)}%
         </Text>
       </Stack>
-      <LinearProgress
-        variant="determinate"
-        value={Math.min(value, 100)}
-        color={color}
-        sx={gaugeBarSx}
-      />
-    </Box>
+      <Progress size="xs" value={Math.min(value, 100)} color={color} aria-label={label} />
+    </div>
   );
 };
 

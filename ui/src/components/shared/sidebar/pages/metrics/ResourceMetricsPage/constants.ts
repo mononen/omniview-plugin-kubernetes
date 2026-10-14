@@ -1,14 +1,16 @@
+import type React from 'react';
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 export const CHART_COLORS = [
-  'var(--ov-accent, #3b82f6)',
-  'var(--ov-accent-secondary, #8b5cf6)',
-  '#22c55e',
-  '#f97316',
-  '#ec4899',
-  '#06b6d4',
+  'var(--ov-color-brand-500)',
+  'var(--ov-color-secondary)',
+  'var(--ov-color-success)',
+  'var(--ov-color-warning)',
+  'var(--ov-color-secondary)',
+  'var(--ov-color-info)',
 ];
 
 // ---------------------------------------------------------------------------
@@ -71,45 +73,45 @@ export const CATEGORY_ORDER = [
 // Static styles
 // ---------------------------------------------------------------------------
 
-export const gaugeWrapperSx = { minWidth: 0, flex: 1 } as const;
-export const gaugeHeaderSx = { mb: 0.25 } as const;
-export const gaugeLabelSx = { color: 'neutral.400' } as const;
-export const gaugeValueSx = { fontVariantNumeric: 'tabular-nums' } as const;
-export const gaugeBarSx = { height: 4, borderRadius: 2 } as const;
+export const gaugeWrapperStyle: React.CSSProperties = { minWidth: 0, flex: 1 };
+export const gaugeHeaderStyle: React.CSSProperties = { marginBottom: 2 };
+export const gaugeValueStyle: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
-export const tileSx = {
-  py: 0.75,
-  px: 1,
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-  bgcolor: 'background.level1',
-} as const;
-export const tileLabelSx = { color: 'neutral.400', mb: 0.25, display: 'block' } as const;
-export const tileValueSx = { fontVariantNumeric: 'tabular-nums' } as const;
+export const tileStyle: React.CSSProperties = {
+  paddingBlock: 6,
+  paddingInline: 8,
+  borderRadius: 4,
+  border: '1px solid var(--ov-color-border-default)',
+  background: 'var(--ov-color-bg-surface-raised)',
+};
+export const tileLabelStyle: React.CSSProperties = { marginBottom: 2, display: 'block' };
+export const tileValueStyle: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
-export const pageRootSx = { p: 1 } as const;
-export const noProvidersSx = { p: 2 } as const;
-export const noProvidersTextSx = { color: 'neutral.500' } as const;
-export const loadingSx = { display: 'flex', justifyContent: 'center', py: 4 } as const;
-export const noDataSx = { p: 2 } as const;
-export const noDataTextSx = { color: 'neutral.500' } as const;
-export const errorBannerSx = { mb: 1 } as const;
-export const errorTextSx = { color: 'error.main' } as const;
-export const refreshBarSx = { height: 2, borderRadius: 1, mb: 0.5 } as const;
-export const chartsGridSx = {
+export const pageRootStyle: React.CSSProperties = { padding: 8 };
+export const noProvidersStyle: React.CSSProperties = { padding: 16 };
+export const loadingStyle: React.CSSProperties = { display: 'flex', justifyContent: 'center', paddingBlock: 32 };
+export const noDataStyle: React.CSSProperties = { padding: 16 };
+export const errorBannerStyle: React.CSSProperties = { marginBottom: 8 };
+export const refreshBarStyle: React.CSSProperties = { marginBottom: 4 };
+export const chartsGridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-  gap: 1,
-  mb: 1.5,
-} as const;
-export const tileGroupWrapperSx = { px: 0.5 } as const;
-export const tileCategoryLabelSx = {
-  color: 'neutral.400',
+  gap: 8,
+  marginBottom: 12,
+};
+export const tileGroupWrapperStyle: React.CSSProperties = { paddingInline: 4 };
+export const tileCategoryLabelStyle: React.CSSProperties = {
+  display: 'block',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
   fontSize: '0.6rem',
-  mb: 0.5,
-} as const;
-export const percentGaugeStackSx = { mb: 0.5 } as const;
-export const timeRangePickerSx = { mb: 1 } as const;
+  marginBottom: 4,
+};
+export const percentGaugeStackStyle: React.CSSProperties = { marginBottom: 4, gap: 6 };
+export const timeRangePickerStyle: React.CSSProperties = { marginBottom: 8 };
+/** 12-column grid matching the old MUI Grid (spacing 0.5). */
+export const tileGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+  gap: 4,
+};

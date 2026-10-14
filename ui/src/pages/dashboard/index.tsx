@@ -1,28 +1,22 @@
-import Box from '@mui/material/Box';
-import MuiTab from '@mui/material/Tab';
-import MuiTabs from '@mui/material/Tabs';
+import { Tabs } from '@omniviewdev/base-ui';
 import { useExtensionPoint, usePluginRouter } from '@omniviewdev/runtime';
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 
-const rootSx = {
+const rootStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   flex: 1,
   minHeight: 0,
-  bgcolor: 'transparent',
-} as const;
+  background: 'transparent',
+};
 
-const dashboardTabsSx = { bgcolor: 'transparent', minHeight: 0 } as const;
-
-const dashboardTabItemSx = { minHeight: 32, py: 0.5, textTransform: 'none' } as const;
-
-const mainSx = {
+const mainStyle: React.CSSProperties = {
   flex: 1,
   display: 'flex',
   minHeight: 0,
   overflow: 'auto',
-} as const;
+};
 
 const builtinTabs: Record<string, string> = {
   '': 'Overview',
@@ -56,43 +50,35 @@ export const DashboardLayout: React.FC = () => {
       : '';
 
   return (
-    <Box
-      sx={rootSx}
-    >
-      <MuiTabs
+    <div style={rootStyle}>
+      <Tabs.Root
         value={activeTab}
-        onChange={(_e, value) => {
+        size="sm"
+        onValueChange={(value) => {
           if (typeof value === 'string') {
             // Relative navigation: 'metrics' goes to sibling, '.' goes to index
             navigate(value || '.', { replace: true });
           }
         }}
-        sx={dashboardTabsSx}
       >
-        {Object.entries(builtinTabs).map(([path, label]) => (
-          <MuiTab
-            key={path}
-            value={path}
-            label={label}
-            sx={dashboardTabItemSx}
-          />
-        ))}
-        {extensionTabs.map((ext) => (
-          <MuiTab
-            key={ext.id}
-            value={`${EXTENSION_TAB_PREFIX}${extensionTabPath(ext)}`}
-            label={ext.label}
-            sx={dashboardTabItemSx}
-          />
-        ))}
-      </MuiTabs>
-      <Box
-        component="main"
-        sx={mainSx}
-      >
+        <Tabs.List aria-label="Dashboard tabs">
+          {Object.entries(builtinTabs).map(([path, label]) => (
+            <Tabs.Tab key={path} value={path}>
+              {label}
+            </Tabs.Tab>
+          ))}
+          {extensionTabs.map((ext) => (
+            <Tabs.Tab key={ext.id} value={`${EXTENSION_TAB_PREFIX}${extensionTabPath(ext)}`}>
+              {ext.label}
+            </Tabs.Tab>
+          ))}
+          <Tabs.Indicator />
+        </Tabs.List>
+      </Tabs.Root>
+      <main style={mainStyle}>
         <Outlet />
-      </Box>
-    </Box>
+      </main>
+    </div>
   );
 };
 

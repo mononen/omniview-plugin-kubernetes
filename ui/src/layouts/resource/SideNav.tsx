@@ -1,14 +1,21 @@
-import Box from '@mui/material/Box';
 import React from 'react';
 
-// @mui/material
+import styles from './Layout.module.css';
 
 type Props = {
+  /** Padding in MUI spacing units (1 = 8px), kept for compatibility. */
   padding?: number;
   width?: number;
   type?: 'inset' | 'bordered' | 'transparent' | 'bordered-inset';
   scrollable?: boolean;
   children: React.ReactNode;
+};
+
+const typeClass: Record<NonNullable<Props['type']>, string> = {
+  bordered: styles.Bordered,
+  inset: styles.Inset,
+  transparent: styles.Transparent,
+  'bordered-inset': styles.BorderedInset,
 };
 
 /**
@@ -21,72 +28,27 @@ const SideNav: React.FC<Props> = ({
   width,
   padding,
 }) => {
-  const BorderedSx = {
-    bgcolor: 'background.paper',
-    borderRight: '1px solid',
-    borderColor: 'divider',
-  };
-  const InsetSx = {
-    bgcolor: 'transparent',
-  };
-  const TransparentSx = {
-    bgcolor: 'transparent',
-    borderRight: '1px solid',
-    borderColor: 'divider',
-  };
-  const BorderedInsetSx = {
-    bgcolor: 'transparent',
-    border: '1px solid',
-    borderRadius: 2,
-    borderColor: 'divider',
-  };
-
-  const scrollableSx = {
-    overflow: 'auto',
-    scrollbarWidth: 'none',
-    '&::-webkit-scrollbar': {
-      display: 'none',
-    },
-    '&-ms-overflow-style:': {
-      display: 'none',
-    },
-  };
+  const style = {
+    padding: (padding ?? 0) * 8,
+    ...(width !== undefined
+      ? {
+        '--_sidenav-w-xs': `${width}px`,
+        '--_sidenav-w-sm': `${width}px`,
+        '--_sidenav-w-md': `${width}px`,
+        '--_sidenav-w-lg': `${width}px`,
+      }
+      : {}),
+  } as React.CSSProperties;
 
   return (
-    <Box
-      component="nav"
-      className="Navigation"
-      sx={[
-        {
-          minHeight: '100%',
-          maxHeight: '100%',
-          padding: padding ?? 0,
-          minWidth: {
-            xs: width ?? 0,
-            sm: width ?? 220,
-            md: width ?? 260,
-            lg: width ?? 300,
-          },
-          maxWidth: {
-            xs: width ?? 0,
-            sm: width ?? 220,
-            md: width ?? 260,
-            lg: width ?? 300,
-          },
-          display: {
-            xs: 'none',
-            sm: 'initial',
-          },
-        },
-        type === 'bordered' && BorderedSx,
-        type === 'inset' && InsetSx,
-        type === 'transparent' && TransparentSx,
-        type === 'bordered-inset' && BorderedInsetSx,
-        scrollable && scrollableSx,
-      ]}
+    <nav
+      className={['Navigation', styles.SideNav, typeClass[type], scrollable && styles.Scrollable]
+        .filter(Boolean)
+        .join(' ')}
+      style={style}
     >
       {children}
-    </Box>
+    </nav>
   );
 };
 

@@ -1,12 +1,10 @@
-import Box from '@mui/material/Box';
-import { Button, IconButton } from '@omniviewdev/ui/buttons';
-import { Select, TextField } from '@omniviewdev/ui/inputs';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Button, IconButton, Input, Stack, Text } from '@omniviewdev/base-ui';
 import React, { useCallback } from 'react';
 import { LuPlus, LuX } from 'react-icons/lu';
 
 import type { FolderRuleSet, FolderRule, RuleField, RuleOperator, RuleLogic } from '../../types/clusters';
+
+import SimpleSelect from './SimpleSelect';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -33,23 +31,23 @@ const VALUELESS_OPERATORS = new Set<RuleOperator>(['exists', 'not_exists']);
 
 // ── Static styles ─────────────────────────────────────────────────────────────
 
-const sxContainer = { gap: 1 } as const;
-const sxLogicRow = { gap: 0.25 } as const;
-const sxRuleRow = {
+const containerStyle: React.CSSProperties = { gap: 8 };
+const logicRowStyle: React.CSSProperties = { gap: 2 };
+const ruleRowStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '1fr 1fr 1fr auto',
-  gap: 0.5,
+  gap: 4,
   alignItems: 'center',
-} as const;
-const sxRuleRowNoValue = {
+};
+const ruleRowNoValueStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '1fr 1fr auto',
-  gap: 0.5,
+  gap: 4,
   alignItems: 'center',
-} as const;
-const sxFooter = { mt: 0.5 } as const;
-const sxMatchText = { opacity: 0.7 } as const;
-const sxSelectMin = { minWidth: 0 } as const;
+};
+const footerStyle: React.CSSProperties = { marginTop: 4 };
+const matchTextStyle: React.CSSProperties = { opacity: 0.7 };
+const selectMinStyle: React.CSSProperties = { minWidth: 0, width: '100%' };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -94,32 +92,32 @@ const RuleBuilder: React.FC<RuleBuilderProps> = ({
   );
 
   return (
-    <Stack sx={sxContainer}>
+    <Stack direction="column" style={containerStyle}>
       {/* AND / OR toggle */}
       {ruleSet.rules.length > 1 && (
-        <Stack direction="row" alignItems="center" gap={0.75}>
-          <Text size="xs" weight="semibold" sx={sxMatchText}>
+        <Stack direction="row" align="center" style={{ gap: 6 }}>
+          <Text size="xs" weight="semibold" style={matchTextStyle}>
             Match
           </Text>
-          <Stack direction="row" sx={sxLogicRow}>
+          <Stack direction="row" style={logicRowStyle}>
             <Button
               size="xs"
-              emphasis={ruleSet.logic === 'and' ? 'soft' : 'ghost'}
-              color={ruleSet.logic === 'and' ? 'primary' : 'neutral'}
+              variant={ruleSet.logic === 'and' ? 'soft' : 'ghost'}
+              color={ruleSet.logic === 'and' ? 'brand' : 'neutral'}
               onClick={() => updateLogic('and')}
             >
               All
             </Button>
             <Button
               size="xs"
-              emphasis={ruleSet.logic === 'or' ? 'soft' : 'ghost'}
-              color={ruleSet.logic === 'or' ? 'primary' : 'neutral'}
+              variant={ruleSet.logic === 'or' ? 'soft' : 'ghost'}
+              color={ruleSet.logic === 'or' ? 'brand' : 'neutral'}
               onClick={() => updateLogic('or')}
             >
               Any
             </Button>
           </Stack>
-          <Text size="xs" sx={sxMatchText}>
+          <Text size="xs" style={matchTextStyle}>
             of the following rules
           </Text>
         </Stack>
@@ -129,54 +127,62 @@ const RuleBuilder: React.FC<RuleBuilderProps> = ({
       {ruleSet.rules.map((rule) => {
         const isValueless = VALUELESS_OPERATORS.has(rule.operator);
         return (
-          <Box key={rule.id} sx={isValueless ? sxRuleRowNoValue : sxRuleRow}>
-            <Select
+          <div key={rule.id} style={isValueless ? ruleRowNoValueStyle : ruleRowStyle}>
+            <SimpleSelect
               size="sm"
+              aria-label="Field"
               value={rule.field}
               onChange={(val) => {
                 if (val) updateRule(rule.id, { field: val as RuleField });
               }}
               options={availableFields}
-              sx={sxSelectMin}
+              style={selectMinStyle}
             />
-            <Select
+            <SimpleSelect
               size="sm"
+              aria-label="Operator"
               value={rule.operator}
               onChange={(val) => {
                 if (val) updateRule(rule.id, { operator: val as RuleOperator });
               }}
               options={OPERATOR_OPTIONS}
-              sx={sxSelectMin}
+              style={selectMinStyle}
             />
             {!isValueless && (
-              <TextField
+              <Input.Control
                 size="sm"
                 placeholder="value"
+                aria-label="Value"
                 value={rule.value}
-                onChange={(val) => updateRule(rule.id, { value: val })}
+                onChange={(e) => updateRule(rule.id, { value: e.target.value })}
               />
             )}
             <IconButton
               size="sm"
-              emphasis="ghost"
+              variant="ghost"
               color="neutral"
               onClick={() => removeRule(rule.id)}
               aria-label="Remove rule"
             >
               <LuX size={14} />
             </IconButton>
-          </Box>
+          </div>
         );
       })}
 
       {/* Add rule + match count footer */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={sxFooter}>
-        <Button size="xs" emphasis="ghost" color="neutral" onClick={addRule}>
-          <LuPlus size={12} />
+      <Stack direction="row" align="center" justify="between" style={footerStyle}>
+        <Button
+          size="xs"
+          variant="ghost"
+          color="neutral"
+          startDecorator={<LuPlus size={12} />}
+          onClick={addRule}
+        >
           Add Rule
         </Button>
         {ruleSet.rules.length > 0 && (
-          <Text size="xs" sx={sxMatchText}>
+          <Text size="xs" style={matchTextStyle}>
             Matches{' '}<strong>{matchCount}</strong>{' '}cluster{matchCount !== 1 ? 's' : ''}
           </Text>
         )}

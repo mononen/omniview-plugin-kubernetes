@@ -1,12 +1,6 @@
-// material-ui
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Modal from '@mui/material/Modal';
-import { Button, IconButton } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Button, Dialog, Text } from '@omniviewdev/base-ui';
 import React from 'react';
-import { LuPlus, LuX } from 'react-icons/lu';
+import { LuPlus } from 'react-icons/lu';
 
 // project-imports
 import { parseResourceKey } from '../../../../utils/resourceKey';
@@ -14,17 +8,22 @@ import CodeEditor from '../../../shared/CodeEditor';
 
 import { getTemplate } from './templates';
 
-const headerSx = { px: 2.5, pt: 2, pb: 1.5 } as const;
-const contentSx = { flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' } as const;
-const editorWrapperSx = { height: 'calc(80vh - 120px)', overflow: 'hidden' } as const;
-const errorSx = {
-  px: 2.5,
-  py: 1,
-  bgcolor: 'rgba(248, 81, 73, 0.1)',
-  borderTop: '1px solid rgba(248, 81, 73, 0.3)',
+const dialogStyle = { width: '90%', maxWidth: 1000, maxHeight: '90vh' } as const;
+const contentStyle = {
+  flex: 1,
+  overflow: 'hidden',
+  display: 'flex',
+  flexDirection: 'column',
+  borderTop: '1px solid var(--ov-color-border-default)',
 } as const;
-const errorTextSx = { color: '#f85149' } as const;
-const footerSx = { px: 2.5, py: 1.5 } as const;
+const footerStyle = { paddingTop: 12 } as const;
+const editorWrapperStyle = { height: 'calc(80vh - 120px)', overflow: 'hidden' } as const;
+const errorStyle = {
+  paddingInline: 20,
+  paddingBlock: 8,
+  background: 'var(--ov-color-danger-soft)',
+  borderTop: '1px solid var(--ov-color-danger)',
+} as const;
 
 interface Props {
   open: boolean;
@@ -33,23 +32,6 @@ interface Props {
   onCreate: (yaml: string, namespace: string) => Promise<void>;
   isCreating?: boolean;
 }
-
-const modalStyle = {
-  position: 'absolute' as const,
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '90%',
-  maxWidth: 1000,
-  maxHeight: '90vh',
-  bgcolor: 'background.paper',
-  borderRadius: '6px',
-  boxShadow: 24,
-  p: 0,
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden',
-};
 
 const CreateResourceModal: React.FC<Props> = ({
   open,
@@ -107,68 +89,49 @@ const CreateResourceModal: React.FC<Props> = ({
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <Box sx={modalStyle}>
-        {/* Header */}
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={headerSx}
-        >
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <LuPlus size={16} />
-            <Text weight="semibold" size="md">
-              Create {kind}
+    <Dialog open={open} onClose={onClose} size="xl" style={dialogStyle}>
+      <Dialog.Close aria-label="Close" />
+      <Dialog.Title icon={<LuPlus size={16} />}>Create {kind}</Dialog.Title>
+
+      {/* Content — editor */}
+      <div style={contentStyle}>
+        <div style={editorWrapperStyle}>
+          <CodeEditor
+            filename={`${kind}.yaml`}
+            language="yaml"
+            value={value}
+            onChange={(v) => setValue(v)}
+            path={`file:///${resourceKey}/create.yaml`}
+            height="100%"
+          />
+        </div>
+
+        {/* Inline error */}
+        {error && (
+          <div style={errorStyle}>
+            <Text size="xs" tone="danger">
+              {error}
             </Text>
-          </Stack>
-          <IconButton size="xs" emphasis="ghost" color="neutral" onClick={onClose}>
-            <LuX size={14} />
-          </IconButton>
-        </Stack>
-        <Divider />
+          </div>
+        )}
+      </div>
 
-        {/* Content — editor */}
-        <Box sx={contentSx}>
-          <Box sx={editorWrapperSx}>
-            <CodeEditor
-              filename={`${kind}.yaml`}
-              language="yaml"
-              value={value}
-              onChange={(v) => setValue(v)}
-              path={`file:///${resourceKey}/create.yaml`}
-              height="100%"
-            />
-          </Box>
-
-          {/* Inline error */}
-          {error && (
-            <Box sx={errorSx}>
-              <Text size="xs" sx={errorTextSx}>
-                {error}
-              </Text>
-            </Box>
-          )}
-        </Box>
-
-        {/* Footer */}
-        <Divider />
-        <Stack direction="row" spacing={1} justifyContent="flex-end" sx={footerSx}>
-          <Button size="xs" emphasis="ghost" color="neutral" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            size="xs"
-            emphasis="solid"
-            color="primary"
-            disabled={isCreating}
-            onClick={() => void handleSubmit()}
-          >
-            {isCreating ? 'Creating...' : 'Create'}
-          </Button>
-        </Stack>
-      </Box>
-    </Modal>
+      {/* Footer */}
+      <Dialog.Footer style={footerStyle}>
+        <Button size="sm" variant="ghost" color="neutral" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          size="sm"
+          variant="solid"
+          color="brand"
+          disabled={isCreating}
+          onClick={() => void handleSubmit()}
+        >
+          {isCreating ? 'Creating...' : 'Create'}
+        </Button>
+      </Dialog.Footer>
+    </Dialog>
   );
 };
 

@@ -1,35 +1,26 @@
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import Grid from '@mui/material/Grid';
-import LinearProgress from '@mui/material/LinearProgress';
+import { Progress, Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import { DrawerComponentView, DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
-import { MetricsPanel } from '@omniviewdev/ui/charts';
-import type { TimeSeriesDef, ChartTimeRange } from '@omniviewdev/ui/charts';
-import { TimeRangePicker } from '@omniviewdev/ui/inputs';
-import type { TimeRange } from '@omniviewdev/ui/inputs';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LuActivity } from 'react-icons/lu';
 
 import { useClusterPreferences } from '../../../../../../hooks/useClusterPreferences';
+import { MetricsPanel, TimeRangePicker } from '../../../../charts';
+import type { TimeSeriesDef, ChartTimeRange } from '../../../../charts';
 
 import {
   CHART_COLORS,
-  pageRootSx,
-  noProvidersSx,
-  noProvidersTextSx,
-  loadingSx,
-  noDataSx,
-  noDataTextSx,
-  errorBannerSx,
-  errorTextSx,
-  refreshBarSx,
-  chartsGridSx,
-  tileGroupWrapperSx,
-  tileCategoryLabelSx,
-  percentGaugeStackSx,
-  timeRangePickerSx,
+  pageRootStyle,
+  noProvidersStyle,
+  loadingStyle,
+  noDataStyle,
+  errorBannerStyle,
+  refreshBarStyle,
+  chartsGridStyle,
+  tileGroupWrapperStyle,
+  tileCategoryLabelStyle,
+  percentGaugeStackStyle,
+  timeRangePickerStyle,
+  tileGridStyle,
 } from './constants';
 import { formatValue } from './formatters';
 import {
@@ -149,11 +140,6 @@ const ResourceMetricsPage: React.FC<Props> = ({ ctx }) => {
     [currentValues, chartMetricIDs, descriptors],
   );
 
-  // Bridge TimeRange <-> ChartTimeRange (same shape, different type names)
-  const handlePickerChange = useCallback((range: TimeRange) => {
-    setTimeRange({ from: range.from, to: range.to });
-  }, []);
-
   const isLoading = currentLoading && currentValues.size === 0;
   const hasAnyData = currentValues.size > 0 || tsSeries.size > 0;
   const noProviders = !currentLoading && providers.length === 0;
@@ -161,53 +147,53 @@ const ResourceMetricsPage: React.FC<Props> = ({ ctx }) => {
 
   // Zero early returns — every render must call the same hooks.
   return (
-    <Box sx={pageRootSx}>
+    <div style={pageRootStyle}>
       {/* No providers */}
       {noProviders && (
-        <Box sx={noProvidersSx}>
-          <Text size="sm" sx={noProvidersTextSx}>
+        <div style={noProvidersStyle}>
+          <Text size="sm" tone="subtle">
             No metric providers registered for this resource type.
           </Text>
-        </Box>
+        </div>
       )}
 
       {/* Loading initial data */}
       {isLoading && (
-        <Box sx={loadingSx}>
-          <CircularProgress size={24} />
-        </Box>
+        <div style={loadingStyle}>
+          <Spinner size="md" />
+        </div>
       )}
 
       {/* No data message */}
       {noData && (
-        <Box sx={noDataSx}>
-          <Text size="sm" sx={noDataTextSx}>
+        <div style={noDataStyle}>
+          <Text size="sm" tone="subtle">
             No metrics available. Ensure metrics-server or Prometheus is installed in the cluster.
           </Text>
-        </Box>
+        </div>
       )}
 
       {/* Error banner */}
       {(error || tsError) && (
-        <Box sx={errorBannerSx}>
-          <Text size="xs" sx={errorTextSx}>
+        <div style={errorBannerStyle}>
+          <Text size="xs" tone="danger">
             {(error ?? tsError)?.message || 'Failed to load metrics'}
           </Text>
-        </Box>
+        </div>
       )}
 
       {/* Refresh indicator */}
       {(currentLoading || tsLoading) && hasAnyData && (
-        <LinearProgress sx={refreshBarSx} />
+        <Progress size="xs" aria-label="Refreshing metrics" style={refreshBarStyle} />
       )}
 
       {/* Main content — only when we have data */}
       {hasAnyData && (
         <>
-          <TimeRangePicker value={timeRange} onChange={handlePickerChange} sx={timeRangePickerSx} />
+          <TimeRangePicker value={timeRange} onChange={setTimeRange} style={timeRangePickerStyle} />
 
           {/* Charts grid — 2-up when wide enough */}
-          <Box sx={chartsGridSx}>
+          <div style={chartsGridStyle}>
             {charts.map((def) => {
               const series: TimeSeriesDef[] = [];
 
@@ -238,23 +224,19 @@ const ResourceMetricsPage: React.FC<Props> = ({ ctx }) => {
                 />
               );
             })}
-          </Box>
+          </div>
 
           {/* Tile-only metrics (instant values without time-series) */}
           {tileGroups.length > 0 && (
-            <Stack spacing={0.75}>
+            <Stack direction="column" spacing={0} style={{ gap: 6 }}>
               {tileGroups.map((group) => (
-                <Box key={group.category} sx={tileGroupWrapperSx}>
-                  <Text
-                    size="xs"
-                    weight="semibold"
-                    sx={tileCategoryLabelSx}
-                  >
+                <div key={group.category} style={tileGroupWrapperStyle}>
+                  <Text size="xs" weight="semibold" tone="muted" style={tileCategoryLabelStyle}>
                     {group.category}
                   </Text>
 
                   {group.metrics.some((m) => m.unit === 5) && (
-                    <Stack spacing={0.75} sx={percentGaugeStackSx}>
+                    <Stack direction="column" spacing={0} style={percentGaugeStackStyle}>
                       {group.metrics
                         .filter((m) => m.unit === 5)
                         .map((m) => (
@@ -264,26 +246,26 @@ const ResourceMetricsPage: React.FC<Props> = ({ ctx }) => {
                   )}
 
                   {group.metrics.some((m) => m.unit !== 5) && (
-                    <Grid container spacing={0.5}>
+                    <div style={tileGridStyle}>
                       {group.metrics
                         .filter((m) => m.unit !== 5)
                         .map((m) => {
                           const count = group.metrics.filter((x) => x.unit !== 5).length;
                           return (
-                            <Grid key={m.id} size={count === 1 ? 12 : 6}>
+                            <div key={m.id} style={{ gridColumn: `span ${count === 1 ? 12 : 6}` }}>
                               <MetricTile label={m.name} value={formatValue(m.value, m.unit)} />
-                            </Grid>
+                            </div>
                           );
                         })}
-                    </Grid>
+                    </div>
                   )}
-                </Box>
+                </div>
               ))}
             </Stack>
           )}
         </>
       )}
-    </Box>
+    </div>
   );
 };
 

@@ -1,6 +1,5 @@
-import { Chip } from '@omniviewdev/ui';
+import { Chip, Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { ValidatingAdmissionPolicyBinding } from 'kubernetes-types/admissionregistration/v1';
 import React from 'react';
 
@@ -10,7 +9,9 @@ import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import ResourceLinkChip from '../../../../../shared/ResourceLinkChip';
 import SidebarSection from '../../../../../shared/SidebarSection';
 
-const chipSx = { borderRadius: 1 } as const;
+const fullWidthStyle = { width: '100%' } as const;
+
+const chipStyle = { borderRadius: 4 } as const;
 
 interface Props {
   ctx: DrawerContext<ValidatingAdmissionPolicyBinding>;
@@ -25,8 +26,8 @@ export const ValidatingAdmissionPolicyBindingSidebar: React.FC<Props> = ({ ctx }
   const validationActions = spec?.validationActions;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={vapb.metadata} />
 
         <SidebarSection title="Binding">
@@ -61,16 +62,9 @@ export const ValidatingAdmissionPolicyBindingSidebar: React.FC<Props> = ({ ctx }
               <LabeledEntry
                 label="Actions"
                 value={
-                  <Stack direction="row" gap={0.5} flexWrap="wrap">
+                  <Stack direction="row" spacing={1} wrap>
                     {validationActions.map((action) => (
-                      <Chip
-                        key={action}
-                        size="xs"
-                        emphasis="soft"
-                        color="primary"
-                        label={action}
-                        sx={chipSx}
-                      />
+                      <Chip key={action} size="xs" color="brand" style={chipStyle}>{action}</Chip>
                     ))}
                   </Stack>
                 }

@@ -1,88 +1,50 @@
-import { MoreVert } from '@mui/icons-material';
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
 import {
-  Link,
+  Avatar,
+  Badge,
+  Chip,
+  IconButton,
+  Menu,
+  Spinner,
+  Stack,
+  Text,
+} from '@omniviewdev/base-ui';
+import {
   usePluginRouter,
   usePluginContext,
   useConnection,
   useSnackbar,
 } from '@omniviewdev/runtime';
 import { types } from '@omniviewdev/runtime/models';
-import { Avatar, Badge, Chip } from '@omniviewdev/ui';
-import { IconButton } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import React from 'react';
-import { LuPencil, LuTrash } from 'react-icons/lu';
+import { LuEllipsisVertical, LuPencil, LuTrash } from 'react-icons/lu';
+
+import styles from './ConnectionListItem.module.css';
 
 import NamedAvatar from '../shared/NamedAvatar';
 
-// Icons
-
-const containerSx = {
+const containerStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  py: 0.5,
-  px: 1,
-} as const;
+  padding: '4px 8px',
+};
 
-const clickableRowSx = {
-  display: 'flex',
-  flex: 1,
-  alignItems: 'center',
-  borderRadius: 'sm',
-  cursor: 'pointer',
-  '&:hover': { bgcolor: 'background.level1' },
-  py: 0.5,
-  px: 1,
-} as const;
+const avatarWrapperStyle: React.CSSProperties = { marginRight: 12, display: 'flex' };
 
-const avatarWrapperSx = { mr: 1.5, display: 'flex' } as const;
-
-const avatarSx = {
+const avatarStyle: React.CSSProperties = {
   borderRadius: 6,
   backgroundColor: 'transparent',
   objectFit: 'contain',
   border: 0,
   maxHeight: 28,
   maxWidth: 28,
-} as const;
+};
 
-const nameStackSx = { width: '100%' } as const;
+const nameStackStyle: React.CSSProperties = { width: '100%' };
 
-const innerNameStackSx = { width: '100%', height: '100%' } as const;
+const innerNameStackStyle: React.CSSProperties = { width: '100%', height: '100%', gap: 16 };
 
-const chipSx = { pointerEvents: 'none', borderRadius: 'sm' } as const;
-
-const menuContainerSx = { position: 'relative' } as const;
-
-const backdropStyle = { position: 'fixed', inset: 0, zIndex: 999 } as const;
-
-const menuDropdownSx = {
-  position: 'absolute',
-  right: 0,
-  top: '100%',
-  zIndex: 1000,
-  bgcolor: 'background.surface',
-  border: '1px solid',
-  borderColor: 'divider',
-  borderRadius: 'sm',
-  boxShadow: 'md',
-  py: 0.5,
-  minWidth: 140,
-} as const;
-
-const menuItemSx = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 1,
-  px: 1.5,
-  py: 0.75,
-  cursor: 'pointer',
-  '&:hover': { bgcolor: 'background.level1' },
-} as const;
+const chipStyle: React.CSSProperties = { pointerEvents: 'none' };
 
 type Props = Omit<types.Connection, 'createFrom' | 'convertValues'>;
 
@@ -102,7 +64,6 @@ const ConnectionListItem: React.FC<Props> = ({
 
   const { startConnection } = useConnection({ pluginID: meta.id, connectionID: id });
   const [connecting, setConnecting] = React.useState(false);
-  const [menuOpen, setMenuOpen] = React.useState(false);
 
   const handleConnectionStatus = (status: types.ConnectionStatus) => {
     switch (status.status) {
@@ -174,112 +135,65 @@ const ConnectionListItem: React.FC<Props> = ({
   };
 
   return (
-    <Box
-      id={`connection-${id}`}
-      sx={containerSx}
-    >
-      <Box
-        sx={clickableRowSx}
-        onClick={handleClick}
-      >
-        <Box sx={avatarWrapperSx}>
-          <Badge
-            color="success"
-            invisible={!isConnected()}
-            size="sm"
-            anchorOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
-            }}
-          >
+    <div id={`connection-${id}`} style={containerStyle}>
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+      <div className={styles.clickableRow} onClick={handleClick}>
+        <div style={avatarWrapperStyle}>
+          <Badge variant="dot" color="success" invisible={!isConnected()} size="sm" position="top-right">
             {avatar ? (
-              <Avatar
-                size="sm"
-                src={avatar}
-                sx={avatarSx}
-              />
+              <Avatar size="sm" shape="rounded" src={avatar} style={avatarStyle} />
             ) : (
               <NamedAvatar value={name} />
             )}
           </Badge>
-        </Box>
-        <Stack direction="row" sx={nameStackSx} alignItems="center">
-          <Stack direction="row" sx={innerNameStackSx} alignItems="center" gap={2}>
-            <Text weight="semibold" size="sm" noWrap>
+        </div>
+        <Stack direction="row" align="center" style={nameStackStyle}>
+          <Stack direction="row" align="center" style={innerNameStackStyle}>
+            <Text weight="semibold" size="sm" truncate>
               {name}
             </Text>
             {Boolean(description) && (
-              <Text size="sm" noWrap>
+              <Text size="sm" truncate>
                 {description}
               </Text>
             )}
-            {connecting && <CircularProgress size={16} />}
+            {connecting && <Spinner size="sm" />}
           </Stack>
-          <Stack direction="row" gap={1} alignItems="center">
+          <Stack direction="row" align="center" spacing={2}>
             {labels &&
               Object.entries(labels)
                 .sort()
                 .map(([key, _]) => (
-                  <Chip
-                    key={key}
-                    emphasis="outline"
-                    color="primary"
-                    size="sm"
-                    sx={chipSx}
-                    label={key}
-                  />
+                  <Chip key={key} variant="outline" color="brand" size="sm" style={chipStyle}>
+                    {key}
+                  </Chip>
                 ))}
           </Stack>
         </Stack>
-      </Box>
-      <Box sx={menuContainerSx}>
-        <IconButton
-          size="sm"
-          emphasis="ghost"
-          color="neutral"
-          onClick={() => setMenuOpen((prev) => !prev)}
-        >
-          <MoreVert />
-        </IconButton>
-        {menuOpen && (
-          <>
-            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-            <div
-              style={backdropStyle}
-              onClick={() => setMenuOpen(false)}
-            />
-            <Box
-              sx={menuDropdownSx}
-            >
-              <Link to={`/connection/${id}/edit`}>
-                <Box
-                  sx={menuItemSx}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <LuPencil size={14} />
-                  <Text size="sm">Edit &apos;{name}&apos;</Text>
-                </Box>
-              </Link>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  px: 1.5,
-                  py: 0.75,
-                  cursor: 'pointer',
-                  '&:hover': { bgcolor: 'background.level1' },
-                }}
-                onClick={() => setMenuOpen(false)}
+      </div>
+      <Menu.Root>
+        <Menu.Trigger
+          render={
+            <IconButton size="sm" variant="ghost" color="neutral" aria-label="More">
+              <LuEllipsisVertical />
+            </IconButton>
+          }
+        />
+        <Menu.Portal>
+          <Menu.Positioner side="bottom" align="end" sideOffset={4}>
+            <Menu.Popup style={{ minWidth: 140 }}>
+              <Menu.Item
+                startDecorator={<LuPencil size={14} />}
+                onClick={() => navigate(`/connection/${id}/edit`)}
               >
-                <LuTrash size={14} />
-                <Text size="sm">Delete &apos;{name}&apos;</Text>
-              </Box>
-            </Box>
-          </>
-        )}
-      </Box>
-    </Box>
+                Edit &apos;{name}&apos;
+              </Menu.Item>
+              <Menu.Item startDecorator={<LuTrash size={14} />}>Delete &apos;{name}&apos;</Menu.Item>
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
+    </div>
   );
 };
 

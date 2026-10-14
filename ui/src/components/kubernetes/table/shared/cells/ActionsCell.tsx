@@ -1,4 +1,4 @@
-import { MoreHorizRounded } from '@mui/icons-material';
+import { IconButton, Menu } from '@omniviewdev/base-ui';
 import {
   type DrawerComponentAction,
   type DrawerContext,
@@ -6,15 +6,56 @@ import {
 } from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
 import { type resource } from '@omniviewdev/runtime/models';
-import { IconButton } from '@omniviewdev/ui/buttons';
-import { DropdownMenu, type ContextMenuItem } from '@omniviewdev/ui/menus';
 import { ObjectMeta } from 'kubernetes-types/meta/v1';
 import React from 'react';
-import { LuTrash } from 'react-icons/lu';
+import { LuEllipsis, LuTrash } from 'react-icons/lu';
 
 import { useTableDrawer } from '../../../../shared/table/TableDrawerContext';
 
-const triggerButtonSx = { flex: 'none', minHeight: 28, minWidth: 28 } as const;
+const triggerButtonStyle = { flex: 'none', minHeight: 28, minWidth: 28 } as const;
+
+/** Menu entry model (replaces the old @omniviewdev/ui ContextMenuItem). */
+type ContextMenuItem = {
+  key: string;
+  label: string;
+  icon?: React.ReactNode;
+  color?: 'danger';
+  disabled?: boolean;
+  dividerAfter?: boolean;
+  onClick?: () => void;
+  children?: ContextMenuItem[];
+};
+
+const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
+
+function renderMenuItems(items: ContextMenuItem[]): React.ReactNode {
+  return items.map((item) => (
+    <React.Fragment key={item.key}>
+      {item.children && item.children.length > 0 ? (
+        <Menu.SubmenuRoot>
+          <Menu.SubmenuTrigger startDecorator={item.icon} disabled={item.disabled}>
+            {item.label}
+          </Menu.SubmenuTrigger>
+          <Menu.Portal>
+            <Menu.Positioner sideOffset={4}>
+              <Menu.Popup onClick={stopPropagation}>{renderMenuItems(item.children)}</Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.SubmenuRoot>
+      ) : (
+        <Menu.Item
+          startDecorator={item.icon}
+          color={item.color}
+          disabled={item.disabled}
+          onClick={item.onClick}
+        >
+          {item.label}
+        </Menu.Item>
+      )}
+      {item.dividerAfter && <Menu.Separator />}
+    </React.Fragment>
+  ));
+}
 
 type Props = {
   connectionID: string;
@@ -145,15 +186,26 @@ const ActionsCell: React.FC<Props> = ({ connectionID, resourceKey, resourceID, d
   if (items.length === 0) return null;
 
   return (
-    <DropdownMenu
-      placement="bottom-end"
-      items={items}
-      trigger={
-        <IconButton size="sm" emphasis="ghost" sx={triggerButtonSx}>
-          <MoreHorizRounded />
-        </IconButton>
-      }
-    />
+    <Menu.Root>
+      <Menu.Trigger
+        render={
+          <IconButton
+            size="sm"
+            variant="ghost"
+            aria-label="Row actions"
+            style={triggerButtonStyle}
+            onClick={stopPropagation}
+          >
+            <LuEllipsis />
+          </IconButton>
+        }
+      />
+      <Menu.Portal>
+        <Menu.Positioner side="bottom" align="end" sideOffset={4}>
+          <Menu.Popup onClick={stopPropagation}>{renderMenuItems(items)}</Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   );
 };
 

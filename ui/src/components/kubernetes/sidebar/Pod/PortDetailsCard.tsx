@@ -1,122 +1,111 @@
-import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
-import Popover from '@mui/material/Popover';
+import { Avatar, Button, Chip, Grid, Input, Popover, Stack, Text } from '@omniviewdev/base-ui';
 import { useResourcePortForwarder } from '@omniviewdev/runtime';
 import { networker } from '@omniviewdev/runtime/models';
 import { BrowserOpenURL } from '@omniviewdev/runtime/runtime';
-import { Avatar, Chip } from '@omniviewdev/ui';
-import { Button } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Tooltip } from '@omniviewdev/ui/overlays';
-import { Text } from '@omniviewdev/ui/typography';
 import { ContainerPort, Pod } from 'kubernetes-types/core/v1';
 import React from 'react';
 
 import Icon from '../../../shared/Icon';
+import SimpleTooltip from '../../../shared/SimpleTooltip';
 
-const popoverPaperSx = {
-  bgcolor: 'var(--ov-bg-elevated, #1c2128)',
-  border: '1px solid var(--ov-border-default, #30363d)',
-  borderRadius: '8px',
-  p: 0,
-  minWidth: 240,
-  maxWidth: 300,
-  boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-  color: 'var(--ov-fg-default, #c9d1d9)',
-} as const;
+const popoverPopupStyle: React.CSSProperties = {
+  padding: 0,
+  gap: 0,
+  minInlineSize: 240,
+  maxInlineSize: 300,
+  borderRadius: 8,
+};
 
-const popoverHeaderSx = {
+const popoverHeaderStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 1,
-  px: 1.5,
-  py: 1,
-  borderBottom: '1px solid var(--ov-border-default, #30363d)',
-} as const;
+  gap: 8,
+  padding: '8px 12px',
+  borderBottom: '1px solid var(--ov-color-border-default)',
+};
 
-const popoverTitleSx = {
+const popoverTitleStyle: React.CSSProperties = {
   fontSize: '0.8125rem',
   fontWeight: 600,
-  fontFamily: 'var(--ov-font-ui)',
-  color: 'var(--ov-fg-base, #e6edf3)',
-} as const;
+  fontFamily: 'var(--ov-font-sans)',
+  color: 'var(--ov-color-fg-default)',
+};
 
-const popoverBodySx = { px: 1.5, py: 1.25, display: 'flex', flexDirection: 'column', gap: 1.25 } as const;
+const popoverBodyStyle: React.CSSProperties = {
+  padding: '10px 12px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 10,
+};
 
-const remotePortSx = {
+const remotePortStyle: React.CSSProperties = {
   fontSize: '0.75rem',
   fontFamily: 'var(--ov-font-mono, monospace)',
-  color: 'var(--ov-fg-muted, #8b949e)',
-} as const;
+  color: 'var(--ov-color-fg-muted)',
+};
 
-const localPortInputSx = {
-  all: 'unset',
-  width: 80,
-  fontSize: '0.75rem',
-  fontFamily: 'var(--ov-font-mono, monospace)',
-  color: 'var(--ov-fg-base, #e6edf3)',
-  bgcolor: 'rgba(255,255,255,0.04)',
-  border: '1px solid var(--ov-border-default, #30363d)',
-  borderRadius: '4px',
-  px: '6px',
-  py: '3px',
-  '&::placeholder': { color: 'var(--ov-fg-faint, #484f58)' },
-  '&:focus': {
-    borderColor: 'var(--ov-primary-default, #58a6ff)',
-  },
-} as const;
+const localPortWrapperStyle: React.CSSProperties = { width: 80 };
 
-const checkboxSx = {
-  accentColor: 'var(--ov-primary-default, #58a6ff)',
+const checkboxStyle: React.CSSProperties = {
+  accentColor: 'var(--ov-color-brand-500)',
   width: 14,
   height: 14,
   cursor: 'pointer',
-} as const;
+};
 
-const popoverFooterSx = {
+const popoverFooterStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'flex-end',
-  px: 1.5,
-  py: 1,
-  borderTop: '1px solid var(--ov-border-default, #30363d)',
-} as const;
+  padding: '8px 12px',
+  borderTop: '1px solid var(--ov-color-border-default)',
+};
 
-const forwardButtonSx = { py: 0, px: 3, minHeight: 26 } as const;
+const forwardButtonStyle: React.CSSProperties = {
+  paddingBlock: 0,
+  paddingInline: 24,
+  minHeight: 26,
+  fontSize: 12,
+};
 
-const forwardButtonTextSx = { fontSize: 12 } as const;
+const configRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+};
 
-const configRowSx = { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } as const;
-
-const configRowLabelSx = {
+const configRowLabelStyle: React.CSSProperties = {
   fontSize: '0.6875rem',
-  color: 'var(--ov-fg-faint, #8b949e)',
+  color: 'var(--ov-color-fg-subtle)',
   minWidth: 72,
   flexShrink: 0,
-} as const;
+};
 
-const protocolRowSx = { display: 'flex', gap: 0.5 } as const;
+const protocolRowStyle: React.CSSProperties = { display: 'flex', gap: 4 };
 
-const cardContainerSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-  bgcolor: 'background.level1',
+const protocolButtonStyle: React.CSSProperties = { fontSize: '0.6875rem', fontWeight: 600 };
+
+const cardContainerStyle: React.CSSProperties = {
+  borderRadius: 4,
+  border: '1px solid var(--ov-color-border-default)',
   overflow: 'hidden',
-} as const;
+};
 
-const avatarSx = { maxHeight: 16, maxWidth: 16, borderRadius: 4 } as const;
+const avatarStyle: React.CSSProperties = { maxHeight: 16, maxWidth: 16, borderRadius: 4 };
 
-const gridCellSx = { display: 'flex', alignItems: 'center' } as const;
+const gridCellStyle: React.CSSProperties = { display: 'flex', alignItems: 'center' };
 
-const portLabelSx = { fontSize: 13 } as const;
+const portLabelStyle: React.CSSProperties = { fontSize: 13 };
 
-const portValueSx = { color: 'neutral.300', fontSize: 13 } as const;
+const portValueStyle: React.CSSProperties = { fontSize: 13 };
 
-const portForwardButtonSx = { py: 0, px: 4, minHeight: 28 } as const;
+const portForwardButtonStyle: React.CSSProperties = {
+  paddingBlock: 0,
+  paddingInline: 32,
+  minHeight: 28,
+  fontSize: 13,
+};
 
-const portForwardButtonTextSx = { fontSize: 13 } as const;
-
-const chipBorderRadiusSmSx = { borderRadius: 'sm' } as const;
+const chipBorderRadiusSmStyle: React.CSSProperties = { borderRadius: 'var(--ov-radius-sm)' };
 
 export interface PortDetailsCardProps {
   title?: string;
@@ -133,26 +122,26 @@ const sizeConfig = {
   sm: {
     fontSize: 13,
     iconSize: 14,
-    headerPy: 0.5,
-    headerPx: 1,
-    bodyP: 1,
-    gap: 0.5,
+    headerPy: 4,
+    headerPx: 8,
+    bodyP: 8,
+    gap: 4,
   },
   md: {
     fontSize: 14,
     iconSize: 14,
-    headerPy: 0.75,
-    headerPx: 1.25,
-    bodyP: 1.25,
-    gap: 0.75,
+    headerPy: 6,
+    headerPx: 10,
+    bodyP: 10,
+    gap: 6,
   },
   lg: {
     fontSize: 16,
     iconSize: 16,
-    headerPy: 1,
-    headerPx: 1.25,
-    bodyP: 1.25,
-    gap: 1,
+    headerPy: 8,
+    headerPx: 10,
+    bodyP: 10,
+    gap: 8,
   },
 } as const;
 
@@ -195,122 +184,110 @@ function ForwardConfigPopover({ anchorEl, port, onClose, onConfirm }: ForwardCon
     onClose();
   };
 
+  const open = Boolean(anchorEl) && Boolean(port);
+
   return (
-    <Popover
-      open={Boolean(anchorEl) && Boolean(port)}
-      anchorEl={anchorEl}
-      onClose={onClose}
-      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      slotProps={{
-        paper: {
-          sx: popoverPaperSx,
-        },
+    <Popover.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
       }}
     >
-      {/* Header */}
-      <Box sx={popoverHeaderSx}>
-        <Icon name="LuNetwork" size={12} />
-        <Box sx={popoverTitleSx}>
-          Port Forward — :{port?.containerPort}
-        </Box>
-      </Box>
+      <Popover.Portal>
+        <Popover.Positioner anchor={anchorEl} side="top" align="center" sideOffset={4}>
+          <Popover.Popup style={popoverPopupStyle}>
+            {/* Header */}
+            <div style={popoverHeaderStyle}>
+              <Icon name="LuNetwork" size={12} />
+              <div style={popoverTitleStyle}>Port Forward — :{port?.containerPort}</div>
+            </div>
 
-      {/* Config fields */}
-      <Box sx={popoverBodySx}>
-        {/* Remote port (read-only) */}
-        <ConfigRow label="Remote Port">
-          <Box sx={remotePortSx}>
-            {port?.containerPort}/{port?.protocol || 'TCP'}
-          </Box>
-        </ConfigRow>
+            {/* Config fields */}
+            <div style={popoverBodyStyle}>
+              {/* Remote port (read-only) */}
+              <ConfigRow label="Remote Port">
+                <div style={remotePortStyle}>
+                  {port?.containerPort}/{port?.protocol || 'TCP'}
+                </div>
+              </ConfigRow>
 
-        {/* Local port */}
-        <ConfigRow label="Local Port">
-          <Box
-            component="input"
-            type="number"
-            placeholder="Auto"
-            value={localPort}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalPort(e.target.value)}
-            sx={localPortInputSx}
-          />
-        </ConfigRow>
+              {/* Local port */}
+              <ConfigRow label="Local Port">
+                <div style={localPortWrapperStyle}>
+                  <Input.Root>
+                    <Input.Control
+                      size="xs"
+                      mono
+                      type="number"
+                      placeholder="Auto"
+                      aria-label="Local port"
+                      value={localPort}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setLocalPort(e.target.value)
+                      }
+                    />
+                  </Input.Root>
+                </div>
+              </ConfigRow>
 
-        {/* Protocol */}
-        <ConfigRow label="Protocol">
-          <Box sx={protocolRowSx}>
-            {(['TCP', 'UDP'] as const).map((p) => (
-              <Box
-                key={p}
-                component="button"
-                onClick={() => setProtocol(p)}
-                sx={{
-                  all: 'unset',
-                  fontSize: '0.6875rem',
-                  fontWeight: 600,
-                  fontFamily: 'var(--ov-font-ui)',
-                  px: '8px',
-                  py: '2px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  border: '1px solid',
-                  borderColor:
-                    protocol === p
-                      ? 'var(--ov-primary-default, #58a6ff)'
-                      : 'var(--ov-border-default, #30363d)',
-                  color:
-                    protocol === p
-                      ? 'var(--ov-primary-default, #58a6ff)'
-                      : 'var(--ov-fg-muted, #8b949e)',
-                  bgcolor: protocol === p ? 'rgba(88,166,255,0.1)' : 'transparent',
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
-                }}
+              {/* Protocol */}
+              <ConfigRow label="Protocol">
+                <div style={protocolRowStyle}>
+                  {(['TCP', 'UDP'] as const).map((p) => (
+                    <Button
+                      key={p}
+                      size="xs"
+                      variant={protocol === p ? 'soft' : 'outline'}
+                      color={protocol === p ? 'brand' : 'neutral'}
+                      aria-pressed={protocol === p}
+                      style={protocolButtonStyle}
+                      onClick={() => setProtocol(p)}
+                    >
+                      {p}
+                    </Button>
+                  ))}
+                </div>
+              </ConfigRow>
+
+              {/* Open in browser */}
+              <ConfigRow label="Open Browser">
+                <input
+                  type="checkbox"
+                  aria-label="Open in browser"
+                  checked={openInBrowser}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setOpenInBrowser(e.target.checked)
+                  }
+                  style={checkboxStyle}
+                />
+              </ConfigRow>
+            </div>
+
+            {/* Footer actions */}
+            <div style={popoverFooterStyle}>
+              <Button
+                size="sm"
+                color="brand"
+                variant="soft"
+                style={forwardButtonStyle}
+                onClick={handleConfirm}
               >
-                {p}
-              </Box>
-            ))}
-          </Box>
-        </ConfigRow>
-
-        {/* Open in browser */}
-        <ConfigRow label="Open Browser">
-          <Box
-            component="input"
-            type="checkbox"
-            checked={openInBrowser}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setOpenInBrowser(e.target.checked)
-            }
-            sx={checkboxSx}
-          />
-        </ConfigRow>
-      </Box>
-
-      {/* Footer actions */}
-      <Box sx={popoverFooterSx}>
-        <Button
-          size="sm"
-          color="primary"
-          emphasis="soft"
-          sx={forwardButtonSx}
-          onClick={handleConfirm}
-        >
-          <Text sx={forwardButtonTextSx}>Forward</Text>
-        </Button>
-      </Box>
-    </Popover>
+                Forward
+              </Button>
+            </div>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
 function ConfigRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <Box sx={configRowSx}>
-      <Box sx={configRowLabelSx}>
-        {label}
-      </Box>
+    <div style={configRowStyle}>
+      <div style={configRowLabelStyle}>{label}</div>
       {children}
-    </Box>
+    </div>
   );
 }
 
@@ -378,77 +355,69 @@ const PortDetailsCard: React.FC<PortDetailsCardProps> = ({
   };
 
   return (
-    <Box sx={cardContainerSx}>
+    <div style={cardContainerStyle}>
       {title && (
-        <Box
-          sx={{
-            py: cfg.headerPy,
-            px: cfg.headerPx,
+        <div
+          style={{
+            paddingBlock: cfg.headerPy,
+            paddingInline: cfg.headerPx,
             display: 'flex',
             flexDirection: 'row',
             justifyContent: 'space-between',
             alignItems: 'center',
-            bgcolor: 'background.surface',
-            borderBottom: '1px solid',
-            borderColor: 'divider',
+            borderBottom: '1px solid var(--ov-color-border-default)',
           }}
         >
-          <Stack direction="row" gap={cfg.gap} alignItems="center">
+          <Stack direction="row" spacing={0} align="center" style={{ gap: cfg.gap }}>
             {icon &&
               (typeof icon === 'string' ? (
                 icon.startsWith('http') ? (
-                  <Avatar
-                    src={icon}
-                    size="sm"
-                    sx={avatarSx}
-                  />
+                  <Avatar src={icon} size="sm" style={avatarStyle} />
                 ) : (
                   <Icon name={icon} size={cfg.iconSize} />
                 )
               ) : (
                 icon
               ))}
-            <Text sx={{ fontSize: cfg.fontSize }} weight="semibold" size="sm">
+            <Text style={{ fontSize: cfg.fontSize }} weight="semibold" size="sm">
               {title}
             </Text>
           </Stack>
-        </Box>
+        </div>
       )}
-      <Box sx={{ p: cfg.bodyP }}>
-        <Grid container spacing={0.5}>
+      <div style={{ padding: cfg.bodyP }}>
+        <Grid columns={12} spacing={1}>
           {data.map((entry) => {
             const existing = portMap[Number(entry.containerPort)];
             return (
               <React.Fragment key={entry.containerPort}>
-                <Grid sx={gridCellSx} size={4}>
-                  <Text sx={portLabelSx}>{entry.name || entry.containerPort}</Text>
-                </Grid>
-                <Grid size={8}>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    justifyContent="space-between"
-                    alignItems="center"
-                  >
-                    <Text sx={portValueSx} noWrap>
+                <Grid.Item style={gridCellStyle} span={4}>
+                  <Text style={portLabelStyle}>{entry.name || entry.containerPort}</Text>
+                </Grid.Item>
+                <Grid.Item span={8}>
+                  <Stack direction="row" spacing={2} justify="between" align="center">
+                    <Text tone="muted" style={portValueStyle} truncate>
                       {entry.containerPort}/{entry.protocol}
                     </Text>
                     {!!existing && (
-                      <Tooltip content="Open in browser">
+                      <SimpleTooltip content="Open in browser">
                         <Chip
-                          emphasis="soft"
-                          sx={chipBorderRadiusSmSx}
+                          clickable
+                          size="sm"
+                          variant="soft"
+                          style={chipBorderRadiusSmStyle}
                           onClick={() => BrowserOpenURL(`http://localhost:${existing.local_port}`)}
-                          label={`http://localhost:${existing.local_port}`}
-                        />
-                      </Tooltip>
+                        >
+                          {`http://localhost:${existing.local_port}`}
+                        </Chip>
+                      </SimpleTooltip>
                     )}
                     <Button
-                      sx={portForwardButtonSx}
-                      color="primary"
-                      emphasis="soft"
+                      style={portForwardButtonStyle}
+                      color="brand"
+                      variant="soft"
                       size="sm"
-                      onClick={(e) => {
+                      onClick={(e: React.MouseEvent<HTMLElement>) => {
                         if (!existing) {
                           handleOpenConfig(e, entry);
                         } else {
@@ -456,15 +425,15 @@ const PortDetailsCard: React.FC<PortDetailsCardProps> = ({
                         }
                       }}
                     >
-                      <Text sx={portForwardButtonTextSx}>{!existing ? 'Forward' : 'Stop'}</Text>
+                      {!existing ? 'Forward' : 'Stop'}
                     </Button>
                   </Stack>
-                </Grid>
+                </Grid.Item>
               </React.Fragment>
             );
           })}
         </Grid>
-      </Box>
+      </div>
 
       <ForwardConfigPopover
         anchorEl={configAnchor}
@@ -476,7 +445,7 @@ const PortDetailsCard: React.FC<PortDetailsCardProps> = ({
           }
         }}
       />
-    </Box>
+    </div>
   );
 };
 

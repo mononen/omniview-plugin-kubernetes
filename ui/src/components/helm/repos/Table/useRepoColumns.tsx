@@ -1,4 +1,4 @@
-import { Chip } from '@omniviewdev/ui';
+import { Chip } from '@omniviewdev/base-ui';
 import { ColumnDef } from '@tanstack/react-table';
 import React from 'react';
 
@@ -22,12 +22,9 @@ export function useRepoColumns(): Array<ColumnDef<HelmRepo>> {
         cell: ({ getValue }) => {
           const t = getValue<string>();
           return (
-            <Chip
-              size="sm"
-              emphasis="soft"
-              color={t === 'oci' ? 'info' : 'neutral'}
-              label={t === 'oci' ? 'OCI' : 'HTTP'}
-            />
+            <Chip size="sm" variant="soft" color={t === 'oci' ? 'info' : 'neutral'}>
+              {t === 'oci' ? 'OCI' : 'HTTP'}
+            </Chip>
           );
         },
       },

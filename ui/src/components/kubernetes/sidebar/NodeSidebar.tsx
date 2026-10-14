@@ -1,9 +1,7 @@
 import { DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
+import { Stack } from '@omniviewdev/base-ui';
 import { Node } from 'kubernetes-types/core/v1';
 import React from 'react';
-
-// @omniviewdev/ui
 
 // types
 
@@ -76,9 +74,9 @@ export const NodeSidebar: React.FC<Props> = ({ ctx }) => {
   }
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
+    <Stack direction="column" spacing={4} style={{ width: '100%' }}>
       {/* Core details — tightly grouped */}
-      <Stack direction="column" spacing={0.5}>
+      <Stack direction="column" spacing={1}>
         <MetadataSection data={node.metadata} connectionID={connectionID} />
         <NodeStatusSection node={node} />
         <NodeSystemSection node={node} />

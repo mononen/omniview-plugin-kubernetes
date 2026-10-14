@@ -1,4 +1,4 @@
-import type { MetricFormat } from '@omniviewdev/ui/charts';
+import type { MetricFormat } from '../../../../charts';
 
 import { UNIT_LABELS } from './constants';
 

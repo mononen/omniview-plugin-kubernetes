@@ -1,9 +1,7 @@
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
+import { Stack } from '@omniviewdev/base-ui';
 import { Job } from 'kubernetes-types/batch/v1';
 import React from 'react';
-
-// material-ui
 
 // types
 
@@ -26,7 +24,7 @@ export const JobSidebar: React.FC<Props> = ({ ctx }) => {
 
   // compose your component here
   return (
-    <Stack direction="column" width={'100%'} spacing={2}>
+    <Stack direction="column" spacing={4} style={{ width: '100%' }}>
       <ObjectMetaSection data={obj.metadata} />
     </Stack>
   );

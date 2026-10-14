@@ -1,5 +1,5 @@
 import { type types } from '@omniviewdev/runtime/models';
-import { Stack } from '@omniviewdev/ui/layout';
+import { Stack } from '@omniviewdev/base-ui';
 import InfoRow from './InfoRow';
 import SectionWrapper from './SectionWrapper';
 
@@ -15,7 +15,7 @@ function ConnectionSection({ conn, formatTime }: { conn: types.Connection; forma
   const trimmedNamespace = typeof connData?.namespace === 'string' ? connData.namespace.trim() : '';
   return (
     <SectionWrapper title="Connection" description="Kubeconfig context details for this cluster.">
-      <Stack direction="column" gap={0}>
+      <Stack direction="column" spacing={0}>
         <InfoRow label="Context" value={conn.id} />
         <InfoRow
           label="Cluster"

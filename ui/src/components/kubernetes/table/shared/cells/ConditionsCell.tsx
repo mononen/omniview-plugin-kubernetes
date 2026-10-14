@@ -1,14 +1,10 @@
-import { Stack } from '@omniviewdev/ui/layout';
 import { Condition } from 'kubernetes-types/meta/v1';
 
 import ConditionChip from '../../../../shared/ConditionChip';
 
-const conditionsStackSx = {
-  scrollbarWidth: 'none',
-  '&::-webkit-scrollbar': {
-    display: 'none',
-  },
-} as const;
+import styles from './cells.module.css';
+
+const conditionsRowStyle = { justifyContent: 'flex-start', gap: 4 } as const;
 
 type Props = {
   conditions: Array<Condition> | undefined;
@@ -40,14 +36,7 @@ const ConditionsCell: React.FC<Props> = ({
   }
 
   return (
-    <Stack
-      direction={'row'}
-      alignItems={'center'}
-      justifyContent={'flex-start'}
-      gap={0.5}
-      overflow={'scroll'}
-      sx={conditionsStackSx}
-    >
+    <div className={styles.scrollRow} style={conditionsRowStyle}>
       {conditions
         .filter((condition) => condition.status === 'True')
         .map((condition) => (
@@ -58,7 +47,7 @@ const ConditionsCell: React.FC<Props> = ({
             unhealthyColor={defaultUnhealthyColor}
           />
         ))}
-    </Stack>
+    </div>
   );
 };
 

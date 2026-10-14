@@ -1,48 +1,45 @@
-import Box from '@mui/material/Box';
-import LinearProgress from '@mui/material/LinearProgress';
-import Skeleton from '@mui/material/Skeleton';
-import Typography from '@mui/material/Typography';
+import { Progress, Skeleton, Text } from '@omniviewdev/base-ui';
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import type { metric } from '@omniviewdev/runtime/models';
 import React, { useMemo } from 'react';
 import { LuCpu, LuMemoryStick, LuBox, LuHardDrive } from 'react-icons/lu';
 
-const gaugeGridSx = {
+const gaugeGridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(4, 1fr)',
-  gap: 1.5,
-} as const;
+  gap: 12,
+};
 
-const gaugeCardSx = {
-  p: 1.5,
-  border: '1px solid',
-  borderColor: 'divider',
-  borderRadius: 1,
-  bgcolor: 'background.paper',
-} as const;
+const gaugeCardStyle: React.CSSProperties = {
+  padding: 12,
+  border: '1px solid var(--ov-color-border-default)',
+  borderRadius: 4,
+  background: 'var(--ov-color-bg-surface)',
+};
 
-const gaugeHeaderSx = { display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 } as const;
+const gaugeHeaderStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 };
 
-const gaugeIconSx = { color: 'text.secondary', display: 'flex' } as const;
+const gaugeIconStyle: React.CSSProperties = { color: 'var(--ov-color-fg-muted)', display: 'flex' };
 
-const gaugeLabelSx = {
+const gaugeLabelStyle: React.CSSProperties = {
   fontWeight: 600,
-  color: 'text.secondary',
   textTransform: 'uppercase',
   letterSpacing: '0.03em',
   fontSize: '0.65rem',
-} as const;
+};
 
-const gaugePrimarySx = {
+const gaugePrimaryStyle: React.CSSProperties = {
   fontWeight: 700,
   fontSize: '1.1rem',
   lineHeight: 1.2,
   fontVariantNumeric: 'tabular-nums',
-} as const;
+};
 
-const gaugeSecondarySx = { color: 'text.secondary', fontSize: '0.7rem' } as const;
+const gaugeSecondaryStyle: React.CSSProperties = { fontSize: '0.7rem' };
 
-const skeletonBarSx = { mt: 1, borderRadius: 1 } as const;
+const gaugeBarStyle: React.CSSProperties = { marginTop: 8 };
+
+const skeletonBarStyle: React.CSSProperties = { marginTop: 8, borderRadius: 4 };
 
 interface ClusterResourceGaugesProps {
   connectionID: string;
@@ -182,20 +179,18 @@ const ClusterResourceGauges: React.FC<ClusterResourceGaugesProps> = ({
   ];
 
   return (
-    <Box
-      sx={gaugeGridSx}
-    >
+    <div style={gaugeGridStyle}>
       {gauges.map((g) => (
         <GaugeStatCard key={g.label} {...g} loading={isLoading && values.size === 0} />
       ))}
-    </Box>
+    </div>
   );
 };
 
-function pctColor(pct: number): string {
-  if (pct < 60) return 'var(--ov-palette-success-main, #22c55e)';
-  if (pct < 85) return 'var(--ov-palette-warning-main, #f59e0b)';
-  return 'var(--ov-palette-error-main, #ef4444)';
+function pctColor(pct: number): 'success' | 'warning' | 'danger' {
+  if (pct < 60) return 'success';
+  if (pct < 85) return 'warning';
+  return 'danger';
 }
 
 function GaugeStatCard({
@@ -208,53 +203,36 @@ function GaugeStatCard({
 }: GaugeItem & { loading: boolean }) {
   if (loading) {
     return (
-      <Box
-        sx={gaugeCardSx}
-      >
+      <div style={gaugeCardStyle}>
         <Skeleton variant="text" width="40%" />
         <Skeleton variant="text" width="60%" />
-        <Skeleton variant="rectangular" height={4} sx={skeletonBarSx} />
-      </Box>
+        <Skeleton variant="rectangular" height={4} style={skeletonBarStyle} />
+      </div>
     );
   }
 
   return (
-    <Box
-      sx={gaugeCardSx}
-    >
-      <Box sx={gaugeHeaderSx}>
-        <Box sx={gaugeIconSx}>{icon}</Box>
-        <Typography
-          variant="caption"
-          sx={gaugeLabelSx}
-        >
+    <div style={gaugeCardStyle}>
+      <div style={gaugeHeaderStyle}>
+        <span style={gaugeIconStyle}>{icon}</span>
+        <Text size="xs" tone="muted" style={gaugeLabelStyle}>
           {label}
-        </Typography>
-      </Box>
-      <Typography
-        variant="h6"
-        sx={gaugePrimarySx}
-      >
+        </Text>
+      </div>
+      <Text as="div" style={gaugePrimaryStyle}>
         {primary}
-      </Typography>
-      <Typography variant="caption" sx={gaugeSecondarySx}>
+      </Text>
+      <Text as="div" size="xs" tone="muted" style={gaugeSecondaryStyle}>
         {secondary}
-      </Typography>
-      <LinearProgress
-        variant="determinate"
+      </Text>
+      <Progress
+        size="xs"
         value={Math.min(pct, 100)}
-        sx={{
-          mt: 1,
-          height: 4,
-          borderRadius: 2,
-          bgcolor: 'action.hover',
-          '& .MuiLinearProgress-bar': {
-            bgcolor: pctColor(pct),
-            borderRadius: 2,
-          },
-        }}
+        color={pctColor(pct)}
+        aria-label={`${label} usage`}
+        style={gaugeBarStyle}
       />
-    </Box>
+    </div>
   );
 }
 

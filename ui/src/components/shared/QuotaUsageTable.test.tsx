@@ -1,15 +1,7 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
-import type React from 'react';
 import { render, screen } from '@testing-library/react';
+import type React from 'react';
 import { vi, describe, it, expect } from 'vitest';
-
-vi.mock('@mui/material/Grid', () => ({
-  default: ({ children }: { children: React.ReactNode }) => <div data-testid="grid">{children}</div>,
-}));
-
-vi.mock('@omniviewdev/ui/typography', () => ({
-  Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-}));
 
 vi.mock('./SidebarSection', () => ({
   default: ({ title, children }: { title: string; children: React.ReactNode }) => (

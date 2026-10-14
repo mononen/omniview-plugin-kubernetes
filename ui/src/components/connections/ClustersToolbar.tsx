@@ -1,7 +1,4 @@
-import Box from '@mui/material/Box';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 import { SiKubernetes } from 'react-icons/si';
 
@@ -18,17 +15,16 @@ import GroupBySelector from './GroupBySelector';
 import SortBySelector from './SortBySelector';
 import ViewModeToggle from './ViewModeToggle';
 
-const toolbarSx = {
-  px: 1,
-  py: 0.5,
+const toolbarStyle: React.CSSProperties = {
+  padding: '4px 8px',
   display: 'flex',
   flexDirection: 'column',
   width: '100%',
   borderRadius: 'var(--ov-radius-md, 6px)',
-  gap: 0.5,
-  border: '1px solid var(--ov-border-default, rgba(255,255,255,0.08))',
-  bgcolor: 'var(--ov-bg-surface, rgba(255,255,255,0.03))',
-} as const;
+  gap: 4,
+  border: '1px solid var(--ov-color-border-default)',
+  backgroundColor: 'var(--ov-color-bg-surface)',
+};
 
 type Props = {
   search: string;
@@ -65,26 +61,21 @@ const ClustersToolbar: React.FC<Props> = ({
   availableAttributes,
   availableTags,
 }) => (
-  <Box
-    sx={toolbarSx}
-  >
-    <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+  <div style={toolbarStyle}>
+    <Stack direction="row" align="center" justify="between" spacing={2}>
       {/* Left: title + count */}
-      <Stack direction="row" alignItems="center" gap={0.75} pl={0.25}>
+      <Stack direction="row" align="center" style={{ gap: 6, paddingLeft: 2 }}>
         <SiKubernetes size={16} />
         <Text size="sm" weight="semibold">
           Clusters
         </Text>
-        <Chip
-          size="xs"
-          emphasis="soft"
-          color="neutral"
-          label={filteredCount < totalCount ? `${filteredCount}/${totalCount}` : String(totalCount)}
-        />
+        <Chip size="xs" variant="soft" color="neutral">
+          {filteredCount < totalCount ? `${filteredCount}/${totalCount}` : String(totalCount)}
+        </Chip>
       </Stack>
 
       {/* Right: controls */}
-      <Stack direction="row" alignItems="center" gap={0.75}>
+      <Stack direction="row" align="center" style={{ gap: 6 }}>
         <SearchInput
           placeholder="Search clusters..."
           value={search}
@@ -109,7 +100,7 @@ const ClustersToolbar: React.FC<Props> = ({
         <ViewModeToggle value={viewMode} onChange={onViewModeChange} />
       </Stack>
     </Stack>
-  </Box>
+  </div>
 );
 
 export default ClustersToolbar;

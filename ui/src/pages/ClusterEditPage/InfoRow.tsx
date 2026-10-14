@@ -1,29 +1,24 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import { Text } from '@omniviewdev/ui/typography';
-import { infoRowSx, infoLabelSx } from './constants';
+import { Separator, Text } from '@omniviewdev/base-ui';
+import type React from 'react';
+
+import { infoRowStyle, infoLabelStyle } from './constants';
+
+const valueStyle: React.CSSProperties = { wordBreak: 'break-all' };
+const emptyValueStyle: React.CSSProperties = { wordBreak: 'break-all', opacity: 0.4, fontStyle: 'italic' };
 
 function InfoRow({ label, value }: { label: string; value?: string }) {
   const empty = !value;
   return (
     <>
-      <Box sx={infoRowSx}>
-        <Text size="xs" sx={infoLabelSx}>
+      <div style={infoRowStyle}>
+        <Text size="xs" tone="muted" style={infoLabelStyle}>
           {label}
         </Text>
-        <Text
-          size="sm"
-          weight="medium"
-          sx={{
-            wordBreak: 'break-all',
-            opacity: empty ? 0.4 : 1,
-            fontStyle: empty ? 'italic' : undefined,
-          }}
-        >
+        <Text size="sm" weight="medium" style={empty ? emptyValueStyle : valueStyle}>
           {empty ? 'Not discovered' : value}
         </Text>
-      </Box>
-      <Divider />
+      </div>
+      <Separator />
     </>
   );
 }
