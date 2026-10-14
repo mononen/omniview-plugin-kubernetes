@@ -38,7 +38,6 @@ const HelmRepoTable: React.FC = () => {
         connectionID={id}
         resourceKey={resourceKey}
         idAccessor="name"
-        memoizer="name"
         drawer={drawer}
         hideNamespaceSelector
         createEnabled={false}

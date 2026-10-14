@@ -172,7 +172,6 @@ const ServiceTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.uid"
-      memoizer="metadata.uid,metadata.resourceVersion,spec.ports"
       drawer={drawer}
       toolbarFilters={[
         { columnId: 'type', placeholder: 'All Types', accessor: (r: Service) => r?.spec?.type ?? 'ClusterIP' },

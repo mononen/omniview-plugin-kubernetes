@@ -165,7 +165,6 @@ Note: Audience in each TokenRequest should be different and at most one token is
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.name"
-      memoizer="metadata.name,metadata.resourceVersion,spec.attachRequired"
       drawer={drawer}
     />
   );

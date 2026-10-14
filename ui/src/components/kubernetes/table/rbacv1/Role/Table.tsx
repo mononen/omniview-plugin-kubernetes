@@ -91,7 +91,6 @@ const RoleTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.name"
-      memoizer="metadata.name,metadata.resourceVersion"
       drawer={drawer}
     />
   );

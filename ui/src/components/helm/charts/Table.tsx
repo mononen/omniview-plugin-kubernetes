@@ -171,7 +171,6 @@ const HelmChartTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="id"
-      memoizer="id"
       drawer={drawer}
       hideNamespaceSelector
       createEnabled={false}

@@ -293,7 +293,6 @@ const StatefulSetTable: React.FC = () => {
         connectionID={id}
         resourceKey={resourceKey}
         idAccessor="metadata.uid"
-        memoizer="metadata.uid,metadata.resourceVersion,status.updatedReplicas"
         drawer={drawer}
       />
       {scaleTarget && (
