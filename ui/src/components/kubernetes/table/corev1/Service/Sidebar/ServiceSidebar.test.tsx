@@ -42,7 +42,7 @@ vi.mock('@omniviewdev/runtime/models', () => ({
 }));
 
 vi.mock('@omniviewdev/runtime/runtime', () => ({
-  BrowserOpenURL: vi.fn(),
+  Browser: { OpenURL: vi.fn() },
 }));
 
 vi.mock('../../../../../shared/ObjectMetaSection', () => ({

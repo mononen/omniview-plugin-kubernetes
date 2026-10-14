@@ -1,3 +1,4 @@
+import type { UseResourceMetricsResult } from '@omniviewdev/runtime';
 import type { metric } from '@omniviewdev/runtime/models';
 import type { TimeSeriesDef, MetricFormat } from '../../../../charts';
 
@@ -29,7 +30,7 @@ export type TileGroup = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-export function collectDescriptors(providers: metric.MetricProviderSummary[]): DescriptorMap {
+export function collectDescriptors(providers: UseResourceMetricsResult['providers']): DescriptorMap {
   const map: DescriptorMap = new Map();
   for (const provider of providers) {
     for (const handler of provider.handlers ?? []) {

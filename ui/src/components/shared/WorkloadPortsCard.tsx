@@ -11,7 +11,7 @@ import {
 } from '@omniviewdev/base-ui';
 import { useResourcePortForwarder } from '@omniviewdev/runtime';
 import { networker } from '@omniviewdev/runtime/models';
-import { BrowserOpenURL } from '@omniviewdev/runtime/runtime';
+import { Browser } from '@omniviewdev/runtime/runtime';
 import type { ContainerPort, PodSpec } from 'kubernetes-types/core/v1';
 import React from 'react';
 
@@ -309,7 +309,7 @@ const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
 
   const portMap =
     sessions.data?.reduce(
-      (prev, curr) => ({ ...prev, [curr.remote_port]: curr }),
+      (prev, curr) => (curr ? { ...prev, [curr.remote_port]: curr } : prev),
       {} as Record<number, networker.PortForwardSession>,
     ) || {};
 
@@ -390,7 +390,7 @@ const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
                         size="sm"
                         clickable
                         style={chipStyle}
-                        onClick={() => BrowserOpenURL(`http://localhost:${existing.local_port}`)}
+                        onClick={() => void Browser.OpenURL(`http://localhost:${existing.local_port}`)}
                       >
                         {`localhost:${existing.local_port}`}
                       </Chip>
