@@ -1,6 +1,5 @@
+import { Chip, Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { PersistentVolume } from 'kubernetes-types/core/v1';
 import React from 'react';
 
@@ -9,7 +8,9 @@ import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import ResourceLinkChip from '../../../../../shared/ResourceLinkChip';
 import SidebarSection from '../../../../../shared/SidebarSection';
 
-const chipSx = { borderRadius: 1 } as const;
+const fullWidthStyle = { width: '100%' } as const;
+
+const chipStyle = { borderRadius: 4 } as const;
 
 interface Props {
   ctx: DrawerContext<PersistentVolume>;
@@ -41,20 +42,15 @@ export const PersistentVolumeSidebar: React.FC<Props> = ({ ctx }) => {
   const accessModes = spec?.accessModes;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={pv.metadata} />
 
         <SidebarSection
           title="Status"
           headerLeft={
             phase && (
-              <Chip
-                size="xs"
-                emphasis="soft"
-                color={phaseColor(phase)}
-                label={phase}
-              />
+              <Chip size="xs" color={phaseColor(phase)}>{phase}</Chip>
             )
           }
         >
@@ -65,16 +61,9 @@ export const PersistentVolumeSidebar: React.FC<Props> = ({ ctx }) => {
             <LabeledEntry
               label="Access Modes"
               value={
-                <Stack direction="row" gap={0.5} flexWrap="wrap">
+                <Stack direction="row" spacing={1} wrap>
                   {accessModes.map((mode) => (
-                    <Chip
-                      key={mode}
-                      size="xs"
-                      emphasis="soft"
-                      color="primary"
-                      label={mode}
-                      sx={chipSx}
-                    />
+                    <Chip key={mode} size="xs" color="brand" style={chipStyle}>{mode}</Chip>
                   ))}
                 </Stack>
               }

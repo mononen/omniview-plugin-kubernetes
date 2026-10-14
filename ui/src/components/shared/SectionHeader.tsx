@@ -1,30 +1,29 @@
-import Box from '@mui/material/Box';
-import { Text } from '@omniviewdev/ui/typography';
+import { Text } from '@omniviewdev/base-ui';
+import React from 'react';
 
 // ── Styles ──────────────────────────────────────────────────────────────────
 
-const simpleSx = { px: 0.5, pt: 1.25, pb: 0.5 } as const;
+const simpleStyle: React.CSSProperties = { paddingInline: 4, paddingTop: 10, paddingBottom: 4 };
 
-const simpleTitleSx = {
-  color: 'var(--ov-fg-faint, rgba(255,255,255,0.4))',
+const simpleTitleStyle: React.CSSProperties = {
+  color: 'var(--ov-color-fg-subtle)',
   textTransform: 'uppercase',
   letterSpacing: '0.07em',
   fontWeight: 600,
-} as const;
+};
 
-const richWrapperSx = {
+const richWrapperStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 0.75,
-  px: 1.5,
-  py: 0.75,
-  bgcolor: 'var(--ov-bg-surface)',
-  borderBottom: '1px solid var(--ov-border-muted)',
-} as const;
+  gap: 6,
+  paddingInline: 12,
+  paddingBlock: 6,
+  backgroundColor: 'var(--ov-color-bg-surface)',
+  borderBottom: '1px solid var(--ov-color-border-muted)',
+};
 
-const iconSx = { display: 'flex', color: 'var(--ov-fg-faint)', fontSize: 12 } as const;
-const richTitleSx = { color: 'var(--ov-fg-muted)', flex: 1 } as const;
-const countSx = { color: 'var(--ov-fg-faint)' } as const;
+const iconStyle: React.CSSProperties = { display: 'flex', color: 'var(--ov-color-fg-subtle)', fontSize: 12 };
+const richTitleStyle: React.CSSProperties = { flex: 1 };
 
 // ── Component ───────────────────────────────────────────────────────────────
 
@@ -37,26 +36,26 @@ type Props = {
 const SectionHeader: React.FC<Props> = ({ title, icon, count }) => {
   if (!icon) {
     return (
-      <Box sx={simpleSx}>
-        <Text size="xs" sx={simpleTitleSx}>
+      <div style={simpleStyle}>
+        <Text size="xs" style={simpleTitleStyle}>
           {title}
         </Text>
-      </Box>
+      </div>
     );
   }
 
   return (
-    <Box sx={richWrapperSx}>
-      <Box sx={iconSx}>{icon}</Box>
-      <Text weight="semibold" size="xs" sx={richTitleSx}>
+    <div style={richWrapperStyle}>
+      <div style={iconStyle}>{icon}</div>
+      <Text weight="semibold" size="xs" tone="muted" style={richTitleStyle}>
         {title}
       </Text>
       {count !== undefined && count > 0 && (
-        <Text size="xs" sx={countSx}>
+        <Text size="xs" tone="subtle">
           {count}
         </Text>
       )}
-    </Box>
+    </div>
   );
 };
 

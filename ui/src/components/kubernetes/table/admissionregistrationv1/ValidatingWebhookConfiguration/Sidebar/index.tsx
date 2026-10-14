@@ -1,10 +1,12 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { ValidatingWebhookConfiguration } from 'kubernetes-types/admissionregistration/v1';
 import React from 'react';
 
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import WebhookSection from '../../../../../shared/WebhookSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<ValidatingWebhookConfiguration>;
@@ -16,7 +18,7 @@ export const ValidatingWebhookConfigurationSidebar: React.FC<Props> = ({ ctx }) 
   const vwc = ctx.data;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <ObjectMetaSection data={vwc.metadata} />
       <WebhookSection webhooks={vwc.webhooks} />
     </Stack>

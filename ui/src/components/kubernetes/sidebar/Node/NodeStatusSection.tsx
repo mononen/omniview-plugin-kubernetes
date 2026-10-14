@@ -1,58 +1,20 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import type { Node } from 'kubernetes-types/core/v1';
 import type { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
 
 import ConditionChip from '../../../shared/ConditionChip';
-
-const outerBoxSx = { borderRadius: 1, border: '1px solid', borderColor: 'divider' } as const;
-const statusHeaderSx = {
-  py: 0.5,
-  px: 1,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 1,
-} as const;
-const chipSx = { borderRadius: 1 } as const;
-const contentAreaSx = { py: 0.5, px: 1, bgcolor: 'background.level1' } as const;
-const entryRowSx = { minHeight: 22, alignItems: 'center' } as const;
-const entryLabelSx = { color: 'neutral.300' } as const;
-const entryValueSx = { fontWeight: 600, fontSize: 12 } as const;
+import SectionEntry from '../shared/SectionEntry';
+import {
+  roundedChipStyle,
+  sectionBodyStyle,
+  sectionBorderStyle,
+  sectionHeaderStyle,
+} from '../shared/sectionStyles';
 
 interface Props {
   node: Node;
 }
-
-const StatusEntry: React.FC<{
-  label: string;
-  value?: string | React.ReactNode;
-}> = ({ label, value }) => {
-  if (value === undefined || value === null) return null;
-  return (
-    <Grid container spacing={0} sx={entryRowSx}>
-      <Grid size={3}>
-        <Text sx={entryLabelSx} size="xs">
-          {label}
-        </Text>
-      </Grid>
-      <Grid size={9}>
-        {typeof value === 'string' ? (
-          <Text sx={entryValueSx} size="xs">
-            {value}
-          </Text>
-        ) : (
-          value
-        )}
-      </Grid>
-    </Grid>
-  );
-};
 
 const NodeStatusSection: React.FC<Props> = ({ node }) => {
   const conditions = node.status?.conditions;
@@ -65,31 +27,23 @@ const NodeStatusSection: React.FC<Props> = ({ node }) => {
   const phaseColor = phase === 'Ready' ? 'success' : 'danger';
 
   return (
-    <Box sx={outerBoxSx}>
-      <Box sx={statusHeaderSx}>
-        <Stack direction="row" gap={0.75} alignItems="center" flexShrink={0}>
+    <div style={sectionBorderStyle}>
+      <div style={sectionHeaderStyle}>
+        <Stack direction="row" spacing={0} align="center" style={{ gap: 6, flexShrink: 0 }}>
           <Text weight="semibold" size="sm">
             Status
           </Text>
-          <Chip
-            size="xs"
-            color={phaseColor}
-            emphasis="soft"
-            sx={chipSx}
-            label={phase}
-          />
+          <Chip size="xs" color={phaseColor} variant="soft" style={roundedChipStyle}>
+            {phase}
+          </Chip>
           {unschedulable && (
-            <Chip
-              size="xs"
-              color="warning"
-              emphasis="soft"
-              sx={chipSx}
-              label="Cordoned"
-            />
+            <Chip size="xs" color="warning" variant="soft" style={roundedChipStyle}>
+              Cordoned
+            </Chip>
           )}
         </Stack>
         {conditions && conditions.length > 0 && (
-          <Stack direction="row" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
+          <Stack direction="row" spacing={1} wrap justify="end">
             {conditions.map((c) => (
               <ConditionChip
                 key={c.type}
@@ -100,15 +54,17 @@ const NodeStatusSection: React.FC<Props> = ({ node }) => {
             ))}
           </Stack>
         )}
-      </Box>
-      <Divider />
-      <Box sx={contentAreaSx}>
+      </div>
+      <Separator />
+      <div style={sectionBodyStyle}>
         {addresses?.map((addr) => (
-          <StatusEntry key={addr.type} label={addr.type || ''} value={addr.address} />
+          <SectionEntry key={addr.type} labelSpan={3} label={addr.type || ''} value={addr.address} />
         ))}
-        {node.spec?.podCIDR && <StatusEntry label="Pod CIDR" value={node.spec.podCIDR} />}
-      </Box>
-    </Box>
+        {node.spec?.podCIDR && (
+          <SectionEntry labelSpan={3} label="Pod CIDR" value={node.spec.podCIDR} />
+        )}
+      </div>
+    </div>
   );
 };
 

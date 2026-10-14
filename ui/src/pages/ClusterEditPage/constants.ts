@@ -1,62 +1,78 @@
-import type { NavSection } from '@omniviewdev/ui/sidebars';
+import type React from 'react';
 
-export const sidenavHeaderSx = { px: 1, py: 1, borderBottom: '1px solid', borderColor: 'divider' } as const;
+import type { NavSection } from '../../types/navigation';
 
-export const clusterCardWrapperSx = { px: 1, py: 1 } as const;
+const divider = '1px solid var(--ov-color-border-default)';
 
-export const clusterCardSx = {
-  bgcolor: 'background.level1',
-  border: '1px solid',
-  borderColor: 'divider',
-  borderRadius: 1,
-  p: 1.25,
+export const sidenavHeaderStyle: React.CSSProperties = { padding: 8, borderBottom: divider };
+
+export const clusterCardWrapperStyle: React.CSSProperties = { padding: 8 };
+
+export const clusterCardStyle: React.CSSProperties = {
+  background: 'var(--ov-color-bg-surface-raised)',
+  border: divider,
+  borderRadius: 4,
+  padding: 10,
   display: 'flex',
   alignItems: 'center',
-  gap: 1.25,
-} as const;
+  gap: 10,
+};
 
-export const avatarImgSx = { width: 40, height: 40, borderRadius: 1, '--Avatar-size': '40px' } as const;
+export const avatarImgStyle: React.CSSProperties = { width: 40, height: 40, borderRadius: 4, flexShrink: 0 };
 
-export const clusterNameSx = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const;
-
-export const navMenuSx = { py: 0.5 } as const;
-
-export const sectionWrapperHeaderSx = {
+export const avatarFallbackStyle: React.CSSProperties = {
+  width: 40,
+  height: 40,
+  borderRadius: 4,
+  flexShrink: 0,
   display: 'flex',
   alignItems: 'center',
-  gap: 1.5,
-  pb: 2,
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-} as const;
+  justifyContent: 'center',
+  color: '#fff',
+  fontSize: '0.875rem',
+  fontWeight: 500,
+};
 
-export const sectionWrapperBodySx = { flex: 1, overflow: 'auto', minHeight: 0, pt: 2 } as const;
+export const navMenuStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 4 };
 
-export const formRowSx = { py: 2.5, display: 'flex', gap: 4, alignItems: 'flex-start' } as const;
+export const sectionWrapperHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  paddingBottom: 16,
+  borderBottom: divider,
+};
 
-export const formLabelColumnSx = { minWidth: 180, maxWidth: 180, display: 'flex', flexDirection: 'column' } as const;
+export const sectionWrapperBodyStyle: React.CSSProperties = { flex: 1, overflow: 'auto', minHeight: 0, paddingTop: 16 };
 
-export const formFieldColumnSx = { flex: 1, maxWidth: 480 } as const;
+export const formRowStyle: React.CSSProperties = { paddingBlock: 20, display: 'flex', gap: 32, alignItems: 'flex-start' };
 
-export const tagsContainerSx = { maxWidth: 600 } as const;
+export const formLabelColumnStyle: React.CSSProperties = {
+  minWidth: 180,
+  maxWidth: 180,
+  display: 'flex',
+  flexDirection: 'column',
+};
 
-export const infoRowSx = { py: 1.5, display: 'flex', gap: 4, alignItems: 'baseline' } as const;
+export const formFieldColumnStyle: React.CSSProperties = { flex: 1, maxWidth: 480 };
 
-export const infoLabelSx = { color: 'text.secondary', minWidth: 140 } as const;
+export const tagsContainerStyle: React.CSSProperties = { maxWidth: 600 };
 
-export const sidenavColumnSx = { height: '100%' } as const;
+export const infoRowStyle: React.CSSProperties = { paddingBlock: 12, display: 'flex', gap: 32, alignItems: 'baseline' };
 
-export const headerTitleSx = { flex: 1, ml: 0.25 } as const;
+export const infoLabelStyle: React.CSSProperties = { minWidth: 140 };
 
-export const clusterInfoColumnSx = { minWidth: 0, flex: 1 } as const;
+export const sidenavColumnStyle: React.CSSProperties = { height: '100%' };
 
-export const sectionWrapperStackSx = { width: '100%', height: '100%' } as const;
+export const headerTitleStyle: React.CSSProperties = { flex: 1, marginLeft: 2 };
 
-export const mainPanelSx = { p: 3, overflow: 'auto' } as const;
+export const clusterInfoColumnStyle: React.CSSProperties = { minWidth: 0, flex: 1 };
 
-export const formHintSx = { color: 'text.secondary', mt: 0.25 } as const;
+export const sectionWrapperStackStyle: React.CSSProperties = { width: '100%', height: '100%' };
 
-export const sectionDescriptionSx = { color: 'text.secondary' } as const;
+export const mainPanelStyle: React.CSSProperties = { padding: 24, overflow: 'auto' };
+
+export const formHintStyle: React.CSSProperties = { marginTop: 2 };
 
 export type SectionId = 'identity' | 'tags' | 'cluster-info' | 'connection' | 'metrics' | 'node-shell';
 

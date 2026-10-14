@@ -1,61 +1,54 @@
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import Grid from '@mui/material/Grid';
-import LinearProgress from '@mui/material/LinearProgress';
+import { Progress, Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import { type metric } from '@omniviewdev/runtime/models';
-import { MetricsPanel } from '@omniviewdev/ui/charts';
-import type { TimeSeriesDef, ChartTimeRange } from '@omniviewdev/ui/charts';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { MetricsPanel } from '../../shared/charts';
+import type { TimeSeriesDef, ChartTimeRange } from '../../shared/charts';
 import React, { useState, useMemo, useCallback } from 'react';
 
-const outerBoxSx = { borderRadius: 1, border: '1px solid', borderColor: 'divider' } as const;
-const metricsHeaderSx = {
-  py: 0.5,
-  px: 1,
+const outerBoxStyle: React.CSSProperties = {
+  borderRadius: 4,
+  border: '1px solid var(--ov-color-border-default)',
+};
+const metricsHeaderStyle: React.CSSProperties = {
+  paddingBlock: 4,
+  paddingInline: 8,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-} as const;
-const metricsContentSx = { px: 0.5, pb: 1 } as const;
-const loadingBoxSx = { display: 'flex', justifyContent: 'center', py: 2 } as const;
-const noMetricsHeaderSx = { py: 0.5, px: 1 } as const;
-const noMetricsBodySx = { px: 1, pb: 1 } as const;
-const noMetricsTextSx = { color: 'neutral.500' } as const;
-const errorBoxSx = { px: 1, pb: 0.5 } as const;
-const errorTextSx = { color: 'danger.400' } as const;
-const gaugeLabelSx = { color: 'neutral.400' } as const;
-const gaugeValueSx = { fontVariantNumeric: 'tabular-nums' } as const;
-const progressBarSx = { height: 4, borderRadius: 2 } as const;
-const gaugeSubtitleSx = { color: 'neutral.500', fontSize: '0.6rem', mt: 0.25 } as const;
-const gaugeContainerSx = { minWidth: 0, flex: 1 } as const;
-const gaugeHeaderSx = { mb: 0.25 } as const;
-const statTileSx = {
-  py: 0.5,
-  px: 1,
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-  bgcolor: 'background.level1',
-} as const;
-const statLabelSx = { color: 'neutral.400', display: 'block', mb: 0.25 } as const;
-const statValueSx = { fontVariantNumeric: 'tabular-nums' } as const;
-const sectionSubheadingSx = {
-  color: 'neutral.400',
+};
+const metricsContentStyle: React.CSSProperties = { paddingInline: 4, paddingBottom: 8 };
+const loadingBoxStyle: React.CSSProperties = { display: 'flex', justifyContent: 'center', paddingBlock: 16 };
+const noMetricsHeaderStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8 };
+const noMetricsBodyStyle: React.CSSProperties = { paddingInline: 8, paddingBottom: 8 };
+const errorBoxStyle: React.CSSProperties = { paddingInline: 8, paddingBottom: 4 };
+const gaugeValueStyle: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+const gaugeSubtitleStyle: React.CSSProperties = { fontSize: '0.6rem', marginTop: 2 };
+const gaugeContainerStyle: React.CSSProperties = { minWidth: 0, flex: 1 };
+const gaugeHeaderStyle: React.CSSProperties = { marginBottom: 2 };
+const statTileStyle: React.CSSProperties = {
+  paddingBlock: 4,
+  paddingInline: 8,
+  borderRadius: 4,
+  border: '1px solid var(--ov-color-border-default)',
+  background: 'var(--ov-color-bg-surface-raised)',
+};
+const statLabelStyle: React.CSSProperties = { display: 'block', marginBottom: 2 };
+const statValueStyle: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+const sectionSubheadingStyle: React.CSSProperties = {
+  display: 'block',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
   fontSize: '0.6rem',
-  mb: 0.75,
-} as const;
-const sectionSubheadingAltSx = {
-  color: 'neutral.400',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  fontSize: '0.6rem',
-  mb: 0.5,
-} as const;
-const sectionPaddingSx = { px: 0.5 } as const;
+  marginBottom: 6,
+};
+const sectionSubheadingAltStyle: React.CSSProperties = { ...sectionSubheadingStyle, marginBottom: 4 };
+const sectionPaddingStyle: React.CSSProperties = { paddingInline: 4 };
+/** Two equal columns with 4px gap (MUI Grid spacing 0.5, size 6). */
+const tileGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 4,
+};
 
 interface Props {
   connectionID: string;
@@ -134,30 +127,25 @@ const PercentGauge: React.FC<{
   value: number;
   subtitle?: string;
 }> = ({ label, value, subtitle }) => {
-  const color = value >= 90 ? 'error' : value >= 70 ? 'warning' : 'primary';
+  const color = value >= 90 ? 'danger' : value >= 70 ? 'warning' : 'brand';
 
   return (
-    <Box sx={gaugeContainerSx}>
-      <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={gaugeHeaderSx}>
-        <Text size="xs" sx={gaugeLabelSx}>
+    <div style={gaugeContainerStyle}>
+      <Stack direction="row" justify="between" align="baseline" style={gaugeHeaderStyle}>
+        <Text size="xs" tone="muted">
           {label}
         </Text>
-        <Text size="xs" weight="semibold" sx={gaugeValueSx}>
+        <Text size="xs" weight="semibold" style={gaugeValueStyle}>
           {value.toFixed(1)}%
         </Text>
       </Stack>
-      <LinearProgress
-        variant="determinate"
-        value={Math.min(value, 100)}
-        color={color}
-        sx={progressBarSx}
-      />
+      <Progress size="xs" value={Math.min(value, 100)} color={color} aria-label={`${label} utilization`} />
       {subtitle && (
-        <Text size="xs" sx={gaugeSubtitleSx}>
+        <Text as="div" size="xs" tone="subtle" style={gaugeSubtitleStyle}>
           {subtitle}
         </Text>
       )}
-    </Box>
+    </div>
   );
 };
 
@@ -166,14 +154,14 @@ const StatTile: React.FC<{
   label: string;
   value: string;
 }> = ({ label, value }) => (
-  <Box sx={statTileSx}>
-    <Text size="xs" sx={statLabelSx}>
+  <div style={statTileStyle}>
+    <Text size="xs" tone="muted" style={statLabelStyle}>
       {label}
     </Text>
-    <Text size="sm" weight="semibold" sx={statValueSx}>
+    <Text size="sm" weight="semibold" style={statValueStyle}>
       {value}
     </Text>
-  </Box>
+  </div>
 );
 
 const NodeMetricsSection: React.FC<Props> = ({
@@ -242,66 +230,66 @@ const NodeMetricsSection: React.FC<Props> = ({
   const cpuSeries = useMemo<TimeSeriesDef[]>(() => {
     const s: TimeSeriesDef[] = [];
     const cpu = tsSeries.get('prom_cpu_utilization');
-    if (cpu) s.push(toTimeSeriesDef(cpu, 'CPU Utilization', 'var(--ov-accent)'));
+    if (cpu) s.push(toTimeSeriesDef(cpu, 'CPU Utilization', 'var(--ov-color-brand-500)'));
     return s;
   }, [tsSeries]);
 
   const memorySeries = useMemo<TimeSeriesDef[]>(() => {
     const s: TimeSeriesDef[] = [];
     const mem = tsSeries.get('prom_memory_utilization');
-    if (mem) s.push(toTimeSeriesDef(mem, 'Memory Utilization', 'var(--ov-accent)'));
+    if (mem) s.push(toTimeSeriesDef(mem, 'Memory Utilization', 'var(--ov-color-brand-500)'));
     return s;
   }, [tsSeries]);
 
   const networkSeries = useMemo<TimeSeriesDef[]>(() => {
     const s: TimeSeriesDef[] = [];
     const rx = tsSeries.get('prom_network_receive_rate');
-    if (rx) s.push(toTimeSeriesDef(rx, 'Receive', '#22c55e'));
+    if (rx) s.push(toTimeSeriesDef(rx, 'Receive', 'var(--ov-color-success)'));
     const tx = tsSeries.get('prom_network_transmit_rate');
-    if (tx) s.push(toTimeSeriesDef(tx, 'Transmit', '#f97316'));
+    if (tx) s.push(toTimeSeriesDef(tx, 'Transmit', 'var(--ov-color-warning)'));
     return s;
   }, [tsSeries]);
 
   const diskUtilSeries = useMemo<TimeSeriesDef[]>(() => {
     const s: TimeSeriesDef[] = [];
     const d = tsSeries.get('prom_disk_utilization');
-    if (d) s.push(toTimeSeriesDef(d, 'Disk Utilization', '#a855f7'));
+    if (d) s.push(toTimeSeriesDef(d, 'Disk Utilization', 'var(--ov-color-discovery)'));
     return s;
   }, [tsSeries]);
 
   const diskIOSeries = useMemo<TimeSeriesDef[]>(() => {
     const s: TimeSeriesDef[] = [];
     const r = tsSeries.get('prom_disk_read_rate');
-    if (r) s.push(toTimeSeriesDef(r, 'Read', '#22c55e'));
+    if (r) s.push(toTimeSeriesDef(r, 'Read', 'var(--ov-color-success)'));
     const w = tsSeries.get('prom_disk_write_rate');
-    if (w) s.push(toTimeSeriesDef(w, 'Write', '#f97316'));
+    if (w) s.push(toTimeSeriesDef(w, 'Write', 'var(--ov-color-warning)'));
     return s;
   }, [tsSeries]);
 
   const loadAvgSeries = useMemo<TimeSeriesDef[]>(() => {
     const s: TimeSeriesDef[] = [];
     const l1 = tsSeries.get('prom_load_avg_1m');
-    if (l1) s.push(toTimeSeriesDef(l1, '1m', '#3b82f6'));
+    if (l1) s.push(toTimeSeriesDef(l1, '1m', 'var(--ov-color-info)'));
     const l5 = tsSeries.get('prom_load_avg_5m');
-    if (l5) s.push(toTimeSeriesDef(l5, '5m', '#f97316'));
+    if (l5) s.push(toTimeSeriesDef(l5, '5m', 'var(--ov-color-warning)'));
     const l15 = tsSeries.get('prom_load_avg_15m');
-    if (l15) s.push(toTimeSeriesDef(l15, '15m', '#a855f7'));
+    if (l15) s.push(toTimeSeriesDef(l15, '15m', 'var(--ov-color-discovery)'));
     return s;
   }, [tsSeries]);
 
   const podCountSeries = useMemo<TimeSeriesDef[]>(() => {
     const s: TimeSeriesDef[] = [];
     const p = tsSeries.get('prom_pod_count');
-    if (p) s.push(toTimeSeriesDef(p, 'Pod Count', 'var(--ov-accent)'));
+    if (p) s.push(toTimeSeriesDef(p, 'Pod Count', 'var(--ov-color-brand-500)'));
     return s;
   }, [tsSeries]);
 
   const systemActivitySeries = useMemo<TimeSeriesDef[]>(() => {
     const s: TimeSeriesDef[] = [];
     const cs = tsSeries.get('prom_context_switches');
-    if (cs) s.push(toTimeSeriesDef(cs, 'Context Switches', '#3b82f6'));
+    if (cs) s.push(toTimeSeriesDef(cs, 'Context Switches', 'var(--ov-color-info)'));
     const ne = tsSeries.get('prom_network_errors');
-    if (ne) s.push(toTimeSeriesDef(ne, 'Network Errors', '#ef4444'));
+    if (ne) s.push(toTimeSeriesDef(ne, 'Network Errors', 'var(--ov-color-danger)'));
     return s;
   }, [tsSeries]);
 
@@ -311,26 +299,26 @@ const NodeMetricsSection: React.FC<Props> = ({
 
   if (isLoading) {
     return (
-      <Box sx={loadingBoxSx}>
-        <CircularProgress size={20} />
-      </Box>
+      <div style={loadingBoxStyle}>
+        <Spinner size="sm" />
+      </div>
     );
   }
 
   if (metrics.size === 0 && !hasTimeSeries && !error) {
     return (
-      <Box sx={outerBoxSx}>
-        <Box sx={noMetricsHeaderSx}>
+      <div style={outerBoxStyle}>
+        <div style={noMetricsHeaderStyle}>
           <Text weight="semibold" size="sm">
             Metrics
           </Text>
-        </Box>
-        <Box sx={noMetricsBodySx}>
-          <Text size="xs" sx={noMetricsTextSx}>
+        </div>
+        <div style={noMetricsBodyStyle}>
+          <Text size="xs" tone="subtle">
             No metrics available. Ensure metrics-server or Prometheus is installed.
           </Text>
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
@@ -350,25 +338,25 @@ const NodeMetricsSection: React.FC<Props> = ({
   const hasPrometheus = cpuUtilPct !== undefined;
 
   return (
-    <Box sx={outerBoxSx}>
+    <div style={outerBoxStyle}>
       {/* Header */}
-      <Box sx={metricsHeaderSx}>
+      <div style={metricsHeaderStyle}>
         <Text weight="semibold" size="sm">
           Metrics
         </Text>
-        {(currentLoading || tsLoading) && <CircularProgress size={12} />}
-      </Box>
+        {(currentLoading || tsLoading) && <Spinner size="xs" />}
+      </div>
 
       {error && (
-        <Box sx={errorBoxSx}>
-          <Text size="xs" sx={errorTextSx}>
+        <div style={errorBoxStyle}>
+          <Text size="xs" tone="danger">
             {error.message || 'Failed to load metrics'}
           </Text>
-        </Box>
+        </div>
       )}
 
-      <Box sx={metricsContentSx}>
-        <Stack spacing={0.75}>
+      <div style={metricsContentStyle}>
+        <Stack direction="column" spacing={0} style={{ gap: 6 }}>
           {/* Time-series charts */}
           {hasTimeSeries && (
             <>
@@ -484,11 +472,11 @@ const NodeMetricsSection: React.FC<Props> = ({
 
           {/* Utilization gauges (instant values) — shown when no charts available */}
           {hasPrometheus && !hasTimeSeries && (
-            <Box sx={sectionPaddingSx}>
-              <Text size="xs" weight="semibold" sx={sectionSubheadingSx}>
+            <div style={sectionPaddingStyle}>
+              <Text size="xs" weight="semibold" tone="muted" style={sectionSubheadingStyle}>
                 Utilization
               </Text>
-              <Stack spacing={0.75}>
+              <Stack direction="column" spacing={0} style={{ gap: 6 }}>
                 {cpuUtilPct !== undefined && <PercentGauge label="CPU" value={cpuUtilPct} />}
                 {memUtilPct !== undefined && (
                   <PercentGauge
@@ -505,81 +493,69 @@ const NodeMetricsSection: React.FC<Props> = ({
                   />
                 )}
               </Stack>
-            </Box>
+            </div>
           )}
 
           {/* Metrics-server CPU/Memory */}
           {(cpuUsage > 0 || memUsage > 0) && (
-            <Box sx={sectionPaddingSx}>
-              <Text size="xs" weight="semibold" sx={sectionSubheadingAltSx}>
+            <div style={sectionPaddingStyle}>
+              <Text size="xs" weight="semibold" tone="muted" style={sectionSubheadingAltStyle}>
                 {hasPrometheus ? 'Current Usage' : 'Usage'}
               </Text>
-              <Grid container spacing={0.5}>
+              <div style={tileGridStyle}>
                 {cpuUsage > 0 && (
-                  <Grid size={6}>
-                    <StatTile
-                      label="CPU"
-                      value={
-                        cpuUsage >= 1000
-                          ? `${(cpuUsage / 1000).toFixed(2)} cores`
-                          : `${Math.round(cpuUsage)}m`
-                      }
-                    />
-                  </Grid>
+                  <StatTile
+                    label="CPU"
+                    value={
+                      cpuUsage >= 1000
+                        ? `${(cpuUsage / 1000).toFixed(2)} cores`
+                        : `${Math.round(cpuUsage)}m`
+                    }
+                  />
                 )}
                 {memUsage > 0 && (
-                  <Grid size={6}>
-                    <StatTile label="Memory" value={formatBytes(memUsage)} />
-                  </Grid>
+                  <StatTile label="Memory" value={formatBytes(memUsage)} />
                 )}
-              </Grid>
-            </Box>
+              </div>
+            </div>
           )}
 
           {/* Network stats (instant, when no charts) */}
           {!hasTimeSeries && (netRx !== undefined || netTx !== undefined) && (
-            <Box sx={sectionPaddingSx}>
-              <Text size="xs" weight="semibold" sx={sectionSubheadingAltSx}>
+            <div style={sectionPaddingStyle}>
+              <Text size="xs" weight="semibold" tone="muted" style={sectionSubheadingAltStyle}>
                 Network
               </Text>
-              <Grid container spacing={0.5}>
+              <div style={tileGridStyle}>
                 {netRx !== undefined && (
-                  <Grid size={6}>
-                    <StatTile label="Receive" value={formatBytesPerSec(netRx)} />
-                  </Grid>
+                  <StatTile label="Receive" value={formatBytesPerSec(netRx)} />
                 )}
                 {netTx !== undefined && (
-                  <Grid size={6}>
-                    <StatTile label="Transmit" value={formatBytesPerSec(netTx)} />
-                  </Grid>
+                  <StatTile label="Transmit" value={formatBytesPerSec(netTx)} />
                 )}
-              </Grid>
-            </Box>
+              </div>
+            </div>
           )}
 
           {/* System stats */}
           {(loadAvg !== undefined || podCount !== undefined) && (
-            <Box sx={sectionPaddingSx}>
-              <Text size="xs" weight="semibold" sx={sectionSubheadingAltSx}>
+            <div style={sectionPaddingStyle}>
+              <Text size="xs" weight="semibold" tone="muted" style={sectionSubheadingAltStyle}>
                 System
               </Text>
-              <Grid container spacing={0.5}>
+              <div style={tileGridStyle}>
                 {loadAvg !== undefined && (
-                  <Grid size={6}>
-                    <StatTile label="Load (1m)" value={loadAvg.toFixed(2)} />
-                  </Grid>
+                  <StatTile label="Load (1m)" value={loadAvg.toFixed(2)} />
                 )}
                 {podCount !== undefined && (
-                  <Grid size={6}>
-                    <StatTile label="Pods" value={String(Math.round(podCount))} />
-                  </Grid>
+                  <StatTile label="Pods" value={String(Math.round(podCount))} />
                 )}
-              </Grid>
-            </Box>
+              </div>
+            </div>
           )}
         </Stack>
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

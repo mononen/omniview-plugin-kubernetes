@@ -1,8 +1,4 @@
-import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Grid, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
 import { ContainerStatusDecorator } from '../ContainerStatuses';
@@ -16,7 +12,9 @@ import ContainerVolumesSection from './ContainerVolumesSection';
 import type { ContainerSliceProps } from './helpers';
 import { getRestartChipColor, statusDotColor, typeChipColor, typeLabel } from './helpers';
 import InfoRow from './InfoRow';
-import { chipSx, containerSx, headerSx, infoCardSx } from './styles';
+import { chipStyle, containerStyle, headerStyle, infoCardStyle } from './styles';
+
+const sliceGridStyle: React.CSSProperties = { gap: 6 };
 
 export type { ContainerSliceProps } from './helpers';
 
@@ -35,54 +33,46 @@ const ContainerSlice: React.FC<ContainerSliceProps> = ({
   const chipColor = typeChipColor(type);
 
   return (
-    <Box sx={containerSx}>
+    <div style={containerStyle}>
       {/* ── Header: dot + name + type chip + restart count + status ── */}
-      <Stack direction="row" spacing={1} alignItems="center" sx={headerSx}>
-        <Box
-          sx={{
+      <Stack direction="row" spacing={2} align="center" style={headerStyle}>
+        <div
+          style={{
             width: 8,
             height: 8,
             borderRadius: '50%',
-            bgcolor: statusDotColor(status),
+            backgroundColor: statusDotColor(status),
             flexShrink: 0,
           }}
         />
-        <Text weight="semibold" size="sm" noWrap sx={{ flex: 1 }}>
+        <Text weight="semibold" size="sm" truncate style={{ flex: 1 }}>
           {container.name}
         </Text>
         {label && chipColor && (
-          <Chip
-            size="xs"
-            color={chipColor}
-            emphasis="soft"
-            sx={chipSx}
-            label={label}
-          />
+          <Chip size="xs" color={chipColor} variant="soft" style={chipStyle}>
+            {label}
+          </Chip>
         )}
         {status && !!status.restartCount && (
-          <Chip
-            size="xs"
-            color={getRestartChipColor(status)}
-            emphasis="soft"
-            sx={chipSx}
-            label={`${status.restartCount} restart${status.restartCount !== 1 ? 's' : ''}`}
-          />
+          <Chip size="xs" color={getRestartChipColor(status)} variant="soft" style={chipStyle}>
+            {`${status.restartCount} restart${status.restartCount !== 1 ? 's' : ''}`}
+          </Chip>
         )}
         {status && <ContainerStatusDecorator status={status} />}
       </Stack>
 
       {/* ── Card-based sub-sections ── */}
-      <Grid container spacing={0.75}>
+      <Grid columns={12} spacing={0} style={sliceGridStyle}>
         {/* Restart / termination info — shown when container has issues */}
         {status && ((status.restartCount ?? 0) > 0 || status.state?.waiting || status.state?.terminated || status.lastState?.terminated) && (
-          <Grid size={12}>
+          <Grid.Item span={12}>
             <ContainerStatusSection status={status} />
-          </Grid>
+          </Grid.Item>
         )}
 
         {/* Image / Command / Args — full width, wrapping text */}
-        <Grid size={12}>
-          <Box sx={infoCardSx}>
+        <Grid.Item span={12}>
+          <div style={infoCardStyle}>
             <InfoRow icon="LuImage" label="Image" value={container.image || ''} />
             {!!container.command?.length && (
               <InfoRow
@@ -94,8 +84,8 @@ const ContainerSlice: React.FC<ContainerSliceProps> = ({
             {!!container.args?.length && (
               <InfoRow icon="LuTerminal" label="Args" value={container.args.join(' ')} />
             )}
-          </Box>
-        </Grid>
+          </div>
+        </Grid.Item>
 
         {/* Resources with utilization bars — full width */}
         <ContainerResourcesSection
@@ -130,7 +120,7 @@ const ContainerSlice: React.FC<ContainerSliceProps> = ({
           volumes={volumes}
         />
       </Grid>
-    </Box>
+    </div>
   );
 };
 

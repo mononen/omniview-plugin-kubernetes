@@ -1,7 +1,5 @@
-import Box from '@mui/material/Box';
-import LinearProgress from '@mui/material/LinearProgress';
+import { DataTable, Progress, Skeleton } from '@omniviewdev/base-ui';
 import { useResources, DrawerComponent } from '@omniviewdev/runtime';
-import { Skeleton } from '@omniviewdev/ui/feedback';
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -17,7 +15,10 @@ import {
 import get from 'lodash.get';
 import React, { useMemo, useState } from 'react';
 
-const SKELETON_ROW_COUNT = 8;
+const SKELETON_ROWS = Array.from({ length: 8 }, (_, i) => `skel-${i}`);
+
+/** Sorting, resizing and pinning UI come from DataTable.Header; the rest is ours. */
+const TABLE_FEATURES = { sorting: true, columnResizing: true, columnPinning: true };
 
 import type { KubernetesResourceObject } from '../../../../types/resource';
 import { plural } from '../../../../utils/language';
@@ -26,23 +27,14 @@ import { useDynamicResourceColumns } from '../../../tables/ColumnFilter/useDynam
 import ResourceTableBody from '../ResourceTableBody';
 import { TableDrawerContext } from '../TableDrawerContext';
 import { ColumnMeta } from '../types';
-import { useColumnSizeVars } from '../useColumnSizeVars';
 import { useRowSelectionCleanup } from '../useRowSelectionCleanup';
+import { getBodyCellStyles } from '../utils';
 import { useConnectionNamespaces } from '@/hooks/useConnectionNamespaces';
 import { useStoredState } from '@/hooks/useStoredState';
 
 import ResourceTableErrorState from './ResourceTableErrorState';
-import ResourceTableHeader from './ResourceTableHeader';
+import styles from './ResourceTable.module.css';
 import ResourceTableToolbar from './ResourceTableToolbar';
-import {
-  tableOuterSx,
-  tableWrapperRelativeSx,
-  syncIndicatorSx,
-  skeletonSx,
-  TableWrapper,
-  ScrollContainer,
-  StyledTable,
-} from './styles';
 
 export type Memoizer = string | string[] | ((data: KubernetesResourceObject) => string);
 
@@ -133,14 +125,8 @@ const ResourceTableContainer: React.FC<Props> = ({
     {},
   );
 
-  /** Filtering behavior */
-  const [filterAnchor, setFilterAnchor] = React.useState<undefined | HTMLElement>(undefined);
-  const handleFilterClick = (event: React.MouseEvent<HTMLElement>) => {
-    setFilterAnchor(filterAnchor ? undefined : event.currentTarget);
-  };
-  const handleFilterClose = () => {
-    setFilterAnchor(undefined);
-  };
+  /** Column / label / annotation picker */
+  const [filterOpen, setFilterOpen] = React.useState(false);
 
   const { resources, isSyncing } = useResources({
     pluginID: 'kubernetes',
@@ -246,8 +232,6 @@ const ResourceTableContainer: React.FC<Props> = ({
     },
   });
 
-  const columnSizeVars = useColumnSizeVars(table);
-
   // Track which columns have been user-resized (changes infrequently)
   const resizedColumnIds = useMemo(() => JSON.stringify(Object.keys(columnSizing)), [columnSizing]);
 
@@ -280,13 +264,15 @@ const ResourceTableContainer: React.FC<Props> = ({
 
   return (
     <TableDrawerContext.Provider value={drawer}>
-      <Box sx={tableOuterSx}>
-        <TableWrapper sx={tableWrapperRelativeSx}>
+      <div className={styles.outer}>
+        <DataTable.Root
+          table={table}
+          features={TABLE_FEATURES}
+          stickyHeader
+          className={styles.root}
+        >
           {showSyncingIndicator && (
-            <LinearProgress
-              variant="indeterminate"
-              sx={syncIndicatorSx}
-            />
+            <Progress size="xs" className={styles.syncIndicator} aria-label="Syncing" />
           )}
           {/* Compact toolbar — outside scroll container so it never scrolls horizontally */}
           <ResourceTableToolbar
@@ -311,70 +297,45 @@ const ResourceTableContainer: React.FC<Props> = ({
             handleLabels={handleLabels}
             annotations={annotations}
             handleAnnotations={handleAnnotations}
-            filterAnchor={filterAnchor}
-            handleFilterClick={handleFilterClick}
-            handleFilterClose={handleFilterClose}
+            filterOpen={filterOpen}
+            setFilterOpen={setFilterOpen}
             allFlatColumns={table.getAllFlatColumns()}
           />
-          <ScrollContainer
-            className={'table-container'}
+          <DataTable.Container
             ref={parentRef}
-            style={{ opacity: showSyncingIndicator ? 0.85 : 1, transition: 'opacity 0.2s ease' }}
+            className={styles.container}
+            data-syncing={showSyncingIndicator ? 'true' : undefined}
+            aria-labelledby={'table-title'}
           >
-            <StyledTable aria-labelledby={'table-title'} style={{ ...columnSizeVars }}>
-              <ResourceTableHeader
+            <DataTable.Header />
+            {resources.isLoading ? (
+              <tbody style={{ display: 'grid' }}>
+                {SKELETON_ROWS.map((rowKey) => (
+                  <tr key={rowKey} className={styles.skeletonRow}>
+                    {table.getVisibleLeafColumns().map((col) => (
+                      <td key={col.id} className={styles.skeletonCell} style={getBodyCellStyles(col)}>
+                        <Skeleton variant="text" width="70%" />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            ) : (
+              <ResourceTableBody
                 table={table}
-                columnSizeVars={columnSizeVars}
-                columnSizing={columnSizing}
+                tableContainerRef={parentRef}
+                connectionID={connectionID}
+                resourceKey={resourceKey}
+                columnVisibility={columnVisibilityKey}
+                resizedColumnIds={resizedColumnIds}
+                rowSelection={rowSelection}
+                drawer={drawer}
+                memoizer={memoizer}
               />
-              {resources.isLoading ? (
-                <tbody style={{ display: 'grid' }}>
-                  {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => `skel-${i}`).map((rowKey) => (
-                    <tr key={rowKey} style={{ display: 'flex', width: '100%', height: 30 }}>
-                      {table.getVisibleLeafColumns().map((col) => {
-                        const flexMeta = (col.columnDef.meta as { flex?: number | undefined })
-                          ?.flex;
-                        const isUserResized = col.id in (columnSizing ?? {});
-                        const applyFlex = flexMeta && !isUserResized;
-                        return (
-                          <td
-                            key={col.id}
-                            style={{
-                              width: `calc(var(--col-${col.id}-size) * 1px)`,
-                              padding: '0px 8px',
-                              borderBottom: '1px solid var(--ov-border-muted)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              ...(applyFlex && {
-                                minWidth: `calc(var(--col-${col.id}-size) * 1px)`,
-                                flex: flexMeta,
-                              }),
-                            }}
-                          >
-                            <Skeleton variant="text" width="70%" sx={skeletonSx} />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              ) : (
-                <ResourceTableBody
-                  table={table}
-                  tableContainerRef={parentRef}
-                  connectionID={connectionID}
-                  resourceKey={resourceKey}
-                  columnVisibility={columnVisibilityKey}
-                  resizedColumnIds={resizedColumnIds}
-                  rowSelection={rowSelection}
-                  drawer={drawer}
-                  memoizer={memoizer}
-                />
-              )}
-            </StyledTable>
-          </ScrollContainer>
-        </TableWrapper>
-      </Box>
+            )}
+          </DataTable.Container>
+        </DataTable.Root>
+      </div>
     </TableDrawerContext.Provider>
   );
 };

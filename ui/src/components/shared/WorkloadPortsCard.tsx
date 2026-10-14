@@ -1,142 +1,126 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Popover from '@mui/material/Popover';
+import {
+  Button,
+  Checkbox,
+  Chip,
+  Input,
+  Popover,
+  SegmentedControl,
+  Separator,
+  Stack,
+  Text,
+} from '@omniviewdev/base-ui';
 import { useResourcePortForwarder } from '@omniviewdev/runtime';
 import { networker } from '@omniviewdev/runtime/models';
 import { BrowserOpenURL } from '@omniviewdev/runtime/runtime';
-import { Chip } from '@omniviewdev/ui';
-import { Button } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Tooltip } from '@omniviewdev/ui/overlays';
-import { Text } from '@omniviewdev/ui/typography';
 import type { ContainerPort, PodSpec } from 'kubernetes-types/core/v1';
 import React from 'react';
 
 import Icon from './Icon';
+import SimpleTooltip from './SimpleTooltip';
 
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
 
-const cardContainerSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-  bgcolor: 'background.level1',
+const cardContainerStyle: React.CSSProperties = {
+  borderRadius: 4,
+  border: '1px solid var(--ov-color-border-default)',
   overflow: 'hidden',
-} as const;
+};
 
-const headerSx = {
-  py: 0.5,
-  px: 1,
+const headerStyle: React.CSSProperties = {
+  paddingBlock: 4,
+  paddingInline: 8,
   display: 'flex',
   alignItems: 'center',
-  gap: 1,
-  bgcolor: 'background.surface',
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-} as const;
+  gap: 8,
+  borderBottom: '1px solid var(--ov-color-border-default)',
+};
 
-const portEntrySx = {
-  py: 0.5,
-  px: 1,
+const portEntryStyle: React.CSSProperties = {
+  paddingBlock: 4,
+  paddingInline: 8,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: 1,
-} as const;
+  gap: 8,
+};
 
-const chipSx = { borderRadius: 1 } as const;
-const chipBorderRadiusSmSx = { borderRadius: 'sm' } as const;
-const forwardBtnSx = { py: 0, px: 3, minHeight: 24 } as const;
-const forwardBtnTextSx = { fontSize: 12 } as const;
+const chipStyle: React.CSSProperties = { borderRadius: 4 };
+const portInfoStyle: React.CSSProperties = { flex: 1, minWidth: 0 };
+const portActionsStyle: React.CSSProperties = { flexShrink: 0 };
+const portNameStyle: React.CSSProperties = { fontSize: 12 };
+const containerNameStyle: React.CSSProperties = { fontSize: 11 };
+const forwardBtnStyle: React.CSSProperties = { paddingBlock: 0, paddingInline: 24, minHeight: 24, fontSize: 12 };
 
 // Popover styles
-const popoverPaperSx = {
-  bgcolor: 'var(--ov-bg-elevated, #1c2128)',
-  border: '1px solid var(--ov-border-default, #30363d)',
-  borderRadius: '8px',
-  p: 0,
+const popoverPopupStyle: React.CSSProperties = {
+  backgroundColor: 'var(--ov-color-bg-elevated)',
+  border: '1px solid var(--ov-color-border-default)',
+  borderRadius: 8,
+  padding: 0,
   minWidth: 240,
   maxWidth: 300,
   boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-  color: 'var(--ov-fg-default, #c9d1d9)',
-} as const;
+  color: 'var(--ov-color-fg-default)',
+};
 
-const popoverHeaderSx = {
+const popoverHeaderStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 1,
-  px: 1.5,
-  py: 1,
-  borderBottom: '1px solid var(--ov-border-default, #30363d)',
-} as const;
+  gap: 8,
+  paddingInline: 12,
+  paddingBlock: 8,
+  borderBottom: '1px solid var(--ov-color-border-default)',
+};
 
-const popoverTitleSx = {
+const popoverTitleStyle: React.CSSProperties = {
   fontSize: '0.8125rem',
   fontWeight: 600,
-  fontFamily: 'var(--ov-font-ui)',
-  color: 'var(--ov-fg-base, #e6edf3)',
-} as const;
+  fontFamily: 'var(--ov-font-sans)',
+  color: 'var(--ov-color-fg-default)',
+};
 
-const popoverBodySx = {
-  px: 1.5,
-  py: 1.25,
+const popoverBodyStyle: React.CSSProperties = {
+  paddingInline: 12,
+  paddingBlock: 10,
   display: 'flex',
   flexDirection: 'column',
-  gap: 1.25,
-} as const;
+  gap: 10,
+};
 
-const remotePortSx = {
+const remotePortStyle: React.CSSProperties = {
   fontSize: '0.75rem',
   fontFamily: 'var(--ov-font-mono, monospace)',
-  color: 'var(--ov-fg-muted, #8b949e)',
-} as const;
+  color: 'var(--ov-color-fg-muted)',
+};
 
-const localPortInputSx = {
-  all: 'unset',
-  width: 80,
-  fontSize: '0.75rem',
-  fontFamily: 'var(--ov-font-mono, monospace)',
-  color: 'var(--ov-fg-base, #e6edf3)',
-  bgcolor: 'rgba(255,255,255,0.04)',
-  border: '1px solid var(--ov-border-default, #30363d)',
-  borderRadius: '4px',
-  px: '6px',
-  py: '3px',
-  '&::placeholder': { color: 'var(--ov-fg-faint, #484f58)' },
-  '&:focus': { borderColor: 'var(--ov-primary-default, #58a6ff)' },
-} as const;
+const localPortInputStyle: React.CSSProperties = { width: 80 };
 
-const checkboxSx = {
-  accentColor: 'var(--ov-primary-default, #58a6ff)',
-  width: 14,
-  height: 14,
-  cursor: 'pointer',
-} as const;
+const portErrorStyle: React.CSSProperties = { fontSize: '0.625rem', color: 'var(--ov-color-danger)' };
 
-const popoverFooterSx = {
+const popoverFooterStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'flex-end',
-  px: 1.5,
-  py: 1,
-  borderTop: '1px solid var(--ov-border-default, #30363d)',
-} as const;
+  paddingInline: 12,
+  paddingBlock: 8,
+  borderTop: '1px solid var(--ov-color-border-default)',
+};
 
-const configRowSx = {
+const configRowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-} as const;
+};
 
-const configRowLabelSx = {
+const configRowLabelStyle: React.CSSProperties = {
   fontSize: '0.6875rem',
-  color: 'var(--ov-fg-faint, #8b949e)',
+  color: 'var(--ov-color-fg-subtle)',
   minWidth: 72,
   flexShrink: 0,
-} as const;
+};
 
-const protocolRowSx = { display: 'flex', gap: 0.5 } as const;
+const localPortColumnStyle: React.CSSProperties = { gap: 2 };
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -164,10 +148,10 @@ function collectPorts(spec: PodSpec): PortEntry[] {
 
 function ConfigRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <Box sx={configRowSx}>
-      <Box sx={configRowLabelSx}>{label}</Box>
+    <div style={configRowStyle}>
+      <div style={configRowLabelStyle}>{label}</div>
       {children}
-    </Box>
+    </div>
   );
 }
 
@@ -211,114 +195,81 @@ function ForwardConfigPopover({ anchorEl, port, onClose, onConfirm }: ForwardCon
     onClose();
   };
 
+  const open = Boolean(anchorEl) && Boolean(port);
+
   return (
-    <Popover
-      open={Boolean(anchorEl) && Boolean(port)}
-      anchorEl={anchorEl}
-      onClose={onClose}
-      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      slotProps={{ paper: { sx: popoverPaperSx } }}
+    <Popover.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      <Box sx={popoverHeaderSx}>
-        <Icon name="LuNetwork" size={12} />
-        <Box sx={popoverTitleSx}>Port Forward — :{port?.containerPort}</Box>
-      </Box>
+      <Popover.Portal>
+        <Popover.Positioner anchor={anchorEl} side="top" align="center" sideOffset={4}>
+          <Popover.Popup style={popoverPopupStyle}>
+            <div style={popoverHeaderStyle}>
+              <Icon name="LuNetwork" size={12} />
+              <div style={popoverTitleStyle}>Port Forward — :{port?.containerPort}</div>
+            </div>
 
-      <Box sx={popoverBodySx}>
-        <ConfigRow label="Remote Port">
-          <Box sx={remotePortSx}>
-            {port?.containerPort}/{port?.protocol || 'TCP'}
-          </Box>
-        </ConfigRow>
+            <div style={popoverBodyStyle}>
+              <ConfigRow label="Remote Port">
+                <div style={remotePortStyle}>
+                  {port?.containerPort}/{port?.protocol || 'TCP'}
+                </div>
+              </ConfigRow>
 
-        <ConfigRow label="Local Port">
-          <Stack direction="column" gap={0.25}>
-            <Box
-              component="input"
-              type="number"
-              placeholder="Auto"
-              value={localPort}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                setLocalPort(e.target.value);
-                setPortError('');
-              }}
-              sx={{
-                ...localPortInputSx,
-                ...(portError ? { borderColor: 'var(--ov-danger-default, #f85149)' } : {}),
-              }}
-            />
-            {portError && (
-              <Box sx={{ fontSize: '0.625rem', color: 'var(--ov-danger-default, #f85149)' }}>
-                {portError}
-              </Box>
-            )}
-          </Stack>
-        </ConfigRow>
+              <ConfigRow label="Local Port">
+                <Stack direction="column" spacing={0} style={localPortColumnStyle}>
+                  <Input.Control
+                    size="xs"
+                    mono
+                    type="number"
+                    placeholder="Auto"
+                    aria-label="Local port"
+                    aria-invalid={portError ? true : undefined}
+                    value={localPort}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      setLocalPort(e.target.value);
+                      setPortError('');
+                    }}
+                    style={localPortInputStyle}
+                  />
+                  {portError && <div style={portErrorStyle}>{portError}</div>}
+                </Stack>
+              </ConfigRow>
 
-        <ConfigRow label="Protocol">
-          <Box sx={protocolRowSx} role="radiogroup" aria-label="Protocol">
-            {(['TCP', 'UDP'] as const).map((p) => (
-              <Box
-                key={p}
-                component="button"
-                role="radio"
-                aria-checked={protocol === p}
-                tabIndex={0}
-                onClick={() => setProtocol(p)}
-                onKeyDown={(e: React.KeyboardEvent) => {
-                  if (e.key === ' ' || e.key === 'Enter') {
-                    e.preventDefault();
-                    setProtocol(p);
-                  }
-                }}
-                sx={{
-                  all: 'unset',
-                  fontSize: '0.6875rem',
-                  fontWeight: 600,
-                  fontFamily: 'var(--ov-font-ui)',
-                  px: '8px',
-                  py: '2px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  border: '1px solid',
-                  borderColor:
-                    protocol === p
-                      ? 'var(--ov-primary-default, #58a6ff)'
-                      : 'var(--ov-border-default, #30363d)',
-                  color:
-                    protocol === p
-                      ? 'var(--ov-primary-default, #58a6ff)'
-                      : 'var(--ov-fg-muted, #8b949e)',
-                  bgcolor: protocol === p ? 'rgba(88,166,255,0.1)' : 'transparent',
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
-                }}
-              >
-                {p}
-              </Box>
-            ))}
-          </Box>
-        </ConfigRow>
+              <ConfigRow label="Protocol">
+                <SegmentedControl
+                  size="xs"
+                  aria-label="Protocol"
+                  value={protocol}
+                  onValueChange={(v) => setProtocol(v as 'TCP' | 'UDP')}
+                >
+                  <SegmentedControl.Item value="TCP">TCP</SegmentedControl.Item>
+                  <SegmentedControl.Item value="UDP">UDP</SegmentedControl.Item>
+                </SegmentedControl>
+              </ConfigRow>
 
-        <ConfigRow label="Open Browser">
-          <Box
-            component="input"
-            type="checkbox"
-            checked={openInBrowser}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setOpenInBrowser(e.target.checked)
-            }
-            sx={checkboxSx}
-          />
-        </ConfigRow>
-      </Box>
+              <ConfigRow label="Open Browser">
+                <Checkbox
+                  size="sm"
+                  aria-label="Open in browser"
+                  checked={openInBrowser}
+                  onCheckedChange={(checked) => setOpenInBrowser(checked)}
+                />
+              </ConfigRow>
+            </div>
 
-      <Box sx={popoverFooterSx}>
-        <Button size="sm" color="primary" emphasis="soft" sx={{ py: 0, px: 3, minHeight: 26 }} onClick={handleConfirm}>
-          <Text sx={{ fontSize: 12 }}>Forward</Text>
-        </Button>
-      </Box>
-    </Popover>
+            <div style={popoverFooterStyle}>
+              <Button size="sm" color="brand" variant="soft" onClick={handleConfirm}>
+                Forward
+              </Button>
+            </div>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
@@ -398,68 +349,59 @@ const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
 
   return (
     <>
-      <Box sx={cardContainerSx}>
-        <Box sx={headerSx}>
+      <div style={cardContainerStyle}>
+        <div style={headerStyle}>
           <Icon name="LuNetwork" size={14} />
           <Text weight="semibold" size="sm">
             Ports
           </Text>
-          <Chip
-            size="xs"
-            emphasis="outline"
-            color="primary"
-            sx={chipSx}
-            label={String(ports.length)}
-          />
-        </Box>
+          <Chip size="xs" variant="outline" color="brand" style={chipStyle}>
+            {String(ports.length)}
+          </Chip>
+        </div>
         {ports.map((entry, idx) => {
           const existing = portMap[Number(entry.port.containerPort)];
           return (
             <React.Fragment key={`${entry.containerName}-${entry.port.containerPort}`}>
-              {idx > 0 && <Divider />}
-              <Box sx={portEntrySx}>
-                <Stack direction="row" gap={1} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
-                  <Text size="xs" weight="semibold" noWrap sx={{ fontSize: 12 }}>
+              {idx > 0 && <Separator />}
+              <div style={portEntryStyle}>
+                <Stack direction="row" spacing={2} align="center" style={portInfoStyle}>
+                  <Text size="xs" weight="semibold" truncate style={portNameStyle}>
                     {entry.port.name || entry.port.containerPort}
                   </Text>
-                  <Text size="xs" sx={{ fontSize: 11, color: 'neutral.400' }} noWrap>
+                  <Text size="xs" tone="muted" truncate style={containerNameStyle}>
                     {entry.containerName}
                   </Text>
-                  <Chip
-                    size="xs"
-                    emphasis="soft"
-                    color="neutral"
-                    sx={chipSx}
-                    label={`${entry.port.containerPort}/${entry.port.protocol || 'TCP'}`}
-                  />
+                  <Chip size="xs" variant="soft" color="neutral" style={chipStyle}>
+                    {`${entry.port.containerPort}/${entry.port.protocol || 'TCP'}`}
+                  </Chip>
                   {existing && (
-                    <Chip
-                      size="xs"
-                      emphasis="soft"
-                      color="success"
-                      sx={chipSx}
-                      label="Forwarded"
-                    />
+                    <Chip size="xs" variant="soft" color="success" style={chipStyle}>
+                      Forwarded
+                    </Chip>
                   )}
                 </Stack>
 
-                <Stack direction="row" gap={0.5} alignItems="center" flexShrink={0}>
+                <Stack direction="row" spacing={1} align="center" style={portActionsStyle}>
                   {existing && (
-                    <Tooltip content="Open in browser">
+                    <SimpleTooltip content="Open in browser">
                       <Chip
-                        emphasis="soft"
-                        sx={chipBorderRadiusSmSx}
+                        variant="soft"
+                        size="sm"
+                        clickable
+                        style={chipStyle}
                         onClick={() => BrowserOpenURL(`http://localhost:${existing.local_port}`)}
-                        label={`localhost:${existing.local_port}`}
-                      />
-                    </Tooltip>
+                      >
+                        {`localhost:${existing.local_port}`}
+                      </Chip>
+                    </SimpleTooltip>
                   )}
                   <Button
-                    sx={forwardBtnSx}
-                    color="primary"
-                    emphasis="soft"
+                    style={forwardBtnStyle}
+                    color="brand"
+                    variant="soft"
                     size="sm"
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent<HTMLElement>) => {
                       if (!existing) {
                         handleOpenConfig(e, entry.port);
                       } else {
@@ -467,14 +409,14 @@ const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
                       }
                     }}
                   >
-                    <Text sx={forwardBtnTextSx}>{!existing ? 'Forward' : 'Stop'}</Text>
+                    {!existing ? 'Forward' : 'Stop'}
                   </Button>
                 </Stack>
-              </Box>
+              </div>
             </React.Fragment>
           );
         })}
-      </Box>
+      </div>
 
       <ForwardConfigPopover
         anchorEl={configAnchor}

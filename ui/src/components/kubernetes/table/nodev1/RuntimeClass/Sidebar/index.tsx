@@ -1,5 +1,5 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import { RuntimeClass } from 'kubernetes-types/node/v1';
 import React from 'react';
 
@@ -7,6 +7,8 @@ import MetadataSection from '../../../../../shared/sidebar/pages/overview/sectio
 
 import RuntimeClassHandlerSection from './RuntimeClassHandlerSection';
 import RuntimeClassSchedulingSection from './RuntimeClassSchedulingSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<RuntimeClass>;
@@ -20,8 +22,8 @@ export const RuntimeClassSidebar: React.FC<Props> = ({ ctx }) => {
   const data = ctx.data;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <MetadataSection data={data.metadata} />
         <RuntimeClassHandlerSection data={data} />
       </Stack>

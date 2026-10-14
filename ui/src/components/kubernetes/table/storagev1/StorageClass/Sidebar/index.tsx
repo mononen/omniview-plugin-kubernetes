@@ -1,5 +1,5 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { StorageClass } from 'kubernetes-types/storage/v1';
 import React from 'react';
 
@@ -7,6 +7,8 @@ import KVCard from '../../../../../shared/KVCard';
 import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import SidebarSection from '../../../../../shared/SidebarSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<StorageClass>;
@@ -19,8 +21,8 @@ export const StorageClassSidebar: React.FC<Props> = ({ ctx }) => {
   const params = sc.parameters as Record<string, string> | undefined;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={sc.metadata} />
 
         <SidebarSection title="Configuration">

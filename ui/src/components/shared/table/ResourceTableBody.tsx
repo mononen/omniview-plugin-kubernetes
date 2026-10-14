@@ -6,8 +6,8 @@ import React from 'react';
 import type { KubernetesResourceObject } from '../../../types/resource';
 
 import { type Props as ResourceTableProps } from './ResourceTable';
+import styles from './ResourceTable/ResourceTable.module.css';
 import ResourceTableRow from './ResourceTableRow';
-// import ResourceTableRow from './ResourceTableRowContainer'
 
 type Props = Omit<ResourceTableProps, 'columns' | 'idAccessor'> & {
   table: Table<KubernetesResourceObject>;
@@ -60,11 +60,9 @@ const ResourceTableBody: React.FC<Props> = ({
 
   return (
     <tbody
-      style={{
-        display: 'grid',
-        height: `${virtualizer.getTotalSize()}px`, // Tells scrollbar how big the table is
-        position: 'relative', // Needed for absolute positioning of rows
-      }}
+      className={styles.body}
+      // Tells the scrollbar how big the table is; rows are absolutely positioned
+      style={{ height: `${virtualizer.getTotalSize()}px` }}
     >
       {virtualizer.getVirtualItems().map((virtualRow) => {
         const row = rows[virtualRow.index];

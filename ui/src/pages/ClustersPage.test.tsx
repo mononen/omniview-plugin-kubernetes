@@ -135,8 +135,8 @@ describe('Loading state', () => {
     mockConnectionsData = undefined;
     const { container } = renderPage();
 
-    // Skeleton elements should be present (MUI Skeleton renders spans with class MuiSkeleton-root)
-    const skeletons = container.querySelectorAll('.MuiSkeleton-root');
+    // Skeleton elements should be present (base-ui Skeleton marks its root with data-ov-component)
+    const skeletons = container.querySelectorAll('[data-ov-component="skeleton"]');
     expect(skeletons.length).toBeGreaterThanOrEqual(4);
 
     // Should NOT show "No Clusters Found"

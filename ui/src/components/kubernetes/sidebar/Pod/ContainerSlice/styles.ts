@@ -1,72 +1,68 @@
-export const containerSx = { py: 1, px: 1.25 } as const;
-export const headerSx = { mb: 1 } as const;
-export const chipSx = { borderRadius: 1 } as const;
-export const infoRowSx = { minHeight: 28, alignItems: 'flex-start' } as const;
-export const infoRowLabelCellSx = { display: 'flex', alignItems: 'center', minHeight: 28 } as const;
-export const infoRowValueCellSx = { display: 'flex', alignItems: 'center', minHeight: 28 } as const;
-export const fontSize13Sx = { fontSize: 13 } as const;
-export const resourceBarRowSx = { minHeight: 32 } as const;
-export const resourceBarLabelSx = { minWidth: 85, flexShrink: 0 } as const;
-export const resourceBarContainerSx = { flex: 1, display: 'flex', alignItems: 'center' } as const;
-export const resourceBarBgSx = {
+import type React from 'react';
+
+type Style = React.CSSProperties;
+
+export const containerStyle: Style = { paddingBlock: 8, paddingInline: 10 };
+export const headerStyle: Style = { marginBottom: 8 };
+export const chipStyle: Style = { borderRadius: 4 };
+export const infoRowStyle: Style = { minHeight: 28, alignItems: 'flex-start' };
+export const infoRowLabelCellStyle: Style = { display: 'flex', alignItems: 'center', minHeight: 28 };
+export const infoRowValueCellStyle: Style = { display: 'flex', alignItems: 'center', minHeight: 28 };
+export const fontSize13Style: Style = { fontSize: 13 };
+export const resourceBarRowStyle: Style = { minHeight: 32 };
+export const resourceBarLabelStyle: Style = { minWidth: 85, flexShrink: 0, gap: 6 };
+export const resourceBarContainerStyle: Style = { flex: 1, display: 'flex', alignItems: 'center' };
+export const resourceBarBgStyle: Style = {
   width: '100%',
   height: 10,
   borderRadius: 5,
-  bgcolor: 'action.hover',
+  backgroundColor: 'var(--ov-color-state-hover)',
   overflow: 'hidden',
-} as const;
-export const resourceBarTextSx = {
+};
+export const resourceBarTextStyle: Style = {
   fontSize: 12,
-  color: 'neutral.300',
   minWidth: 100,
   textAlign: 'right',
   flexShrink: 0,
-} as const;
-export const infoCardSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-  bgcolor: 'background.level1',
+};
+export const infoCardStyle: Style = {
+  borderRadius: 4,
+  border: '1px solid var(--ov-color-border-default)',
   overflow: 'hidden',
-  p: 1,
-} as const;
-export const resourceCardSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-  bgcolor: 'background.level1',
+  padding: 8,
+};
+export const resourceCardStyle: Style = {
+  borderRadius: 4,
+  border: '1px solid var(--ov-color-border-default)',
   overflow: 'hidden',
-} as const;
-export const resourceCardHeaderSx = {
-  py: 0.5,
-  px: 1,
-  bgcolor: 'background.surface',
-  borderBottom: '1px solid',
-  borderColor: 'divider',
+};
+export const resourceCardHeaderStyle: Style = {
+  paddingBlock: 4,
+  paddingInline: 8,
+  backgroundColor: 'var(--ov-color-bg-surface)',
+  borderBottom: '1px solid var(--ov-color-border-default)',
   display: 'flex',
   alignItems: 'center',
-} as const;
-export const resourceCardBodySx = { py: 0.75, px: 1 } as const;
-export const restartHeaderSx = {
-  py: 0.5,
-  px: 1,
-  bgcolor: 'background.surface',
-  borderBottom: '1px solid',
-  borderColor: 'divider',
+};
+export const resourceCardBodyStyle: Style = { paddingBlock: 6, paddingInline: 8 };
+export const restartHeaderStyle: Style = {
+  paddingBlock: 4,
+  paddingInline: 8,
+  backgroundColor: 'var(--ov-color-bg-surface)',
+  borderBottom: '1px solid var(--ov-color-border-default)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-} as const;
-export const restartBodySx = { py: 0.75, px: 1 } as const;
-export const lastTermLabelSx = {
-  color: 'text.secondary',
+};
+export const restartBodyStyle: Style = { paddingBlock: 6, paddingInline: 8 };
+export const lastTermLabelStyle: Style = {
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   fontSize: 10,
-  mb: 0.25,
-} as const;
-export const termEntryRowSx = { minHeight: 22 } as const;
-export const termLabelCellSx = { display: 'flex', alignItems: 'center' } as const;
-export const termValueCellSx = { display: 'flex', alignItems: 'center' } as const;
-export const termLabelTextSx = { fontSize: 12, color: 'text.secondary' } as const;
-export const waitingDividerSx = { my: 0.75 } as const;
+  marginBottom: 2,
+};
+export const termEntryRowStyle: Style = { minHeight: 22 };
+export const termLabelCellStyle: Style = { display: 'flex', alignItems: 'center' };
+export const termValueCellStyle: Style = { display: 'flex', alignItems: 'center' };
+export const termLabelTextStyle: Style = { fontSize: 12 };
+export const waitingDividerStyle: Style = { marginBlock: 6 };

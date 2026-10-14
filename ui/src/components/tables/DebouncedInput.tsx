@@ -1,38 +1,8 @@
-import { Search, Close } from '@mui/icons-material';
-import Box from '@mui/material/Box';
-import InputBase from '@mui/material/InputBase';
+import { SearchInput } from '@omniviewdev/base-ui';
 import { useState, useEffect } from 'react';
+import { LuSearch } from 'react-icons/lu';
 
-const containerSx = {
-  display: 'flex',
-  alignItems: 'center',
-  flex: 1,
-  maxWidth: 360,
-  height: 28,
-  border: '1px solid var(--ov-border-default)',
-  borderRadius: '4px',
-  bgcolor: 'var(--ov-bg-base)',
-  px: 0.75,
-  '&:focus-within': { borderColor: 'var(--ov-accent)' },
-} as const;
-
-const searchIconSx = { fontSize: 14, color: 'var(--ov-fg-faint)', mr: 0.5 } as const;
-
-const inputSx = {
-  flex: 1,
-  fontSize: '0.75rem',
-  color: 'var(--ov-fg-default)',
-  '& input': { py: 0, px: 0 },
-  '& input::placeholder': { color: 'var(--ov-fg-faint)', opacity: 1 },
-} as const;
-
-const clearIconSx = {
-  fontSize: 14,
-  color: 'var(--ov-fg-faint)',
-  cursor: 'pointer',
-  ml: 0.5,
-  '&:hover': { color: 'var(--ov-fg-default)' },
-} as const;
+const inputStyle = { flex: 1, maxWidth: 360 } as const;
 
 export type DebounceProps = {
   value: string;
@@ -54,11 +24,6 @@ export function DebouncedInput({
 }: DebounceProps) {
   const [value, setValue] = useState(initialValue);
 
-  const handleClear = () => {
-    setValue('');
-    onChange('');
-  };
-
   useEffect(() => {
     setValue(initialValue);
   }, [initialValue]);
@@ -74,25 +39,22 @@ export function DebouncedInput({
   }, [value, debounce, onChange]);
 
   return (
-    <Box
-      sx={containerSx}
-    >
-      <Search sx={searchIconSx} />
-      <InputBase
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder={placeholder}
-        // eslint-disable-next-line jsx-a11y/no-autofocus
-        autoFocus={autoFocus}
-        autoComplete="off"
-        sx={inputSx}
-      />
-      {value && (
-        <Close
-          sx={clearIconSx}
-          onClick={handleClear}
-        />
-      )}
-    </Box>
+    <SearchInput
+      size="sm"
+      variant="outline"
+      value={value}
+      onValueChange={setValue}
+      onClear={() => {
+        setValue('');
+        onChange('');
+      }}
+      placeholder={placeholder}
+      startDecorator={<LuSearch size={14} />}
+      // eslint-disable-next-line jsx-a11y/no-autofocus
+      autoFocus={autoFocus}
+      autoComplete="off"
+      aria-label={placeholder}
+      style={inputStyle}
+    />
   );
 }

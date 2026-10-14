@@ -1,5 +1,5 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { ReplicationController } from 'kubernetes-types/core/v1';
 import type { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
@@ -8,6 +8,8 @@ import KVCard from '../../../../../shared/KVCard';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import WorkloadPortsCard from '../../../../../shared/WorkloadPortsCard';
 import WorkloadStatusSection from '../../../../../shared/WorkloadStatusSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<ReplicationController>;
@@ -22,8 +24,8 @@ export const ReplicationControllerSidebar: React.FC<Props> = ({ ctx }) => {
   const selector = rc.spec?.selector as Record<string, string> | undefined;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={rc.metadata} />
 
         <WorkloadStatusSection

@@ -1,15 +1,7 @@
-import { styled, useTheme } from '@mui/material/styles';
-import { useDrawingArea } from '@mui/x-charts/hooks';
-import { PieChart } from '@mui/x-charts/PieChart';
 import * as React from 'react';
 
-const StyledText = styled('text')(({ theme }) => ({
-  fill: theme.palette.text.primary,
-  textAnchor: 'middle',
-  dominantBaseline: 'central',
-  fontSize: 10,
-  fontWeight: 'bolder',
-}));
+import { DonutChart } from '../../../../components/shared/charts';
+import type { DonutSegment } from '../../../../components/shared/charts';
 
 type Props = {
   label: string;
@@ -18,37 +10,28 @@ type Props = {
   failure: number;
 };
 
-function PieCenterLabel({ children }: { children: React.ReactNode }) {
-  const { width, height, left, top } = useDrawingArea();
-  return (
-    <StyledText x={left + width / 2} y={top + height / 2}>
-      {children}
-    </StyledText>
-  );
-}
+const chartStyle: React.CSSProperties = { minWidth: 140 };
 
 export const ScorecardChart: React.FC<Props> = ({ label, success, warning, failure }) => {
-  const theme = useTheme();
+  const segments = React.useMemo<DonutSegment[]>(
+    () => [
+      { value: success, color: 'var(--ov-color-success)', label: 'Passing' },
+      { value: warning, color: 'var(--ov-color-warning)', label: 'Warning' },
+      { value: failure, color: 'var(--ov-color-danger)', label: 'Failing' },
+    ],
+    [success, warning, failure],
+  );
 
   return (
-    <PieChart
-      series={[
-        {
-          data: [
-            { value: success, color: theme.palette.success.main },
-            { value: warning, color: theme.palette.warning.main },
-            { value: failure, color: theme.palette.error.main },
-          ],
-          innerRadius: 36,
-          outerRadius: 50,
-          cornerRadius: 2,
-          paddingAngle: 2,
-        },
-      ]}
+    <DonutChart
+      segments={segments}
+      innerRadius={36}
+      outerRadius={50}
+      paddingAngle={2}
       height={140}
-    >
-      <PieCenterLabel>{label}</PieCenterLabel>
-    </PieChart>
+      centerLabel={label}
+      style={chartStyle}
+    />
   );
 };
 

@@ -1,8 +1,5 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
+import { Stack, Text, Separator } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import type { Service } from 'kubernetes-types/core/v1';
 import React from 'react';
 
@@ -13,15 +10,13 @@ import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import ServicePortsSection from './ServicePortsSection';
 import ServiceStatusSection from './ServiceStatusSection';
 
-const sectionBorderSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-} as const;
+const fullWidthStyle = { width: '100%' } as const;
 
-const titleAreaSx = { py: 0.5, px: 1 } as const;
+const sectionBorderStyle: React.CSSProperties = { borderRadius: 4, border: '1px solid', borderColor: 'var(--ov-color-border-default)' };
 
-const contentAreaSx = { py: 0.5, px: 1, bgcolor: 'background.level1' } as const;
+const titleAreaStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8 };
+
+const contentAreaStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8, background: 'var(--ov-color-bg-surface-raised)' };
 
 interface Props {
   ctx: DrawerContext<Service>;
@@ -45,20 +40,20 @@ export const ServiceSidebar: React.FC<Props> = ({ ctx }) => {
     spec?.externalTrafficPolicy;
 
   return (
-    <Stack direction="column" width={'100%'} spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={svc.metadata} />
         <ServiceStatusSection service={svc} connectionID={connectionID} />
 
         {hasConfig && (
-          <Box sx={sectionBorderSx}>
-            <Box sx={titleAreaSx}>
+          <div style={sectionBorderStyle}>
+            <div style={titleAreaStyle}>
               <Text weight="semibold" size="sm">
                 Configuration
               </Text>
-            </Box>
-            <Divider />
-            <Box sx={contentAreaSx}>
+            </div>
+            <Separator />
+            <div style={contentAreaStyle}>
               <LabeledEntry
                 label="Session Affinity"
                 value={spec?.sessionAffinity || 'None'}
@@ -75,8 +70,8 @@ export const ServiceSidebar: React.FC<Props> = ({ ctx }) => {
               {spec?.externalTrafficPolicy && (
                 <LabeledEntry label="External Traffic" value={spec.externalTrafficPolicy} />
               )}
-            </Box>
-          </Box>
+            </div>
+          </div>
         )}
       </Stack>
 

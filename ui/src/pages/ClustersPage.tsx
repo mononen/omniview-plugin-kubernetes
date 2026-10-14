@@ -1,9 +1,5 @@
-import Box from '@mui/material/Box';
-import Skeleton from '@mui/material/Skeleton';
-import MuiTab from '@mui/material/Tab';
-import MuiTabs from '@mui/material/Tabs';
+import { Skeleton, Stack, Tabs } from '@omniviewdev/base-ui';
 import { usePluginContext, useConnections, useConnection, useSnackbar } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import React from 'react';
 
 import ClusterHub from '../components/connections/ClusterHub';
@@ -27,27 +23,32 @@ import type {
 
 const DEFAULT_VISIBLE_COLUMNS = ['cluster', 'kubeconfig', 'user'];
 
-const outerContainerSx = {
+const outerContainerStyle: React.CSSProperties = {
   width: '100%',
   flex: 1,
   minHeight: 0,
   display: 'flex',
   flexDirection: 'column',
-} as const;
+};
 
-const tabsSx = {
-  px: 1,
-  pt: 0.5,
+const tabsListStyle: React.CSSProperties = { paddingInline: 8, paddingTop: 4 };
+
+const fullSizeStyle: React.CSSProperties = { width: '100%', height: '100%' };
+
+const panelBaseStyle: React.CSSProperties = {
+  paddingInline: 8,
+  paddingBlock: 4,
+  flex: 1,
   minHeight: 0,
-} as const;
+  overflow: 'auto',
+};
 
-const tabItemSx = { minHeight: 32, py: 0.5, textTransform: 'none' } as const;
-
-const fullSizeSx = { width: '100%', height: '100%' } as const;
-
-const loadingSkeletonSx = { display: 'flex', flexDirection: 'column', gap: 1.5, p: 1 } as const;
-
-const skeletonItemSx = { borderRadius: 1 } as const;
+const loadingSkeletonStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 12,
+  padding: 8,
+};
 
 export default function ClustersPage(): React.ReactElement {
   const { meta } = usePluginContext();
@@ -265,34 +266,23 @@ export default function ClustersPage(): React.ReactElement {
   const noResults = !noConnections && grouped.filteredCount === 0;
 
   return (
-    <Stack direction="column" sx={fullSizeSx}>
-      <Box
-        sx={outerContainerSx}
+    <Stack direction="column" spacing={0} style={fullSizeStyle}>
+      <Tabs.Root
+        value={activeTab}
+        onValueChange={(val) => setActiveTab(val as 'hub' | 'all')}
+        size="sm"
+        style={outerContainerStyle}
       >
-        <MuiTabs
-          value={activeTab}
-          onChange={(_e: React.SyntheticEvent, val: string) => setActiveTab(val as 'hub' | 'all')}
-          sx={tabsSx}
-        >
-          <MuiTab value="hub" label="Hub" sx={tabItemSx} />
-          <MuiTab
-            value="all"
-            label="All Clusters"
-            sx={tabItemSx}
-          />
-        </MuiTabs>
+        <Tabs.List aria-label="Cluster views" style={tabsListStyle}>
+          <Tabs.Tab value="hub">Hub</Tabs.Tab>
+          <Tabs.Tab value="all">All Clusters</Tabs.Tab>
+          <Tabs.Indicator />
+        </Tabs.List>
 
-        <Box
+        <div
           role="tabpanel"
           hidden={activeTab !== 'hub'}
-          sx={{
-            px: 1,
-            py: 0.5,
-            flex: 1,
-            minHeight: 0,
-            overflow: 'auto',
-            display: activeTab === 'hub' ? 'block' : 'none',
-          }}
+          style={{ ...panelBaseStyle, display: activeTab === 'hub' ? 'block' : 'none' }}
         >
           {isInitialLoading ? (
             <ConnectionsLoadingSkeleton />
@@ -314,20 +304,16 @@ export default function ClustersPage(): React.ReactElement {
               onEditFolder={handleEditFolder}
             />
           )}
-        </Box>
+        </div>
 
-        <Box
+        <div
           role="tabpanel"
           hidden={activeTab !== 'all'}
-          sx={{
-            px: 1,
-            py: 0.5,
-            flex: 1,
-            minHeight: 0,
-            overflow: 'auto',
+          style={{
+            ...panelBaseStyle,
             display: activeTab === 'all' ? 'flex' : 'none',
             flexDirection: 'column',
-            gap: 0.75,
+            gap: 6,
           }}
         >
           <ClustersToolbar
@@ -385,8 +371,8 @@ export default function ClustersPage(): React.ReactElement {
               onRecordAccess={(connectionId) => { void preferences.recordAccess(connectionId); }}
             />
           )}
-        </Box>
-      </Box>
+        </div>
+      </Tabs.Root>
 
       {deleteTarget && (
         <DeleteConnectionHandler
@@ -415,11 +401,11 @@ export default function ClustersPage(): React.ReactElement {
 
 function ConnectionsLoadingSkeleton() {
   return (
-    <Box sx={loadingSkeletonSx}>
+    <div style={loadingSkeletonStyle}>
       {Array.from({ length: 4 }, (_, i) => (
-        <Skeleton key={i} variant="rounded" height={48} sx={skeletonItemSx} />
+        <Skeleton key={i} variant="rounded" height={48} />
       ))}
-    </Box>
+    </div>
   );
 }
 

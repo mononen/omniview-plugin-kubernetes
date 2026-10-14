@@ -1,10 +1,10 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
-import { Stack } from '@omniviewdev/ui/layout';
 import { useQuery } from '@tanstack/react-query';
+import jsonpath from 'jsonpath';
 import type { Condition, ObjectMeta } from 'kubernetes-types/meta/v1';
 import get from 'lodash.get';
-import jsonpath from 'jsonpath';
 import React from 'react';
 
 import ConditionChip from '../ConditionChip';
@@ -33,6 +33,9 @@ function extractValue(data: Record<string, unknown>, accessor: string): string {
   }
   return '';
 }
+
+const fullWidthStyle: React.CSSProperties = { width: '100%' };
+const conditionsBodyStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 4 };
 
 const SKIP_COLUMNS = new Set(['name', 'namespace', 'age', 'created', 'creation timestamp']);
 
@@ -87,8 +90,8 @@ const GenericResourceSidebar: React.FC<Props> = ({ ctx }) => {
   }
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={metadata} />
 
         {keyFields.length > 0 && (
@@ -100,7 +103,7 @@ const GenericResourceSidebar: React.FC<Props> = ({ ctx }) => {
         )}
 
         {conditions.length > 0 && (
-          <SidebarSection title="Conditions" bodySx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+          <SidebarSection title="Conditions" bodyStyle={conditionsBodyStyle}>
             {conditions.map((c) => (
               <ConditionChip
                 key={c.type}

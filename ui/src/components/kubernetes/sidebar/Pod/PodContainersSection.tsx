@@ -1,37 +1,18 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Separator, Text } from '@omniviewdev/base-ui';
 import { Container, ContainerStatus, Pod, PodSpec } from 'kubernetes-types/core/v1';
 import React from 'react';
 
+import SectionHeading from '../shared/SectionHeading';
+import { subsectionLabelStyle } from '../shared/sectionStyles';
+
 import ContainerSlice from './ContainerSlice';
 
-const sectionHeadingSx = { mb: 0.75 } as const;
-const sectionHeadingTextSx = {
-  color: 'text.secondary',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  fontSize: 11,
-  flexShrink: 0,
-} as const;
-const sectionCountChipSx = { borderRadius: 1, flexShrink: 0 } as const;
-const sectionDividerSx = { flex: 1, height: '1px', bgcolor: 'divider' } as const;
-const groupHeaderSx = { px: 1.25, pt: 0.75, pb: 0.25 } as const;
-const groupHeaderTextSx = {
-  color: 'neutral.400',
-  fontSize: 10,
-  textTransform: 'uppercase',
-  letterSpacing: 0.5,
-} as const;
-const containerBoxSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-  bgcolor: 'background.level1',
+const groupHeaderStyle: React.CSSProperties = { padding: '6px 10px 2px' };
+const containerBoxStyle: React.CSSProperties = {
+  borderRadius: 4,
+  border: '1px solid var(--ov-color-border-default)',
   overflow: 'hidden',
-} as const;
+};
 
 type ContainerType = 'container' | 'init' | 'ephemeral';
 
@@ -94,38 +75,13 @@ function parseContainers(pod: Pod, resourceID: string, connectionID: string): Pa
   return result;
 }
 
-// ── IDE-style section heading ──
-const SectionHeading: React.FC<{ label: string; count: number }> = ({ label, count }) => (
-  <Stack direction="row" alignItems="center" gap={1} sx={sectionHeadingSx}>
-    <Text
-      size="xs"
-      weight="semibold"
-      sx={sectionHeadingTextSx}
-    >
-      {label}
-    </Text>
-    <Chip
-      size="xs"
-      emphasis="outline"
-      color="primary"
-      sx={sectionCountChipSx}
-      label={String(count)}
-    />
-    <Box sx={sectionDividerSx} />
-  </Stack>
-);
-
 // ── Sub-group header for init/ephemeral containers ──
 const GroupHeader: React.FC<{ label: string }> = ({ label }) => (
-  <Box sx={groupHeaderSx}>
-    <Text
-      size="xs"
-      weight="semibold"
-      sx={groupHeaderTextSx}
-    >
+  <div style={groupHeaderStyle}>
+    <Text size="xs" weight="semibold" tone="muted" style={subsectionLabelStyle}>
       {label}
     </Text>
-  </Box>
+  </div>
 );
 
 interface ContainersSectionProps {
@@ -153,15 +109,15 @@ const PodContainersSection: React.FC<ContainersSectionProps> = ({
   const ephemeralContainers = parsed.filter((c) => c.type === 'ephemeral');
 
   return (
-    <Box>
+    <div>
       <SectionHeading label="Containers" count={parsed.length} />
-      <Box sx={containerBoxSx}>
+      <div style={containerBoxStyle}>
         {initContainers.length > 0 && (
           <>
             <GroupHeader label="Init Containers" />
             {initContainers.map((c, i) => (
               <React.Fragment key={c.container.name}>
-                {i > 0 && <Divider />}
+                {i > 0 && <Separator />}
                 <ContainerSlice
                   {...c}
                   pod={obj}
@@ -171,12 +127,12 @@ const PodContainersSection: React.FC<ContainersSectionProps> = ({
                 />
               </React.Fragment>
             ))}
-            {(regularContainers.length > 0 || ephemeralContainers.length > 0) && <Divider />}
+            {(regularContainers.length > 0 || ephemeralContainers.length > 0) && <Separator />}
           </>
         )}
         {regularContainers.map((c, i) => (
           <React.Fragment key={c.container.name}>
-            {i > 0 && <Divider />}
+            {i > 0 && <Separator />}
             <ContainerSlice
               {...c}
               pod={obj}
@@ -188,11 +144,11 @@ const PodContainersSection: React.FC<ContainersSectionProps> = ({
         ))}
         {ephemeralContainers.length > 0 && (
           <>
-            {regularContainers.length > 0 && <Divider />}
+            {regularContainers.length > 0 && <Separator />}
             <GroupHeader label="Ephemeral Containers" />
             {ephemeralContainers.map((c, i) => (
               <React.Fragment key={c.container.name}>
-                {i > 0 && <Divider />}
+                {i > 0 && <Separator />}
                 <ContainerSlice
                   {...c}
                   pod={obj}
@@ -204,8 +160,8 @@ const PodContainersSection: React.FC<ContainersSectionProps> = ({
             ))}
           </>
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 
@@ -235,29 +191,29 @@ export const PodContainersSectionFromPodSpec: React.FC<{
   const regularContainers = containers.filter((c) => c.type === 'container');
 
   return (
-    <Box>
+    <div>
       <SectionHeading label="Containers" count={containers.length} />
-      <Box sx={containerBoxSx}>
+      <div style={containerBoxStyle}>
         {initContainers.length > 0 && (
           <>
             <GroupHeader label="Init Containers" />
             {initContainers.map((c, i) => (
               <React.Fragment key={c.container.name}>
-                {i > 0 && <Divider />}
+                {i > 0 && <Separator />}
                 <ContainerSlice {...c} volumes={spec?.volumes} />
               </React.Fragment>
             ))}
-            {regularContainers.length > 0 && <Divider />}
+            {regularContainers.length > 0 && <Separator />}
           </>
         )}
         {regularContainers.map((c, i) => (
           <React.Fragment key={c.container.name}>
-            {i > 0 && <Divider />}
+            {i > 0 && <Separator />}
             <ContainerSlice {...c} volumes={spec?.volumes} />
           </React.Fragment>
         ))}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

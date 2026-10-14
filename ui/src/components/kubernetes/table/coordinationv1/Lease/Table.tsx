@@ -1,5 +1,5 @@
+import { Chip } from '@omniviewdev/base-ui';
 import { DrawerComponent, DrawerContext } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
 import { ColumnDef } from '@tanstack/react-table';
 import { Lease } from 'kubernetes-types/coordination/v1';
 import React from 'react';
@@ -10,9 +10,8 @@ import { createStandardViews } from '../../../../shared/sidebar/createDrawerView
 import BaseOverviewPage from '../../../../shared/sidebar/pages/overview/BaseOverviewPage';
 import ResourceTable from '../../../../shared/table/ResourceTable';
 import AgeCell from '../../shared/cells/AgeCell';
+import { squareChipStyle } from '../../shared/cells/styles';
 import { withClusterResourceColumns } from '../../shared/columns';
-
-const chipBorderRadiusSx = { borderRadius: '2px' } as const;
 
 const resourceKey = 'coordination::v1::Lease';
 
@@ -33,12 +32,9 @@ const LeaseTable: React.FC = () => {
             accessorKey: 'spec.holderIdentity',
             size: 200,
             cell: ({ getValue }) => (
-              <Chip
-                size={'sm'}
-                color={'primary'}
-                sx={chipBorderRadiusSx}
-                label={getValue() as string}
-              />
+              <Chip size="sm" color="brand" style={squareChipStyle}>
+                {getValue() as string}
+              </Chip>
             ),
             meta: {
               defaultHidden: false,

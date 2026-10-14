@@ -1,5 +1,5 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { StatefulSet } from 'kubernetes-types/apps/v1';
 import type { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
@@ -13,6 +13,10 @@ import SidebarSection from '../../../../../shared/SidebarSection';
 import WorkloadPortsCard from '../../../../../shared/WorkloadPortsCard';
 import WorkloadStatusSection from '../../../../../shared/WorkloadStatusSection';
 import { PodContainersSectionFromPodSpec } from '../../../../sidebar/Pod/PodContainersSection';
+
+const cardContentStyle = { paddingInline: 8, paddingBlock: 4 } as const;
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<StatefulSet>;
@@ -32,8 +36,8 @@ export const StatefulSetSidebar: React.FC<Props> = ({ ctx }) => {
   const retentionPolicy = spec?.persistentVolumeClaimRetentionPolicy;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={sts.metadata} />
 
         <WorkloadStatusSection
@@ -85,7 +89,7 @@ export const StatefulSetSidebar: React.FC<Props> = ({ ctx }) => {
             title: vct.metadata?.name || `VCT ${i + 1}`,
             defaultExpanded: i === 0,
             children: (
-              <Stack direction="column" gap={0.5} sx={{ px: 1, py: 0.5 }}>
+              <Stack direction="column" spacing={1} style={cardContentStyle}>
                 <LabeledEntry label="Access Modes" value={vct.spec?.accessModes?.join(', ')} />
                 <LabeledEntry label="Storage" value={(vct.spec?.resources?.requests as Record<string, string> | undefined)?.storage} />
                 <LabeledEntry label="Storage Class" value={vct.spec?.storageClassName} />

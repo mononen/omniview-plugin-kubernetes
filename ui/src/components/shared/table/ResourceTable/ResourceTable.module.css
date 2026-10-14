@@ -1,0 +1,156 @@
+/*
+ * Resource table body. The frame, header, sorting and resizing come from
+ * base-ui DataTable; the body is ours so rows can be memoized per resource
+ * version and open the drawer on click. Colours use DataTable's private
+ * custom properties, which are inherited from DataTable.Root.
+ */
+
+.outer {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 6px;
+}
+
+.root {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--ov-color-bg-base);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.container {
+  flex: 1;
+  min-height: 0;
+  scrollbar-width: none;
+  transition: opacity 0.2s ease;
+}
+
+.container::-webkit-scrollbar {
+  display: none;
+}
+
+.container[data-syncing='true'] {
+  opacity: 0.85;
+}
+
+.syncIndicator {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 2px;
+  z-index: 3;
+}
+
+.body {
+  display: grid;
+  position: relative;
+}
+
+.row {
+  display: flex;
+  position: absolute;
+  width: 100%;
+  height: 30px;
+  cursor: pointer;
+  background: var(--ov-color-bg-base);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 0 8px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
+  line-height: 30px;
+  color: var(--ov-color-fg-default);
+  border-bottom: 1px solid var(--_ov-dt-divider, var(--ov-color-border-muted));
+  background: inherit;
+}
+
+.cell[data-pinned] {
+  background: var(--ov-color-bg-base);
+}
+
+.row:hover {
+  background: var(--_ov-dt-row-hover, var(--ov-color-state-hover));
+}
+
+.row[data-selected='true'] {
+  background: var(--_ov-dt-row-selected, var(--ov-color-state-selected));
+}
+
+.skeletonRow {
+  display: flex;
+  width: 100%;
+  height: 30px;
+}
+
+.skeletonCell {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--_ov-dt-divider, var(--ov-color-border-muted));
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--ov-color-border-default);
+  background: var(--ov-color-bg-surface);
+  flex-shrink: 0;
+}
+
+.toolbarSpacer {
+  flex: 1;
+}
+
+/* Error state */
+
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+.errorDetails {
+  max-width: 560px;
+  text-align: center;
+}
+
+.errorList {
+  margin: 0;
+  padding-left: 16px;
+  text-align: left;
+}
+
+.errorList li {
+  padding-block: 2px;
+}
+
+.errorCode {
+  margin-top: 8px;
+  padding: 8px;
+  max-height: 80px;
+  overflow: auto;
+  border-radius: 4px;
+  background: var(--ov-color-state-hover);
+  font-family: var(--ov-font-mono);
+  word-break: break-all;
+}

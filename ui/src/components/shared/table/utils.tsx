@@ -1,33 +1,32 @@
-import { Column } from '@tanstack/react-table';
-import { CSSProperties } from 'react';
+import { type Column } from '@tanstack/react-table';
+import { type CSSProperties } from 'react';
 
-export const getCommonPinningStyles = <T = Record<string, unknown>,>(
-  column: Column<T>,
-  header: boolean,
-): CSSProperties => {
+/**
+ * Width and pinning styles for a body cell. Mirrors base-ui DataTable's
+ * header sizing (resizable columns grow in proportion to their size, fixed
+ * ones keep their width) so body cells line up with DataTable.Header.
+ */
+export const getBodyCellStyles = <T,>(column: Column<T, unknown>): CSSProperties => {
+  const size = `var(--col-${column.id}-size)`;
   const isPinned = column.getIsPinned();
-  const isLastLeftPinnedColumn = isPinned === 'left' && column.getIsLastColumn('left');
-  const isFirstRightPinnedColumn = isPinned === 'right' && column.getIsFirstColumn('right');
-
   const styles: CSSProperties = {
-    boxShadow: isLastLeftPinnedColumn
-      ? '-1px 0 1px -1px gray inset'
-      : isFirstRightPinnedColumn
-        ? '1px 0 1px -1px gray inset'
-        : undefined,
+    flex: column.getCanResize() ? `${size} 0 0px` : `0 0 calc(${size} * 1px)`,
+    width: `calc(${size} * 1px)`,
+  };
+  if (!isPinned) return styles;
+
+  const isLastLeft = isPinned === 'left' && column.getIsLastColumn('left');
+  const isFirstRight = isPinned === 'right' && column.getIsFirstColumn('right');
+  return {
+    ...styles,
+    position: 'sticky',
+    zIndex: 1,
     left: isPinned === 'left' ? `${column.getStart('left')}px` : undefined,
     right: isPinned === 'right' ? `${column.getAfter('right')}px` : undefined,
-    position: isPinned ? 'sticky' : 'relative',
-    width: `calc(var(--col-${column.id}-size) * 1px)`,
-    zIndex: isPinned ? 1 : 0,
+    boxShadow: isLastLeft
+      ? '-4px 0 4px -4px rgb(0 0 0 / 0.12) inset'
+      : isFirstRight
+        ? '4px 0 4px -4px rgb(0 0 0 / 0.12) inset'
+        : undefined,
   };
-
-  // Only set backgroundColor when pinned — avoids clobbering inline styles with undefined
-  if (isPinned) {
-    // Header pinned cells: match header surface background
-    // Body pinned cells: inherit from the row so hover/selection colors show through
-    styles.backgroundColor = header ? 'var(--ov-bg-surface)' : 'inherit';
-  }
-
-  return styles;
 };

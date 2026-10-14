@@ -1,15 +1,16 @@
+import { Chip, Stack, Text } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
-import type { CronJob } from 'kubernetes-types/batch/v1';
 import { formatRelative } from 'date-fns';
+import type { CronJob } from 'kubernetes-types/batch/v1';
 import React from 'react';
 
 import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import ResourceLinkChip from '../../../../../shared/ResourceLinkChip';
 import SidebarSection from '../../../../../shared/SidebarSection';
+const scheduleTextStyle: React.CSSProperties = { fontFamily: 'var(--ov-font-mono)', fontWeight: 600 };
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<CronJob>;
@@ -26,18 +27,18 @@ export const CronJobSidebar: React.FC<Props> = ({ ctx }) => {
   const now = new Date();
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={cj.metadata} />
 
         <SidebarSection
           title="Schedule"
-          headerLeft={spec?.suspend && <Chip size="xs" emphasis="soft" color="warning" label="Suspended" />}
+          headerLeft={spec?.suspend && <Chip size="xs" color="warning">Suspended</Chip>}
         >
           <LabeledEntry
             label="Schedule"
             value={
-              <Text size="xs" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
+              <Text size="xs" style={scheduleTextStyle}>
                 {spec?.schedule}
               </Text>
             }
@@ -62,7 +63,7 @@ export const CronJobSidebar: React.FC<Props> = ({ ctx }) => {
 
         {status?.active && status.active.length > 0 && (
           <SidebarSection title="Active Jobs">
-            <Stack direction="row" gap={0.5} flexWrap="wrap">
+            <Stack direction="row" spacing={1} wrap>
               {status.active.map((ref) => (
                 <ResourceLinkChip
                   key={ref.name}

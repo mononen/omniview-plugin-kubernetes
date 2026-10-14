@@ -1,4 +1,4 @@
-import Grid from '@mui/material/Grid';
+import { Grid } from '@omniviewdev/base-ui';
 import type { Container, Pod } from 'kubernetes-types/core/v1';
 import React from 'react';
 
@@ -20,7 +20,7 @@ const ContainerPortsSection: React.FC<ContainerPortsSectionProps> = ({
   if (!container.ports || container.ports.length === 0) return null;
 
   return (
-    <Grid size={12}>
+    <Grid.Item span={12}>
       <PortDetailsCard
         resourceID={resourceID}
         connectionID={connectionID}
@@ -30,7 +30,7 @@ const ContainerPortsSection: React.FC<ContainerPortsSectionProps> = ({
         data={container.ports}
         podData={pod}
       />
-    </Grid>
+    </Grid.Item>
   );
 };
 

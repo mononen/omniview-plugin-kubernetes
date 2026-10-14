@@ -1,15 +1,33 @@
-import MuiAvatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import { Avatar } from '@omniviewdev/ui';
-import { Button } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Button, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 import { LuUpload, LuPalette, LuRotateCcw } from 'react-icons/lu';
 
 import { getInitials, processImageFile } from '../../utils/avatarUtils';
 import { stringToColor } from '../../utils/color';
 import { PRESET_COLORS } from '../../utils/folderIcons';
+
+import styles from './Connections.module.css';
+
+const avatarImageStyle: React.CSSProperties = {
+  width: 96,
+  height: 96,
+  borderRadius: 8,
+  objectFit: 'cover',
+  display: 'block',
+};
+
+const initialsStyle: React.CSSProperties = {
+  width: 96,
+  height: 96,
+  borderRadius: 8,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#fff',
+  fontSize: '1.75rem',
+  fontFamily: 'var(--ov-font-sans)',
+  userSelect: 'none',
+};
 
 type AvatarEditorProps = {
   name: string;
@@ -73,81 +91,53 @@ const AvatarEditor: React.FC<AvatarEditorProps> = ({
   };
 
   return (
-    <Stack alignItems="center" gap={1.5} sx={{ minWidth: 180 }}>
+    <Stack direction="column" align="center" style={{ minWidth: 180, gap: 12 }}>
       {/* Preview with drag-drop and hover overlay */}
-      <Box
+      <div
         onDragOver={(e) => {
           e.preventDefault();
           setDragOver(true);
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        sx={{
+        style={{
           position: 'relative',
           width: 96,
           height: 96,
-          borderRadius: 2,
-          outline: dragOver ? '2px dashed' : '2px solid transparent',
-          outlineColor: dragOver ? 'primary.500' : 'transparent',
+          borderRadius: 8,
+          outline: dragOver ? '2px dashed var(--ov-color-brand-500)' : '2px solid transparent',
           outlineOffset: 2,
           transition: 'outline-color 0.15s',
         }}
       >
         {avatarUrl ? (
-          <Avatar
-            src={avatarUrl}
-            sx={{ width: 96, height: 96, borderRadius: 2, '--Avatar-size': '96px' }}
-          />
+          <img src={avatarUrl} alt="" style={avatarImageStyle} />
         ) : (
-          <MuiAvatar
-            sx={{
-              width: 96,
-              height: 96,
-              borderRadius: 2,
-              bgcolor: bgColor,
-              fontSize: '1.75rem',
-            }}
-          >
-            {initials}
-          </MuiAvatar>
+          <div style={{ ...initialsStyle, backgroundColor: bgColor }}>{initials}</div>
         )}
         {/* Hover overlay */}
-        <Box
-          onClick={() => fileInputRef.current?.click()}
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            borderRadius: 2,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: 'rgba(0,0,0,0.4)',
-            opacity: 0,
-            '&:hover': { opacity: 1 },
-            transition: 'opacity 0.2s',
-            cursor: 'pointer',
-          }}
-        >
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+        <div className={styles.avatarOverlay} onClick={() => fileInputRef.current?.click()}>
           <LuUpload size={24} color="white" />
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       {/* Actions */}
-      <Stack direction="row" gap={0.75}>
+      <Stack direction="row" style={{ gap: 6 }}>
         <Button
           size="sm"
-          emphasis="outline"
+          variant="outline"
           color="neutral"
-          startAdornment={<LuUpload size={14} />}
+          startDecorator={<LuUpload size={14} />}
           onClick={() => fileInputRef.current?.click()}
         >
           Upload
         </Button>
         <Button
           size="sm"
-          emphasis={showColors ? 'solid' : 'outline'}
-          color={showColors ? 'primary' : 'neutral'}
-          startAdornment={<LuPalette size={14} />}
+          variant={showColors ? 'solid' : 'outline'}
+          color={showColors ? 'brand' : 'neutral'}
+          startDecorator={<LuPalette size={14} />}
           onClick={() => setShowColors((v) => !v)}
         >
           Color
@@ -155,9 +145,9 @@ const AvatarEditor: React.FC<AvatarEditorProps> = ({
         {(avatarUrl || avatarColor) && (
           <Button
             size="sm"
-            emphasis="outline"
+            variant="outline"
             color="neutral"
-            startAdornment={<LuRotateCcw size={14} />}
+            startDecorator={<LuRotateCcw size={14} />}
             onClick={handleReset}
           >
             Reset
@@ -169,22 +159,19 @@ const AvatarEditor: React.FC<AvatarEditorProps> = ({
 
       {/* Color swatches */}
       {showColors && (
-        <Stack direction="row" gap={0.75} flexWrap="wrap" justifyContent="center">
+        <Stack direction="row" wrap justify="center" style={{ gap: 6 }}>
           {PRESET_COLORS.map((color) => (
-            <Box
+            <button
+              type="button"
               key={color}
+              aria-label={`Use color ${color}`}
               onClick={() => handleColorPick(color)}
-              sx={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                bgcolor: color,
-                cursor: 'pointer',
-                border: avatarColor === color ? '2px solid' : '2px solid transparent',
-                borderColor: avatarColor === color ? 'text.primary' : 'transparent',
-                '&:hover': { opacity: 0.8 },
-                transition: 'border-color 0.15s, opacity 0.15s',
-              }}
+              className={
+                avatarColor === color
+                  ? `${styles.colorSwatch} ${styles.colorSwatchSelected}`
+                  : styles.colorSwatch
+              }
+              style={{ backgroundColor: color }}
             />
           ))}
         </Stack>
@@ -192,7 +179,7 @@ const AvatarEditor: React.FC<AvatarEditorProps> = ({
 
       {/* Error */}
       {error && (
-        <Text size="xs" color="danger">
+        <Text size="xs" tone="danger">
           {error}
         </Text>
       )}

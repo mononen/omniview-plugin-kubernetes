@@ -1,5 +1,5 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { PodDisruptionBudget } from 'kubernetes-types/policy/v1';
 import React from 'react';
 
@@ -8,6 +8,8 @@ import KVCard from '../../../../../shared/KVCard';
 import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import SidebarSection from '../../../../../shared/SidebarSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<PodDisruptionBudget>;
@@ -23,14 +25,14 @@ export const PodDisruptionBudgetSidebar: React.FC<Props> = ({ ctx }) => {
   const selector = spec?.selector?.matchLabels as Record<string, string> | undefined;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={pdb.metadata} />
 
         <SidebarSection
           title="Status"
           headerRight={conditions.length > 0 ? (
-            <Stack direction="row" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
+            <Stack direction="row" spacing={1} wrap justify="end">
               {conditions.map((c) => <ConditionChip key={c.type} condition={c} />)}
             </Stack>
           ) : undefined}

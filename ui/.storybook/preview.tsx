@@ -2,15 +2,14 @@ import type { Preview } from "@storybook/react-vite";
 import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import "@fontsource/roboto/300.css";
-import "@fontsource/roboto/400.css";
-import "@fontsource/roboto/500.css";
-import "@fontsource/roboto/700.css";
-import "@fontsource/material-icons";
+import "@omniviewdev/base-ui/styles.css";
+import "@omniviewdev/editors/styles.css";
 
+import { ThemeProvider } from "@omniviewdev/base-ui";
 import { RightDrawerContext, SnackbarProvider } from "@omniviewdev/runtime";
+// The published runtime's SnackbarProvider still needs the legacy notification
+// stack; the plugin itself does not import @omniviewdev/ui.
 import { NotificationStackProvider } from "@omniviewdev/ui/feedback";
-import { AppTheme } from "@omniviewdev/ui/theme";
 
 const noopDrawerContext = {
   openDrawer: () => {},
@@ -28,7 +27,7 @@ const withProviders = (Story: React.FC) => {
 
   return (
   <QueryClientProvider client={queryClient}>
-    <AppTheme defaultMode="dark">
+    <ThemeProvider initialTheme="dark" persist={false}>
       <NotificationStackProvider>
         <SnackbarProvider>
           <RightDrawerContext.Provider value={noopDrawerContext}>
@@ -36,7 +35,7 @@ const withProviders = (Story: React.FC) => {
           </RightDrawerContext.Provider>
         </SnackbarProvider>
       </NotificationStackProvider>
-    </AppTheme>
+    </ThemeProvider>
   </QueryClientProvider>
   );
 };

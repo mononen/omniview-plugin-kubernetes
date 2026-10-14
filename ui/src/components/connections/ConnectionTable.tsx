@@ -1,6 +1,4 @@
-import Box from '@mui/material/Box';
-import { IconButton } from '@omniviewdev/ui/buttons';
-import { LuChevronLeft, LuChevronRight } from 'react-icons/lu';
+import { IconButton, Text } from '@omniviewdev/base-ui';
 import {
   usePluginContext,
   useConnection,
@@ -8,8 +6,8 @@ import {
   usePluginRouter,
 } from '@omniviewdev/runtime';
 import { types } from '@omniviewdev/runtime/models';
-import { Text } from '@omniviewdev/ui/typography';
 import React from 'react';
+import { LuChevronLeft, LuChevronRight } from 'react-icons/lu';
 
 import type {
   GroupedConnectionsResult,
@@ -153,47 +151,52 @@ const GridCardWrapper: React.FC<{
   );
 };
 
-const gridContainerSx = { display: 'flex', flexDirection: 'column', gap: 1 } as const;
+const gridContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+};
 
-const paginationSx = {
+const paginationStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: 1,
-  py: 1.5,
-} as const;
+  gap: 8,
+  padding: '12px 0',
+};
 
-const paginationTextSx = { color: 'var(--ov-fg-muted)' } as const;
-
-const tableWrapperSx = {
+const tableWrapperStyle: React.CSSProperties = {
   width: '100%',
   borderRadius: 'var(--ov-radius-md, 6px)',
   overflow: 'auto',
-  border: '1px solid var(--ov-border-default, rgba(255,255,255,0.08))',
-  bgcolor: 'var(--ov-bg-surface, rgba(255,255,255,0.03))',
-} as const;
+  border: '1px solid var(--ov-color-border-default)',
+  backgroundColor: 'var(--ov-color-bg-surface)',
+};
 
-const tableStyle = { width: '100%', borderCollapse: 'collapse' } as const;
+const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse' };
 
-const theadRowStyle = {
-  backgroundColor: 'var(--ov-bg-surface-inset, rgba(255,255,255,0.02))',
+const theadRowStyle: React.CSSProperties = {
+  backgroundColor: 'var(--ov-color-bg-inset)',
   height: 28,
-} as const;
+};
 
-const columnHeaderSx = {
-  color: 'var(--ov-fg-muted)',
+const columnHeaderStyle: React.CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
-} as const;
+};
 
-const columnPickerSx = { display: 'flex', justifyContent: 'flex-end', position: 'relative' } as const;
+const columnPickerStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'flex-end',
+  position: 'relative',
+};
 
 /* ---- shared table styles ---- */
-const thSx: React.CSSProperties = {
+const thStyle: React.CSSProperties = {
   padding: '2px 8px',
   textAlign: 'left',
   verticalAlign: 'middle',
-  borderBottom: '1px solid var(--ov-border-default, rgba(255,255,255,0.08))',
+  borderBottom: '1px solid var(--ov-color-border-default)',
   whiteSpace: 'nowrap',
   height: 28,
 };
@@ -229,7 +232,7 @@ const ConnectionTable: React.FC<Props> = ({
 
   if (viewMode === 'grid') {
     return (
-      <Box sx={gridContainerSx}>
+      <div style={gridContainerStyle}>
         {grouped.groups.map((group) => {
           // Paginate only flat (ungrouped) views
           const connections = isFlat
@@ -248,12 +251,12 @@ const ConnectionTable: React.FC<Props> = ({
               onToggleCollapse={() => onToggleCollapse(group.key)}
               hideHeader={isFlat}
             >
-              <Box
-                sx={{
+              <div
+                style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
-                  gap: 1.5,
-                  p: isFlat ? 0 : 1,
+                  gap: 12,
+                  padding: isFlat ? 0 : 8,
                 }}
               >
                 {connections.map((enriched) => (
@@ -273,38 +276,38 @@ const ConnectionTable: React.FC<Props> = ({
                     onRecordAccess={() => onRecordAccess(enriched.connection.id)}
                   />
                 ))}
-              </Box>
+              </div>
               {isFlat && totalPages > 1 && (
-                <Box
-                  sx={paginationSx}
-                >
+                <div style={paginationStyle}>
                   <IconButton
                     size="sm"
-                    emphasis="ghost"
+                    variant="ghost"
                     color="neutral"
+                    aria-label="Previous page"
                     disabled={page === 0}
                     onClick={() => setPage((p) => p - 1)}
                   >
                     <LuChevronLeft size={16} />
                   </IconButton>
-                  <Text size="sm" sx={paginationTextSx}>
+                  <Text size="sm" tone="muted">
                     Page {page + 1} of {totalPages}
                   </Text>
                   <IconButton
                     size="sm"
-                    emphasis="ghost"
+                    variant="ghost"
                     color="neutral"
+                    aria-label="Next page"
                     disabled={page >= totalPages - 1}
                     onClick={() => setPage((p) => p + 1)}
                   >
                     <LuChevronRight size={16} />
                   </IconButton>
-                </Box>
+                </div>
               )}
             </ConnectionGroupComp>
           );
         })}
-      </Box>
+      </div>
     );
   }
 
@@ -318,7 +321,7 @@ const ConnectionTable: React.FC<Props> = ({
     .sort();
 
   return (
-    <Box sx={gridContainerSx}>
+    <div style={gridContainerStyle}>
       {grouped.groups.map((group) => (
         <ConnectionGroupComp
           key={group.key}
@@ -330,9 +333,7 @@ const ConnectionTable: React.FC<Props> = ({
           onToggleCollapse={() => onToggleCollapse(group.key)}
           hideHeader={isFlat}
         >
-          <Box
-            sx={tableWrapperSx}
-          >
+          <div style={tableWrapperStyle}>
             <table
               aria-label="connections table"
               style={tableStyle}
@@ -341,13 +342,9 @@ const ConnectionTable: React.FC<Props> = ({
                 <tr
                   style={theadRowStyle}
                 >
-                  <th style={{ ...thSx, width: 32, padding: '2px 4px' }} />
-                  <th style={{ ...thSx, width: '40%' }}>
-                    <Text
-                      size="xs"
-                      weight="semibold"
-                      sx={columnHeaderSx}
-                    >
+                  <th style={{ ...thStyle, width: 32, padding: '2px 4px' }} />
+                  <th style={{ ...thStyle, width: '40%' }}>
+                    <Text size="xs" weight="semibold" tone="muted" style={columnHeaderStyle}>
                       Name
                     </Text>
                   </th>
@@ -355,31 +352,23 @@ const ConnectionTable: React.FC<Props> = ({
                     <th
                       key={col}
                       style={{
-                        ...thSx,
+                        ...thStyle,
                         width: getColumnWidth(allConnections, col) + 8,
                       }}
                     >
-                      <Text
-                        size="xs"
-                        weight="semibold"
-                        sx={{
-                          color: 'var(--ov-fg-muted)',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.04em',
-                        }}
-                      >
+                      <Text size="xs" weight="semibold" tone="muted" style={columnHeaderStyle}>
                         {col.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                       </Text>
                     </th>
                   ))}
-                  <th style={{ ...thSx, width: 36, padding: '0 4px', position: 'relative', textAlign: 'right' }}>
-                    <Box sx={columnPickerSx}>
+                  <th style={{ ...thStyle, width: 36, padding: '0 4px', position: 'relative', textAlign: 'right' }}>
+                    <div style={columnPickerStyle}>
                       <ColumnPicker
                         allColumns={allLabelKeys}
                         visibleColumns={visibleColumns}
                         onToggleColumn={onToggleColumn}
                       />
-                    </Box>
+                    </div>
                   </th>
                 </tr>
               </thead>
@@ -404,10 +393,10 @@ const ConnectionTable: React.FC<Props> = ({
                 ))}
               </tbody>
             </table>
-          </Box>
+          </div>
         </ConnectionGroupComp>
       ))}
-    </Box>
+    </div>
   );
 };
 

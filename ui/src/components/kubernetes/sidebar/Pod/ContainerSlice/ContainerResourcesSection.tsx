@@ -1,7 +1,4 @@
-import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Grid, Stack, Text } from '@omniviewdev/base-ui';
 import type { Container } from 'kubernetes-types/core/v1';
 import React from 'react';
 
@@ -9,15 +6,15 @@ import Icon from '../../../../shared/Icon';
 
 import { formatCpu, formatMemory, parseCpuToMillicores, parseMemoryToBytes } from './helpers';
 import {
-  fontSize13Sx,
-  resourceBarBgSx,
-  resourceBarContainerSx,
-  resourceBarLabelSx,
-  resourceBarRowSx,
-  resourceBarTextSx,
-  resourceCardBodySx,
-  resourceCardHeaderSx,
-  resourceCardSx,
+  fontSize13Style,
+  resourceBarBgStyle,
+  resourceBarContainerStyle,
+  resourceBarLabelStyle,
+  resourceBarRowStyle,
+  resourceBarTextStyle,
+  resourceCardBodyStyle,
+  resourceCardHeaderStyle,
+  resourceCardStyle,
 } from './styles';
 
 // ── Resource utilization bar row ──
@@ -31,37 +28,34 @@ const ResourceBar: React.FC<{
   const barColor =
     usage != null
       ? usage > 80
-        ? 'error.main'
+        ? 'var(--ov-color-danger)'
         : usage > 60
-          ? 'warning.main'
-          : 'success.main'
-      : 'primary.main';
+          ? 'var(--ov-color-warning)'
+          : 'var(--ov-color-success)'
+      : 'var(--ov-color-brand-500)';
 
   return (
-    <Stack direction="row" spacing={1.5} alignItems="center" sx={resourceBarRowSx}>
-      <Stack direction="row" gap={0.75} alignItems="center" sx={resourceBarLabelSx}>
+    <Stack direction="row" spacing={3} align="center" style={resourceBarRowStyle}>
+      <Stack direction="row" spacing={0} align="center" style={resourceBarLabelStyle}>
         <Icon name={icon} size={14} />
-        <Text sx={fontSize13Sx}>{label}</Text>
+        <Text style={fontSize13Style}>{label}</Text>
       </Stack>
-      <Box sx={resourceBarContainerSx}>
-        <Box sx={resourceBarBgSx}>
+      <div style={resourceBarContainerStyle}>
+        <div style={resourceBarBgStyle}>
           {usage != null && (
-            <Box
-              sx={{
+            <div
+              style={{
                 width: `${Math.min(usage, 100)}%`,
                 height: '100%',
                 borderRadius: 5,
-                bgcolor: barColor,
+                backgroundColor: barColor,
                 transition: 'width 0.3s ease',
               }}
             />
           )}
-        </Box>
-      </Box>
-      <Text
-        sx={resourceBarTextSx}
-        noWrap
-      >
+        </div>
+      </div>
+      <Text tone="muted" style={resourceBarTextStyle} truncate>
         {displayValue} / {limit}
       </Text>
     </Stack>
@@ -107,17 +101,17 @@ const ContainerResourcesSection: React.FC<ContainerResourcesSectionProps> = ({
   const memUsageDisplay = podMemoryUsage != null ? formatMemory(podMemoryUsage) : undefined;
 
   return (
-    <Grid size={12}>
-      <Box sx={resourceCardSx}>
-        <Box sx={resourceCardHeaderSx}>
-          <Stack direction="row" gap={0.5} alignItems="center">
+    <Grid.Item span={12}>
+      <div style={resourceCardStyle}>
+        <div style={resourceCardHeaderStyle}>
+          <Stack direction="row" spacing={1} align="center">
             <Icon name="LuGauge" size={14} />
-            <Text sx={fontSize13Sx} weight="semibold">
+            <Text style={fontSize13Style} weight="semibold">
               Resources
             </Text>
           </Stack>
-        </Box>
-        <Box sx={resourceCardBodySx}>
+        </div>
+        <div style={resourceCardBodyStyle}>
           <ResourceBar
             label="CPU"
             icon="LuCpu"
@@ -142,9 +136,9 @@ const ContainerResourcesSection: React.FC<ContainerResourcesSectionProps> = ({
             displayValue={storReq || 'None'}
             limit={storLim || 'None'}
           />
-        </Box>
-      </Box>
-    </Grid>
+        </div>
+      </div>
+    </Grid.Item>
   );
 };
 

@@ -1,8 +1,7 @@
-import Box from '@mui/material/Box';
-import Checkbox from '@mui/material/Checkbox';
+import { Checkbox } from '@omniviewdev/base-ui';
 import { type Row } from '@tanstack/react-table';
 
-const selectCellContainerSx = {
+const selectCellContainerStyle = {
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
@@ -10,13 +9,7 @@ const selectCellContainerSx = {
   maxWidth: 24,
 } as const;
 
-const selectCellCheckboxSx = {
-  p: 0,
-  color: 'var(--ov-fg-faint)',
-  '&.Mui-checked': {
-    color: 'var(--ov-accent-fg)',
-  },
-} as const;
+const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
 /**
  * Render a selectbox for a row of the generic resource table.
@@ -31,17 +24,19 @@ const selectCellCheckboxSx = {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const SelectCell = ({ row, checked }: { row: Row<any>; checked: boolean }) => (
-  <Box sx={selectCellContainerSx}>
+  // Clicking the checkbox must not also trigger the row click handler.
+  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+  <div style={selectCellContainerStyle} onClick={stopPropagation}>
     <Checkbox
-      size="small"
+      size="sm"
+      color="brand"
       checked={checked}
-      onChange={(_event, value) => {
+      onCheckedChange={(value) => {
         row.toggleSelected(value);
       }}
       aria-label="Select row"
-      sx={selectCellCheckboxSx}
     />
-  </Box>
+  </div>
 );
 
 SelectCell.displayName = 'SelectCell';

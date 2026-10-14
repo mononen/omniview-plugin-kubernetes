@@ -1,59 +1,16 @@
-import { KeyboardArrowDownRounded } from '@mui/icons-material';
-import Box from '@mui/material/Box';
+import { Chip, IconButton, Stack, Text } from '@omniviewdev/base-ui';
 import { usePluginRouter } from '@omniviewdev/runtime';
-import { Avatar, Chip, List, ListItem, ListSubheader } from '@omniviewdev/ui';
-import { IconButton } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import React from 'react';
+import { LuChevronDown } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { IsImage } from '../../../utils/url';
 import Icon from '../Icon';
 
+import styles from './NavMenu.module.css';
 import { SidebarItem, SidebarSection, type SidebarListItemProps, type SidebarProps } from './types';
 
-// memoize the scrollable styles to prevent rerenders
-const scrollableSx = {
-  overflow: 'auto',
-  maxHeight: '100%',
-  scrollbarWidth: 'none',
-  '&::-webkit-scrollbar': {
-    display: 'none',
-  },
-  '&-ms-overflow-style:': {
-    display: 'none',
-  },
-} as const;
-
-const listSx = {
-  py: 0,
-  userSelect: 'none',
-  '--ListItem-radius': '8px',
-  '--List-nestedInsetStart': '0px',
-} as const;
-
-const subheaderSx = { minBlockSize: 0, pt: 1.5 } as const;
-
-const nestedListSx = {
-  py: 0,
-  '--List-nestedInsetStart': '13px',
-  '--ListItem-paddingLeft': '8px',
-} as const;
-
-const iconContainerSx = {
-  display: 'flex',
-  alignItems: 'center',
-  marginInlineEnd: '-0.5rem',
-} as const;
-
-const avatarSx = { borderRadius: 'sm', maxHeight: 20, maxWidth: 20 } as const;
-
-const flexBoxSx = { flex: 1, minWidth: 0 } as const;
-
-const decoratorChipSx = { borderRadius: 'sm' } as const;
-
-const decoratorTextSx = { fontSize: 10 } as const;
+const decoratorChipStyle: React.CSSProperties = { borderRadius: 4, fontSize: 10 };
 
 const getInitialOpenState = (
   items: SidebarItem[] | undefined,
@@ -102,9 +59,6 @@ const NavMenu: React.FC<SidebarProps> = ({ header, size, items, sections }) => {
     throw new Error('You can only pass items or sections, not both');
   }
 
-  // memoize the scrollable styles to prevent rerenders
-  const scrollStyle = React.useMemo(() => scrollableSx, []);
-
   const [open, setOpen] = React.useState<Record<string, boolean>>({});
 
   React.useLayoutEffect(() => {
@@ -136,23 +90,14 @@ const NavMenu: React.FC<SidebarProps> = ({ header, size, items, sections }) => {
   );
 
   return (
-    <Stack direction="column" sx={scrollStyle}>
+    <Stack direction="column" spacing={0} className={styles.Root} data-size={size ?? 'md'}>
       {header}
-      <List
-        size={size ?? 'md'}
-        sx={listSx}
-      >
+      <ul className={styles.List}>
         {/** Sections */}
         {sections?.map((section) => (
-          <ListItem key={section.id} nested>
-            {section.title && (
-              <ListSubheader sx={subheaderSx}>{section.title}</ListSubheader>
-            )}
-            <List
-              aria-labelledby="nav-list-browse"
-              size={size ?? 'md'}
-              sx={nestedListSx}
-            >
+          <li key={section.id}>
+            {section.title && <div className={styles.Subheader}>{section.title}</div>}
+            <ul aria-label={section.title} className={styles.NestedList}>
               {section.items.map((item) => (
                 <SidebarListItem
                   key={item.id}
@@ -163,8 +108,8 @@ const NavMenu: React.FC<SidebarProps> = ({ header, size, items, sections }) => {
                   onSelect={handleSelect}
                 />
               ))}
-            </List>
-          </ListItem>
+            </ul>
+          </li>
         ))}
 
         {/** Direct mapped items */}
@@ -178,7 +123,7 @@ const NavMenu: React.FC<SidebarProps> = ({ header, size, items, sections }) => {
             onSelect={handleSelect}
           />
         ))}
-      </List>
+      </ul>
     </Stack>
   );
 };
@@ -219,99 +164,73 @@ const SidebarListItem: React.FC<SidebarListItemProps> = ({
 
   const MemoizedIcon = React.useMemo(
     () => (
-      <KeyboardArrowDownRounded sx={{ transform: openState[id] ? 'initial' : 'rotate(-90deg)' }} />
+      <LuChevronDown
+        className={openState[id] ? styles.Chevron : `${styles.Chevron} ${styles.ChevronClosed}`}
+      />
     ),
     [openState, id],
   );
 
+  const isParent = Boolean(item.children?.length);
+
   return (
-    <ListItem
+    <li
       key={id}
-      sx={{
-        userSelect: 'none',
-        paddingY: 0,
-        paddingInlineStart: item.icon ? undefined : '2rem',
-      }}
-      nested={Boolean(item.children?.length)}
+      className={item.icon ? styles.Item : `${styles.Item} ${styles.ItemNoIcon}`}
     >
-      <Box
+      <div
+        role="button"
+        tabIndex={0}
         onClick={handleClick}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          cursor: 'pointer',
-          marginY: 0,
-          paddingY: 0,
-          maxHeight: height,
-          borderRadius: 1,
-          px: 1,
-          bgcolor: selected === id ? 'action.selected' : 'transparent',
-          '&:hover': { bgcolor: selected === id ? 'action.selected' : 'action.hover' },
-          width: '100%',
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') handleClick(e);
         }}
+        className={styles.Row}
+        data-selected={selected === id ? 'true' : 'false'}
+        style={{ maxHeight: height, minHeight: height }}
       >
         {item.icon && (
-          <Box
-            sx={iconContainerSx}
-          >
+          <div className={styles.IconContainer}>
             {typeof item.icon === 'string' ? (
               IsImage(item.icon) ? (
-                <Avatar
-                  size="sm"
-                  src={item.icon}
-                  sx={avatarSx}
-                />
+                <img src={item.icon} alt="" className={styles.IconImage} />
               ) : (
                 <Icon name={item.icon} size={16} />
               )
             ) : (
               item.icon
             )}
-          </Box>
+          </div>
         )}
-        <Box sx={flexBoxSx}>
+        <div className={styles.Label}>
           <Text
-            weight={level === 0 || item.children?.length ? 'semibold' : undefined}
-            size={level === 0 || item.children?.length ? 'sm' : 'xs'}
-            sx={{ fontWeight: selected === id ? 600 : 500 }}
+            weight={level === 0 || isParent ? 'semibold' : undefined}
+            size={level === 0 || isParent ? 'sm' : 'xs'}
+            style={{ fontWeight: selected === id ? 600 : 500 }}
           >
             {item.label}
           </Text>
-        </Box>
-        {item.children?.length ? (
-          <IconButton emphasis="ghost" size="sm" color="neutral" onClick={handleClick}>
+        </div>
+        {isParent ? (
+          <IconButton
+            variant="ghost"
+            size="sm"
+            color="neutral"
+            aria-label={openState[id] ? `Collapse ${item.label}` : `Expand ${item.label}`}
+            onClick={handleClick}
+          >
             {MemoizedIcon}
           </IconButton>
         ) : typeof item.decorator === 'string' ? (
-          <Chip
-            size="sm"
-            emphasis="outline"
-            color="neutral"
-            sx={decoratorChipSx}
-            label={
-              <Text size="xs" sx={decoratorTextSx}>
-                {item.decorator}
-              </Text>
-            }
-          />
+          <Chip size="sm" variant="outline" color="neutral" style={decoratorChipStyle}>
+            {item.decorator}
+          </Chip>
         ) : (
           item.decorator
         )}
-      </Box>
-      {Boolean(item.children?.length) && Boolean(openState[id]) && (
-        <List
-          aria-labelledby={`nav-list-${id}`}
-          size="sm"
-          sx={{
-            '--ListItem-radius': '8px',
-            '--ListItem-minHeight': `${height}px`,
-            '--List-gap': '0px',
-            '--ListItem-paddingLeft': '1rem',
-            paddingTop: 0.5,
-            paddingBottom: 0,
-          }}
-        >
+      </div>
+      {isParent && Boolean(openState[id]) && (
+        <ul aria-label={item.label} className={styles.NestedList}>
           {item.children?.map((child) => (
             <SidebarListItem
               level={level + 1}
@@ -324,9 +243,9 @@ const SidebarListItem: React.FC<SidebarListItemProps> = ({
               onSelect={onSelect}
             />
           ))}
-        </List>
+        </ul>
       )}
-    </ListItem>
+    </li>
   );
 };
 

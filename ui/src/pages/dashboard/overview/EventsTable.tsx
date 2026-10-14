@@ -1,72 +1,50 @@
-import Box from '@mui/material/Box';
-import InputAdornment from '@mui/material/InputAdornment';
-import type { SxProps, Theme } from '@mui/material/styles';
-import TextField from '@mui/material/TextField';
+import { Chip, SearchInput, Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import { useRightDrawer } from '@omniviewdev/runtime';
-import { Chip, CircularProgress } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import React, { useState, useMemo, useDeferredValue, useCallback } from 'react';
-import { LuSearch } from 'react-icons/lu';
 
 import { formatTimeDifference } from '../../../utils/time';
 
-const eventRowSx = {
-  display: 'flex',
-  alignItems: 'flex-start',
-  gap: 1.5,
-  py: 1,
-  px: 1.5,
-  borderBottom: '1px solid var(--ov-border-muted)',
-  '&:last-child': { borderBottom: 'none' },
-} as const;
+import styles from './EventsTable.module.css';
 
-const typeBadgeSx = { flexShrink: 0, mt: 0.25, minWidth: 56, justifyContent: 'center' } as const;
+const typeBadgeStyle: React.CSSProperties = { flexShrink: 0, marginTop: 2, minWidth: 56, justifyContent: 'center' };
 
-const contentSx = { flex: 1, minWidth: 0 } as const;
+const contentStyle: React.CSSProperties = { flex: 1, minWidth: 0 };
 
-const reasonLineSx = { display: 'flex', alignItems: 'baseline', gap: 0.75 } as const;
+const reasonLineStyle: React.CSSProperties = { display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0 };
 
-const dividerDotSx = {
-  width: '1px',
+const dividerDotStyle: React.CSSProperties = {
+  width: 1,
   height: 10,
-  bgcolor: 'divider',
+  background: 'var(--ov-color-border-default)',
   flexShrink: 0,
   alignSelf: 'center',
-} as const;
+};
 
-const countAgeSx = { display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 } as const;
+const countAgeStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 };
 
-const loadingSx = { display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 } as const;
+const loadingStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBlock: 32 };
 
-const toolbarSx = { px: 1.5, py: 0.75, borderBottom: '1px solid', borderColor: 'divider' } as const;
+const toolbarStyle: React.CSSProperties = {
+  flexShrink: 0,
+  paddingInline: 12,
+  paddingBlock: 6,
+  borderBottom: '1px solid var(--ov-color-border-default)',
+};
 
-const eventListSx = { flex: 1, overflow: 'auto' } as const;
+// Rows truncate rather than scroll sideways; only the list scrolls vertically.
+const eventListStyle: React.CSSProperties = { flex: 1, minHeight: 0, overflowX: 'hidden', overflowY: 'auto' };
 
-const emptyStateSx = { display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 } as const;
+const emptyStateStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBlock: 32 };
 
-const reasonTextSx = { color: 'var(--ov-fg-base)', flexShrink: 0 } as const;
+const reasonTextStyle: React.CSSProperties = { flexShrink: 0 };
 
-const messageTextSx = { color: 'var(--ov-fg-default)' } as const;
+const messageTextStyle: React.CSSProperties = { minWidth: 0 };
 
-const ageTextSx = { color: 'var(--ov-fg-faint)', whiteSpace: 'nowrap' } as const;
+const ageTextStyle: React.CSSProperties = { whiteSpace: 'nowrap' };
 
-const rootSx = { height: '100%' } as const;
+const rootStyle: React.CSSProperties = { height: '100%' };
 
-const emptyTextSx = { color: 'text.tertiary' } as const;
-
-const searchFieldSx = {
-  width: 180,
-  '--ov-input-height': '24px',
-  '& .MuiInputBase-root': {
-    fontSize: '0.6875rem',
-    px: 0.75,
-  },
-  '& .MuiInputBase-input': {
-    py: 0,
-    px: 0.5,
-  },
-} as const;
+const searchFieldStyle: React.CSSProperties = { width: 180, minWidth: 0, flexShrink: 1 };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -219,59 +197,50 @@ const EventRow: React.FC<{
     : '';
 
   return (
-    <Box
-      sx={eventRowSx}
-    >
+    <div className={styles.eventRow}>
       {/* Type badge */}
       <Chip
         size="xs"
-        emphasis="soft"
+        variant="soft"
         color={event.type === 'Warning' ? 'warning' : 'info'}
-        label={event.type}
-        sx={typeBadgeSx}
-      />
+        style={typeBadgeStyle}
+      >
+        {event.type}
+      </Chip>
 
       {/* Content */}
-      <Box sx={contentSx}>
-        <Box sx={reasonLineSx}>
-          <Text weight="semibold" size="xs" sx={reasonTextSx}>
+      <div style={contentStyle}>
+        <div style={reasonLineStyle}>
+          <Text weight="semibold" size="xs" style={reasonTextStyle}>
             {event.reason}
           </Text>
-          <Box
-            sx={dividerDotSx}
-          />
-          <Text size="xs" sx={messageTextSx} noWrap>
+          <span style={dividerDotStyle} />
+          <Text size="xs" truncate style={messageTextStyle}>
             {event.message}
           </Text>
-        </Box>
-        {objectLabel && (
-          <Box
-            component="span"
-            onClick={hasLink && onObjectClick ? () => onObjectClick(event) : undefined}
-            sx={{
-              display: 'block',
-              fontSize: '0.75rem',
-              color: hasLink ? 'var(--ov-accent)' : 'var(--ov-fg-muted)',
-              mt: 0.25,
-              cursor: hasLink ? 'pointer' : 'default',
-              '&:hover': hasLink ? { textDecoration: 'underline' } : undefined,
-            }}
-          >
-            {objectLabel}
-          </Box>
-        )}
-      </Box>
+        </div>
+        {objectLabel &&
+          (hasLink && onObjectClick ? (
+            <button type="button" className={styles.objectLink} onClick={() => onObjectClick(event)}>
+              {objectLabel}
+            </button>
+          ) : (
+            <span className={styles.objectLabel}>{objectLabel}</span>
+          ))}
+      </div>
 
       {/* Count + Age */}
-      <Box sx={countAgeSx}>
+      <div style={countAgeStyle}>
         {event.count > 1 && (
-          <Chip size="xs" emphasis="outline" color="neutral" label={`\u00d7${event.count}`} />
+          <Chip size="xs" variant="outline" color="neutral">
+            {`\u00d7${event.count}`}
+          </Chip>
         )}
-        <Text size="xs" sx={ageTextSx}>
+        <Text size="xs" tone="subtle" style={ageTextStyle}>
           {event.lastSeen.getTime() > 0 ? formatTimeDifference(event.lastSeen) : '-'}
         </Text>
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 });
 
@@ -331,70 +300,58 @@ const EventsTable: React.FC<Props> = ({ events, loading, connectionID }) => {
 
   if (loading) {
     return (
-      <Box sx={loadingSx}>
-        <CircularProgress size="sm" />
-      </Box>
+      <div style={loadingStyle}>
+        <Spinner size="sm" />
+      </div>
     );
   }
 
   return (
-    <Stack gap={0} sx={rootSx}>
+    <Stack direction="column" spacing={0} style={rootStyle}>
       {/* Toolbar: filter chips + search */}
-      <Stack
-        direction="row"
-        align="center"
-        justify="between"
-        sx={toolbarSx}
-      >
-        <Stack direction="row" align="center" gap={0.5}>
+      <Stack direction="row" align="center" justify="between" wrap style={toolbarStyle}>
+        <Stack direction="row" align="center" spacing={1} wrap>
           {(['all', 'Normal', 'Warning'] as EventFilter[]).map((f) => (
             <Chip
               key={f}
-              label={f === 'all' ? 'All' : f}
+              as="button"
+              clickable
               size="xs"
-              emphasis={filter === f ? 'solid' : 'outline'}
+              variant={filter === f ? 'solid' : 'outline'}
               color={f === 'Warning' ? 'warning' : f === 'Normal' ? 'info' : 'neutral'}
+              aria-pressed={filter === f}
               onClick={() => setFilter(f)}
-            />
+            >
+              {f === 'all' ? 'All' : f}
+            </Chip>
           ))}
           {warningCount > 0 && (
-            <Chip
-              label={`${warningCount} warning${warningCount !== 1 ? 's' : ''}`}
-              color="warning"
-              emphasis="soft"
-              size="xs"
-            />
+            <Chip color="warning" variant="soft" size="xs">
+              {`${warningCount} warning${warningCount !== 1 ? 's' : ''}`}
+            </Chip>
           )}
         </Stack>
 
-        <TextField
-          size="small"
+        <SearchInput
+          size="sm"
           placeholder="Search events..."
+          aria-label="Search events"
           // eslint-disable-next-line jsx-a11y/no-autofocus
           autoFocus
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <LuSearch size={12} />
-                </InputAdornment>
-              ),
-            },
-          }}
-          sx={searchFieldSx as SxProps<Theme>}
+          onValueChange={setSearch}
+          style={searchFieldStyle}
         />
       </Stack>
 
       {/* Event list */}
-      <Box sx={eventListSx}>
+      <div style={eventListStyle}>
         {filtered.length === 0 ? (
-          <Box sx={emptyStateSx}>
-            <Text size="sm" sx={emptyTextSx}>
+          <div style={emptyStateStyle}>
+            <Text size="sm" tone="subtle">
               {events.length === 0 ? 'No recent events' : 'No matching events'}
             </Text>
-          </Box>
+          </div>
         ) : (
           filtered.map((event) => (
             <EventRow
@@ -404,7 +361,7 @@ const EventsTable: React.FC<Props> = ({ events, loading, connectionID }) => {
             />
           ))
         )}
-      </Box>
+      </div>
     </Stack>
   );
 };

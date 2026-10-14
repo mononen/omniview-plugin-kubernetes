@@ -1,38 +1,19 @@
-import { WarningRounded } from '@mui/icons-material';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import Divider from '@mui/material/Divider';
-import MuiIconButton from '@mui/material/IconButton';
-import Modal from '@mui/material/Modal';
+import { Banner, Button, Dialog, Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import { useResource } from '@omniviewdev/runtime';
-import { ListItem } from '@omniviewdev/ui';
-import { Button } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import * as React from 'react';
-import { LuCircleAlert, LuTrash } from 'react-icons/lu';
+import { LuCircleAlert, LuTrash, LuTriangleAlert } from 'react-icons/lu';
+const triggerWrapperStyle: React.CSSProperties = { display: 'flex' };
 
-const deleteTextSx = { pl: 0.5 } as const;
+const deleteTextStyle = { paddingLeft: 4 } as const;
 
-const modalBoxSx = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  bgcolor: 'background.paper',
+const triggerStyle: React.CSSProperties = {
+  display: 'flex',
+  flex: 1,
   borderRadius: 2,
-  p: 3,
-} as const;
+  justifyContent: 'flex-start',
+};
 
-const dialogContentSx = { gap: 2 } as const;
-
-const alertContainerSx = { display: 'flex', gap: 2, width: '100%', flexDirection: 'column' } as const;
-
-const alertSx = { alignItems: 'flex-start' } as const;
+const triggerContentStyle = { flex: 1, paddingInline: 8 } as const;
 
 type Props = {
   connectionID: string;
@@ -65,106 +46,86 @@ export const DeleteAction: React.FC<Props> = ({
     namespace,
   });
 
+  const close = () => {
+    setOpen(false);
+    handleDismiss?.();
+  };
+
   return (
     <React.Fragment>
-      <ListItem>
-        <MuiIconButton
-          color="default"
+      <div style={triggerWrapperStyle}>
+        <Button
+          variant="ghost"
+          color="neutral"
           onMouseEnter={handleSelect}
           onMouseLeave={handleDeselect}
           onClick={() => {
             setOpen(true);
           }}
-          sx={{
-            display: 'flex',
-            borderRadius: '2px',
-            flex: 1,
-            bgcolor: open ? 'neutral.plainHoverBg' : undefined,
-            '&:focus-visible': {
-              bgcolor: 'neutral.plainHoverBg',
-            },
-          }}
+          style={triggerStyle}
         >
-          <Stack
-            direction="row"
-            spacing={1}
-            flex={1}
-            px={1}
-            alignItems={'center'}
-            justifyContent="flex-start"
-          >
+          <Stack direction="row" spacing={2} align="center" justify="start" style={triggerContentStyle}>
             <LuTrash />
-            <Text sx={deleteTextSx} size="sm">
+            <Text style={deleteTextStyle} size="sm">
               Delete
             </Text>
           </Stack>
-        </MuiIconButton>
-      </ListItem>
-      <Modal
+        </Button>
+      </div>
+      <Dialog
         open={open}
         onClose={() => {
           setOpen(false);
         }}
+        size="sm"
       >
-        <Box
-          sx={modalBoxSx}
-        >
-          <DialogTitle>
-            <WarningRounded />
-            Confirmation
-          </DialogTitle>
-          <Divider />
-          <DialogContent sx={dialogContentSx}>
+        <Dialog.Title icon={<LuTriangleAlert />}>Confirmation</Dialog.Title>
+        <Dialog.Body>
+          <Stack direction="column" spacing={4}>
             <Text size="sm">Are you sure you want to delete &apos;{resourceID}&apos;?</Text>
             {alert && (
-              <Box sx={alertContainerSx}>
-                <Alert sx={alertSx} icon={<LuCircleAlert />} severity="error">
-                  <div>
-                    <div>Error</div>
-                    <Text size="sm" color={'danger'}>
-                      {alert}
-                    </Text>
-                  </div>
-                </Alert>
-              </Box>
+              <Banner color="danger">
+                <Banner.Icon>
+                  <LuCircleAlert />
+                </Banner.Icon>
+                <Banner.Content>
+                  <Banner.Title>Error</Banner.Title>
+                  <Text size="sm" tone="danger">
+                    {alert}
+                  </Text>
+                </Banner.Content>
+              </Banner>
             )}
-          </DialogContent>
-          <DialogActions>
-            <Button
-              emphasis="solid"
-              color="danger"
-              onClick={() => {
-                setPending(true);
-                remove({})
-                  .then(() => {
-                    setOpen(false);
-                    handleDismiss?.();
-                  })
-                  .catch((e) => {
-                    if (e instanceof Error) {
-                      setAlert(e.message);
-                    }
-                  })
-                  .finally(() => {
-                    setPending(false);
-                  });
-              }}
-            >
-              {pending ? <CircularProgress size="small" /> : 'Delete'}
-            </Button>
-            <Button
-              emphasis="ghost"
-              color="neutral"
-              onClick={() => {
-                setOpen(false);
-                handleDismiss?.();
-              }}
-            >
-              Cancel
-            </Button>
-          </DialogActions>
-        </Box>
-      </Modal>
+          </Stack>
+        </Dialog.Body>
+        <Dialog.Footer>
+          <Button
+            variant="solid"
+            color="danger"
+            disabled={pending}
+            onClick={() => {
+              setPending(true);
+              remove({})
+                .then(() => {
+                  close();
+                })
+                .catch((e) => {
+                  if (e instanceof Error) {
+                    setAlert(e.message);
+                  }
+                })
+                .finally(() => {
+                  setPending(false);
+                });
+            }}
+          >
+            {pending ? <Spinner size="sm" /> : 'Delete'}
+          </Button>
+          <Button variant="ghost" color="neutral" onClick={close}>
+            Cancel
+          </Button>
+        </Dialog.Footer>
+      </Dialog>
     </React.Fragment>
   );
 };

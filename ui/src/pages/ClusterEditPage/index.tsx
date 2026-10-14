@@ -1,16 +1,10 @@
-import MuiAvatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
+import { Avatar, Chip, IconButton, NavList, Stack, Text } from '@omniviewdev/base-ui';
 import { usePluginContext, useConnection } from '@omniviewdev/runtime';
-import { Avatar, Chip } from '@omniviewdev/ui';
-import { IconButton } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Tooltip } from '@omniviewdev/ui/overlays';
-import { NavMenu } from '@omniviewdev/ui/sidebars';
-import { Text } from '@omniviewdev/ui/typography';
 import React from 'react';
 import { LuArrowLeft, LuCircle, LuSave, LuX } from 'react-icons/lu';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 
+import SimpleTooltip from '../../components/shared/SimpleTooltip';
 import MetricsTabContent from '../../components/settings/MetricsTabContent';
 import NodeShellTabContent from '../../components/settings/NodeShellTabContent';
 import { useClusterPreferences } from '../../hooks/useClusterPreferences';
@@ -27,16 +21,16 @@ import TagsSection from './TagsSection';
 import {
   type SectionId,
   SECTIONS,
-  sidenavHeaderSx,
-  clusterCardWrapperSx,
-  clusterCardSx,
-  avatarImgSx,
-  clusterNameSx,
-  navMenuSx,
-  sidenavColumnSx,
-  headerTitleSx,
-  clusterInfoColumnSx,
-  mainPanelSx,
+  sidenavHeaderStyle,
+  clusterCardWrapperStyle,
+  clusterCardStyle,
+  avatarImgStyle,
+  avatarFallbackStyle,
+  navMenuStyle,
+  sidenavColumnStyle,
+  headerTitleStyle,
+  clusterInfoColumnStyle,
+  mainPanelStyle,
 } from './constants';
 
 const ClusterEditPage: React.FC = () => {
@@ -145,95 +139,103 @@ const ClusterEditPage: React.FC = () => {
   const cardBgColor = avatarColor || stringToColor(cardName);
   const cardInitials = getInitials(cardName);
 
+  const selectedKeys = React.useMemo(() => new Set<string>([section]), [section]);
+  const handleSelectedKeysChange = (keys: ReadonlySet<string | number>) => {
+    const next = keys.values().next().value;
+    if (next != null) handleSectionChange(String(next));
+  };
+
   return (
     <Layout.Root>
       <Layout.SideNav type="bordered" scrollable>
-        <Stack direction="column" sx={sidenavColumnSx}>
+        <Stack direction="column" spacing={0} style={sidenavColumnStyle}>
           {/* Header with back + title + actions */}
-          <Stack
-            direction="row"
-            alignItems="center"
-            gap={0.5}
-            sx={sidenavHeaderSx}
-          >
-            <IconButton size="sm" emphasis="ghost" onClick={handleBack}>
+          <Stack direction="row" align="center" spacing={1} style={sidenavHeaderStyle}>
+            <IconButton size="sm" variant="ghost" color="neutral" aria-label="Back" onClick={handleBack}>
               <LuArrowLeft size={16} />
             </IconButton>
-            <Text size="sm" weight="semibold" sx={headerTitleSx}>
+            <Text size="sm" weight="semibold" style={headerTitleStyle}>
               Cluster Settings
             </Text>
             {hasDrafts && (
               <>
-                <Tooltip title="Discard changes" placement="bottom">
-                  <IconButton size="sm" emphasis="ghost" color="neutral" onClick={handleCancel}>
+                <SimpleTooltip content="Discard changes" placement="bottom">
+                  <IconButton size="sm" variant="ghost" color="neutral" aria-label="Discard changes" onClick={handleCancel}>
                     <LuX size={16} />
                   </IconButton>
-                </Tooltip>
-                <Tooltip title="Save changes" placement="bottom">
-                  <IconButton size="sm" emphasis="ghost" color="primary" onClick={() => { void handleSave(); }}>
+                </SimpleTooltip>
+                <SimpleTooltip content="Save changes" placement="bottom">
+                  <IconButton
+                    size="sm"
+                    variant="ghost"
+                    color="brand"
+                    aria-label="Save changes"
+                    onClick={() => { void handleSave(); }}
+                  >
                     <LuSave size={16} />
                   </IconButton>
-                </Tooltip>
+                </SimpleTooltip>
               </>
             )}
           </Stack>
 
           {/* Cluster card */}
-          <Box sx={clusterCardWrapperSx}>
-            <Box
-              sx={clusterCardSx}
-            >
+          <div style={clusterCardWrapperStyle}>
+            <div style={clusterCardStyle}>
               {avatarUrl ? (
-                <Avatar
-                  src={avatarUrl}
-                  sx={avatarImgSx}
-                />
+                <Avatar src={avatarUrl} alt={cardName} shape="rounded" style={avatarImgStyle} />
               ) : (
-                <MuiAvatar
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 1,
-                    bgcolor: cardBgColor,
-                    fontSize: '0.875rem',
-                  }}
-                >
+                <div style={{ ...avatarFallbackStyle, background: cardBgColor }} aria-hidden>
                   {cardInitials}
-                </MuiAvatar>
+                </div>
               )}
-              <Stack direction="column" gap={0.25} sx={clusterInfoColumnSx}>
-                <Text
-                  size="sm"
-                  weight="semibold"
-                  sx={clusterNameSx}
-                >
+              <Stack direction="column" spacing={0} style={{ ...clusterInfoColumnStyle, gap: 2 }}>
+                <Text size="sm" weight="semibold" truncate>
                   {cardName}
                 </Text>
-                <Stack direction="row" alignItems="center" gap={0.75}>
+                <Stack direction="row" align="center" spacing={3}>
                   <Chip
                     size="sm"
-                    emphasis="soft"
+                    variant="soft"
                     color={connected ? 'success' : 'neutral'}
-                    startAdornment={<LuCircle size={6} fill="currentColor" />}
-                    label={connected ? 'Connected' : 'Disconnected'}
-                  />
+                    startDecorator={<LuCircle size={6} fill="currentColor" />}
+                  >
+                    {connected ? 'Connected' : 'Disconnected'}
+                  </Chip>
                 </Stack>
               </Stack>
-            </Box>
-          </Box>
+            </div>
+          </div>
 
           {/* Nav menu */}
-          <NavMenu
+          <NavList
             size="sm"
-            sections={SECTIONS}
-            selected={section}
-            onSelect={handleSectionChange}
-            sx={navMenuSx}
-          />
+            selectionMode="single"
+            selectedKeys={selectedKeys}
+            onSelectedKeysChange={handleSelectedKeysChange}
+            aria-label="Cluster settings sections"
+            style={navMenuStyle}
+          >
+            <NavList.Viewport>
+              {SECTIONS.map((group) => (
+                <NavList.Group key={group.title}>
+                  <NavList.GroupHeader>{group.title}</NavList.GroupHeader>
+                  <NavList.GroupItems>
+                    {group.items.map((item) => (
+                      <NavList.Item key={item.id} itemKey={item.id} textValue={item.label} disabled={item.disabled}>
+                        {item.icon && <NavList.ItemIcon>{item.icon}</NavList.ItemIcon>}
+                        <NavList.ItemLabel>{item.label}</NavList.ItemLabel>
+                      </NavList.Item>
+                    ))}
+                  </NavList.GroupItems>
+                </NavList.Group>
+              ))}
+            </NavList.Viewport>
+          </NavList>
         </Stack>
       </Layout.SideNav>
 
-      <Layout.Main sx={mainPanelSx}>
+      <Layout.Main style={mainPanelStyle}>
         {section === 'identity' && (
           <IdentitySection
             displayName={displayName}

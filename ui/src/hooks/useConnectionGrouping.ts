@@ -15,8 +15,8 @@ import type {
   RecentEntry,
 } from '../types/clusters';
 import { LEGACY_GROUP_ALIASES, LEGACY_SORT_ALIASES } from '../types/clusters';
-import { detectProvider, getProviderLabel } from '../utils/providers';
 import { computeEffectiveMembers } from '../utils/folderRules';
+import { detectProvider, getProviderLabel } from '../utils/providers';
 
 interface UseConnectionGroupingOpts {
   connections: types.Connection[];

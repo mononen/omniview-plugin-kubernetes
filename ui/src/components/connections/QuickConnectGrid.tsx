@@ -1,29 +1,29 @@
-import Box from '@mui/material/Box';
-import { IconButton } from '@omniviewdev/ui/buttons';
-import { TextField } from '@omniviewdev/ui/inputs';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Tooltip } from '@omniviewdev/ui/overlays';
-import { Text } from '@omniviewdev/ui/typography';
+import { IconButton, SearchInput, Stack, Text } from '@omniviewdev/base-ui';
 import React, { useMemo, useState } from 'react';
-import { LuSearch, LuFolderPlus, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
+import { LuFolderPlus, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
 
 import type { EnrichedConnection } from '../../types/clusters';
 
 import RowHandler from './RowHandler';
+import SimpleTooltip from '../shared/SimpleTooltip';
 
-const containerSx = { px: 0.5, pt: 0.5 } as const;
+const containerStyle: React.CSSProperties = { padding: '4px 4px 0', gap: 8 };
 
-const paginationTextSx = { color: 'var(--ov-fg-muted)', whiteSpace: 'nowrap' } as const;
+const paginationTextStyle: React.CSSProperties = { whiteSpace: 'nowrap' };
 
-const searchFieldSx = { maxWidth: 240 } as const;
+const searchFieldStyle: React.CSSProperties = { maxWidth: 240 };
 
-const emptyTextSx = { textAlign: 'center', py: 3, opacity: 0.5 } as const;
+const emptyTextStyle: React.CSSProperties = {
+  textAlign: 'center',
+  padding: '24px 0',
+  opacity: 0.5,
+};
 
-const gridSx = {
+const gridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-  gap: 1,
-} as const;
+  gap: 8,
+};
 
 type Props = {
   connections: EnrichedConnection[];
@@ -73,42 +73,45 @@ const QuickConnectGrid: React.FC<Props> = ({
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
-    <Stack gap={1} sx={containerSx}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-        <Stack direction="row" alignItems="center" gap={0.75}>
+    <Stack direction="column" style={containerStyle}>
+      <Stack direction="row" align="center" justify="between" spacing={2}>
+        <Stack direction="row" align="center" style={{ gap: 6 }}>
           <Text weight="semibold">All Clusters ({connections.length})</Text>
           {onCreateFolder && (
-            <Tooltip content="Create folder">
+            <SimpleTooltip content="Create folder">
               <IconButton
                 size="sm"
-                emphasis="ghost"
+                variant="ghost"
                 color="neutral"
+                aria-label="Create folder"
                 onClick={() => onCreateFolder?.()}
               >
                 <LuFolderPlus size={16} />
               </IconButton>
-            </Tooltip>
+            </SimpleTooltip>
           )}
         </Stack>
-        <Stack direction="row" alignItems="center" gap={0.75}>
+        <Stack direction="row" align="center" style={{ gap: 6 }}>
           {totalPages > 1 && (
-            <Stack direction="row" alignItems="center" gap={0.25}>
+            <Stack direction="row" align="center" style={{ gap: 2 }}>
               <IconButton
                 size="sm"
-                emphasis="ghost"
+                variant="ghost"
                 color="neutral"
+                aria-label="Previous page"
                 disabled={page === 0}
                 onClick={() => setPage((p) => p - 1)}
               >
                 <LuChevronLeft size={16} />
               </IconButton>
-              <Text size="xs" sx={paginationTextSx}>
+              <Text size="xs" tone="muted" style={paginationTextStyle}>
                 {page + 1} / {totalPages}
               </Text>
               <IconButton
                 size="sm"
-                emphasis="ghost"
+                variant="ghost"
                 color="neutral"
+                aria-label="Next page"
                 disabled={page >= totalPages - 1}
                 onClick={() => setPage((p) => p + 1)}
               >
@@ -116,26 +119,23 @@ const QuickConnectGrid: React.FC<Props> = ({
               </IconButton>
             </Stack>
           )}
-          <TextField
+          <SearchInput
             size="sm"
             placeholder="Search clusters..."
-            startAdornment={<LuSearch size={14} />}
             value={search}
-            onChange={(e) => setSearch(e)}
+            onValueChange={setSearch}
             // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
-            sx={searchFieldSx}
+            style={searchFieldStyle}
           />
         </Stack>
       </Stack>
       {filtered.length === 0 ? (
-        <Text size="sm" sx={emptyTextSx}>
+        <Text as="p" size="sm" style={emptyTextStyle}>
           No clusters match &apos;{search}&apos;
         </Text>
       ) : (
-        <Box
-          sx={gridSx}
-        >
+        <div style={gridStyle}>
           {paged.map((enriched) => (
             <RowHandler
               key={enriched.connection.id}
@@ -146,7 +146,7 @@ const QuickConnectGrid: React.FC<Props> = ({
               onToggleFavorite={() => onToggleFavorite(enriched.connection.id)}
             />
           ))}
-        </Box>
+        </div>
       )}
     </Stack>
   );

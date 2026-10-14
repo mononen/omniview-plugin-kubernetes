@@ -1,5 +1,5 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { Deployment } from 'kubernetes-types/apps/v1';
 import type { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
@@ -11,6 +11,8 @@ import SidebarSection from '../../../../../shared/SidebarSection';
 import WorkloadPortsCard from '../../../../../shared/WorkloadPortsCard';
 import WorkloadStatusSection from '../../../../../shared/WorkloadStatusSection';
 import { PodContainersSectionFromPodSpec } from '../../../../sidebar/Pod/PodContainersSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<Deployment>;
@@ -28,8 +30,8 @@ export const DeploymentSidebar: React.FC<Props> = ({ ctx }) => {
   const strategy = spec?.strategy;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={dep.metadata} />
 
         <WorkloadStatusSection

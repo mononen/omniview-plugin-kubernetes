@@ -1,6 +1,5 @@
-/* eslint-disable react-refresh/only-export-components */
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
+ 
+import { Spinner } from '@omniviewdev/base-ui';
 import {
   usePluginContext,
   useResourceGroups,
@@ -8,7 +7,6 @@ import {
   WatchState,
 } from '@omniviewdev/runtime';
 import { resource } from '@omniviewdev/runtime/models';
-import type { NavSection, NavMenuItem } from '@omniviewdev/ui/sidebars';
 import React from 'react';
 import {
   LuBlocks,
@@ -26,6 +24,7 @@ import {
 import { SiHelm } from 'react-icons/si';
 
 import DynamicIcon from '../components/shared/Icon';
+import type { NavSection, NavMenuItem } from '../types/navigation';
 import { toResourceKey } from '../utils/resourceKey';
 import { IsImage } from '../utils/url';
 
@@ -80,16 +79,19 @@ const ICON_BLOCKS = <LuBlocks />;
 
 // --- Module-level badge JSX constants ---
 
-const syncingBadgeSx = { color: 'var(--ov-accent-fg, #58a6ff)' } as const;
+const syncingBadgeStyle: React.CSSProperties = { width: 10, height: 10 };
 
-const errorBadgeSx = { width: 8, height: 8, borderRadius: '50%', bgcolor: 'error.main', flexShrink: 0 } as const;
+const errorBadgeStyle: React.CSSProperties = {
+  display: 'inline-block',
+  width: 8,
+  height: 8,
+  borderRadius: '50%',
+  backgroundColor: 'var(--ov-color-danger)',
+  flexShrink: 0,
+};
 
-const SYNCING_BADGE = (
-  <CircularProgress size={10} thickness={5} sx={syncingBadgeSx} />
-);
-const ERROR_BADGE = (
-  <Box sx={errorBadgeSx} />
-);
+const SYNCING_BADGE = <Spinner size="xs" color="brand" style={syncingBadgeStyle} />;
+const ERROR_BADGE = <span style={errorBadgeStyle} />;
 
 /** Get a badge for a nav item based on its watch state */
 const getStateBadge = (

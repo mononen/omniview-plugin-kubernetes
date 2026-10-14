@@ -1,5 +1,4 @@
-import Grid from '@mui/material/Grid';
-import { Chip } from '@omniviewdev/ui';
+import { Chip, Grid } from '@omniviewdev/base-ui';
 import type { Container, Pod } from 'kubernetes-types/core/v1';
 import React from 'react';
 
@@ -7,6 +6,8 @@ import DetailsCard, { type DetailsCardEntry } from '../../../../shared/DetailsCa
 import ResourceLinkChip from '../../../../shared/ResourceLinkChip';
 
 import { resolveFieldRef, resolveResourceFieldRef } from './helpers';
+
+const refChipStyle: React.CSSProperties = { borderRadius: 4, flexShrink: 0 };
 
 // ────────────────────────────────────────────────────────────────────────────
 // Environment variable formatting (resolves dynamic refs)
@@ -40,13 +41,9 @@ function formatEnvEntry(
               namespace={ns}
             />
           ) : (
-            <Chip
-              size="xs"
-              emphasis="soft"
-              color="primary"
-              sx={{ borderRadius: 1, flexShrink: 0 }}
-              label="ConfigMap"
-            />
+            <Chip size="xs" variant="soft" color="brand" style={refChipStyle}>
+              ConfigMap
+            </Chip>
           ),
       };
     }
@@ -68,13 +65,9 @@ function formatEnvEntry(
               namespace={ns}
             />
           ) : (
-            <Chip
-              size="xs"
-              emphasis="soft"
-              color="warning"
-              sx={{ borderRadius: 1, flexShrink: 0 }}
-              label="Secret"
-            />
+            <Chip size="xs" variant="soft" color="warning" style={refChipStyle}>
+              Secret
+            </Chip>
           ),
       };
     }
@@ -87,13 +80,9 @@ function formatEnvEntry(
         icon: 'LuLink2',
         ratio: [5, 7],
         endAdornment: (
-          <Chip
-            size="xs"
-            emphasis="soft"
-            color="neutral"
-            sx={{ borderRadius: 1, flexShrink: 0 }}
-            label={resolved ? vf.fieldRef.fieldPath : 'FieldRef'}
-          />
+          <Chip size="xs" variant="soft" color="neutral" style={refChipStyle}>
+            {resolved ? vf.fieldRef.fieldPath : 'FieldRef'}
+          </Chip>
         ),
       };
     }
@@ -108,13 +97,9 @@ function formatEnvEntry(
         icon: 'LuCpu',
         ratio: [5, 7],
         endAdornment: (
-          <Chip
-            size="xs"
-            emphasis="soft"
-            color="neutral"
-            sx={{ borderRadius: 1, flexShrink: 0 }}
-            label={resolved ? vf.resourceFieldRef.resource : 'Resource'}
-          />
+          <Chip size="xs" variant="soft" color="neutral" style={refChipStyle}>
+            {resolved ? vf.resourceFieldRef.resource : 'Resource'}
+          </Chip>
         ),
       };
     }
@@ -151,9 +136,9 @@ const ContainerEnvironmentSection: React.FC<ContainerEnvironmentSectionProps> = 
   if (!envData || envData.length === 0) return null;
 
   return (
-    <Grid size={12}>
+    <Grid.Item span={12}>
       <DetailsCard title="Environment Variables" titleSize="sm" icon="LuKey" data={envData} />
-    </Grid>
+    </Grid.Item>
   );
 };
 

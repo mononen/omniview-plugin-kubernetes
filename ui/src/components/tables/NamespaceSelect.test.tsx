@@ -29,11 +29,11 @@ function renderNs(selected: string[] = [], setNamespaces = vi.fn()) {
   return { ...utils, setNamespaces };
 }
 
-/** Query all MUI Chip delete icons in the document */
-const getDeleteIcons = () => document.querySelectorAll<HTMLElement>('.MuiChip-deleteIcon');
+/** Query the per-chip remove buttons */
+const getDeleteIcons = () => screen.queryAllByRole('button', { name: /^Remove / });
 
 /** Query the clear-all button via its aria-label */
-const getClearAllButton = () => screen.queryByLabelText('Clear all');
+const getClearAllButton = () => screen.queryByLabelText('Clear selected options');
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -83,14 +83,9 @@ describe('NamespaceSelect', () => {
 
   // --- Clear-all ---
 
-  it('shows clear-all icon when more than one namespace selected', () => {
+  it('shows clear-all icon when namespaces are selected', () => {
     renderNs(['default', 'kube-system']);
     expect(getClearAllButton()).toBeInTheDocument();
-  });
-
-  it('does not show clear-all icon when only one namespace selected', () => {
-    renderNs(['default']);
-    expect(getClearAllButton()).not.toBeInTheDocument();
   });
 
   it('does not show clear-all icon when none selected', () => {

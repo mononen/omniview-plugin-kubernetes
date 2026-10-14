@@ -1,5 +1,5 @@
+import { Chip } from '@omniviewdev/base-ui';
 import { DrawerComponent } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
 import { ColumnDef } from '@tanstack/react-table';
 import React from 'react';
 import { SiHelm } from 'react-icons/si';
@@ -11,8 +11,6 @@ import ResourceTable from '../../shared/table/ResourceTable';
 import ReleaseSidebar from './ReleaseSidebar';
 
 const resourceKey = 'helm::v1::Release';
-
-const statusChipSx = { borderRadius: 'sm' } as const;
 
 /** Shape of a Helm release row as rendered in the table. */
 interface HelmRelease {
@@ -87,13 +85,9 @@ const HelmReleaseTable: React.FC = () => {
         cell: ({ getValue }) => {
           const status = getValue() as string;
           return (
-            <Chip
-              size="sm"
-              emphasis="soft"
-              color={statusColorMap[status] ?? 'neutral'}
-              sx={statusChipSx}
-              label={status}
-            />
+            <Chip size="sm" variant="soft" color={statusColorMap[status] ?? 'neutral'}>
+              {status}
+            </Chip>
           );
         },
         size: 120,

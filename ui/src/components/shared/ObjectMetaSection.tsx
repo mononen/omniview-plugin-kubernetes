@@ -1,38 +1,42 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
-import { Card, ExpandableSections } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Card, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import { formatRelative } from 'date-fns';
 import { ObjectMeta } from 'kubernetes-types/meta/v1';
 import React from 'react';
 
-const gridCellSx = { alignItems: 'center' } as const;
+import ExpandableSections from './ExpandableSections';
 
-const keyTextSx = { color: 'neutral.400' } as const;
+const entryGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 9fr)',
+  alignItems: 'center',
+};
 
-const valueTextSx = { color: 'neutral.100' } as const;
+const kvGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 2,
+  alignItems: 'center',
+};
 
-const cardSx = {
-  p: 0,
+const cardStyle: React.CSSProperties = {
+  padding: 0,
   gap: 0,
-  borderRadius: 'sm',
-} as const;
+  borderRadius: 'var(--ov-radius-sm)',
+  minWidth: 0,
+};
 
-const metadataHeaderSx = { py: 1, px: 1.25 } as const;
+const metadataHeaderStyle: React.CSSProperties = { paddingBlock: 8, paddingInline: 10 };
 
-const metadataBodySx = {
-  p: 1,
-  px: 1.5,
-  backgroundColor: 'background.level1',
+const metadataBodyStyle: React.CSSProperties = {
+  paddingBlock: 8,
+  paddingInline: 12,
   borderBottomRightRadius: 6,
   borderBottomLeftRadius: 6,
-} as const;
+};
 
-const annotationKeyTextSx = { fontSize: 13, fontWeight: 400 } as const;
+const annotationKeyTextStyle: React.CSSProperties = { fontSize: 13, fontWeight: 400 };
 
-const annotationValueTextSx = { fontSize: 13, fontWeight: 600 } as const;
+const annotationValueTextStyle: React.CSSProperties = { fontSize: 13, fontWeight: 600 };
 
 interface Props {
   data?: ObjectMeta;
@@ -42,18 +46,29 @@ const ObjectMetaEntry: React.FC<{
   title: string;
   value: string | undefined;
 }> = ({ title, value }) => (
-  <Grid container spacing={0}>
-    <Grid size={3} sx={gridCellSx}>
-      <Text sx={keyTextSx} size="sm">
-        {title}
-      </Text>
-    </Grid>
-    <Grid size={9} sx={gridCellSx}>
-      <Text weight="semibold" size="sm" sx={valueTextSx}>
-        {value}
-      </Text>
-    </Grid>
-  </Grid>
+  <div style={entryGridStyle}>
+    <Text tone="muted" size="sm">
+      {title}
+    </Text>
+    <Text weight="semibold" size="sm">
+      {value}
+    </Text>
+  </div>
+);
+
+const KVGrid: React.FC<{ kvs?: Record<string, string> }> = ({ kvs }) => (
+  <div style={kvGridStyle}>
+    {Object.entries(kvs || {}).map(([key, value]) => (
+      <React.Fragment key={key}>
+        <Text style={annotationKeyTextStyle} size="sm">
+          {key}
+        </Text>
+        <Text style={annotationValueTextStyle} size="sm">
+          {value}
+        </Text>
+      </React.Fragment>
+    ))}
+  </div>
 );
 
 const ObjectMetaSection: React.FC<Props> = ({ data }) => {
@@ -65,64 +80,25 @@ const ObjectMetaSection: React.FC<Props> = ({ data }) => {
     {
       title: 'Annotations',
       defaultExpanded: false,
-      children: (
-        <Grid container spacing={0.25}>
-          {Object.entries(data.annotations || {}).map(([key, value]) => (
-            <React.Fragment key={key}>
-              <Grid size={6} sx={gridCellSx}>
-                <Text sx={annotationKeyTextSx} size="sm">
-                  {key}
-                </Text>
-              </Grid>
-              <Grid size={6} sx={gridCellSx}>
-                <Text sx={annotationValueTextSx} size="sm">
-                  {value}
-                </Text>
-              </Grid>
-            </React.Fragment>
-          ))}
-        </Grid>
-      ),
+      children: <KVGrid kvs={data.annotations} />,
     },
     {
       title: 'Labels',
       defaultExpanded: false,
-      children: (
-        <Grid container spacing={0.25}>
-          {Object.entries(data.labels || {}).map(([key, value]) => (
-            <React.Fragment key={key}>
-              <Grid size={6} sx={gridCellSx}>
-                <Text sx={annotationKeyTextSx} size="sm">
-                  {key}
-                </Text>
-              </Grid>
-              <Grid size={6} sx={gridCellSx}>
-                <Text sx={annotationValueTextSx} size="sm">
-                  {value}
-                </Text>
-              </Grid>
-            </React.Fragment>
-          ))}
-        </Grid>
-      ),
+      children: <KVGrid kvs={data.labels} />,
     },
   ];
 
   return (
-    <Stack direction="column" gap={1}>
-      <Card
-        sx={cardSx}
-        variant="outlined"
-      >
-        <Box sx={metadataHeaderSx}>
+    <Stack direction="column" spacing={2}>
+      <Card style={cardStyle}>
+        <div style={metadataHeaderStyle}>
           <Text weight="semibold" size="sm">
             Metadata
           </Text>
-        </Box>
-        <Divider />
-        <Box
-          sx={metadataBodySx}
-        >
+        </div>
+        <Separator />
+        <div style={metadataBodyStyle}>
           <ObjectMetaEntry title="Name" value={data.name} />
           {data.namespace && <ObjectMetaEntry title="Namespace" value={data.namespace} />}
           <ObjectMetaEntry
@@ -134,9 +110,9 @@ const ObjectMetaSection: React.FC<Props> = ({ data }) => {
             }
           />
           <ObjectMetaEntry title="Version" value={data.resourceVersion} />
-        </Box>
+        </div>
       </Card>
-      <ExpandableSections sections={kvSections} />
+      <ExpandableSections sections={kvSections} size="md" />
     </Stack>
   );
 };

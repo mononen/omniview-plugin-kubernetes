@@ -1,6 +1,5 @@
+import { Chip, Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { VolumeAttachment } from 'kubernetes-types/storage/v1';
 import React from 'react';
 
@@ -9,6 +8,8 @@ import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import ResourceLinkChip from '../../../../../shared/ResourceLinkChip';
 import SidebarSection from '../../../../../shared/SidebarSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<VolumeAttachment>;
@@ -24,19 +25,14 @@ export const VolumeAttachmentSidebar: React.FC<Props> = ({ ctx }) => {
   const attachmentMetadata = status?.attachmentMetadata as Record<string, string> | undefined;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={va.metadata} />
 
         <SidebarSection
           title="Status"
           headerLeft={
-            <Chip
-              size="xs"
-              emphasis="soft"
-              color={status?.attached ? 'success' : 'warning'}
-              label={status?.attached ? 'Attached' : 'Detached'}
-            />
+            <Chip size="xs" color={status?.attached ? 'success' : 'warning'}>{status?.attached ? 'Attached' : 'Detached'}</Chip>
           }
         >
             {status?.attachError && (

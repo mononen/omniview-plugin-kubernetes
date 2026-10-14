@@ -1,7 +1,5 @@
-import { Stack } from '@omniviewdev/ui/layout';
+import { Stack } from '@omniviewdev/base-ui';
 import React from 'react';
-
-// @omniviewdev/ui
 
 // project-imports
 import { KubernetesResourceObject } from '../../../../../types/resource';
@@ -13,6 +11,8 @@ interface Props {
   children?: React.ReactNode;
 }
 
+const rootStyle: React.CSSProperties = { width: '100%' };
+
 export const BaseOverviewPage: React.FC<Props> = ({ data, children }) => {
   if (!data) {
     console.warn('BaseOverviewPage: no data provided');
@@ -21,7 +21,7 @@ export const BaseOverviewPage: React.FC<Props> = ({ data, children }) => {
 
   // compose your component here
   return (
-    <Stack direction="column" width={'100%'} spacing={1}>
+    <Stack direction="column" spacing={2} style={rootStyle}>
       <MetadataSection data={data.metadata} />
       {children}
     </Stack>

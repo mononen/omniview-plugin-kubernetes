@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+
 import SidebarSection from './SidebarSection';
 
 const meta = {
@@ -33,10 +34,10 @@ export const WithHeaderLeft: Story = {
   },
 };
 
-export const CustomBodySx: Story = {
+export const CustomBodyStyle: Story = {
   args: {
     title: 'Conditions',
-    bodySx: { display: 'flex', flexWrap: 'wrap', gap: 0.5 },
+    bodyStyle: { display: 'flex', flexWrap: 'wrap', gap: 4 },
     children: (
       <>
         <span style={{ padding: '2px 8px', background: '#e8f5e9', borderRadius: 4, fontSize: 11 }}>Available</span>

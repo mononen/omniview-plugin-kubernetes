@@ -1,6 +1,4 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 import {
   DndContext,
   closestCenter,
@@ -19,9 +17,10 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import { LuChevronRight, LuChevronDown, LuGripVertical } from 'react-icons/lu';
-import type { NavSection, NavMenuItem as NavMenuItemType } from '@omniviewdev/ui/sidebars';
-
 import { type SidebarOrder, extractOrder } from '../../../hooks/useSidebarOrder';
+import type { NavSection, NavMenuItem as NavMenuItemType } from '../../../types/navigation';
+
+import styles from './DraggableNavMenu.module.css';
 
 export interface DraggableNavMenuProps {
   sections: NavSection[];
@@ -34,9 +33,7 @@ export interface DraggableNavMenuProps {
   onExpandedChange?: (state: Record<string, boolean>) => void;
 }
 
-const FONT_SIZE = 12;
 const CHEVRON_SIZE = 12;
-const CHEVRON_SLOT = 14;
 const INDENT = 10;
 
 /**
@@ -124,90 +121,62 @@ function SortableItem({
     zIndex: isDragging ? 10 : undefined,
   };
 
+  const activate = () => {
+    if (item.disabled) return;
+    if (hasChildren && isSelectableParent(item)) {
+      // Navigate to the parent's own page; only collapse on a second click.
+      if (!isExpanded || isSelected) onToggleExpanded(item.id);
+      onSelect?.(item.id);
+    } else if (hasChildren) {
+      onToggleExpanded(item.id);
+    } else {
+      onSelect?.(item.id);
+    }
+  };
+
   return (
-    <Box ref={setNodeRef} style={style}>
-      <Box
-        onClick={() => {
-          if (item.disabled) return;
-          if (hasChildren && isSelectableParent(item)) {
-            // Navigate to the parent's own page; only collapse on a second click.
-            if (!isExpanded || isSelected) onToggleExpanded(item.id);
-            onSelect?.(item.id);
-          } else if (hasChildren) {
-            onToggleExpanded(item.id);
-          } else {
-            onSelect?.(item.id);
+    <div ref={setNodeRef} style={style}>
+      <div
+        className={styles.row}
+        data-selected={isSelected ? 'true' : undefined}
+        data-disabled={item.disabled ? 'true' : undefined}
+        data-has-children={hasChildren ? 'true' : undefined}
+        role="button"
+        tabIndex={item.disabled ? -1 : 0}
+        aria-disabled={item.disabled || undefined}
+        aria-expanded={hasChildren ? isExpanded : undefined}
+        onClick={activate}
+        onKeyDown={(e: React.KeyboardEvent) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            activate();
           }
         }}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          pl: `${depth * INDENT + 4}px`,
-          pr: '6px',
-          py: '3px',
-          cursor: item.disabled ? 'default' : 'pointer',
-          opacity: item.disabled ? 0.5 : 1,
-          borderRadius: '4px',
-          mx: '4px',
-          my: '1px',
-          bgcolor: isSelected ? 'var(--ov-accent-subtle)' : 'transparent',
-          color: isSelected ? 'var(--ov-accent-fg)' : 'var(--ov-fg-default)',
-          fontWeight: isSelected ? 600 : hasChildren ? 500 : 400,
-          '&:hover': {
-            bgcolor: isSelected ? 'var(--ov-accent-subtle)' : 'var(--ov-state-hover)',
-          },
-        }}
+        style={{ paddingLeft: `${depth * INDENT + 4}px` }}
       >
         {isEditing && (
-          <Box
+          // dnd-kit's `attributes`/`listeners` supply role, tabIndex and keyboard handlers.
+          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+          <div
             {...attributes}
             {...listeners}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'grab',
-              color: 'var(--ov-fg-faint)',
-              flexShrink: 0,
-              '&:hover': { color: 'var(--ov-fg-default)' },
-              '&:active': { cursor: 'grabbing' },
-            }}
+            className={styles.dragHandle}
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <LuGripVertical size={12} />
-          </Box>
+          </div>
         )}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: CHEVRON_SLOT,
-            minWidth: CHEVRON_SLOT,
-            flexShrink: 0,
-            color: 'var(--ov-fg-faint)',
-          }}
-        >
+        <div className={styles.chevronSlot}>
           {hasChildren && (isExpanded
             ? <LuChevronDown size={CHEVRON_SIZE} />
             : <LuChevronRight size={CHEVRON_SIZE} />
           )}
-        </Box>
-        {item.icon && (
-          <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, fontSize: FONT_SIZE + 2 }}>
-            {item.icon}
-          </Box>
-        )}
-        <Typography
-          variant="body2"
-          sx={{ flex: 1, fontSize: FONT_SIZE, color: 'inherit', fontWeight: 'inherit' }}
-          noWrap
-        >
-          {item.label}
-        </Typography>
+        </div>
+        {item.icon && <div className={styles.icon}>{item.icon}</div>}
+        <span className={styles.label}>{item.label}</span>
         {item.badge}
-      </Box>
+      </div>
       {hasChildren && isExpanded && item.children && (
         <ChildSortableContext
           parentId={item.id}
@@ -222,7 +191,7 @@ function SortableItem({
           setIsDragging={setIsDragging}
         />
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -318,15 +287,6 @@ function ChildSortableContext({
 }
 
 // ──────────────────── Main component ────────────────────
-
-const scrollableSx = {
-  overflow: 'auto',
-  maxHeight: '100%',
-  flex: 1,
-  minHeight: 0,
-  scrollbarWidth: 'none' as const,
-  '&::-webkit-scrollbar': { display: 'none' },
-};
 
 export default function DraggableNavMenu({
   sections: sectionsProp,
@@ -518,30 +478,14 @@ export default function DraggableNavMenu({
     [onReorder, pendingSectionsProp, sections],
   );
 
-  const rootSx = scrollable ? scrollableSx : undefined;
+  const rootClassName = scrollable ? styles.scrollable : undefined;
 
   if (!isEditing) {
     return (
-      <Box sx={rootSx}>
+      <div className={rootClassName}>
         {sections.map((section, i) => (
-          <Box key={section.title || `section-${i}`} sx={{ mb: 0.5, mt: i === 0 ? 0 : 0.25 }}>
-            {section.title && (
-              <Typography
-                variant="overline"
-                sx={{
-                  display: 'block',
-                  px: '12px',
-                  py: '4px',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  letterSpacing: '0.08em',
-                  color: 'var(--ov-fg-faint)',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {section.title}
-              </Typography>
-            )}
+          <div key={section.title || `section-${i}`} style={{ marginBottom: 4, marginTop: i === 0 ? 0 : 2 }}>
+            {section.title && <span className={styles.sectionTitle}>{section.title}</span>}
             {section.items.map((item) => (
               <SortableItem
                 key={item.id}
@@ -554,14 +498,14 @@ export default function DraggableNavMenu({
                 isEditing={false}
               />
             ))}
-          </Box>
+          </div>
         ))}
-      </Box>
+      </div>
     );
   }
 
   return (
-    <Box sx={rootSx}>
+    <div className={rootClassName}>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -579,24 +523,8 @@ export default function DraggableNavMenu({
       >
         <SortableContext items={topLevelIds} strategy={verticalListSortingStrategy}>
           {sections.map((section, i) => (
-            <Box key={section.title || `section-${i}`} sx={{ mb: 0.5, mt: i === 0 ? 0 : 0.25 }}>
-              {section.title && (
-                <Typography
-                  variant="overline"
-                  sx={{
-                    display: 'block',
-                    px: '12px',
-                    py: '4px',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    letterSpacing: '0.08em',
-                    color: 'var(--ov-fg-faint)',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {section.title}
-                </Typography>
-              )}
+            <div key={section.title || `section-${i}`} style={{ marginBottom: 4, marginTop: i === 0 ? 0 : 2 }}>
+              {section.title && <span className={styles.sectionTitle}>{section.title}</span>}
               {section.items.map((item) => (
                 <SortableItem
                   key={item.id}
@@ -611,11 +539,11 @@ export default function DraggableNavMenu({
                   setIsDragging={setIsDragging}
                 />
               ))}
-            </Box>
+            </div>
           ))}
         </SortableContext>
       </DndContext>
-    </Box>
+    </div>
   );
 }
 
