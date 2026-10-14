@@ -1,36 +1,4 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
-
-const shimsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'shims');
-
-/**
- * Shared packages that the published @omniviewdev/vite-plugin (0.3.0) does not
- * know about yet. The host app already exposes them on
- * window.__OMNIVIEW_SHARED__; this resolves them to the local shims in dev and
- * keeps them external in the SystemJS build. Drop it once the vite-plugin is
- * republished with base-ui in its shared list.
- */
-const LOCAL_SHARED: Record<string, string> = {
-  '@omniviewdev/base-ui': '_omniviewdev__base-ui.mjs',
-  '@omniviewdev/editors': '_omniviewdev__editors.mjs',
-};
-
-export function localSharedPackages(): Plugin {
-  let isBuild = false;
-  return {
-    name: 'omniview-local-shared',
-    enforce: 'pre',
-    configResolved(config) {
-      isBuild = config.command === 'build';
-    },
-    resolveId(source) {
-      const shim = LOCAL_SHARED[source];
-      if (!shim) return null;
-      return isBuild ? { id: source, external: true } : path.join(shimsDir, shim);
-    },
-  };
-}
 
 /**
  * The host app only loads `assets/entry.js`, so CSS emitted by the build (CSS
