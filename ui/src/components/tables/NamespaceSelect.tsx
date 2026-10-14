@@ -1,15 +1,9 @@
+import { MultiSelect } from '@omniviewdev/base-ui';
 import { useResources } from '@omniviewdev/runtime';
-import { Select } from '@omniviewdev/ui/inputs';
 import type { Namespace } from 'kubernetes-types/core/v1';
 import React from 'react';
 
-const selectSx = {
-  minWidth: 160,
-  maxWidth: 280,
-  '& .MuiSelect-select': {
-    py: '2px !important',
-  },
-} as const;
+import styles from './toolbarInputs.module.css';
 
 type Props = {
   /** The active connection being used */
@@ -42,24 +36,19 @@ const NamespaceSelect: React.FC<Props> = ({ connectionID, selected, setNamespace
       .sort();
   }, [resources.data]);
 
-  const handleChange = (newValue: string | string[]) => {
-    setNamespaces(Array.isArray(newValue) ? newValue : [newValue]);
-  };
-
   return (
-    <Select
-      size="xs"
-      multiple
-      searchable
-      clearable
+    <MultiSelect
+      size="sm"
+      variant="outline"
+      items={namespaceNames}
       value={selected}
-      onChange={handleChange}
+      onValueChange={(values) => setNamespaces(values)}
       placeholder="All Namespaces"
-      sx={selectSx}
-      options={namespaceNames.map((ns: string) => ({
-        value: ns,
-        label: ns,
-      }))}
+      searchPlaceholder="Search namespaces..."
+      triggerLabel="Namespaces"
+      maxVisibleChips={2}
+      clearable
+      className={styles.filterSelect}
     />
   );
 };

@@ -1,16 +1,16 @@
-import Box from '@mui/material/Box';
-import Table from '@mui/material/Table';
-import { Chip } from '@omniviewdev/ui';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Table, Text } from '@omniviewdev/base-ui';
 import { IngressBackend, IngressRule } from 'kubernetes-types/networking/v1';
 import React from 'react';
 
 import { BrowserOpenURL } from '../../../../utils/ide';
 
-const tableSx = { '--TableCell-paddingY': '0rem' } as const;
-const backendEndAdornmentSx = { borderRadius: 'sm', px: 1 } as const;
-const backendChipSx = { borderRadius: 'sm', p: 0.25 } as const;
-const portLabelSx = { px: 1 } as const;
+const backendEndDecoratorStyle: React.CSSProperties = {
+  borderRadius: 'var(--ov-radius-sm)',
+  paddingInline: 8,
+};
+const backendChipStyle: React.CSSProperties = { borderRadius: 'var(--ov-radius-sm)', padding: 2 };
+const portLabelStyle: React.CSSProperties = { paddingInline: 8 };
+const headerCellStyle: React.CSSProperties = { height: '30px', paddingBottom: '6px' };
 
 interface Props {
   rule: IngressRule;
@@ -26,26 +26,23 @@ export const RuleTable: React.FC<Props> = ({ rule }) => {
   };
 
   return (
-    <Table
-      aria-label="rules table"
-      sx={tableSx}
-    >
-      <thead>
-        <tr>
-          <th style={{ height: '30px', paddingBottom: '6px' }}>Path</th>
-          <th style={{ height: '30px', paddingBottom: '6px', width: '150px' }}>Type</th>
-          <th style={{ height: '30px', paddingBottom: '6px' }}>Target</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table aria-label="rules table" size="sm">
+      <Table.Head>
+        <Table.Row>
+          <Table.HeaderCell style={headerCellStyle}>Path</Table.HeaderCell>
+          <Table.HeaderCell style={{ ...headerCellStyle, width: '150px' }}>Type</Table.HeaderCell>
+          <Table.HeaderCell style={headerCellStyle}>Target</Table.HeaderCell>
+        </Table.Row>
+      </Table.Head>
+      <Table.Body>
         {rule.http?.paths.map((path) => (
-          <tr
+          <Table.Row
             key={`${path.path ?? '/'}-${path.pathType}`}
             style={{
               padding: '0.5rem',
             }}
           >
-            <td
+            <Table.Cell
               style={{
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -56,14 +53,14 @@ export const RuleTable: React.FC<Props> = ({ rule }) => {
               onClick={() => handleLinkClick(rule.host, path.path)}
             >
               {path.path ?? '/'}
-            </td>
-            <td>{path.pathType}</td>
-            <td>
+            </Table.Cell>
+            <Table.Cell>{path.pathType}</Table.Cell>
+            <Table.Cell>
               <IngressBackendChip backend={path.backend} />
-            </td>
-          </tr>
+            </Table.Cell>
+          </Table.Row>
         ))}
-      </tbody>
+      </Table.Body>
     </Table>
   );
 };
@@ -73,20 +70,19 @@ const IngressBackendChip: React.FC<{ backend: IngressBackend }> = ({ backend }) 
     return (
       backend.service.port && (
         <Chip
-          endAdornment={
-            <Box sx={backendEndAdornmentSx}>
+          endDecorator={
+            <span style={backendEndDecoratorStyle}>
               <Text size="xs">{backend.service.name}</Text>
-            </Box>
+            </span>
           }
-          sx={backendChipSx}
+          style={backendChipStyle}
           size="sm"
-          emphasis="outline"
-          label={
-            <Text size="xs" sx={portLabelSx}>
-              {backend.service.port.number ?? backend.service.port.name}
-            </Text>
-          }
-        />
+          variant="outline"
+        >
+          <Text size="xs" style={portLabelStyle}>
+            {backend.service.port.number ?? backend.service.port.name}
+          </Text>
+        </Chip>
       )
     );
   }

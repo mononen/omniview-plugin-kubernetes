@@ -1,16 +1,9 @@
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import Grid from '@mui/material/Grid';
+import { Button, Card, Chip, FormField, Grid, IconButton, Input, Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import { useMetricProvidersForResource } from '@omniviewdev/runtime';
 import { MetricClient } from '@omniviewdev/runtime/api';
 import type { metric } from '@omniviewdev/runtime/models';
-import { Card, Chip } from '@omniviewdev/ui';
-import { Button, IconButton } from '@omniviewdev/ui/buttons';
-import { FormField, TextField } from '@omniviewdev/ui/inputs';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import { useQueryClient } from '@tanstack/react-query';
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useId } from 'react';
 import { LuActivity, LuCheck, LuCircle, LuInfo, LuPlugZap, LuRefreshCw, LuX } from 'react-icons/lu';
 
 import { useClusterPreferences } from '../../hooks/useClusterPreferences';
@@ -37,90 +30,98 @@ const WELL_KNOWN_NAMESPACES = [
   'default',
 ];
 
-const colorInheritSx = { color: 'inherit' } as const;
+const cardStyle: React.CSSProperties = { minWidth: 0, padding: 0, gap: 0 };
 
-const cardBorderSx = { borderColor: 'divider' } as const;
+const cardBodyStyle: React.CSSProperties = { padding: 12 };
 
-const cardBodySx = { p: 1.5 } as const;
+const providerHeaderStyle: React.CSSProperties = { marginBottom: 8 };
 
-const providerHeaderSx = { mb: 1 } as const;
+const rowGap6Style: React.CSSProperties = { gap: 6 };
 
-const noProviderWarningBoxSx = {
-  mt: 1,
-  px: 1,
-  py: 0.75,
-  borderRadius: 1,
-  bgcolor: 'warning.softBg',
-  border: '1px solid',
-  borderColor: 'warning.softColor',
-} as const;
+const smallSpinnerStyle: React.CSSProperties = { width: 8, height: 8 };
 
-const providerItemSx = {
-  px: 1.25,
-  py: 0.5,
-  borderRadius: 1,
-  bgcolor: 'background.level1',
+const noProviderWarningBoxStyle: React.CSSProperties = {
+  marginTop: 8,
+  paddingInline: 8,
+  paddingBlock: 6,
+  borderRadius: 4,
+  backgroundColor: 'var(--ov-color-warning-soft)',
+  border: '1px solid var(--ov-color-warning)',
+};
+
+const providerItemStyle: React.CSSProperties = {
+  paddingInline: 10,
+  paddingBlock: 4,
+  borderRadius: 4,
+  backgroundColor: 'var(--ov-color-bg-inset)',
   display: 'flex',
   flexDirection: 'column',
-} as const;
+};
 
-const providerListSx = { mt: 1 } as const;
+const providerListStyle: React.CSSProperties = { marginTop: 8 };
 
-const promConfigHeaderSx = { mb: 0.5 } as const;
+const promConfigHeaderStyle: React.CSSProperties = { marginBottom: 4 };
 
-const successBannerSx = {
-  mb: 1.5,
-  px: 1.25,
-  py: 0.75,
-  borderRadius: 1,
-  bgcolor: 'success.softBg',
-  border: '1px solid',
-  borderColor: 'success.softColor',
-} as const;
+const successBannerStyle: React.CSSProperties = {
+  marginBottom: 12,
+  paddingInline: 10,
+  paddingBlock: 6,
+  borderRadius: 4,
+  backgroundColor: 'var(--ov-color-success-soft)',
+  border: '1px solid var(--ov-color-success)',
+};
 
-const failureBannerSx = {
-  mb: 1.5,
-  px: 1.25,
-  py: 0.75,
-  borderRadius: 1,
-  bgcolor: 'error.softBg',
-  border: '1px solid',
-  borderColor: 'error.softColor',
-} as const;
+const failureBannerStyle: React.CSSProperties = {
+  marginBottom: 12,
+  paddingInline: 10,
+  paddingBlock: 6,
+  borderRadius: 4,
+  backgroundColor: 'var(--ov-color-danger-soft)',
+  border: '1px solid var(--ov-color-danger)',
+};
 
-const failureIconSx = { mt: 0.125, flexShrink: 0 } as const;
+const failureIconStyle: React.CSSProperties = { marginTop: 1, flexShrink: 0 };
 
-const infoRowSx = { mt: 1.25 } as const;
+const infoRowStyle: React.CSSProperties = { marginTop: 10, gap: 6 };
 
-const infoIconSx = { color: 'text.tertiary', mt: 0.25, flexShrink: 0 } as const;
+const infoIconStyle: React.CSSProperties = { color: 'var(--ov-color-fg-subtle)', marginTop: 2, flexShrink: 0 };
 
-const autoDetectionBodySx = { p: 1.5, display: 'flex', flexDirection: 'column' } as const;
+const autoDetectionBodyStyle: React.CSSProperties = { padding: 12, display: 'flex', flexDirection: 'column' };
 
-const sectionLabelSx = {
-  mb: 0.5,
+const sectionLabelStyle: React.CSSProperties = {
+  display: 'block',
+  marginBottom: 4,
   textTransform: 'uppercase',
   opacity: 0.4,
   letterSpacing: '0.05em',
   fontSize: '0.6rem',
-} as const;
+};
 
-const wellKnownItemSx = { px: 1, py: 0.375, borderRadius: 0.75, bgcolor: 'background.level1' } as const;
+const wellKnownItemStyle: React.CSSProperties = {
+  paddingInline: 8,
+  paddingBlock: 3,
+  borderRadius: 3,
+  backgroundColor: 'var(--ov-color-bg-inset)',
+  gap: 6,
+};
 
-const monoTextSx = { fontFamily: 'monospace', fontSize: '0.7rem' } as const;
+const wellKnownListStyle: React.CSSProperties = { gap: 2 };
 
-const descTextSx = { opacity: 0.4, fontSize: '0.65rem' } as const;
+const monoTextStyle: React.CSSProperties = { fontFamily: 'var(--ov-font-mono)', fontSize: '0.7rem' };
 
-const warningTextSx = { lineHeight: 1.4 } as const;
+const descTextStyle: React.CSSProperties = { opacity: 0.4, fontSize: '0.65rem' };
 
-const providerDescSx = { opacity: 0.5 } as const;
+const warningTextStyle: React.CSSProperties = { lineHeight: 1.4 };
 
-const promSubtitleSx = { mb: 1.5, opacity: 0.6 } as const;
+const providerDescStyle: React.CSSProperties = { opacity: 0.5 };
 
-const infoTextSx = { color: 'text.tertiary', lineHeight: 1.4 } as const;
+const promSubtitleStyle: React.CSSProperties = { marginBottom: 12, opacity: 0.6 };
 
-const autoDetectionTitleSx = { mb: 0.25 } as const;
+const infoTextStyle: React.CSSProperties = { lineHeight: 1.4 };
 
-const autoDetectionSubtitleSx = { mb: 1.25, opacity: 0.5 } as const;
+const autoDetectionTitleStyle: React.CSSProperties = { marginBottom: 2 };
+
+const autoDetectionSubtitleStyle: React.CSSProperties = { marginBottom: 10, opacity: 0.5 };
 
 type TestState = 'idle' | 'testing' | 'success' | 'failure';
 
@@ -170,6 +171,10 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
       metricConfig: Object.keys(mc).length > 0 ? mc : undefined,
     });
   }, [service, namespace, port, connectionID, existing, updateOverride]);
+
+  const serviceId = useId();
+  const namespaceId = useId();
+  const portId = useId();
 
   const onBlur = () => {
     void saveConfig();
@@ -267,26 +272,36 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
 
   const providerCount = providers?.length ?? 0;
 
+  const inputChange =
+    (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setter(e.target.value);
+
   return (
-    <Stack direction="column" gap={1.5}>
+    <Stack direction="column" spacing={3}>
       {/* Provider status */}
-      <Card variant="outlined" sx={cardBorderSx}>
-        <Box sx={cardBodySx}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={providerHeaderSx}>
-            <Stack direction="row" alignItems="center" gap={0.75}>
+      <Card style={cardStyle}>
+        <div style={cardBodyStyle}>
+          <Stack direction="row" align="center" justify="between" style={providerHeaderStyle}>
+            <Stack direction="row" align="center" spacing={0} style={rowGap6Style}>
               <LuActivity size={14} />
               <Text size="sm" weight="semibold">
                 Metric Providers
               </Text>
             </Stack>
-            <IconButton size="sm" emphasis="ghost" onClick={handleRefreshProviders}>
+            <IconButton
+              size="sm"
+              variant="ghost"
+              color="neutral"
+              aria-label="Refresh providers"
+              onClick={handleRefreshProviders}
+            >
               <LuRefreshCw size={12} />
             </IconButton>
           </Stack>
-          <Stack direction="row" gap={0.75} flexWrap="wrap">
+          <Stack direction="row" spacing={0} wrap style={rowGap6Style}>
             <Chip
               size="sm"
-              emphasis="soft"
+              variant="soft"
               color={
                 connected && providerCount > 0
                   ? 'success'
@@ -294,89 +309,78 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
                     ? 'neutral'
                     : 'warning'
               }
-              startAdornment={
+              startDecorator={
                 providersLoading ? (
-                  <CircularProgress size={7} sx={colorInheritSx} />
+                  <Spinner size="xs" style={smallSpinnerStyle} />
                 ) : (
                   <LuCircle size={7} fill="currentColor" />
                 )
               }
-              label={
-                !connected
-                  ? 'Connect cluster to check providers'
-                  : providersLoading
-                    ? 'Checking providers...'
-                    : providerCount > 0
-                      ? `${providerCount} provider${providerCount !== 1 ? 's' : ''} registered`
-                      : '0 providers registered'
-              }
-            />
+            >
+              {!connected
+                ? 'Connect cluster to check providers'
+                : providersLoading
+                  ? 'Checking providers...'
+                  : providerCount > 0
+                    ? `${providerCount} provider${providerCount !== 1 ? 's' : ''} registered`
+                    : '0 providers registered'}
+            </Chip>
           </Stack>
           {connected && providerCount === 0 && !providersLoading && (
-            <Box
-              sx={noProviderWarningBoxSx}
-            >
-              <Text size="xs" sx={warningTextSx}>
+            <div style={noProviderWarningBoxStyle}>
+              <Text size="xs" style={warningTextStyle}>
                 No metric providers found. This usually means the plugin binary needs to be rebuilt
                 with metric support, or the plugin hasn&apos;t fully initialized yet. Try reconnecting
                 the cluster or restarting the app.
               </Text>
-            </Box>
+            </div>
           )}
           {connected && providerCount > 0 && (
-            <Stack gap={0.5} sx={providerListSx}>
+            <Stack direction="column" spacing={1} style={providerListStyle}>
               {providers!.map((p) => (
-                <Box
-                  key={p.provider_id}
-                  sx={providerItemSx}
-                >
+                <div key={p.provider_id} style={providerItemStyle}>
                   <Text size="xs" weight="medium">
                     {p.name || p.provider_id}
                   </Text>
                   {p.description && (
-                    <Text size="xs" sx={providerDescSx}>
+                    <Text size="xs" style={providerDescStyle}>
                       {p.description}
                     </Text>
                   )}
-                </Box>
+                </div>
               ))}
             </Stack>
           )}
-        </Box>
+        </div>
       </Card>
 
       {/* Prometheus configuration */}
-      <Card variant="outlined" sx={cardBorderSx}>
-        <Box sx={cardBodySx}>
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={promConfigHeaderSx}
-          >
+      <Card style={cardStyle}>
+        <div style={cardBodyStyle}>
+          <Stack direction="row" align="center" justify="between" style={promConfigHeaderStyle}>
             <Text size="sm" weight="semibold">
               Prometheus Configuration
             </Text>
-            <Stack direction="row" gap={0.5}>
+            <Stack direction="row" spacing={1}>
               {testState === 'testing' && (
-                <Button size="sm" emphasis="ghost" color="neutral" onClick={handleCancel}>
+                <Button size="sm" variant="ghost" color="neutral" onClick={handleCancel}>
                   Cancel
                 </Button>
               )}
               <Button
                 size="sm"
-                emphasis="ghost"
+                variant="ghost"
                 color={
                   testState === 'success'
                     ? 'success'
                     : testState === 'failure'
                       ? 'danger'
-                      : 'primary'
+                      : 'brand'
                 }
                 disabled={!connected || testState === 'testing'}
-                startAdornment={
+                startDecorator={
                   testState === 'testing' ? (
-                    <CircularProgress size={12} sx={colorInheritSx} />
+                    <Spinner size="xs" />
                   ) : testState === 'success' ? (
                     <LuCheck size={14} />
                   ) : testState === 'failure' ? (
@@ -397,148 +401,136 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
               </Button>
             </Stack>
           </Stack>
-          <Text size="xs" sx={promSubtitleSx}>
+          <Text size="xs" style={promSubtitleStyle}>
             Override Prometheus service details for this cluster. Leave fields empty to use
             auto-detection.
           </Text>
 
           {/* Test result banner */}
           {testState === 'success' && (
-            <Box
-              sx={successBannerSx}
-            >
-              <Stack direction="row" gap={0.75} alignItems="center">
+            <div style={successBannerStyle}>
+              <Stack direction="row" spacing={0} align="center" style={rowGap6Style}>
                 <LuCheck size={14} />
                 <Text size="xs" weight="medium">
                   Prometheus is reachable and returning data.
                 </Text>
               </Stack>
-            </Box>
+            </div>
           )}
           {testState === 'failure' && (
-            <Box
-              sx={failureBannerSx}
-            >
-              <Stack direction="row" gap={0.75} alignItems="flex-start">
-                <Box sx={failureIconSx}>
+            <div style={failureBannerStyle}>
+              <Stack direction="row" spacing={0} align="start" style={rowGap6Style}>
+                <div style={failureIconStyle}>
                   <LuX size={14} />
-                </Box>
+                </div>
                 <Text size="xs" weight="medium">
                   {testError || 'Could not reach Prometheus.'}
                 </Text>
               </Stack>
-            </Box>
+            </div>
           )}
 
-          <Grid container spacing={1.5}>
-            <Grid size={{ xs: 12, md: 5 }}>
-              <FormField label="Service Name">
-                <TextField
+          <Grid columns={12} spacing={3}>
+            <Grid.Item span={{ xs: 12, md: 5 }}>
+              <FormField label="Service Name" htmlFor={serviceId} size="sm">
+                <Input.Control
+                  id={serviceId}
                   size="sm"
                   placeholder="prometheus-server"
                   value={service}
-                  onChange={setService}
+                  onChange={inputChange(setService)}
                   onBlur={onBlur}
                 />
               </FormField>
-            </Grid>
-            <Grid size={{ xs: 12, md: 5 }}>
-              <FormField label="Namespace">
-                <TextField
+            </Grid.Item>
+            <Grid.Item span={{ xs: 12, md: 5 }}>
+              <FormField label="Namespace" htmlFor={namespaceId} size="sm">
+                <Input.Control
+                  id={namespaceId}
                   size="sm"
                   placeholder="monitoring"
                   value={namespace}
-                  onChange={setNamespace}
+                  onChange={inputChange(setNamespace)}
                   onBlur={onBlur}
                 />
               </FormField>
-            </Grid>
-            <Grid size={{ xs: 12, md: 2 }}>
-              <FormField label="Port">
-                <TextField
+            </Grid.Item>
+            <Grid.Item span={{ xs: 12, md: 2 }}>
+              <FormField label="Port" htmlFor={portId} size="sm">
+                <Input.Control
+                  id={portId}
                   size="sm"
                   placeholder="9090"
                   value={port}
-                  onChange={setPort}
+                  onChange={inputChange(setPort)}
                   onBlur={onBlur}
                 />
               </FormField>
-            </Grid>
+            </Grid.Item>
           </Grid>
 
-          <Stack direction="row" gap={0.75} alignItems="flex-start" sx={infoRowSx}>
-            <Box sx={infoIconSx}>
+          <Stack direction="row" spacing={0} align="start" style={infoRowStyle}>
+            <div style={infoIconStyle}>
               <LuInfo size={12} />
-            </Box>
-            <Text size="xs" sx={infoTextSx}>
+            </div>
+            <Text size="xs" tone="subtle" style={infoTextStyle}>
               When fields are empty, the backend scans for well-known Prometheus service names and
               namespaces automatically. Set these values if your Prometheus installation uses a
               non-standard configuration.
             </Text>
           </Stack>
-        </Box>
+        </div>
       </Card>
 
       {/* Auto-detection reference */}
-      <Card variant="outlined" sx={cardBorderSx}>
-        <Box sx={autoDetectionBodySx}>
-          <Text size="sm" weight="semibold" sx={autoDetectionTitleSx}>
+      <Card style={cardStyle}>
+        <div style={autoDetectionBodyStyle}>
+          <Text size="sm" weight="semibold" style={autoDetectionTitleStyle}>
             Auto-Detection Reference
           </Text>
-          <Text size="xs" sx={autoDetectionSubtitleSx}>
+          <Text size="xs" style={autoDetectionSubtitleStyle}>
             Well-known service names and namespaces scanned during auto-detection.
           </Text>
-          <Grid container spacing={1.5}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Text
-                size="xs"
-                weight="semibold"
-                sx={sectionLabelSx}
-              >
+          <Grid columns={12} spacing={3}>
+            <Grid.Item span={{ xs: 12, md: 6 }}>
+              <Text size="xs" weight="semibold" style={sectionLabelStyle}>
                 Service Names
               </Text>
-              <Stack gap={0.25}>
+              <Stack direction="column" spacing={0} style={wellKnownListStyle}>
                 {WELL_KNOWN_SERVICES.map((s) => (
                   <Stack
                     key={s.name}
                     direction="row"
-                    gap={0.75}
-                    alignItems="baseline"
-                    sx={wellKnownItemSx}
+                    spacing={0}
+                    align="baseline"
+                    style={wellKnownItemStyle}
                   >
-                    <Text size="xs" sx={monoTextSx}>
+                    <Text size="xs" style={monoTextStyle}>
                       {s.name}
                     </Text>
-                    <Text size="xs" sx={descTextSx}>
+                    <Text size="xs" style={descTextStyle}>
                       {s.desc}
                     </Text>
                   </Stack>
                 ))}
               </Stack>
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Text
-                size="xs"
-                weight="semibold"
-                sx={sectionLabelSx}
-              >
+            </Grid.Item>
+            <Grid.Item span={{ xs: 12, md: 6 }}>
+              <Text size="xs" weight="semibold" style={sectionLabelStyle}>
                 Namespaces
               </Text>
-              <Stack gap={0.25}>
+              <Stack direction="column" spacing={0} style={wellKnownListStyle}>
                 {WELL_KNOWN_NAMESPACES.map((ns) => (
-                  <Box
-                    key={ns}
-                    sx={wellKnownItemSx}
-                  >
-                    <Text size="xs" sx={monoTextSx}>
+                  <div key={ns} style={wellKnownItemStyle}>
+                    <Text size="xs" style={monoTextStyle}>
                       {ns}
                     </Text>
-                  </Box>
+                  </div>
                 ))}
               </Stack>
-            </Grid>
+            </Grid.Item>
           </Grid>
-        </Box>
+        </div>
       </Card>
     </Stack>
   );

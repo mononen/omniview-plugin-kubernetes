@@ -1,15 +1,13 @@
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
+import { Text } from '@omniviewdev/base-ui';
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import type { metric } from '@omniviewdev/runtime/models';
-import { MetricsPanel } from '@omniviewdev/ui/charts';
+import { MetricsPanel } from '../../../components/shared/charts';
 import type {
   TimeSeriesDef,
   ChartTimeRange,
   MetricFormat,
   ChartAnnotation,
-} from '@omniviewdev/ui/charts';
-import { Stack } from '@omniviewdev/ui/layout';
+} from '../../../components/shared/charts';
 import React, { useMemo } from 'react';
 import {
   LuCpu,
@@ -24,26 +22,26 @@ import { useParams } from 'react-router-dom';
 
 import { useClusterPreferences } from '../../../hooks/useClusterPreferences';
 
-const emptyStateSx = { p: 3, textAlign: 'center' } as const;
+const emptyStateStyle: React.CSSProperties = { padding: 24, textAlign: 'center' };
 
-const pageSx = { p: 1.5, overflow: 'auto', height: '100%', width: '100%', flex: 1 } as const;
+const pageStyle: React.CSSProperties = { padding: 12, overflow: 'auto', height: '100%', width: '100%', flex: 1 };
 
-const chartGridSx = {
+const chartGridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-  gap: 1.5,
-} as const;
+  gap: 12,
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 const CHART_COLORS = [
-  'var(--ov-accent, #3b82f6)',
-  'var(--ov-accent-secondary, #8b5cf6)',
-  '#22c55e',
-  '#f97316',
-  '#ef4444',
+  'var(--ov-color-brand-500)',
+  'var(--ov-color-secondary)',
+  'var(--ov-color-success)',
+  'var(--ov-color-warning)',
+  'var(--ov-color-danger)',
 ];
 
 function formatCores(v: number | null): string {
@@ -184,7 +182,7 @@ const METRICS_CHARTS: ChartDef[] = [
     icon: <LuRotateCcw size={ICON_SIZE} />,
     metricIDs: ['prom_cluster_container_restarts'],
     labels: { prom_cluster_container_restarts: 'Restart Rate' },
-    colors: { prom_cluster_container_restarts: '#ef4444' },
+    colors: { prom_cluster_container_restarts: 'var(--ov-color-danger)' },
     valueFormat: 'rate',
   },
   {
@@ -192,7 +190,7 @@ const METRICS_CHARTS: ChartDef[] = [
     icon: <LuTriangleAlert size={ICON_SIZE} />,
     metricIDs: ['prom_cluster_oom_events'],
     labels: { prom_cluster_oom_events: 'OOM Rate' },
-    colors: { prom_cluster_oom_events: '#f97316' },
+    colors: { prom_cluster_oom_events: 'var(--ov-color-warning)' },
     valueFormat: 'rate',
   },
   {
@@ -204,8 +202,8 @@ const METRICS_CHARTS: ChartDef[] = [
       prom_cluster_disk_write_rate: 'Write',
     },
     colors: {
-      prom_cluster_disk_read_rate: '#22c55e',
-      prom_cluster_disk_write_rate: '#f97316',
+      prom_cluster_disk_read_rate: 'var(--ov-color-success)',
+      prom_cluster_disk_write_rate: 'var(--ov-color-warning)',
     },
     valueFormat: 'bytes',
     unit: '/s',
@@ -219,7 +217,7 @@ const METRICS_CHARTS: ChartDef[] = [
       prom_cluster_network_transmit_rate: 'Transmit',
     },
     colors: {
-      prom_cluster_network_receive_rate: '#22c55e',
+      prom_cluster_network_receive_rate: 'var(--ov-color-success)',
       prom_cluster_network_transmit_rate: CHART_COLORS[0],
     },
     valueFormat: 'bytes',
@@ -237,7 +235,7 @@ const METRICS_CHARTS: ChartDef[] = [
     colors: {
       prom_cluster_load1: CHART_COLORS[0],
       prom_cluster_load5: CHART_COLORS[1],
-      prom_cluster_load15: '#22c55e',
+      prom_cluster_load15: 'var(--ov-color-success)',
     },
     valueFormat: 'number',
   },
@@ -333,11 +331,11 @@ const ClusterDashboardMetricsPage: React.FC = () => {
 
   if (providers.length === 0 && !isLoading) {
     return (
-      <Box sx={emptyStateSx}>
-        <Typography variant="body2" color="text.secondary">
+      <div style={emptyStateStyle}>
+        <Text as="p" size="sm" tone="muted">
           No metric providers available. Ensure Prometheus is running in your cluster.
-        </Typography>
-      </Box>
+        </Text>
+      </div>
     );
   }
 
@@ -346,64 +344,60 @@ const ClusterDashboardMetricsPage: React.FC = () => {
   );
 
   return (
-    <Box sx={pageSx}>
-      <Stack gap={1.5}>
-        <Box
-          sx={chartGridSx}
-        >
-          {(isLoading && activeCharts.length === 0 ? METRICS_CHARTS : activeCharts).map((def) => {
-            const series: TimeSeriesDef[] = [];
-            for (const mid of def.metricIDs) {
-              const ts = tsSeries.get(mid);
-              if (!ts) continue;
-              const style = def.seriesStyles?.[mid];
-              series.push(
-                toTimeSeriesDef(
-                  ts,
-                  def.labels[mid] || mid,
-                  def.colors[mid] || CHART_COLORS[series.length % CHART_COLORS.length],
-                  style,
-                ),
-              );
-            }
+    <div style={pageStyle}>
+      <div style={chartGridStyle}>
+        {(isLoading && activeCharts.length === 0 ? METRICS_CHARTS : activeCharts).map((def) => {
+          const series: TimeSeriesDef[] = [];
+          for (const mid of def.metricIDs) {
+            const ts = tsSeries.get(mid);
+            if (!ts) continue;
+            const style = def.seriesStyles?.[mid];
+            series.push(
+              toTimeSeriesDef(
+                ts,
+                def.labels[mid] || mid,
+                def.colors[mid] || CHART_COLORS[series.length % CHART_COLORS.length],
+                style,
+              ),
+            );
+          }
 
-            const annotations: ChartAnnotation[] = [];
-            if (def.annotationMetricIDs) {
-              for (const amid of def.annotationMetricIDs) {
-                const val = instantValues.get(amid);
-                if (val != null && val > 0) {
-                  annotations.push({
-                    value: val,
-                    label: def.annotationLabels?.[amid] ?? amid,
-                    color: 'var(--ov-fg-muted, #888)',
-                    lineStyle: 'dashed',
-                  });
-                }
+          const annotations: ChartAnnotation[] = [];
+          if (def.annotationMetricIDs) {
+            for (const amid of def.annotationMetricIDs) {
+              const val = instantValues.get(amid);
+              if (val != null && val > 0) {
+                annotations.push({
+                  value: val,
+                  label: def.annotationLabels?.[amid] ?? amid,
+                  color: 'var(--ov-color-fg-muted)',
+                  lineStyle: 'dashed',
+                });
               }
             }
+          }
 
-            return (
-              <MetricsPanel
-                key={def.title}
-                title={def.title}
-                icon={def.icon}
-                series={series}
-                timeRange={timeRange}
-                onTimeRangeChange={setTimeRange}
-                valueFormat={def.valueFormat}
-                valueFormatter={def.valueFormatter}
-                unit={def.unit}
-                annotations={annotations.length > 0 ? annotations : undefined}
-                area
-                variant="default"
-                height={220}
-                loading={isLoading && series.length === 0}
-              />
-            );
-          })}
-        </Box>
-      </Stack>
-    </Box>
+          return (
+            <MetricsPanel
+              key={def.title}
+              title={def.title}
+              icon={def.icon}
+              series={series}
+              timeRange={timeRange}
+              onTimeRangeChange={setTimeRange}
+              valueFormat={def.valueFormat}
+              valueFormatter={def.valueFormatter}
+              unit={def.unit}
+              annotations={annotations.length > 0 ? annotations : undefined}
+              area
+              variant="default"
+              height={220}
+              loading={isLoading && series.length === 0}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 };
 

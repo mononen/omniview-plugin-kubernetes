@@ -1,21 +1,7 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
-import type React from 'react';
 import { render, screen } from '@testing-library/react';
+import type React from 'react';
 import { vi, describe, it, expect } from 'vitest';
-
-vi.mock('@omniviewdev/ui', () => ({
-  Chip: ({ label, color }: { label?: string; color?: string }) => (
-    <span data-testid="chip" data-color={color}>{label}</span>
-  ),
-}));
-
-vi.mock('@omniviewdev/ui/layout', () => ({
-  Stack: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock('@omniviewdev/ui/typography', () => ({
-  Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-}));
 
 vi.mock('./SidebarSection', () => ({
   default: ({ title, headerLeft, headerRight, children }: {

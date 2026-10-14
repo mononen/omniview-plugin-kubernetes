@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { Condition } from 'kubernetes-types/meta/v1';
+
 import JobStatusSection from './JobStatusSection';
 
 const cond = (overrides: Partial<Condition> & { type: string; status: string }): Condition => ({

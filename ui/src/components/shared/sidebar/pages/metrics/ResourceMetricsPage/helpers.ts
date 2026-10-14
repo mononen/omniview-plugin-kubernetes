@@ -1,5 +1,5 @@
 import type { metric } from '@omniviewdev/runtime/models';
-import type { TimeSeriesDef, MetricFormat } from '@omniviewdev/ui/charts';
+import type { TimeSeriesDef, MetricFormat } from '../../../../charts';
 
 import { CHART_COLORS, ICON_CATEGORIES, CATEGORY_ORDER } from './constants';
 import { unitToFormat, unitToSuffix, unitToFormatter } from './formatters';

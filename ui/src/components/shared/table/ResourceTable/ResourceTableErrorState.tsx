@@ -1,20 +1,8 @@
-import Box from '@mui/material/Box';
-import { Alert } from '@omniviewdev/ui/feedback';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text, Heading } from '@omniviewdev/ui/typography';
+import { Banner, Heading, Stack, Text } from '@omniviewdev/base-ui';
 import React, { useEffect } from 'react';
 import { LuCircleAlert } from 'react-icons/lu';
 
-import {
-  errorHeadingSx,
-  errorWrapperSx,
-  errorStackSx,
-  errorDetailSx,
-  errorListSx,
-  errorListItemSx,
-  errorListItemTextSx,
-  errorCodeSx,
-} from './styles';
+import styles from './ResourceTable.module.css';
 
 type ResourceTableErrorStateProps = {
   error: Error | null;
@@ -95,40 +83,37 @@ const ResourceTableErrorState: React.FC<ResourceTableErrorStateProps> = ({
   }
 
   return (
-    <Box sx={errorWrapperSx}>
-      <Alert
-        emphasis="soft"
-        size="lg"
-        startAdornment={<LuCircleAlert size={20} />}
-        color="danger"
-      >
-        <Heading level="h4" sx={errorHeadingSx}>
-          {title}
-        </Heading>
-      </Alert>
-      <Stack direction="column" spacing={1} sx={errorStackSx}>
-        <Text size="sm" sx={errorDetailSx}>
+    <div className={styles.error}>
+      <Banner color="danger" variant="soft" size="lg">
+        <Banner.Icon>
+          <LuCircleAlert size={20} />
+        </Banner.Icon>
+        <Banner.Content>
+          <Heading level={4} tone="danger">
+            {title}
+          </Heading>
+        </Banner.Content>
+      </Banner>
+      <Stack direction="column" spacing={2} className={styles.errorDetails}>
+        <Text size="sm" tone="muted">
           {detail}
         </Text>
         {suggestions.length > 0 && (
-          <Box component="ul" sx={errorListSx}>
+          <ul className={styles.errorList}>
             {suggestions.map((s) => (
-              <Box component="li" key={s} sx={errorListItemSx}>
-                <Text size="xs" sx={errorListItemTextSx}>
+              <li key={s}>
+                <Text size="xs" tone="muted">
                   {s}
                 </Text>
-              </Box>
+              </li>
             ))}
-          </Box>
+          </ul>
         )}
-        <Text
-          size="xs"
-          sx={errorCodeSx}
-        >
+        <Text as="div" size="xs" tone="subtle" className={styles.errorCode}>
           {resourceKey}: {errstring || 'Unknown error'}
         </Text>
       </Stack>
-    </Box>
+    </div>
   );
 };
 

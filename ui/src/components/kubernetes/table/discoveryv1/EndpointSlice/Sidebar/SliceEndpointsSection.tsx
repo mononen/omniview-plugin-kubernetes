@@ -1,7 +1,4 @@
-import Box from '@mui/material/Box';
-import { Chip, ClipboardText } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, ClipboardText, Stack, Text } from '@omniviewdev/base-ui';
 import type { Endpoint } from 'kubernetes-types/discovery/v1';
 import React from 'react';
 
@@ -9,30 +6,26 @@ import ExpandableSections from '../../../../../shared/ExpandableSections';
 import type { ExpandableSection } from '../../../../../shared/ExpandableSections';
 import ResourceLinkChip from '../../../../../shared/ResourceLinkChip';
 
-const sectionHeadingLabelSx = {
-  color: 'text.secondary',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  fontSize: 11,
-  flexShrink: 0,
-} as const;
+const stackStyle1 = { gap: 6 } as const;
 
-const sectionHeadingDividerSx = { flex: 1, height: '1px', bgcolor: 'divider' } as const;
+const sectionHeadingLabelStyle: React.CSSProperties = { color: 'var(--ov-color-fg-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 11, flexShrink: 0 };
 
-const sectionHeadingStackSx = { mb: 0.75 } as const;
+const sectionHeadingDividerStyle: React.CSSProperties = { flex: 1, height: '1px', background: 'var(--ov-color-border-default)' };
 
-const chipSx = { borderRadius: 1 } as const;
+const sectionHeadingStackStyle: React.CSSProperties = { marginBottom: 6 };
 
-const subLabelSx = {
-  color: 'neutral.400',
-  fontSize: 10,
-  textTransform: 'uppercase',
-  letterSpacing: 0.5,
-  mb: 0.25,
-} as const;
+const chipStyle = { borderRadius: 4 } as const;
+const monoTitleStyle: React.CSSProperties = { fontSize: 12, fontFamily: 'var(--ov-font-mono, monospace)' };
+const subGroupStyle: React.CSSProperties = { marginBottom: 4 };
+const smallChipStyle: React.CSSProperties = { ...chipStyle, fontSize: 10 };
+const countChipStyle: React.CSSProperties = { ...chipStyle, flexShrink: 0 };
+const sectionsStyle: React.CSSProperties = { gap: 8 };
 
-const contentSx = { py: 0.5, px: 1 } as const;
-const addrValueSx = { fontWeight: 600, fontSize: 11 } as const;
+const chipRowStyle: React.CSSProperties = { marginTop: 4 };
+const subLabelStyle: React.CSSProperties = { color: 'var(--ov-color-fg-muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 };
+
+const contentStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8 };
+const addrValueStyle: React.CSSProperties = { fontWeight: 600, fontSize: 11 };
 
 /** Build a resourceKey from an ObjectReference's apiVersion + kind */
 function refToResourceKey(apiVersion?: string, kind?: string): string {
@@ -48,33 +41,15 @@ const ConditionChips: React.FC<{ ep: Endpoint }> = ({ ep }) => {
   if (!conds) return null;
 
   return (
-    <Stack direction="row" gap={0.5}>
+    <Stack direction="row" spacing={1}>
       {conds.ready != null && (
-        <Chip
-          size="xs"
-          emphasis="soft"
-          color={conds.ready ? 'success' : 'neutral'}
-          sx={{ ...chipSx, ...(conds.ready ? {} : { opacity: 0.45 }) }}
-          label="Ready"
-        />
+        <Chip size="xs" color={conds.ready ? 'success' : 'neutral'} style={{ ...chipStyle, ...(conds.ready ? {} : { opacity: 0.45 }) }}>Ready</Chip>
       )}
       {conds.serving != null && (
-        <Chip
-          size="xs"
-          emphasis="soft"
-          color={conds.serving ? 'success' : 'neutral'}
-          sx={{ ...chipSx, ...(conds.serving ? {} : { opacity: 0.45 }) }}
-          label="Serving"
-        />
+        <Chip size="xs" color={conds.serving ? 'success' : 'neutral'} style={{ ...chipStyle, ...(conds.serving ? {} : { opacity: 0.45 }) }}>Serving</Chip>
       )}
       {conds.terminating != null && conds.terminating && (
-        <Chip
-          size="xs"
-          emphasis="soft"
-          color="warning"
-          sx={chipSx}
-          label="Terminating"
-        />
+        <Chip size="xs" color="warning" style={chipStyle}>Terminating</Chip>
       )}
     </Stack>
   );
@@ -94,67 +69,42 @@ const SliceEndpointsSection: React.FC<Props> = ({ endpoints, connectionID }) => 
 
     return {
       title: (
-        <Stack direction="row" gap={0.75} alignItems="center">
-          <Text
-            weight="semibold"
-            size="xs"
-            sx={{
-              fontSize: 12,
-              fontFamily: 'var(--ov-font-mono, monospace)',
-            }}
-          >
+        <Stack direction="row" spacing={0} align="center" style={stackStyle1}>
+          <Text weight="semibold" size="xs" style={monoTitleStyle}>
             {primaryAddr || `endpoint-${idx}`}
           </Text>
           {!isReady && (
-            <Chip
-              size="xs"
-              emphasis="soft"
-              color="warning"
-              sx={chipSx}
-              label="Not Ready"
-            />
+            <Chip size="xs" color="warning" style={chipStyle}>Not Ready</Chip>
           )}
         </Stack>
       ),
       defaultExpanded: endpoints.length <= 5,
       children: (
-        <Box sx={contentSx}>
+        <div style={contentStyle}>
           {/* Addresses */}
           {ep.addresses && ep.addresses.length > 0 && (
-            <Box sx={{ mb: 0.5 }}>
-              <Text size="xs" weight="semibold" sx={subLabelSx}>
+            <div style={subGroupStyle}>
+              <Text size="xs" weight="semibold" style={subLabelStyle}>
                 Addresses
               </Text>
-              <Stack direction="row" gap={0.5} flexWrap="wrap">
+              <Stack direction="row" spacing={1} wrap>
                 {ep.addresses.map((addr) => (
-                  <ClipboardText key={addr} value={addr} variant="inherit" sx={addrValueSx} />
+                  <ClipboardText key={addr} value={addr} style={addrValueStyle} />
                 ))}
               </Stack>
-            </Box>
+            </div>
           )}
 
           {/* Conditions */}
           <ConditionChips ep={ep} />
 
           {/* Additional info */}
-          <Stack direction="row" gap={0.5} flexWrap="wrap" sx={{ mt: 0.5 }}>
+          <Stack direction="row" spacing={1} wrap style={chipRowStyle}>
             {ep.hostname && (
-              <Chip
-                size="xs"
-                emphasis="outline"
-                color="neutral"
-                sx={{ ...chipSx, fontSize: 10 }}
-                label={`host: ${ep.hostname}`}
-              />
+              <Chip size="xs" color="neutral" style={smallChipStyle} variant="outline">{`host: ${ep.hostname}`}</Chip>
             )}
             {ep.zone && (
-              <Chip
-                size="xs"
-                emphasis="outline"
-                color="neutral"
-                sx={{ ...chipSx, fontSize: 10 }}
-                label={`zone: ${ep.zone}`}
-              />
+              <Chip size="xs" color="neutral" style={smallChipStyle} variant="outline">{`zone: ${ep.zone}`}</Chip>
             )}
             {ep.nodeName && connectionID ? (
               <ResourceLinkChip
@@ -164,13 +114,7 @@ const SliceEndpointsSection: React.FC<Props> = ({ endpoints, connectionID }) => 
                 resourceName={ep.nodeName}
               />
             ) : ep.nodeName ? (
-              <Chip
-                size="xs"
-                emphasis="outline"
-                color="neutral"
-                sx={{ ...chipSx, fontSize: 10 }}
-                label={`node: ${ep.nodeName}`}
-              />
+              <Chip size="xs" color="neutral" style={smallChipStyle} variant="outline">{`node: ${ep.nodeName}`}</Chip>
             ) : null}
             {ep.targetRef && connectionID && ep.targetRef.name ? (
               <ResourceLinkChip
@@ -184,36 +128,24 @@ const SliceEndpointsSection: React.FC<Props> = ({ endpoints, connectionID }) => 
                 namespace={ep.targetRef.namespace}
               />
             ) : ep.targetRef && ep.targetRef.name ? (
-              <Chip
-                size="xs"
-                emphasis="outline"
-                color="primary"
-                sx={{ ...chipSx, fontSize: 10 }}
-                label={`${ep.targetRef.kind}/${ep.targetRef.name}`}
-              />
+              <Chip size="xs" color="brand" style={smallChipStyle} variant="outline">{`${ep.targetRef.kind}/${ep.targetRef.name}`}</Chip>
             ) : null}
           </Stack>
-        </Box>
+        </div>
       ),
     };
   });
 
   return (
-    <Stack direction="column">
-      <Stack direction="row" alignItems="center" gap={1} sx={sectionHeadingStackSx}>
-        <Text size="xs" weight="semibold" sx={sectionHeadingLabelSx}>
+    <Stack direction="column" spacing={2}>
+      <Stack direction="row" align="center" spacing={2} style={sectionHeadingStackStyle}>
+        <Text size="xs" weight="semibold" style={sectionHeadingLabelStyle}>
           Endpoints
         </Text>
-        <Chip
-          size="xs"
-          emphasis="outline"
-          color="primary"
-          sx={{ ...chipSx, flexShrink: 0 }}
-          label={String(endpoints.length)}
-        />
-        <Box sx={sectionHeadingDividerSx} />
+        <Chip size="xs" color="brand" style={countChipStyle} variant="outline">{String(endpoints.length)}</Chip>
+        <div style={sectionHeadingDividerStyle} />
       </Stack>
-      <ExpandableSections sections={sections} size="sm" sx={{ gap: 1 }} />
+      <ExpandableSections sections={sections} size="sm" style={sectionsStyle} />
     </Stack>
   );
 };

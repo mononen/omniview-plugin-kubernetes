@@ -15,10 +15,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import Box from '@mui/material/Box';
-import { Card } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Card, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
 import { useHubSections, type HubSectionData } from '../../hooks/useHubSections';
@@ -35,15 +32,14 @@ import HubSection from './HubSection';
 import QuickConnectGrid from './QuickConnectGrid';
 import RowHandler from './RowHandler';
 
-const hubStackSx = { p: 0.5, pb: 2 } as const;
+const hubStackStyle: React.CSSProperties = { padding: '4px 4px 16px', gap: 8 };
 
-const dragOverlayCardSx = {
-  p: 1,
+const dragOverlayCardStyle: React.CSSProperties = {
+  padding: 8,
   opacity: 0.8,
-  boxShadow: 'md',
   width: 200,
   pointerEvents: 'none',
-} as const;
+};
 
 /** Shape of the drag data attached to connection items in dnd-kit */
 interface ConnectionDragData {
@@ -214,7 +210,7 @@ const ClusterHub: React.FC<Props> = ({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <Stack gap={1} sx={hubStackSx}>
+      <Stack direction="column" style={hubStackStyle}>
         {/* Zone 1: Quick-connect grid -- always visible, cards are draggable */}
         <QuickConnectGrid
           connections={enrichedConnections}
@@ -226,7 +222,7 @@ const ClusterHub: React.FC<Props> = ({
         {/* Zone 2: DnD sections -- only when any section has items */}
         {visibleSections.length > 0 && (
           <SortableContext items={visibleSectionIds} strategy={verticalListSortingStrategy}>
-            <Stack gap={0.5}>
+            <Stack direction="column" spacing={1}>
               {visibleSections.map((section) => (
                 <DroppableSectionWrapper
                   key={section.config.type}
@@ -251,11 +247,8 @@ const ClusterHub: React.FC<Props> = ({
 
       <DragOverlay dropAnimation={null}>
         {draggedConnection && (
-          <Card
-            variant="outlined"
-            sx={dragOverlayCardSx}
-          >
-            <Text size="sm" weight="semibold" noWrap>
+          <Card variant="outline" elevation={2} style={dragOverlayCardStyle}>
+            <Text as="div" size="sm" weight="semibold" truncate>
               {draggedConnection.displayName}
             </Text>
           </Card>
@@ -295,18 +288,18 @@ const FolderDropZone: React.FC<{
   });
 
   return (
-    <Box
+    <div
       ref={setNodeRef}
-      sx={{
-        borderRadius: 'sm',
+      style={{
+        borderRadius: 'var(--ov-radius-sm, 4px)',
         transition: 'outline-color 0.15s, background-color 0.15s',
         outline: isDraggingConnection ? '2px dashed' : 'none',
-        outlineColor: isOver ? 'primary.500' : 'neutral.300',
-        backgroundColor: isOver ? 'primary.softBg' : 'transparent',
+        outlineColor: isOver ? 'var(--ov-color-brand-500)' : 'var(--ov-color-border-strong)',
+        backgroundColor: isOver ? 'var(--ov-color-accent-soft)' : 'transparent',
       }}
     >
       {children}
-    </Box>
+    </div>
   );
 };
 

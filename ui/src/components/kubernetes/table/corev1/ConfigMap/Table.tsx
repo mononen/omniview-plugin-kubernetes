@@ -1,6 +1,5 @@
+import { Chip } from '@omniviewdev/base-ui';
 import { DrawerComponent } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
 import { ColumnDef } from '@tanstack/react-table';
 import { ConfigMap } from 'kubernetes-types/core/v1';
 import React from 'react';
@@ -9,18 +8,13 @@ import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
+import cellStyles from '../../shared/cells/cells.module.css';
+import { squareChipStyle } from '../../shared/cells/styles';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 
 import ConfigMapSidebar from './Sidebar';
 
-const hideScrollbarSx = {
-  scrollbarWidth: 'none',
-  '&::-webkit-scrollbar': {
-    display: 'none',
-  },
-} as const;
-
-const chipBorderRadiusSx = { borderRadius: '2px' } as const;
+const scrollRowStyle = { gap: 2 } as const;
 
 const resourceKey = 'core::v1::ConfigMap';
 
@@ -50,22 +44,13 @@ const ConfigMapTable: React.FC = () => {
             ],
             cell: ({ getValue }) => {
               return (
-                <Stack
-                  direction={'row'}
-                  overflow={'scroll'}
-                  gap={0.25}
-                  sx={hideScrollbarSx}
-                >
+                <div className={cellStyles.scrollRow} style={scrollRowStyle}>
                   {(getValue() as string[]).map((value) => (
-                    <Chip
-                      key={value}
-                      size={'sm'}
-                      sx={chipBorderRadiusSx}
-                      emphasis="outline"
-                      label={value}
-                    />
+                    <Chip key={value} size="sm" variant="outline" style={squareChipStyle}>
+                        {value}
+                      </Chip>
                   ))}
-                </Stack>
+                </div>
               );
             },
             size: 200,
@@ -95,7 +80,6 @@ const ConfigMapTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.uid"
-      memoizer="metadata.uid,metadata.resourceVersion"
       drawer={drawer}
     />
   );

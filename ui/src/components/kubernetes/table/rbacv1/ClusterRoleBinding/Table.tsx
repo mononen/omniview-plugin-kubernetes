@@ -4,7 +4,6 @@ import {
   useResourceMutations,
   useRightDrawer,
 } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import { ColumnDef } from '@tanstack/react-table';
 import { ClusterRoleBinding, RoleRef, Subject } from 'kubernetes-types/rbac/v1';
 import React from 'react';
@@ -14,16 +13,12 @@ import { useParams } from 'react-router-dom';
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
 import ResourceLinkCell from '../../corev1/Pod/cells/ResourceLinkCell';
+import cellStyles from '../../shared/cells/cells.module.css';
 import { withClusterResourceColumns } from '../../shared/columns';
 
 import ClusterRoleBindingSidebar from './Sidebar';
 
-const hideScrollbarSx = {
-  scrollbarWidth: 'none',
-  '&::-webkit-scrollbar': {
-    display: 'none',
-  },
-} as const;
+const scrollRowStyle = { gap: 2 } as const;
 
 const resourceKey = 'rbac::v1::ClusterRoleBinding';
 
@@ -78,12 +73,7 @@ const ClusterRoleBindingTable: React.FC = () => {
               }
 
               return (
-                <Stack
-                  direction={'row'}
-                  overflow={'scroll'}
-                  gap={0.25}
-                  sx={hideScrollbarSx}
-                >
+                <div className={cellStyles.scrollRow} style={scrollRowStyle}>
                   {refs.map((v) => (
                     <ResourceLinkCell
                       key={v.namespace ? `${v.kind}/${v.name}/${v.namespace}` : `${v.kind}/${v.name}`}
@@ -93,7 +83,7 @@ const ClusterRoleBindingTable: React.FC = () => {
                       resourceName={v.namespace ? `${v.name}/${v.namespace}` : v.name}
                     />
                   ))}
-                </Stack>
+                </div>
               );
             },
             size: 300,
@@ -152,7 +142,6 @@ const ClusterRoleBindingTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.name"
-      memoizer="metadata.name,metadata.resourceVersion"
       drawer={drawer}
     />
   );

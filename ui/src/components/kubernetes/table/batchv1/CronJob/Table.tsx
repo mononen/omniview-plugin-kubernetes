@@ -202,7 +202,6 @@ const CronJobTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.uid"
-      memoizer="metadata.uid,metadata.resourceVersion,status.lastScheduleTime"
       drawer={drawer}
     />
   );

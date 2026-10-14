@@ -35,7 +35,6 @@ const EventTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.uid"
-      memoizer="metadata.uid,metadata.resourceVersion"
       createEnabled={false}
       toolbarFilters={[
         { columnId: 'type', placeholder: 'All Types', accessor: (r: Event) => r?.type || undefined },

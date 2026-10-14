@@ -1,24 +1,21 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import { Chip, CircularProgress } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import type { NodeCondition, Node as K8sNode, Event as K8sEvent, Pod  } from 'kubernetes-types/core/v1';
 import React from 'react';
 
-const statIconSx = { display: 'flex', color: 'text.tertiary' } as const;
+const statIconStyle: React.CSSProperties = { display: 'flex', color: 'var(--ov-color-fg-subtle)' };
 
-const statLabelSx = { fontWeight: 600 } as const;
+const statLabelStyle: React.CSSProperties = { fontWeight: 600 };
 
-const cardRowSx = {
-  py: 0.75,
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-} as const;
+const cardRowStyle: React.CSSProperties = {
+  paddingBlock: 6,
+  borderBottom: '1px solid var(--ov-color-border-default)',
+};
 
-const statListSx = { minWidth: 0 } as const;
+const statListStyle: React.CSSProperties = { minWidth: 0 };
 
-const healthChipSx = { flexShrink: 0, ml: 1.5 } as const;
+const healthChipStyle: React.CSSProperties = { flexShrink: 0, marginLeft: 12 };
+
+const emptyValueStyle: React.CSSProperties = { fontStyle: 'italic' };
 
 import {
   LuCircleCheck,
@@ -66,19 +63,12 @@ function formatLastChecked(timestamp: string | undefined): string {
 function StatItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   const empty = value === '-';
   return (
-    <Stack direction="row" alignItems="center" gap={0.5}>
-      <Box sx={statIconSx}>{icon}</Box>
-      <Text size="xs" sx={statLabelSx} noWrap>
+    <Stack direction="row" align="center" spacing={1}>
+      <span style={statIconStyle}>{icon}</span>
+      <Text size="xs" style={statLabelStyle} truncate>
         {label}
       </Text>
-      <Text
-        size="xs"
-        noWrap
-        sx={{
-          color: empty ? 'text.tertiary' : 'text.secondary',
-          fontStyle: empty ? 'italic' : undefined,
-        }}
-      >
+      <Text size="xs" truncate tone={empty ? 'subtle' : 'muted'} style={empty ? emptyValueStyle : undefined}>
         {empty ? 'N/A' : value}
       </Text>
     </Stack>
@@ -116,13 +106,8 @@ const ClusterInfoCard: React.FC<Props> = ({ data, loading, nodes, pods, events }
 
   if (loading) {
     return (
-      <Stack
-        direction="row"
-        alignItems="center"
-        gap={1}
-        sx={cardRowSx}
-      >
-        <CircularProgress size="sm" />
+      <Stack direction="row" align="center" spacing={2} style={cardRowStyle}>
+        <Spinner size="sm" />
       </Stack>
     );
   }
@@ -133,20 +118,9 @@ const ClusterInfoCard: React.FC<Props> = ({ data, loading, nodes, pods, events }
     health.issues.length === 0 ? LuCircleCheck : health.hasErrors ? LuCircleX : LuTriangleAlert;
 
   return (
-    <Stack
-      direction="row"
-      alignItems="center"
-      justifyContent="space-between"
-      sx={cardRowSx}
-    >
+    <Stack direction="row" align="center" justify="between" style={cardRowStyle}>
       {/* Left: cluster info + stats with dividers */}
-      <Stack
-        direction="row"
-        alignItems="center"
-        divider={<Divider orientation="vertical" flexItem />}
-        gap={1.5}
-        sx={statListSx}
-      >
+      <Stack direction="row" align="center" divider spacing={3} style={statListStyle}>
         <StatItem icon={<LuGlobe size={12} />} label="Cluster" value={data?.server_url ?? '-'} />
         <StatItem
           icon={<LuTag size={12} />}
@@ -178,12 +152,13 @@ const ClusterInfoCard: React.FC<Props> = ({ data, loading, nodes, pods, events }
       {/* Right: health chip */}
       <Chip
         size="sm"
-        emphasis="soft"
+        variant="soft"
         color={healthColor}
-        startAdornment={<HealthIcon size={12} />}
-        sx={healthChipSx}
-        label={health.issues.length === 0 ? 'Healthy' : health.issues.join(' \u00b7 ')}
-      />
+        startDecorator={<HealthIcon size={12} />}
+        style={healthChipStyle}
+      >
+        {health.issues.length === 0 ? 'Healthy' : health.issues.join(' \u00b7 ')}
+      </Chip>
     </Stack>
   );
 };

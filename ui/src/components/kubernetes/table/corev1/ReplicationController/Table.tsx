@@ -127,7 +127,6 @@ const ReplicationControllerTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.uid"
-      memoizer="metadata.uid,metadata.resourceVersion,status.replicas"
       drawer={drawer}
     />
   );

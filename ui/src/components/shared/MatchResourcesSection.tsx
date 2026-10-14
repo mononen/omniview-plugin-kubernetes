@@ -1,6 +1,4 @@
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
 import ExpandableSections, { type ExpandableSection } from './ExpandableSections';
@@ -27,25 +25,22 @@ interface Props {
   matchResources?: MatchResources;
 }
 
-const chipSx = { borderRadius: 1 } as const;
+const chipStyle: React.CSSProperties = { borderRadius: 4 };
+const bodyStyle: React.CSSProperties = { paddingInline: 8, paddingBlock: 4 };
+const chipGroupStyle: React.CSSProperties = { gap: 2 };
 
 const ChipGroup: React.FC<{ label: string; items?: string[] }> = ({ label, items }) => {
   if (!items || items.length === 0) return null;
   return (
-    <Stack direction="column" gap={0.25}>
-      <Text size="xs" sx={{ color: 'neutral.400' }}>
+    <Stack direction="column" spacing={0} style={chipGroupStyle}>
+      <Text size="xs" tone="muted">
         {label}
       </Text>
-      <Stack direction="row" gap={0.5} flexWrap="wrap">
+      <Stack direction="row" spacing={1} wrap>
         {items.map((item, idx) => (
-          <Chip
-            key={`${item}-${idx}`}
-            size="xs"
-            emphasis="soft"
-            color="neutral"
-            label={item || '*'}
-            sx={chipSx}
-          />
+          <Chip key={`${item}-${idx}`} size="xs" variant="soft" color="neutral" style={chipStyle}>
+            {item || '*'}
+          </Chip>
         ))}
       </Stack>
     </Stack>
@@ -62,7 +57,7 @@ const RulesList: React.FC<{ title: string; rules?: NamedRuleWithOperations[] }> 
     title: `${title} ${i + 1}`,
     defaultExpanded: i === 0,
     children: (
-      <Stack direction="column" gap={0.5} sx={{ px: 1, py: 0.5 }}>
+      <Stack direction="column" spacing={1} style={bodyStyle}>
         <ChipGroup label="Operations" items={rule.operations} />
         <ChipGroup label="API Groups" items={rule.apiGroups} />
         <ChipGroup label="API Versions" items={rule.apiVersions} />
@@ -80,7 +75,7 @@ const MatchResourcesSection: React.FC<Props> = ({ matchResources }) => {
   if (!matchResources) return null;
 
   return (
-    <Stack direction="column" gap={1}>
+    <Stack direction="column" spacing={2}>
       <RulesList title="Resource Rule" rules={matchResources.resourceRules} />
       <RulesList title="Exclude Rule" rules={matchResources.excludeResourceRules} />
       {matchResources.namespaceSelector?.matchLabels &&

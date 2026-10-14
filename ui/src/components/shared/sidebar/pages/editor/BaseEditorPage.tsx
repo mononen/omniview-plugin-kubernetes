@@ -1,5 +1,4 @@
-import { Button } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
+import { Button, Stack } from '@omniviewdev/base-ui';
 import React from 'react';
 import { LuFileCode, LuSave, LuX } from 'react-icons/lu';
 import { stringify, parse } from 'yaml';
@@ -7,7 +6,7 @@ import { stringify, parse } from 'yaml';
 import { KubernetesResourceObject } from '../../../../../types/resource';
 import CodeEditor from '../../../CodeEditor';
 
-const outerStackSx = { flex: 1 } as const;
+const outerStackStyle: React.CSSProperties = { flex: 1 };
 
 interface Props {
   kind?: string;
@@ -67,7 +66,7 @@ export const BaseEditorPage: React.FC<Props> = ({ data, kind, resourceKey, onSub
 
   // compose your component here
   return (
-    <Stack sx={outerStackSx} gap={1} direction="column">
+    <Stack style={outerStackStyle} spacing={2} direction="column">
       <CodeEditor
         diff={usingDiff}
         original={stringify(data)}
@@ -77,34 +76,34 @@ export const BaseEditorPage: React.FC<Props> = ({ data, kind, resourceKey, onSub
         filename={filename}
         path={editorPath}
       />
-      <Stack direction="row" justifyContent="space-between">
+      <Stack direction="row" justify="between">
         <Button
           size="sm"
-          emphasis="soft"
+          variant="soft"
           color="neutral"
-          startAdornment={<LuFileCode />}
+          startDecorator={<LuFileCode />}
           onClick={toggleDiff}
         >
           {usingDiff ? 'Show Editor' : 'Show Diff'}
         </Button>
 
-        <Stack direction="row" gap={0.5}>
+        <Stack direction="row" spacing={1}>
           <Button
-            startAdornment={<LuX />}
+            startDecorator={<LuX />}
             color="neutral"
             disabled={!changed}
             size="sm"
-            emphasis="soft"
+            variant="soft"
             onClick={resetValue}
           >
             Reset
           </Button>
           <Button
-            startAdornment={<LuSave />}
-            color="primary"
+            startDecorator={<LuSave />}
+            color="brand"
             disabled={!changed}
             size="sm"
-            emphasis="soft"
+            variant="soft"
             onClick={handleSubmit}
           >
             Submit

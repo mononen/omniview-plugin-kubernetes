@@ -1,5 +1,4 @@
-import Box from '@mui/material/Box';
-import Tooltip from '@mui/material/Tooltip';
+import { Avatar, IconButton, Stack, Text } from '@omniviewdev/base-ui';
 import { Link, useWatchState,
   useConnection,
   useResourceTypes,
@@ -7,10 +6,6 @@ import { Link, useWatchState,
   useSnackbar,
   usePluginRouter,
   useEditorSchemas } from '@omniviewdev/runtime';
-import { Avatar } from '@omniviewdev/ui';
-import { IconButton } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import React from 'react';
 import { LuCog, LuLock, LuLockOpen, LuPuzzle, LuRotateCcw } from 'react-icons/lu';
 import { Outlet, useParams } from 'react-router-dom';
@@ -18,6 +13,7 @@ import { Outlet, useParams } from 'react-router-dom';
 import DraggableNavMenu from '../components/kubernetes/sidebar/DraggableNavMenu';
 import { useStoredState } from '@/hooks/useStoredState';
 import ResourceCommandPalette from '../components/shared/ResourceCommandPalette';
+import SimpleTooltip from '../components/shared/SimpleTooltip';
 import SyncProgressDialog from '../components/shared/SyncProgressDialog';
 import { useClusterPreferences } from '../hooks/useClusterPreferences';
 import { useSidebarLayout } from '../hooks/useSidebarLayout';
@@ -30,45 +26,56 @@ import {
   clusterPagePath,
   useClusterPages,
 } from './extension';
-import { stringAvatar } from '../utils/color';
+import { getInitials } from '../utils/avatarUtils';
+import { stringToColor } from '../utils/color';
 
-const rootSx = {
-  p: 0,
-  gap: 0,
-} as const;
+const rootStyle: React.CSSProperties = { padding: 0, gap: 0 };
 
-const sidenavStackSx = {
+const sidenavStackStyle: React.CSSProperties = {
   maxHeight: '100%',
   height: '100%',
   overflow: 'hidden',
-} as const;
+};
 
-const sidenavHeaderSx = {
+const sidenavHeaderStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  p: 1,
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-} as const;
+  padding: 8,
+  borderRadius: 4,
+  border: '1px solid var(--ov-color-border-default)',
+};
 
-const clusterAvatarSx = {
+const clusterAvatarStyle: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  flexShrink: 0,
   backgroundColor: 'transparent',
   objectFit: 'contain',
   border: 0,
-  maxHeight: 28,
-  maxWidth: 28,
-} as const;
+};
 
-const mainSx = {
+const initialsAvatarStyle: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  flexShrink: 0,
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#fff',
+  fontSize: 12,
+  fontWeight: 500,
+};
+
+const mainStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-} as const;
+};
 
-const mainContentSx = { display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 } as const;
+const mainContentStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 };
 
-const clusterNameSx = { textOverflow: 'ellipsis' } as const;
+const clusterNameStyle: React.CSSProperties = { textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' };
 
 export default function ClusterResourcesPage(): React.ReactElement {
   const { id = '' } = useParams<{ id: string }>();
@@ -211,6 +218,7 @@ export default function ClusterResourcesPage(): React.ReactElement {
   );
 
   React.useEffect(() => {
+    if (!import.meta.env.DEV) return;
     showSnackbar({
       message: 'You are currently running in development mode',
       details:
@@ -240,73 +248,62 @@ export default function ClusterResourcesPage(): React.ReactElement {
   const clusterName = connectionOverrides[id]?.displayName || connection.data?.name || id;
 
   return (
-    <Layout.Root
-      sx={rootSx}
-    >
+    <Layout.Root style={rootStyle}>
       <ResourceCommandPalette connectionID={id} layout={layout} onNavigate={handleSelect} />
       <Layout.SideNav type="bordered" padding={0.5}>
-        <Stack
-          direction="column"
-          sx={sidenavStackSx}
-          gap={0.5}
-        >
-          <Box
-            sx={sidenavHeaderSx}
-          >
-            <Stack direction="row" alignItems="center" gap={1}>
+        <Stack direction="column" spacing={1} style={sidenavStackStyle}>
+          <div style={sidenavHeaderStyle}>
+            <Stack direction="row" align="center" spacing={2} style={{ minWidth: 0 }}>
               {(() => {
                 const override = connectionOverrides[id];
                 const avatarSrc = override?.avatar || connection.data?.avatar;
                 if (avatarSrc) {
-                  return (
-                    <Avatar
-                      size="sm"
-                      src={avatarSrc}
-                      sx={clusterAvatarSx}
-                    />
-                  );
+                  return <Avatar size="sm" shape="rounded" src={avatarSrc} style={clusterAvatarStyle} />;
                 }
-                const avatarProps = stringAvatar(
-                  override?.displayName || connection.data?.name || '',
+                const name = override?.displayName || connection.data?.name || '';
+                const background = override?.avatarColor || (name ? stringToColor(name) : '#f44336');
+                return (
+                  <div style={{ ...initialsAvatarStyle, background }} aria-hidden>
+                    {getInitials(name)}
+                  </div>
                 );
-                if (override?.avatarColor) {
-                  avatarProps.sx = { ...avatarProps.sx, bgcolor: override.avatarColor };
-                }
-                return <Avatar size="sm" {...avatarProps} />;
               })()}
-              <Text weight="semibold" size="sm" sx={clusterNameSx}>
+              <Text weight="semibold" size="sm" style={clusterNameStyle}>
                 {connectionOverrides[id]?.displayName || connection.data?.name}
               </Text>
             </Stack>
-            <Stack direction="row" alignItems="center" gap={0.5}>
+            <Stack direction="row" align="center" spacing={1}>
               {isEditing && (
-                <Tooltip title="Reset to default order" placement="bottom">
-                  <span>
-                    <IconButton emphasis="soft" size="sm" color="neutral" onClick={resetOrder}>
-                      <LuRotateCcw size={16} />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-              )}
-              <Tooltip title={isEditing ? 'Lock sidebar order' : 'Reorder sidebar'} placement="bottom">
-                <span>
+                <SimpleTooltip content="Reset to default order" placement="bottom">
                   <IconButton
-                    emphasis="soft"
+                    variant="soft"
                     size="sm"
-                    color={isEditing ? 'primary' : 'neutral'}
-                    onClick={() => setIsEditing((prev: boolean) => !prev)}
+                    color="neutral"
+                    aria-label="Reset to default order"
+                    onClick={resetOrder}
                   >
-                    {isEditing ? <LuLockOpen size={16} /> : <LuLock size={16} />}
+                    <LuRotateCcw size={16} />
                   </IconButton>
-                </span>
-              </Tooltip>
+                </SimpleTooltip>
+              )}
+              <SimpleTooltip content={isEditing ? 'Lock sidebar order' : 'Reorder sidebar'} placement="bottom">
+                <IconButton
+                  variant="soft"
+                  size="sm"
+                  color={isEditing ? 'brand' : 'neutral'}
+                  aria-label={isEditing ? 'Lock sidebar order' : 'Reorder sidebar'}
+                  onClick={() => setIsEditing((prev: boolean) => !prev)}
+                >
+                  {isEditing ? <LuLockOpen size={16} /> : <LuLock size={16} />}
+                </IconButton>
+              </SimpleTooltip>
               <Link to={`/cluster/${id}/edit`}>
-                <IconButton emphasis="soft" size="sm" color="neutral">
+                <IconButton variant="soft" size="sm" color="neutral" aria-label="Cluster settings">
                   <LuCog size={20} />
                 </IconButton>
               </Link>
             </Stack>
-          </Box>
+          </div>
           <DraggableNavMenu
             sections={layout}
             selected={selected}
@@ -319,12 +316,10 @@ export default function ClusterResourcesPage(): React.ReactElement {
           />
         </Stack>
       </Layout.SideNav>
-      <Layout.Main
-        sx={mainSx}
-      >
-        <Box sx={mainContentSx}>
+      <Layout.Main style={mainStyle}>
+        <div style={mainContentStyle}>
           <Outlet />
-        </Box>
+        </div>
       </Layout.Main>
       <SyncProgressDialog
         open={syncModalOpen === true}

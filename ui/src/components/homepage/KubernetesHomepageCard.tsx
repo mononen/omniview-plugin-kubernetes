@@ -1,82 +1,47 @@
-import React from 'react';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
-import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
-import { LuFolder } from 'react-icons/lu';
-import { Avatar } from '@omniviewdev/ui';
-import { Text } from '@omniviewdev/ui/typography';
+import { IconButton, Spinner, Text } from '@omniviewdev/base-ui';
 import { useConnections, useConnectionStatus, usePluginRouter } from '@omniviewdev/runtime';
 import type { HomepageCardProps } from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
 import { type types } from '@omniviewdev/runtime/models';
+import React from 'react';
+import { LuFolder, LuPower } from 'react-icons/lu';
+
 import { useClusterPreferences } from '../../hooks/useClusterPreferences';
 import type { ConnectionOverride, ConnectionGroup } from '../../types/clusters';
 import ConnectionStatusBadge from '../connections/ConnectionStatusBadge';
 import NamedAvatar from '../shared/NamedAvatar';
 import SectionHeader from '../shared/SectionHeader';
+import SimpleTooltip from '../shared/SimpleTooltip';
+
 import ConnectedClusterCard from './ConnectedClusterCard';
+import styles from './KubernetesHomepageCard.module.css';
 
 const PLUGIN_ID = 'kubernetes';
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
 
-const chipSx = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 0.75,
-  pl: 0.5,
-  pr: 1,
-  py: 0.375,
-  cursor: 'pointer',
-  borderRadius: '5px',
-  border: '1px solid var(--ov-border-default, rgba(255,255,255,0.08))',
-  bgcolor: 'var(--ov-bg-surface, rgba(255,255,255,0.03))',
-  transition: 'border-color 0.15s, background-color 0.15s, box-shadow 0.15s',
-  maxWidth: 200,
-  minWidth: 0,
-  '&:hover': {
-    borderColor: 'var(--ov-border-emphasis, rgba(255,255,255,0.2))',
-    bgcolor: 'var(--ov-bg-surface-hover, rgba(255,255,255,0.06))',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
-  },
-  '&:hover .chip-disconnect': {
-    opacity: 1,
-  },
-  '&:focus-visible': {
-    outline: '2px solid var(--ov-palette-primary-main, #3b82f6)',
-    outlineOffset: '2px',
-  },
-} as const;
-
-const chipNameSx = {
-  fontSize: '0.75rem',
-  fontWeight: 500,
-  color: 'var(--ov-fg-base)',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
-  minWidth: 0,
-} as const;
-
-const avatarSx = { borderRadius: '50%', bgcolor: 'transparent' } as const;
-
-const chipGridSx = {
+const avatarImageStyle: React.CSSProperties = { width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' };
+const emptyNoteStyle: React.CSSProperties = { paddingInline: 4, paddingBlock: 4 };
+const smallSpinnerStyle: React.CSSProperties = { width: 9, height: 9, flexShrink: 0 };
+const folderIconStyle: React.CSSProperties = {
+  flexShrink: 0,
   display: 'flex',
-  flexWrap: 'wrap',
-  gap: 0.75,
-} as const;
+  alignItems: 'center',
+  paddingLeft: 2,
+  color: 'var(--ov-color-fg-subtle)',
+};
+const folderCountStyle: React.CSSProperties = { fontSize: '0.65rem', color: 'var(--ov-color-fg-subtle)', flexShrink: 0 };
+const loadingStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 };
+const rootStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 0 };
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 const EmptySectionNote: React.FC<{ message: string }> = ({ message }) => (
-  <Box sx={{ px: 0.5, py: 0.5 }}>
-    <Text size="xs" sx={{ color: 'var(--ov-fg-faint, rgba(255,255,255,0.35))' }}>
+  <div style={emptyNoteStyle}>
+    <Text size="xs" tone="subtle">
       {message}
     </Text>
-  </Box>
+  </div>
 );
 
 type ClusterChipProps = {
@@ -114,78 +79,54 @@ const ClusterChip: React.FC<ClusterChipProps> = ({
   };
 
   return (
-    <Box
+    <div
       role="button"
       tabIndex={0}
-      sx={stretch ? { ...chipSx, display: 'flex', maxWidth: 'none' } : chipSx}
+      className={stretch ? `${styles.Chip} ${styles.Stretch}` : styles.Chip}
       onClick={onClick}
       onKeyDown={handleKeyDown}
     >
       <ConnectionStatusBadge isConnected={isConnected}>
         {avatar ? (
-          <Avatar size="sm" src={avatar} sx={avatarSx} />
+          <img src={avatar} alt="" style={avatarImageStyle} />
         ) : (
           <NamedAvatar value={displayName} color={avatarColor} />
         )}
       </ConnectionStatusBadge>
 
-      <Box component="span" sx={chipNameSx}>
-        {displayName}
-      </Box>
+      <span className={styles.ChipName}>{displayName}</span>
 
-      {isSyncing && (
-        <CircularProgress size={9} sx={{ flexShrink: 0, color: 'var(--ov-fg-faint)' }} />
-      )}
-      {!isSyncing && hasErrors && (
-        <Chip
-          label="!"
-          size="small"
-          color="error"
-          sx={{ height: 14, minWidth: 14, fontSize: 9, px: 0, flexShrink: 0 }}
-        />
-      )}
+      {isSyncing && <Spinner size="xs" color="neutral" style={smallSpinnerStyle} />}
+      {!isSyncing && hasErrors && <span className={styles.ErrorBadge}>!</span>}
 
       {onDisconnect && (
-        <Tooltip title="Disconnect">
+        <SimpleTooltip content="Disconnect">
           <IconButton
-            size="small"
-            className="chip-disconnect"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            aria-label="Disconnect"
+            className={styles.Disconnect}
             onClick={onDisconnect}
-            sx={{ opacity: 0, p: 0.25, flexShrink: 0, transition: 'opacity 0.15s' }}
           >
-            <PowerSettingsNewIcon sx={{ fontSize: 11 }} />
+            <LuPower size={11} />
           </IconButton>
-        </Tooltip>
+        </SimpleTooltip>
       )}
-    </Box>
+    </div>
   );
 };
 
 type FolderChipProps = { group: ConnectionGroup };
 
 const FolderChip: React.FC<FolderChipProps> = ({ group }) => (
-  <Box
-    sx={{
-      ...chipSx,
-      cursor: 'default',
-      opacity: 0.65,
-      '&:hover': { ...chipSx['&:hover'], opacity: 0.65 },
-      '&:hover .chip-disconnect': {},
-    }}
-  >
-    <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', pl: 0.25, color: 'var(--ov-fg-faint)' }}>
+  <div className={`${styles.Chip} ${styles.Folder}`}>
+    <div style={folderIconStyle}>
       <LuFolder size={13} />
-    </Box>
-    <Box component="span" sx={chipNameSx}>
-      {group.name}
-    </Box>
-    <Box
-      component="span"
-      sx={{ fontSize: '0.65rem', color: 'var(--ov-fg-faint)', flexShrink: 0 }}
-    >
-      {group.connectionIds.length}
-    </Box>
-  </Box>
+    </div>
+    <span className={styles.ChipName}>{group.name}</span>
+    <span style={folderCountStyle}>{group.connectionIds.length}</span>
+  </div>
 );
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -244,9 +185,9 @@ const KubernetesHomepageCard: React.FC<HomepageCardProps> = ({ config }) => {
 
   if (isLoading || connections.isLoading) {
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
-        <CircularProgress size={24} />
-      </Box>
+      <div style={loadingStyle}>
+        <Spinner size="lg" />
+      </div>
     );
   }
 
@@ -255,15 +196,15 @@ const KubernetesHomepageCard: React.FC<HomepageCardProps> = ({ config }) => {
     .slice(0, maxItems);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+    <div style={rootStyle}>
       {/* Connected */}
       {sections.includes('connected') && (
-        <Box>
+        <div>
           <SectionHeader title="Connected" />
           {connectedEntries.length === 0 ? (
             <EmptySectionNote message="No clusters connected" />
           ) : (
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 0.75 }}>
+            <div className={styles.ConnectedGrid}>
               {connectedEntries.slice(0, maxItems).map((entry) => (
                 <ConnectedClusterCard
                   key={entry.connectionID}
@@ -276,19 +217,19 @@ const KubernetesHomepageCard: React.FC<HomepageCardProps> = ({ config }) => {
                   onDisconnect={(e) => void handleDisconnect(entry.connectionID, e)}
                 />
               ))}
-            </Box>
+            </div>
           )}
-        </Box>
+        </div>
       )}
 
       {/* Recent */}
       {sections.includes('recent') && (
-        <Box>
+        <div>
           <SectionHeader title="Recent" />
           {recentSorted.length === 0 ? (
             <EmptySectionNote message="No recently accessed clusters" />
           ) : (
-            <Box sx={chipGridSx}>
+            <div className={styles.ChipGrid}>
               {recentSorted.map(([id]) => (
                 <ClusterChip
                   key={id}
@@ -299,19 +240,19 @@ const KubernetesHomepageCard: React.FC<HomepageCardProps> = ({ config }) => {
                   onClick={() => void handleOpen(id)}
                 />
               ))}
-            </Box>
+            </div>
           )}
-        </Box>
+        </div>
       )}
 
       {/* Favorites */}
       {sections.includes('favorites') && (
-        <Box>
+        <div>
           <SectionHeader title="Favorites" />
           {favorites.length === 0 ? (
             <EmptySectionNote message="No favorited clusters" />
           ) : (
-            <Box sx={chipGridSx}>
+            <div className={styles.ChipGrid}>
               {favorites.slice(0, maxItems).map((id) => (
                 <ClusterChip
                   key={id}
@@ -322,27 +263,27 @@ const KubernetesHomepageCard: React.FC<HomepageCardProps> = ({ config }) => {
                   onClick={() => void handleOpen(id)}
                 />
               ))}
-            </Box>
+            </div>
           )}
-        </Box>
+        </div>
       )}
 
       {/* Folders */}
       {sections.includes('folders') && (
-        <Box>
+        <div>
           <SectionHeader title="Folders" />
           {customGroups.length === 0 ? (
             <EmptySectionNote message="No folders created" />
           ) : (
-            <Box sx={chipGridSx}>
+            <div className={styles.ChipGrid}>
               {customGroups.slice(0, maxItems).map((group) => (
                 <FolderChip key={group.id} group={group} />
               ))}
-            </Box>
+            </div>
           )}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 };
 

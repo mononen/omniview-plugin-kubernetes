@@ -1,5 +1,5 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { ComponentStatus } from 'kubernetes-types/core/v1';
 import type { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
@@ -8,6 +8,8 @@ import ConditionChip from '../../../../../shared/ConditionChip';
 import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import SidebarSection from '../../../../../shared/SidebarSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<ComponentStatus>;
@@ -20,15 +22,15 @@ export const ComponentStatusSidebar: React.FC<Props> = ({ ctx }) => {
   const conditions = cs.conditions || [];
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={cs.metadata} />
 
         {conditions.length > 0 && (
           <SidebarSection
             title="Conditions"
             headerRight={
-              <Stack direction="row" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
+              <Stack direction="row" spacing={1} wrap justify="end">
                 {conditions.map((c) => (
                   <ConditionChip key={c.type} condition={c as Condition} />
                 ))}

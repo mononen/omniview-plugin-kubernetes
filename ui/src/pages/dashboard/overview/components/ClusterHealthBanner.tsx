@@ -1,11 +1,26 @@
-import Box from '@mui/material/Box';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Stack, Text } from '@omniviewdev/base-ui';
 import type { Node as K8sNode, Event as K8sEvent, Pod, NodeCondition  } from 'kubernetes-types/core/v1';
 import React from 'react';
 import { LuCircleCheck, LuTriangleAlert, LuCircleX } from 'react-icons/lu';
 
-const issueListSx = { flexWrap: 'wrap' } as const;
+const bannerBaseStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  paddingBlock: 4,
+  paddingInline: 12,
+  borderRadius: 4,
+};
+
+const BANNER_COLORS = {
+  success: { background: 'var(--ov-color-success-soft)', border: '1px solid var(--ov-color-success)' },
+  warning: { background: 'var(--ov-color-warning-soft)', border: '1px solid var(--ov-color-warning)' },
+  danger: { background: 'var(--ov-color-danger-soft)', border: '1px solid var(--ov-color-danger)' },
+} as const;
+
+function bannerStyle(color: keyof typeof BANNER_COLORS): React.CSSProperties {
+  return { ...bannerBaseStyle, ...BANNER_COLORS[color] };
+}
 
 type Props = {
   nodes: K8sNode[];
@@ -40,54 +55,30 @@ const ClusterHealthBanner: React.FC<Props> = ({ nodes, pods, events }) => {
     return { issues, hasErrors };
   }, [nodes, pods, events]);
 
-  const color = health.issues.length === 0 ? 'success' : health.hasErrors ? 'danger' : 'warning';
+  const color: 'success' | 'warning' | 'danger' = health.issues.length === 0 ? 'success' : health.hasErrors ? 'danger' : 'warning';
   const Icon =
     health.issues.length === 0 ? LuCircleCheck : health.hasErrors ? LuCircleX : LuTriangleAlert;
 
   if (health.issues.length === 0) {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          py: 0.5,
-          px: 1.5,
-          borderRadius: 1,
-          bgcolor: `${color}.50`,
-          border: '1px solid',
-          borderColor: `${color}.200`,
-        }}
-      >
+      <div style={bannerStyle(color)}>
         <Icon size={14} />
         <Text size="xs">All systems operational</Text>
-      </Box>
+      </div>
     );
   }
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1,
-        py: 0.5,
-        px: 1.5,
-        borderRadius: 1,
-        bgcolor: `${color}.50`,
-        border: '1px solid',
-        borderColor: `${color}.200`,
-      }}
-    >
+    <div style={bannerStyle(color)}>
       <Icon size={14} />
-      <Stack direction="row" gap={2} sx={issueListSx}>
+      <Stack direction="row" spacing={4} wrap>
         {health.issues.map((issue) => (
           <Text key={issue} size="xs">
             {issue}
           </Text>
         ))}
       </Stack>
-    </Box>
+    </div>
   );
 };
 

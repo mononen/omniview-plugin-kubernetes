@@ -160,7 +160,6 @@ const ResourceQuotaTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.uid"
-      memoizer="metadata.uid,metadata.resourceVersion,status.used"
       drawer={drawer}
     />
   );

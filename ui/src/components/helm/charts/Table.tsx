@@ -1,6 +1,5 @@
-import Box from '@mui/material/Box';
+import { Text } from '@omniviewdev/base-ui';
 import { DrawerComponent } from '@omniviewdev/runtime';
-import { Text } from '@omniviewdev/ui/typography';
 import { ColumnDef } from '@tanstack/react-table';
 import React from 'react';
 import { SiHelm } from 'react-icons/si';
@@ -14,8 +13,12 @@ import ChartSidebar from './ChartSidebar';
 
 const resourceKey = 'helm::v1::Chart';
 
-const nameCellSx = { display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' } as const;
-const truncateTextSx = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const;
+const nameCellStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  overflow: 'hidden',
+};
 const ICON_SIZE = 20;
 
 /** Shape of a Helm chart row as rendered in the table. */
@@ -44,13 +47,13 @@ function chartInitials(name: string): string {
 }
 
 const InitialsAvatar: React.FC<{ name: string }> = ({ name }) => (
-  <Box
-    sx={{
+  <div
+    style={{
       width: ICON_SIZE,
       height: ICON_SIZE,
       borderRadius: '4px',
       flexShrink: 0,
-      bgcolor: stringToColor(name, 1),
+      backgroundColor: stringToColor(name, 1),
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -61,7 +64,7 @@ const InitialsAvatar: React.FC<{ name: string }> = ({ name }) => (
     }}
   >
     {chartInitials(name)}
-  </Box>
+  </div>
 );
 
 const ChartIcon: React.FC<{ icon?: string; name?: string }> = ({ icon, name = '' }) => {
@@ -69,31 +72,30 @@ const ChartIcon: React.FC<{ icon?: string; name?: string }> = ({ icon, name = ''
 
   if (icon && !imgFailed) {
     return (
-      <Box
-        sx={{
+      <div
+        style={{
           width: ICON_SIZE,
           height: ICON_SIZE,
           borderRadius: '4px',
           flexShrink: 0,
-          bgcolor: 'rgba(255,255,255,0.08)',
+          backgroundColor: 'var(--ov-color-state-hover)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Box
-          component="img"
+        <img
           src={icon}
           alt={name}
           onError={() => setImgFailed(true)}
-          sx={{
+          style={{
             width: ICON_SIZE - 2,
             height: ICON_SIZE - 2,
             objectFit: 'contain',
             borderRadius: '3px',
           }}
         />
-      </Box>
+      </div>
     );
   }
 
@@ -111,15 +113,12 @@ const HelmChartTable: React.FC = () => {
         accessorKey: 'name',
         size: 220,
         cell: ({ row, getValue }) => (
-          <Box sx={nameCellSx}>
+          <div style={nameCellStyle}>
             <ChartIcon icon={row.original.icon} name={getValue() as string} />
-            <Text
-              size="sm"
-              sx={truncateTextSx}
-            >
+            <Text size="sm" truncate>
               {getValue() as string}
             </Text>
-          </Box>
+          </div>
         ),
       },
       {
@@ -129,10 +128,7 @@ const HelmChartTable: React.FC = () => {
         size: 300,
         meta: { flex: 1 },
         cell: ({ getValue }) => (
-          <Text
-            size="sm"
-            sx={truncateTextSx}
-          >
+          <Text size="sm" truncate>
             {getValue() as string}
           </Text>
         ),
@@ -175,7 +171,6 @@ const HelmChartTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="id"
-      memoizer="id"
       drawer={drawer}
       hideNamespaceSelector
       createEnabled={false}

@@ -1,0 +1,36 @@
+.eventRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ov-color-border-muted);
+}
+
+.eventRow:last-child {
+  border-bottom: none;
+}
+
+.objectLink {
+  display: block;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  color: var(--ov-color-brand-500);
+  cursor: pointer;
+}
+
+.objectLink:hover,
+.objectLink:focus-visible {
+  text-decoration: underline;
+}
+
+.objectLabel {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--ov-color-fg-muted);
+}

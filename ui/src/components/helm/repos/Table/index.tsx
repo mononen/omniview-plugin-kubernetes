@@ -1,5 +1,5 @@
+import { Button } from '@omniviewdev/base-ui';
 import { DrawerComponent } from '@omniviewdev/runtime';
-import { Button } from '@omniviewdev/ui/buttons';
 import React from 'react';
 import { LuPlus } from 'react-icons/lu';
 import { SiHelm } from 'react-icons/si';
@@ -38,16 +38,15 @@ const HelmRepoTable: React.FC = () => {
         connectionID={id}
         resourceKey={resourceKey}
         idAccessor="name"
-        memoizer="name"
         drawer={drawer}
         hideNamespaceSelector
         createEnabled={false}
         toolbarActions={
           <Button
             size="xs"
-            emphasis="outline"
-            color="primary"
-            startIcon={<LuPlus size={12} />}
+            variant="outline"
+            color="brand"
+            startDecorator={<LuPlus size={12} />}
             onClick={() => setShowAddRepo(true)}
           >
             Add Repo

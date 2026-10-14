@@ -364,7 +364,6 @@ const DeploymentTable: React.FC = () => {
         connectionID={id}
         resourceKey={resourceKey}
         idAccessor="metadata.uid"
-        memoizer="metadata.uid,metadata.resourceVersion,status.observedGeneration"
         drawer={drawer}
         toolbarFilters={[
           {

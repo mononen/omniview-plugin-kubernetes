@@ -1,13 +1,15 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
-import type { HorizontalPodAutoscaler } from 'kubernetes-types/autoscaling/v2';
 import { formatRelative } from 'date-fns';
+import type { HorizontalPodAutoscaler } from 'kubernetes-types/autoscaling/v2';
 import React from 'react';
 
 import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import ResourceLinkChip from '../../../../../shared/ResourceLinkChip';
 import SidebarSection from '../../../../../shared/SidebarSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<HorizontalPodAutoscaler>;
@@ -39,8 +41,8 @@ export const HorizontalPodAutoscalerSidebar: React.FC<Props> = ({ ctx }) => {
   const targetRef = spec?.scaleTargetRef;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={hpa.metadata} />
 
         {targetRef && (

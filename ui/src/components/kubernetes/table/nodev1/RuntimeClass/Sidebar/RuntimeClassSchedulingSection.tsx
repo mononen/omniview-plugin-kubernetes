@@ -1,76 +1,74 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Stack, Text, Separator } from '@omniviewdev/base-ui';
 import type { Toleration } from 'kubernetes-types/core/v1';
 import type { Scheduling } from 'kubernetes-types/node/v1';
 import React from 'react';
 
 import KVCard from '../../../../../shared/KVCard';
 
-const tolerationGridSx = { minHeight: 24, alignItems: 'center' } as const;
+const span4Style: React.CSSProperties = { gridColumn: 'span 4', minWidth: 0 };
 
-const tolerationKeySx = { fontWeight: 600, fontSize: 12 } as const;
+const stackStyle1 = { gap: 6 } as const;
 
-const tolerationSecondsSx = { color: 'neutral.300' } as const;
+const tolerationGridStyle: React.CSSProperties = { minHeight: 24, alignItems: 'center', display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))' };
 
-const sectionBorderSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-} as const;
+const tolerationKeyStyle: React.CSSProperties = { fontWeight: 600, fontSize: 12 };
 
-const sectionHeaderSx = { py: 0.5, px: 1 } as const;
+const tolerationSecondsStyle: React.CSSProperties = { color: 'var(--ov-color-fg-muted)' };
+
+const sectionBorderStyle: React.CSSProperties = { borderRadius: 4, border: '1px solid', borderColor: 'var(--ov-color-border-default)' };
+
+const sectionHeaderStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8 };
 
 interface Props {
   scheduling: Scheduling;
 }
 
-const effectColors: Record<string, 'primary' | 'warning' | 'danger' | 'neutral'> = {
+const effectColors: Record<string, 'brand' | 'warning' | 'danger' | 'neutral'> = {
   NoSchedule: 'warning',
-  PreferNoSchedule: 'primary',
+  PreferNoSchedule: 'brand',
   NoExecute: 'danger',
 };
 
+const tolerationRowEvenStyle: React.CSSProperties = {
+  paddingBlock: 4,
+  paddingInline: 8,
+  background: 'var(--ov-color-bg-surface-raised)',
+};
+const tolerationRowOddStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8, background: 'transparent' };
+
 const TolerationRow: React.FC<{ t: Toleration; index: number }> = ({ t, index }) => (
-  <Box
-    sx={{
-      py: 0.5,
-      px: 1,
-      bgcolor: index % 2 === 0 ? 'background.level1' : 'transparent',
-    }}
+  <div
+    style={index % 2 === 0 ? tolerationRowEvenStyle : tolerationRowOddStyle}
   >
-    <Grid container spacing={0} sx={tolerationGridSx}>
-      <Grid size={4}>
-        <Text size="xs" sx={tolerationKeySx} noWrap>
+    <div style={tolerationGridStyle}>
+      <div style={span4Style}>
+        <Text size="xs" style={tolerationKeyStyle} truncate>
           {t.key || '*'}
         </Text>
-      </Grid>
-      <Grid size={4}>
-        <Stack direction="row" gap={0.5} alignItems="center">
-          <Chip size="sm" variant="outlined">
+      </div>
+      <div style={span4Style}>
+        <Stack direction="row" spacing={1} align="center">
+          <Chip size="sm" variant="outline">
             {t.operator === 'Exists' ? 'Exists' : `= ${t.value ?? ''}`}
           </Chip>
         </Stack>
-      </Grid>
-      <Grid size={4}>
-        <Stack direction="row" gap={0.5} alignItems="center">
+      </div>
+      <div style={span4Style}>
+        <Stack direction="row" spacing={1} align="center">
           {t.effect && (
             <Chip size="sm" color={effectColors[t.effect] ?? 'neutral'}>
               {t.effect}
             </Chip>
           )}
           {t.tolerationSeconds != null && (
-            <Text size="xs" sx={tolerationSecondsSx}>
+            <Text size="xs" style={tolerationSecondsStyle}>
               {t.tolerationSeconds}s
             </Text>
           )}
         </Stack>
-      </Grid>
-    </Grid>
-  </Box>
+      </div>
+    </div>
+  </div>
 );
 
 const RuntimeClassSchedulingSection: React.FC<Props> = ({ scheduling }) => {
@@ -83,28 +81,28 @@ const RuntimeClassSchedulingSection: React.FC<Props> = ({ scheduling }) => {
   if (!hasNodeSelector && !hasTolerations) return null;
 
   return (
-    <Stack direction="column" spacing={1.5}>
+    <Stack direction="column" spacing={3}>
       {hasNodeSelector && (
         <KVCard title="Node Selector" kvs={nodeSelector} defaultExpanded size="sm" />
       )}
 
       {hasTolerations && (
-        <Box sx={sectionBorderSx}>
-          <Box sx={sectionHeaderSx}>
-            <Stack direction="row" gap={0.75} alignItems="center">
+        <div style={sectionBorderStyle}>
+          <div style={sectionHeaderStyle}>
+            <Stack direction="row" spacing={0} align="center" style={stackStyle1}>
               <Text weight="semibold" size="sm">
                 Tolerations
               </Text>
-              <Chip size="sm" variant="outlined">
+              <Chip size="sm" variant="outline">
                 {tolerations.length}
               </Chip>
             </Stack>
-          </Box>
-          <Divider />
+          </div>
+          <Separator />
           {tolerations.map((t, i) => (
             <TolerationRow key={`${t.key}-${t.operator}-${t.value}-${t.effect}`} t={t} index={i} />
           ))}
-        </Box>
+        </div>
       )}
     </Stack>
   );

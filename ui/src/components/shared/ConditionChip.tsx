@@ -1,7 +1,8 @@
-import { Chip } from '@omniviewdev/ui';
-import { Tooltip } from '@omniviewdev/ui/overlays';
+import { Chip } from '@omniviewdev/base-ui';
 import { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
+
+import SimpleTooltip from './SimpleTooltip';
 
 type Props = {
   /** The kubernetes condition */
@@ -17,28 +18,8 @@ type Props = {
   healthyColor?: 'success' | 'neutral';
 };
 
-function CustomTooltip({
-  children,
-  content,
-  ...rest
-}: {
-  children: React.ReactElement;
-  content?: string;
-  size?: string;
-}) {
-  const [renderTooltip, setRenderTooltip] = React.useState(false);
-
-  return (
-    <div onMouseEnter={() => !renderTooltip && setRenderTooltip(true)} className="display-contents">
-      {!renderTooltip && children}
-      {renderTooltip && (
-        <Tooltip content={content} {...rest}>
-          {children}
-        </Tooltip>
-      )}
-    </div>
-  );
-}
+const chipStyle: React.CSSProperties = { borderRadius: 4 };
+const fadedChipStyle: React.CSSProperties = { borderRadius: 4, opacity: 0.45 };
 
 /**
  * Renders a chip based on the incoming condition.
@@ -53,20 +34,14 @@ export const ConditionChip: React.FC<Props> = ({
   const healthy = flipped ? condition.status === 'False' : condition.status === 'True';
 
   const color = healthy ? healthyColor : unhealthyColor === 'faded' ? 'neutral' : unhealthyColor;
+  const faded = !healthy && unhealthyColor === 'faded';
 
   return (
-    <CustomTooltip size="sm" content={condition.message}>
-      <Chip
-        size="xs"
-        color={color}
-        emphasis="soft"
-        sx={{
-          borderRadius: 1,
-          ...(!healthy && unhealthyColor === 'faded' ? { opacity: 0.45 } : {}),
-        }}
-        label={condition.type}
-      />
-    </CustomTooltip>
+    <SimpleTooltip size="sm" content={condition.message}>
+      <Chip size="xs" color={color} variant="soft" style={faded ? fadedChipStyle : chipStyle}>
+        {condition.type}
+      </Chip>
+    </SimpleTooltip>
   );
 };
 

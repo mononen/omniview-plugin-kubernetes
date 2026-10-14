@@ -1,17 +1,22 @@
-import Box from '@mui/material/Box';
-import { CopyButton } from '@omniviewdev/ui/buttons';
+import { IconButton } from '@omniviewdev/base-ui';
 import type { CellContext } from '@tanstack/react-table';
 import { useState } from 'react';
-import { LuFilter } from 'react-icons/lu';
+import { LuCheck, LuCopy, LuFilter } from 'react-icons/lu';
 
-const namespaceCellSx = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 0.25,
-  minWidth: 0,
-} as const;
+import styles from './cells.module.css';
 
 const namespaceTextStyle = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const;
+const copyButtonStyle = { minHeight: 0, minWidth: 0, height: 16, width: 16, padding: 0 } as const;
+const filterBaseStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  cursor: 'pointer',
+  lineHeight: 0,
+} as const;
+const filterActiveStyle = { ...filterBaseStyle, color: 'var(--ov-color-brand-500)' } as const;
+const filterInactiveStyle = { ...filterBaseStyle, color: 'var(--ov-color-fg-muted)' } as const;
+
+const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
 /**
  * NamespaceCell renders the namespace value with hover actions:
@@ -20,11 +25,11 @@ const namespaceTextStyle = { overflow: 'hidden', textOverflow: 'ellipsis', white
  */
 export const NamespaceCell = <T,>({ getValue, table, column }: CellContext<T, unknown>) => {
   const val = getValue() as string | undefined;
-  const [hovered, setHovered] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   if (!val) return null;
 
-  const handleFilter = (e: React.MouseEvent) => {
+  const handleFilter = (e: React.SyntheticEvent) => {
     e.stopPropagation();
     const current = (column.getFilterValue() as string[]) ?? [];
     if (current.includes(val)) {
@@ -36,51 +41,49 @@ export const NamespaceCell = <T,>({ getValue, table, column }: CellContext<T, un
     }
   };
 
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    void navigator.clipboard.writeText(val).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
   const isFiltered = ((table.getColumn('namespace')?.getFilterValue() as string[]) ?? []).includes(
     val,
   );
 
   return (
-    <Box
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      sx={namespaceCellSx}
-    >
-      <span style={namespaceTextStyle}>
-        {val}
-      </span>
+    <span className={styles.namespaceCell}>
+      <span style={namespaceTextStyle}>{val}</span>
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-      <span
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          display: 'inline-flex',
-          gap: 2,
-          alignItems: 'center',
-          flexShrink: 0,
-          visibility: hovered ? 'visible' : 'hidden',
-        }}
-      >
-        <CopyButton value={val} size="xs" />
+      <span className={styles.namespaceActions} onClick={stopPropagation}>
+        <IconButton
+          size="xs"
+          variant="ghost"
+          aria-label="Copy namespace"
+          onClick={handleCopy}
+          style={copyButtonStyle}
+        >
+          {copied ? <LuCheck size={10} /> : <LuCopy size={10} />}
+        </IconButton>
         <span
           role="button"
           tabIndex={0}
           onClick={handleFilter}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleFilter(e as unknown as React.MouseEvent); } }}
-          title={isFiltered ? 'Remove namespace filter' : 'Filter by this namespace'}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            cursor: 'pointer',
-            color: isFiltered
-              ? 'var(--mui-palette-primary-main)'
-              : 'var(--mui-palette-action-active)',
-            lineHeight: 0,
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleFilter(e);
+            }
           }}
+          title={isFiltered ? 'Remove namespace filter' : 'Filter by this namespace'}
+          style={isFiltered ? filterActiveStyle : filterInactiveStyle}
         >
           <LuFilter size={10} />
         </span>
       </span>
-    </Box>
+    </span>
   );
 };
 

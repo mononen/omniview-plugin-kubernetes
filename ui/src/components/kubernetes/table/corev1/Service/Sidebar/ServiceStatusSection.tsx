@@ -1,8 +1,4 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import { Chip, ClipboardText } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, ClipboardText, Stack, Text, Separator } from '@omniviewdev/base-ui';
 import type { Service } from 'kubernetes-types/core/v1';
 import React from 'react';
 
@@ -10,41 +6,24 @@ import ConditionChip from '../../../../../shared/ConditionChip';
 import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ResourceLinkChip from '../../../../../shared/ResourceLinkChip';
 
-const sectionBorderSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-} as const;
+const stackStyle1 = { flexShrink: 0, gap: 6 } as const;
 
-const headerSx = {
-  py: 0.5,
-  px: 1,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 1,
-} as const;
+const sectionBorderStyle: React.CSSProperties = { borderRadius: 4, border: '1px solid', borderColor: 'var(--ov-color-border-default)' };
 
-const bodyBgSx = {
-  py: 0.5,
-  px: 1,
-  bgcolor: 'background.level1',
-} as const;
+const headerStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 };
 
-const entryValueSx = { fontWeight: 600, fontSize: 12 } as const;
-const chipSx = { borderRadius: 1 } as const;
-const cidrValueSx = {
-  fontWeight: 600,
-  fontSize: 11,
-  fontFamily: 'var(--ov-font-mono, monospace)',
-} as const;
+const bodyBgStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8, background: 'var(--ov-color-bg-surface-raised)' };
+
+const entryValueStyle: React.CSSProperties = { fontWeight: 600, fontSize: 12 };
+const chipStyle = { borderRadius: 4 } as const;
+const cidrValueStyle: React.CSSProperties = { fontWeight: 600, fontSize: 11, fontFamily: 'var(--ov-font-mono, monospace)' };
 
 const typeColor = (
   type?: string,
-): 'primary' | 'success' | 'warning' | 'info' | 'neutral' => {
+): 'brand' | 'success' | 'warning' | 'info' | 'neutral' => {
   switch (type) {
     case 'ClusterIP':
-      return 'primary';
+      return 'brand';
     case 'NodePort':
       return 'warning';
     case 'LoadBalancer':
@@ -76,23 +55,17 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
   const svcNamespace = service.metadata?.namespace;
 
   return (
-    <Box sx={sectionBorderSx}>
+    <div style={sectionBorderStyle}>
       {/* Header: title + type chip + conditions */}
-      <Box sx={headerSx}>
-        <Stack direction="row" gap={0.75} alignItems="center" flexShrink={0}>
+      <div style={headerStyle}>
+        <Stack direction="row" spacing={0} align="center" style={stackStyle1}>
           <Text weight="semibold" size="sm">
             Service
           </Text>
-          <Chip
-            size="xs"
-            color={typeColor(svcType)}
-            emphasis="soft"
-            sx={chipSx}
-            label={svcType}
-          />
+          <Chip size="xs" color={typeColor(svcType)} style={chipStyle}>{svcType}</Chip>
         </Stack>
         {conditions && conditions.length > 0 && (
-          <Stack direction="row" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
+          <Stack direction="row" spacing={1} wrap justify="end">
             {conditions.map((condition) => (
               <ConditionChip
                 key={condition.type}
@@ -101,9 +74,9 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
             ))}
           </Stack>
         )}
-      </Box>
-      <Divider />
-      <Box sx={bodyBgSx}>
+      </div>
+      <Separator />
+      <div style={bodyBgStyle}>
         {clusterIP && clusterIP !== 'None' && (
           <LabeledEntry labelSize={3} label="Cluster IP" value={clusterIP} />
         )}
@@ -111,7 +84,7 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
           <LabeledEntry labelSize={3}
             label="Cluster IP"
             value={
-              <Chip size="xs" emphasis="outline" color="neutral" sx={chipSx} label="None (Headless)" />
+              <Chip size="xs" color="neutral" variant="outline" style={chipStyle}>None (Headless)</Chip>
             }
           />
         )}
@@ -119,9 +92,9 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
           <LabeledEntry labelSize={3}
             label="Cluster IPs"
             value={
-              <Stack direction="row" gap={0.5} flexWrap="wrap">
+              <Stack direction="row" spacing={1} wrap>
                 {clusterIPs.map((ip) => (
-                  <ClipboardText key={ip} value={ip} variant="inherit" sx={entryValueSx} />
+                  <ClipboardText key={ip} value={ip} style={entryValueStyle} />
                 ))}
               </Stack>
             }
@@ -131,9 +104,9 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
           <LabeledEntry labelSize={3}
             label="External IPs"
             value={
-              <Stack direction="row" gap={0.5} flexWrap="wrap">
+              <Stack direction="row" spacing={1} wrap>
                 {externalIPs.map((ip) => (
-                  <ClipboardText key={ip} value={ip} variant="inherit" sx={entryValueSx} />
+                  <ClipboardText key={ip} value={ip} style={entryValueStyle} />
                 ))}
               </Stack>
             }
@@ -153,9 +126,9 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
           <LabeledEntry labelSize={3}
             label="LB Source Ranges"
             value={
-              <Stack direction="row" gap={0.5} flexWrap="wrap">
+              <Stack direction="row" spacing={1} wrap>
                 {lbSourceRanges.map((cidr) => (
-                  <ClipboardText key={cidr} value={cidr} variant="inherit" sx={cidrValueSx} />
+                  <ClipboardText key={cidr} value={cidr} style={cidrValueStyle} />
                 ))}
               </Stack>
             }
@@ -180,8 +153,8 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
             }
           />
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

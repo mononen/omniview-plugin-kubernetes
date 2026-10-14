@@ -1,13 +1,7 @@
-import { Select } from '@omniviewdev/ui/inputs';
+import { MultiSelect } from '@omniviewdev/base-ui';
 import React from 'react';
 
-const selectSx = {
-  minWidth: 160,
-  maxWidth: 280,
-  '& .MuiSelect-select': {
-    py: '2px !important',
-  },
-} as const;
+import styles from './toolbarInputs.module.css';
 
 type Props = {
   /** Raw table data used to derive the set of available options. */
@@ -38,24 +32,21 @@ const ResourceFilterSelect: React.FC<Props> = ({ data, accessor, value, onChange
         set.add(v);
       }
     }
-    return [...set].sort().map((v) => ({ value: v, label: v }));
+    return [...set].sort();
   }, [data, accessor]);
 
-  const handleChange = (newValue: string | string[]) => {
-    onChange(Array.isArray(newValue) ? newValue : [newValue]);
-  };
-
   return (
-    <Select
-      size="xs"
-      multiple
-      searchable
-      clearable
+    <MultiSelect
+      size="sm"
+      variant="outline"
+      items={options}
       value={value}
-      onChange={handleChange}
+      onValueChange={(values) => onChange(values)}
       placeholder={placeholder}
-      sx={selectSx}
-      options={options}
+      triggerLabel={placeholder}
+      maxVisibleChips={2}
+      clearable
+      className={styles.filterSelect}
     />
   );
 };

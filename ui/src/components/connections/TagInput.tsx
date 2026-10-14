@@ -1,7 +1,5 @@
-import Autocomplete from '@mui/material/Autocomplete';
-import MuiTextField from '@mui/material/TextField';
-import { Chip } from '@omniviewdev/ui';
-import React from 'react';
+import { TagInput as BaseTagInput } from '@omniviewdev/base-ui';
+import React, { useId } from 'react';
 
 type Props = {
   tags: string[];
@@ -10,37 +8,27 @@ type Props = {
 };
 
 const TagInput: React.FC<Props> = ({ tags, availableTags, onChange }) => {
-  // Combine existing tags with available suggestions, deduped
-  const options = [...new Set([...availableTags, ...tags])].sort();
+  const listId = useId();
+  // Suggest known tags that aren't applied yet (native datalist autocomplete)
+  const suggestions = [...new Set(availableTags)].filter((t) => !tags.includes(t)).sort();
 
   return (
-    <Autocomplete
-      multiple
-      freeSolo
-      size="small"
-      value={tags}
-      options={options}
-      onChange={(_e, newValue) => {
-        onChange(newValue.map((v) => (typeof v === 'string' ? v.trim() : v)).filter(Boolean));
-      }}
-      renderTags={(value, getTagProps) =>
-        value.map((tag, index) => {
-          const { onDelete, ...tagProps } = getTagProps({ index });
-          return (
-            <Chip
-              size="sm"
-              emphasis="soft"
-              color="warning"
-              label={tag}
-              {...tagProps}
-              onDelete={() => onDelete({} as unknown as React.SyntheticEvent)}
-              key={tag}
-            />
-          );
-        })
-      }
-      renderInput={(params) => <MuiTextField {...params} placeholder="Add tags..." size="small" />}
-    />
+    <>
+      <BaseTagInput
+        size="sm"
+        value={tags}
+        placeholder="Add tags..."
+        onChange={(newValue) => {
+          onChange(newValue.map((v) => v.trim()).filter(Boolean));
+        }}
+        inputProps={{ list: listId, 'aria-label': 'Tags' }}
+      />
+      <datalist id={listId}>
+        {suggestions.map((tag) => (
+          <option key={tag} value={tag} />
+        ))}
+      </datalist>
+    </>
   );
 };
 

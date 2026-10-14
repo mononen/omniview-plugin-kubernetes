@@ -1,67 +1,61 @@
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import Grid from '@mui/material/Grid';
+import { Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import { metric } from '@omniviewdev/runtime/models';
-import { MetricsPanel } from '@omniviewdev/ui/charts';
-import type { TimeSeriesDef, ChartTimeRange } from '@omniviewdev/ui/charts';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { MetricsPanel } from '../../../shared/charts';
+import type { TimeSeriesDef, ChartTimeRange } from '../../../shared/charts';
 import React, { useState, useMemo, useCallback } from 'react';
 
-const metricTileBoxSx = {
-  py: 0.75,
-  px: 1,
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-  bgcolor: 'background.level1',
-} as const;
+const metricTileBoxStyle: React.CSSProperties = {
+  paddingBlock: 6,
+  paddingInline: 8,
+  borderRadius: 4,
+  border: '1px solid var(--ov-color-border-default)',
+  background: 'var(--ov-color-bg-surface-raised)',
+};
 
-const metricTileLabelSx = { color: 'neutral.400', mb: 0.25, display: 'block' } as const;
+const metricTileLabelStyle: React.CSSProperties = { marginBottom: 2, display: 'block' };
 
-const metricTileValueSx = { fontVariantNumeric: 'tabular-nums' } as const;
+const metricTileValueStyle: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
-const loadingContainerSx = { display: 'flex', justifyContent: 'center', py: 2 } as const;
+const loadingContainerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'center', paddingBlock: 16 };
 
-const sectionBorderSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-} as const;
+const sectionBorderStyle: React.CSSProperties = {
+  borderRadius: 4,
+  border: '1px solid var(--ov-color-border-default)',
+};
 
-const sectionHeaderSx = {
-  py: 0.5,
-  px: 1,
-} as const;
+const sectionHeaderStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8 };
 
-const sectionHeaderWithActionsSx = {
-  py: 0.5,
-  px: 1,
+const sectionHeaderWithActionsStyle: React.CSSProperties = {
+  paddingBlock: 4,
+  paddingInline: 8,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-} as const;
+};
 
-const errorBoxSx = { px: 1, pb: 0.5 } as const;
+const errorBoxStyle: React.CSSProperties = { paddingInline: 8, paddingBottom: 4 };
 
-const errorTextSx = { color: 'danger.400' } as const;
+const bodyPaddingStyle: React.CSSProperties = { paddingInline: 4, paddingBottom: 8 };
 
-const noMetricsTextSx = { color: 'neutral.500' } as const;
+const noMetricsBodyStyle: React.CSSProperties = { paddingInline: 8, paddingBottom: 8 };
 
-const bodyPaddingSx = { px: 0.5, pb: 1 } as const;
+const tileContainerStyle: React.CSSProperties = { paddingInline: 4 };
 
-const noMetricsBodySx = { px: 1, pb: 1 } as const;
-
-const tileContainerSx = { px: 0.5 } as const;
-
-const tileHeadingSx = {
-  color: 'neutral.400',
+const tileHeadingStyle: React.CSSProperties = {
+  display: 'block',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
   fontSize: '0.6rem',
-  mb: 0.5,
-} as const;
+  marginBottom: 4,
+};
+
+/** Two equal columns with 4px gap (MUI Grid spacing 0.5, size 6). */
+const tileGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 4,
+};
 
 interface Props {
   connectionID: string;
@@ -98,14 +92,14 @@ const MetricTile: React.FC<{
   label: string;
   value: string;
 }> = ({ label, value }) => (
-  <Box sx={metricTileBoxSx}>
-    <Text size="xs" sx={metricTileLabelSx}>
+  <div style={metricTileBoxStyle}>
+    <Text size="xs" tone="muted" style={metricTileLabelStyle}>
       {label}
     </Text>
-    <Text size="sm" weight="semibold" sx={metricTileValueSx}>
+    <Text size="sm" weight="semibold" style={metricTileValueStyle}>
       {value}
     </Text>
-  </Box>
+  </div>
 );
 
 /** Readable display name for known metric IDs */
@@ -246,25 +240,25 @@ const PodMetricsSection: React.FC<Props> = ({
   const cpuSeries = useMemo<TimeSeriesDef[]>(() => {
     const s: TimeSeriesDef[] = [];
     const cpu = tsSeries.get('prom_cpu_usage_rate');
-    if (cpu) s.push(toTimeSeriesDef(cpu, 'CPU Usage', 'var(--ov-accent)'));
+    if (cpu) s.push(toTimeSeriesDef(cpu, 'CPU Usage', 'var(--ov-color-brand-500)'));
     return s;
   }, [tsSeries]);
 
   const memorySeries = useMemo<TimeSeriesDef[]>(() => {
     const s: TimeSeriesDef[] = [];
     const ws = tsSeries.get('prom_memory_working_set');
-    if (ws) s.push(toTimeSeriesDef(ws, 'Working Set', 'var(--ov-accent)'));
+    if (ws) s.push(toTimeSeriesDef(ws, 'Working Set', 'var(--ov-color-brand-500)'));
     const rss = tsSeries.get('prom_memory_rss');
-    if (rss) s.push(toTimeSeriesDef(rss, 'RSS', 'var(--ov-accent-secondary, #8b5cf6)'));
+    if (rss) s.push(toTimeSeriesDef(rss, 'RSS', 'var(--ov-color-secondary)'));
     return s;
   }, [tsSeries]);
 
   const networkSeries = useMemo<TimeSeriesDef[]>(() => {
     const s: TimeSeriesDef[] = [];
     const rx = tsSeries.get('prom_network_receive_rate');
-    if (rx) s.push(toTimeSeriesDef(rx, 'Receive', '#22c55e'));
+    if (rx) s.push(toTimeSeriesDef(rx, 'Receive', 'var(--ov-color-success)'));
     const tx = tsSeries.get('prom_network_transmit_rate');
-    if (tx) s.push(toTimeSeriesDef(tx, 'Transmit', '#f97316'));
+    if (tx) s.push(toTimeSeriesDef(tx, 'Transmit', 'var(--ov-color-warning)'));
     return s;
   }, [tsSeries]);
 
@@ -280,49 +274,49 @@ const PodMetricsSection: React.FC<Props> = ({
 
   if (isLoading) {
     return (
-      <Box sx={loadingContainerSx}>
-        <CircularProgress size={20} />
-      </Box>
+      <div style={loadingContainerStyle}>
+        <Spinner size="sm" />
+      </div>
     );
   }
 
   if (currentMetrics.size === 0 && !hasTimeSeries && !error) {
     return (
-      <Box sx={sectionBorderSx}>
-        <Box sx={sectionHeaderSx}>
+      <div style={sectionBorderStyle}>
+        <div style={sectionHeaderStyle}>
           <Text weight="semibold" size="sm">
             Metrics
           </Text>
-        </Box>
-        <Box sx={noMetricsBodySx}>
-          <Text size="xs" sx={noMetricsTextSx}>
+        </div>
+        <div style={noMetricsBodyStyle}>
+          <Text size="xs" tone="subtle">
             No metrics available. Ensure metrics-server or Prometheus is installed.
           </Text>
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box sx={sectionBorderSx}>
+    <div style={sectionBorderStyle}>
       {/* Header */}
-      <Box sx={sectionHeaderWithActionsSx}>
+      <div style={sectionHeaderWithActionsStyle}>
         <Text weight="semibold" size="sm">
           Metrics
         </Text>
-        {(currentLoading || tsLoading) && <CircularProgress size={12} />}
-      </Box>
+        {(currentLoading || tsLoading) && <Spinner size="xs" />}
+      </div>
 
       {error && (
-        <Box sx={errorBoxSx}>
-          <Text size="xs" sx={errorTextSx}>
+        <div style={errorBoxStyle}>
+          <Text size="xs" tone="danger">
             {error.message || 'Failed to load metrics'}
           </Text>
-        </Box>
+        </div>
       )}
 
-      <Box sx={bodyPaddingSx}>
-        <Stack spacing={0.75}>
+      <div style={bodyPaddingStyle}>
+        <Stack direction="column" spacing={0} style={{ gap: 6 }}>
           {/* Time-series charts */}
           {hasTimeSeries && (
             <>
@@ -372,29 +366,24 @@ const PodMetricsSection: React.FC<Props> = ({
 
           {/* Instant-only tiles */}
           {tileMetrics.length > 0 && (
-            <Box sx={tileContainerSx}>
-              <Text
-                size="xs"
-                weight="semibold"
-                sx={tileHeadingSx}
-              >
+            <div style={tileContainerStyle}>
+              <Text size="xs" weight="semibold" tone="muted" style={tileHeadingStyle}>
                 Current Values
               </Text>
-              <Grid container spacing={0.5}>
+              <div style={tileGridStyle}>
                 {tileMetrics.map((m) => (
-                  <Grid key={m.id} size={6}>
-                    <MetricTile
-                      label={METRIC_NAMES[m.id] || m.id}
-                      value={formatValue(m.value, m.unit)}
-                    />
-                  </Grid>
+                  <MetricTile
+                    key={m.id}
+                    label={METRIC_NAMES[m.id] || m.id}
+                    value={formatValue(m.value, m.unit)}
+                  />
                 ))}
-              </Grid>
-            </Box>
+              </div>
+            </div>
           )}
         </Stack>
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

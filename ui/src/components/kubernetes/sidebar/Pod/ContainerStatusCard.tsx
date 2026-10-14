@@ -1,7 +1,4 @@
-import Divider from '@mui/material/Divider';
-import { Card, Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Card, Chip, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import { formatRelative } from 'date-fns';
 import { ContainerStatus } from 'kubernetes-types/core/v1';
 import * as React from 'react';
@@ -11,10 +8,17 @@ import Icon from '../../../shared/Icon';
 import { ContainerTerminatedStatusInfo, ContainerWaitingStatusInfo } from './ContainerStatuses';
 import { getStatus } from './utils';
 
-const cardSx = { p: 0.5, minWidth: 300 } as const;
-const statusChipSx = { borderRadius: 'sm' } as const;
-const lastStateCardSx = { px: 1, gap: 0.5, pb: 1, pt: 0.5 } as const;
-const lastStateLabelSx = { fontSize: 12, color: 'neutral.50' } as const;
+const cardStyle: React.CSSProperties = { padding: 4, minWidth: 300 };
+const statusChipStyle: React.CSSProperties = { borderRadius: 'var(--ov-radius-sm)' };
+const lastStateCardStyle: React.CSSProperties = {
+  paddingInline: 8,
+  paddingTop: 4,
+  paddingBottom: 8,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+};
+const lastStateLabelStyle: React.CSSProperties = { fontSize: 12 };
 
 interface Props {
   status: ContainerStatus;
@@ -29,7 +33,7 @@ const ContainerStatusCard: React.FC<Props> = ({
 }) => {
   const statusInfo = getStatus(status);
 
-  const getVariant = () => {
+  const getVariant = (): 'outline' | 'soft' | 'solid' => {
     switch (statusInfo.text) {
       case 'Completed':
         return 'outline';
@@ -50,28 +54,27 @@ const ContainerStatusCard: React.FC<Props> = ({
   };
 
   return (
-    <Card
-      emphasis="soft"
-      sx={cardSx}
-    >
-      <Stack direction="row" alignItems="center" justifyContent={'space-between'} spacing={2}>
+    <Card variant="soft" style={cardStyle}>
+      <Stack direction="row" align="center" justify="between" spacing={4}>
         {showContainerName && <Text size="sm">{status.name}</Text>}
-        <Stack gap={1} direction={'row'} alignItems={'center'}>
+        <Stack spacing={2} direction="row" align="center">
           <Chip
             size="sm"
             color={statusInfo.color}
-            emphasis={getVariant()}
-            sx={statusChipSx}
-            startAdornment={statusInfo.icon && <Icon name={statusInfo.icon} size={16} />}
-            label={statusInfo.text}
-          />
+            variant={getVariant()}
+            style={statusChipStyle}
+            startDecorator={statusInfo.icon && <Icon name={statusInfo.icon} size={16} />}
+          >
+            {statusInfo.text}
+          </Chip>
           <Chip
             size="sm"
-            color={status.ready ? 'primary' : 'info'}
-            emphasis={'outline'}
-            sx={statusChipSx}
-            label={getStatusText()}
-          />
+            color={status.ready ? 'brand' : 'info'}
+            variant="outline"
+            style={statusChipStyle}
+          >
+            {getStatusText()}
+          </Chip>
         </Stack>
         {showStartedAt && status.state?.running && status.state.running.startedAt && (
           <Text size="sm">
@@ -86,28 +89,19 @@ const ContainerStatusCard: React.FC<Props> = ({
           )}
           {status.state?.waiting && <ContainerWaitingStatusInfo state={status.state.waiting} />}
           {status.state?.running && !status.lastState?.terminated && (
-            <Text size="sm" color="success">
+            <Text size="sm" tone="success">
               Container is healthy
             </Text>
           )}
           {status.lastState?.terminated && (
-            <Card emphasis="outline" sx={lastStateCardSx}>
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems={'center'}
-                justifyContent={'space-between'}
-              >
-                <Text sx={lastStateLabelSx}>Last State</Text>
-                <Chip
-                  size="sm"
-                  color="danger"
-                  emphasis="outline"
-                  sx={statusChipSx}
-                  label="Terminated"
-                />
+            <Card variant="outline" style={lastStateCardStyle}>
+              <Stack direction="row" spacing={2} align="center" justify="between">
+                <Text style={lastStateLabelStyle}>Last State</Text>
+                <Chip size="sm" color="danger" variant="outline" style={statusChipStyle}>
+                  Terminated
+                </Chip>
               </Stack>
-              <Divider />
+              <Separator />
               <div>
                 <ContainerTerminatedStatusInfo state={status.lastState.terminated} />
               </div>

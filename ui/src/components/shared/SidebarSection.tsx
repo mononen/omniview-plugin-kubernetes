@@ -1,34 +1,32 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
-import type { SxProps, Theme } from '@mui/material/styles';
+import { Separator, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
-const sectionBorderSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-} as const;
+const sectionBorderStyle: React.CSSProperties = {
+  borderRadius: 4,
+  border: '1px solid var(--ov-color-border-default)',
+};
 
-const simpleHeaderSx = { py: 0.5, px: 1 } as const;
+const simpleHeaderStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8 };
 
-const flexHeaderSx = {
-  py: 0.5,
-  px: 1,
+const flexHeaderStyle: React.CSSProperties = {
+  paddingBlock: 4,
+  paddingInline: 8,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: 1,
-} as const;
+  gap: 8,
+};
 
-const defaultBodySx = { py: 0.5, px: 1, bgcolor: 'background.level1' } as const;
+const defaultBodyStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8 };
+
+const headerLeftStyle: React.CSSProperties = { gap: 6 };
 
 interface SidebarSectionProps {
   title: string;
   headerRight?: React.ReactNode;
   headerLeft?: React.ReactNode;
-  bodySx?: SxProps<Theme>;
+  /** Extra inline styles merged onto the body container. */
+  bodyStyle?: React.CSSProperties;
   children: React.ReactNode;
 }
 
@@ -36,16 +34,16 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
   title,
   headerRight,
   headerLeft,
-  bodySx,
+  bodyStyle,
   children,
 }) => {
   const useFlexHeader = !!headerRight;
 
   return (
-    <Box sx={sectionBorderSx}>
-      <Box sx={useFlexHeader ? flexHeaderSx : simpleHeaderSx}>
+    <div style={sectionBorderStyle}>
+      <div style={useFlexHeader ? flexHeaderStyle : simpleHeaderStyle}>
         {headerLeft ? (
-          <Stack direction="row" gap={0.75} alignItems="center">
+          <Stack direction="row" spacing={0} align="center" style={headerLeftStyle}>
             <Text weight="semibold" size="sm">
               {title}
             </Text>
@@ -57,12 +55,12 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
           </Text>
         )}
         {headerRight}
-      </Box>
-      <Divider />
-      <Box sx={bodySx ? { ...defaultBodySx, ...(bodySx as object) } : defaultBodySx}>
+      </div>
+      <Separator />
+      <div style={bodyStyle ? { ...defaultBodyStyle, ...bodyStyle } : defaultBodyStyle}>
         {children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

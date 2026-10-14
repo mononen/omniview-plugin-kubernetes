@@ -1,8 +1,5 @@
-import Box from '@mui/material/Box';
+import { Chip, Stack, Text } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import type { NetworkPolicy } from 'kubernetes-types/networking/v1';
 import React from 'react';
 
@@ -11,32 +8,19 @@ import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import NetworkPolicyRulesSection from './NetworkPolicyRulesSection';
 import PolicyOverviewSection from './PolicyOverviewSection';
 
-const denyAllSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-  py: 0.75,
-  px: 1,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-} as const;
+const fullWidthStyle = { width: '100%' } as const;
 
-const chipSx = { borderRadius: 1 } as const;
+const denyAllStyle: React.CSSProperties = { borderRadius: 4, border: '1px solid', borderColor: 'var(--ov-color-border-default)', paddingBlock: 6, paddingInline: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' };
+
+const chipStyle = { borderRadius: 4 } as const;
 
 const DenyAllBanner: React.FC<{ direction: 'Ingress' | 'Egress' }> = ({ direction }) => (
-  <Box sx={denyAllSx}>
+  <div style={denyAllStyle}>
     <Text weight="semibold" size="sm">
       {direction}
     </Text>
-    <Chip
-      size="xs"
-      emphasis="soft"
-      color="danger"
-      sx={chipSx}
-      label="Deny All"
-    />
-  </Box>
+    <Chip size="xs" color="danger" style={chipStyle}>Deny All</Chip>
+  </div>
 );
 
 interface Props {
@@ -67,8 +51,8 @@ export const NetworkPolicySidebar: React.FC<Props> = ({ ctx }) => {
   const denyAllEgress = hasEgressType && (!spec?.egress || spec.egress.length === 0);
 
   return (
-    <Stack direction="column" width={'100%'} spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={policy.metadata} />
         <PolicyOverviewSection policy={policy} />
       </Stack>

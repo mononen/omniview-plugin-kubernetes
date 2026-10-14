@@ -1,17 +1,7 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
-import type React from 'react';
 import { render, screen } from '@testing-library/react';
+import type React from 'react';
 import { vi, describe, it, expect } from 'vitest';
-
-vi.mock('@omniviewdev/ui', () => ({
-  ClipboardText: ({ value }: { value?: string }) => (
-    <span data-testid="clipboard-text">{value}</span>
-  ),
-}));
-
-vi.mock('@omniviewdev/ui/typography', () => ({
-  Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-}));
 
 import LabeledEntry from './LabeledEntry';
 

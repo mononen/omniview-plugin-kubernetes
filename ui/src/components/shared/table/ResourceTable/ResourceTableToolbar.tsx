@@ -1,7 +1,4 @@
-import Box from '@mui/material/Box';
-import Tooltip from '@mui/material/Tooltip';
-import { IconButton } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
+import { IconButton, Stack, Tooltip } from '@omniviewdev/base-ui';
 import { type Column } from '@tanstack/react-table';
 import React from 'react';
 import { LuColumns3 } from 'react-icons/lu';
@@ -13,7 +10,7 @@ import NamespaceSelect from '../../../tables/NamespaceSelect';
 import ResourceFilterSelect from '../../../tables/ResourceFilterSelect';
 
 import type { ToolbarFilterDef } from './index';
-import { toolbarSx, toolbarSpacerSx, resetColumnsButtonSx } from './styles';
+import styles from './ResourceTable.module.css';
 
 type ResourceTableToolbarProps = {
   connectionID: string;
@@ -38,9 +35,8 @@ type ResourceTableToolbarProps = {
   handleLabels: (vals: Record<string, boolean>) => void;
   annotations: Record<string, boolean>;
   handleAnnotations: (vals: Record<string, boolean>) => void;
-  filterAnchor: HTMLElement | undefined;
-  handleFilterClick: (event: React.MouseEvent<HTMLElement>) => void;
-  handleFilterClose: () => void;
+  filterOpen: boolean;
+  setFilterOpen: (open: boolean) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   allFlatColumns: Column<any, unknown>[];
 };
@@ -67,12 +63,11 @@ const ResourceTableToolbar: React.FC<ResourceTableToolbarProps> = ({
   handleLabels,
   annotations,
   handleAnnotations,
-  filterAnchor,
-  handleFilterClick,
-  handleFilterClose,
+  filterOpen,
+  setFilterOpen,
   allFlatColumns,
 }) => (
-  <Box sx={toolbarSx}>
+  <div className={styles.toolbar}>
     <DebouncedInput
       value={search ?? ''}
       onChange={(value: string) => {
@@ -80,8 +75,8 @@ const ResourceTableToolbar: React.FC<ResourceTableToolbarProps> = ({
       }}
       placeholder={placeholderText}
     />
-    <Box sx={toolbarSpacerSx} />
-    <Stack direction="row" gap={1} alignItems="center">
+    <div className={styles.toolbarSpacer} />
+    <Stack direction="row" spacing={2} align="center">
       {createEnabled && (
         <CreateResourceButton connectionID={connectionID} resourceKey={resourceKey} />
       )}
@@ -117,29 +112,38 @@ const ResourceTableToolbar: React.FC<ResourceTableToolbarProps> = ({
             />
           )}
       {hasResizedColumns && (
-        <Tooltip title="Reset column widths" placement="bottom">
-          <IconButton
-            emphasis="outline"
-            color="neutral"
-            onClick={() => setColumnSizing({})}
-            sx={resetColumnsButtonSx}
-          >
-            <LuColumns3 size={14} />
-          </IconButton>
-        </Tooltip>
+        <Tooltip.Root>
+          <Tooltip.Trigger
+            render={
+              <IconButton
+                variant="outline"
+                color="neutral"
+                size="sm"
+                aria-label="Reset column widths"
+                onClick={() => setColumnSizing({})}
+              >
+                <LuColumns3 size={14} />
+              </IconButton>
+            }
+          />
+          <Tooltip.Portal>
+            <Tooltip.Positioner side="bottom" sideOffset={6}>
+              <Tooltip.Popup>Reset column widths</Tooltip.Popup>
+            </Tooltip.Positioner>
+          </Tooltip.Portal>
+        </Tooltip.Root>
       )}
       <ColumnFilter
         labels={labels}
         setLabels={handleLabels}
         annotations={annotations}
         setAnnotations={handleAnnotations}
-        anchorEl={filterAnchor}
-        onClose={handleFilterClose}
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
         columns={allFlatColumns}
-        onClick={handleFilterClick}
       />
     </Stack>
-  </Box>
+  </div>
 );
 
 export default ResourceTableToolbar;

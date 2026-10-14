@@ -1,18 +1,15 @@
-import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
+import { Stack, Text } from '@omniviewdev/base-ui';
 import {
   useConnection,
   useExtensionPoint,
   usePluginRouter,
   useResources,
 } from '@omniviewdev/runtime';
-import type { ChartTimeRange } from '@omniviewdev/ui/charts';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import type { Pod, Node as K8sNode, Event as K8sEvent } from 'kubernetes-types/core/v1';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 
+import type { ChartTimeRange } from '../../../components/shared/charts';
 import NamespaceSelect from '../../../components/tables/NamespaceSelect';
 import { useClusterPreferences } from '../../../hooks/useClusterPreferences';
 
@@ -20,25 +17,39 @@ import ClusterInfoCard from './components/ClusterInfoCard';
 import ClusterMetricsSection from './components/ClusterMetricsSection';
 import ClusterResourceGauges from './components/ClusterResourceGauges';
 
-const pageSx = {
-  p: 1.5,
+const pageStyle: React.CSSProperties = {
+  padding: 12,
   overflow: 'auto',
   height: '100%',
   width: '100%',
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
-} as const;
+};
 
-const namespaceLabelSx = { color: 'text.secondary' } as const;
-
-const eventsContainerSx = {
+// EventsTable scrolls its own list, so the frame clips instead of adding a
+// second set of scrollbars.
+const eventsContainerStyle: React.CSSProperties = {
   height: 'clamp(300px, 40vh, 600px)',
-  overflow: 'auto',
-  border: '1px solid',
-  borderColor: 'divider',
-  borderRadius: 1,
-} as const;
+  overflow: 'hidden',
+  border: '1px solid var(--ov-color-border-default)',
+  borderRadius: 4,
+};
+
+/** Six equal columns (MUI Grid md=2 of 12). */
+const workloadGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+  gap: 12,
+};
+
+/** Three equal columns (MUI Grid md=4 of 12). */
+const widgetGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+};
+
 import {
   PodStatCard,
   DeploymentStatCard,
@@ -146,10 +157,8 @@ const ClusterDashboardOverviewPage: React.FC = () => {
   );
 
   return (
-    <Box
-      sx={pageSx}
-    >
-      <Stack gap={1.5}>
+    <div style={pageStyle}>
+      <Stack direction="column" spacing={3}>
         {/* Cluster info + health status */}
         <ClusterInfoCard
           // Connection.data is Record<string, any> from the runtime; cast to the expected shape
@@ -161,42 +170,22 @@ const ClusterDashboardOverviewPage: React.FC = () => {
         />
 
         {/* Namespace filter */}
-        <Stack direction="row" alignItems="center" gap={1}>
-          <Text size="sm" sx={namespaceLabelSx}>
+        <Stack direction="row" align="center" spacing={2}>
+          <Text size="sm" tone="muted">
             Namespace:
           </Text>
           <NamespaceSelect connectionID={id} selected={namespaces} setNamespaces={setNamespaces} />
         </Stack>
 
         {/* Workload summary cards — each owns its own useResources hook */}
-        <Grid container spacing={1.5}>
-          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <PodStatCard connectionID={id} namespaces={namespaces} onClick={goToPods} />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <DeploymentStatCard
-              connectionID={id}
-              namespaces={namespaces}
-              onClick={goToDeployments}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <StatefulSetStatCard
-              connectionID={id}
-              namespaces={namespaces}
-              onClick={goToStatefulSets}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <DaemonSetStatCard connectionID={id} namespaces={namespaces} onClick={goToDaemonSets} />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <JobStatCard connectionID={id} namespaces={namespaces} onClick={goToJobs} />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <CronJobStatCard connectionID={id} namespaces={namespaces} onClick={goToCronJobs} />
-          </Grid>
-        </Grid>
+        <div style={workloadGridStyle}>
+          <PodStatCard connectionID={id} namespaces={namespaces} onClick={goToPods} />
+          <DeploymentStatCard connectionID={id} namespaces={namespaces} onClick={goToDeployments} />
+          <StatefulSetStatCard connectionID={id} namespaces={namespaces} onClick={goToStatefulSets} />
+          <DaemonSetStatCard connectionID={id} namespaces={namespaces} onClick={goToDaemonSets} />
+          <JobStatCard connectionID={id} namespaces={namespaces} onClick={goToJobs} />
+          <CronJobStatCard connectionID={id} namespaces={namespaces} onClick={goToCronJobs} />
+        </div>
 
         {/* Resource capacity gauges */}
         <ClusterResourceGauges connectionID={id} metricConfig={metricConfig} />
@@ -212,31 +201,29 @@ const ClusterDashboardOverviewPage: React.FC = () => {
 
         {/* Extension widget slot */}
         {widgets.length > 0 && (
-          <Grid container spacing={1.5}>
+          <div style={widgetGridStyle}>
             {widgets.map((w) => {
               const Component = w.value;
               return (
-                <Grid key={w.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                <div key={w.id} style={{ minWidth: 0 }}>
                   <Component pluginID="kubernetes" connectionID={id} />
-                </Grid>
+                </div>
               );
             })}
-          </Grid>
+          </div>
         )}
 
         {/* Recent events — responsive height, scrolls independently */}
-        <Stack gap={0.75}>
+        <Stack direction="column" spacing={1} style={{ gap: 6 }}>
           <Text weight="semibold" size="sm">
             Recent Events ({allEvents.length})
           </Text>
-          <Box
-            sx={eventsContainerSx}
-          >
+          <div style={eventsContainerStyle}>
             <EventsTable events={allEvents} loading={events.isLoading} connectionID={id} />
-          </Box>
+          </div>
         </Stack>
       </Stack>
-    </Box>
+    </div>
   );
 };
 

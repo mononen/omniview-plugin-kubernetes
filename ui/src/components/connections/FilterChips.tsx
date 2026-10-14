@@ -1,17 +1,12 @@
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Stack, Text } from '@omniviewdev/base-ui';
+import type { ComponentColor } from '@omniviewdev/base-ui';
 import React from 'react';
 import { LuX } from 'react-icons/lu';
 
 import type { FilterState, ConnectionAttribute } from '../../types/clusters';
 import { getProviderLabel } from '../../utils/providers';
 
-const wrapperSx = { flexWrap: 'wrap', alignItems: 'center' } as const;
-
-const chipSx = { cursor: 'pointer' } as const;
-
-const separatorSx = { opacity: 0.5, px: 0.5 } as const;
+const separatorStyle: React.CSSProperties = { opacity: 0.5, padding: '0 4px' };
 
 type Props = {
   filters: FilterState;
@@ -24,6 +19,35 @@ type Props = {
   onToggleLabelFilter: (key: string, value: string) => void;
   onClearAll: () => void;
 };
+
+type ToggleChipProps = {
+  active: boolean;
+  activeColor: ComponentColor;
+  onClick: () => void;
+  children: React.ReactNode;
+  endDecorator?: React.ReactNode;
+};
+
+const ToggleChip: React.FC<ToggleChipProps> = ({
+  active,
+  activeColor,
+  onClick,
+  children,
+  endDecorator,
+}) => (
+  <Chip
+    as="button"
+    clickable
+    size="xs"
+    variant={active ? 'soft' : 'outline'}
+    color={active ? activeColor : 'neutral'}
+    aria-pressed={active}
+    onClick={onClick}
+    endDecorator={endDecorator}
+  >
+    {children}
+  </Chip>
+);
 
 const FilterChips: React.FC<Props> = ({
   filters,
@@ -53,55 +77,51 @@ const FilterChips: React.FC<Props> = ({
   if (!showProviders && !showTags && filterableAttrs.length === 0 && !hasActiveFilters) return null;
 
   return (
-    <Stack direction="row" gap={0.75} sx={wrapperSx}>
+    <Stack direction="row" align="center" wrap style={{ gap: 6 }}>
       {/* Provider chips */}
       {showProviders &&
         availableProviders.map((provider) => (
-          <Chip
+          <ToggleChip
             key={provider}
-            size="xs"
-            emphasis={filters.providers?.includes(provider) ? 'soft' : 'outline'}
-            color={filters.providers?.includes(provider) ? 'primary' : 'neutral'}
+            active={!!filters.providers?.includes(provider)}
+            activeColor="brand"
             onClick={() => onToggleProvider(provider)}
-            sx={chipSx}
-            label={getProviderLabel(provider)}
-          />
+          >
+            {getProviderLabel(provider)}
+          </ToggleChip>
         ))}
 
       {/* Status chips */}
-      <Chip
-        size="xs"
-        emphasis={filters.status?.includes('connected') ? 'soft' : 'outline'}
-        color={filters.status?.includes('connected') ? 'success' : 'neutral'}
+      <ToggleChip
+        active={!!filters.status?.includes('connected')}
+        activeColor="success"
         onClick={() => onToggleStatus('connected')}
-        sx={{ cursor: 'pointer' }}
-        label="Connected"
-      />
-      <Chip
-        size="xs"
-        emphasis={filters.status?.includes('disconnected') ? 'soft' : 'outline'}
-        color="neutral"
+      >
+        Connected
+      </ToggleChip>
+      <ToggleChip
+        active={!!filters.status?.includes('disconnected')}
+        activeColor="neutral"
         onClick={() => onToggleStatus('disconnected')}
-        sx={{ cursor: 'pointer' }}
-        label="Disconnected"
-      />
+      >
+        Disconnected
+      </ToggleChip>
 
       {/* Tag chips */}
       {showTags && (
         <>
-          <Text size="xs" sx={separatorSx}>
+          <Text size="xs" style={separatorStyle}>
             |
           </Text>
           {availableTags.map((tag) => (
-            <Chip
+            <ToggleChip
               key={`tag:${tag}`}
-              size="xs"
-              emphasis={filters.tags?.includes(tag) ? 'soft' : 'outline'}
-              color={filters.tags?.includes(tag) ? 'warning' : 'neutral'}
+              active={!!filters.tags?.includes(tag)}
+              activeColor="warning"
               onClick={() => onToggleTag(tag)}
-              sx={chipSx}
-              label={tag}
-            />
+            >
+              {tag}
+            </ToggleChip>
           ))}
         </>
       )}
@@ -109,21 +129,20 @@ const FilterChips: React.FC<Props> = ({
       {/* Dynamic attribute filter chips */}
       {filterableAttrs.map((attr) => (
         <React.Fragment key={`attr:${attr.key}`}>
-          <Text size="xs" sx={separatorSx}>
+          <Text size="xs" style={separatorStyle}>
             |
           </Text>
           {attr.distinctValues.map((val) => {
             const isActive = filters.labels?.[attr.key]?.includes(val) ?? false;
             return (
-              <Chip
+              <ToggleChip
                 key={`${attr.key}:${val}`}
-                size="xs"
-                emphasis={isActive ? 'soft' : 'outline'}
-                color={isActive ? 'primary' : 'neutral'}
+                active={isActive}
+                activeColor="brand"
                 onClick={() => onToggleLabelFilter(attr.key, val)}
-                sx={chipSx}
-                label={val}
-              />
+              >
+                {val}
+              </ToggleChip>
             );
           })}
         </React.Fragment>
@@ -132,14 +151,16 @@ const FilterChips: React.FC<Props> = ({
       {/* Clear all */}
       {hasActiveFilters && (
         <Chip
+          as="button"
+          clickable
           size="xs"
-          emphasis="outline"
+          variant="outline"
           color="danger"
           onClick={onClearAll}
-          endAdornment={<LuX size={12} />}
-          sx={{ cursor: 'pointer' }}
-          label="Clear"
-        />
+          endDecorator={<LuX size={12} />}
+        >
+          Clear
+        </Chip>
       )}
     </Stack>
   );

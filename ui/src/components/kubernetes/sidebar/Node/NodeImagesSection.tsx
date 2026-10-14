@@ -1,29 +1,27 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Button, Chip, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import type { Node } from 'kubernetes-types/core/v1';
 import React from 'react';
 
 import { convertKubernetesByteUnits } from '../../../../utils/convert';
+import { roundedChipStyle, sectionBorderStyle } from '../shared/sectionStyles';
 
-const outerBoxSx = { borderRadius: 1, border: '1px solid', borderColor: 'divider' } as const;
-const headerSx = {
-  py: 0.5,
-  px: 1,
+const headerStyle: React.CSSProperties = {
+  padding: '4px 8px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
   cursor: 'pointer',
   userSelect: 'none',
-} as const;
-const chipSx = { borderRadius: 1 } as const;
-const imageListSx = { py: 0.5, px: 1, bgcolor: 'background.level1', maxHeight: 300, overflow: 'auto' } as const;
-const imageRowSx = { py: 0.25, minHeight: 20 } as const;
-const imageSizeTextSx = { color: 'neutral.400', flexShrink: 0 } as const;
-const showAllSx = { cursor: 'pointer', py: 0.25, display: 'block' } as const;
-const showAllTextSx = { color: 'primary.main' } as const;
+};
+const imageListStyle: React.CSSProperties = {
+  padding: '4px 8px',
+  maxHeight: 300,
+  overflow: 'auto',
+};
+const imageRowStyle: React.CSSProperties = { paddingBlock: 2, minHeight: 20 };
+const imageNameStyle: React.CSSProperties = { flex: 1, minWidth: 0, marginRight: 8 };
+const imageSizeTextStyle: React.CSSProperties = { flexShrink: 0 };
+const showAllStyle: React.CSSProperties = { paddingInline: 0, marginBlock: 2 };
 
 interface Props {
   node: Node;
@@ -39,26 +37,34 @@ const NodeImagesSection: React.FC<Props> = ({ node }) => {
   const displayed = expanded ? images : images.slice(0, 5);
 
   return (
-    <Box sx={outerBoxSx}>
-      <Box
-        sx={headerSx}
+    <div style={sectionBorderStyle}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        style={headerStyle}
         onClick={() => setExpanded((prev) => !prev)}
+        onKeyDown={(e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setExpanded((prev) => !prev);
+          }
+        }}
       >
-        <Stack direction="row" gap={0.75} alignItems="center">
+        <Stack direction="row" spacing={0} align="center" style={{ gap: 6 }}>
           <Text weight="semibold" size="sm">
             Images
           </Text>
-          <Chip size="xs" emphasis="soft" label={`${images.length}`} sx={chipSx} />
+          <Chip size="xs" variant="soft" style={roundedChipStyle}>
+            {`${images.length}`}
+          </Chip>
         </Stack>
-        <Chip
-          size="xs"
-          emphasis="soft"
-          label={convertKubernetesByteUnits({ from: `${totalSize}B`, to: 'GB' })}
-          sx={chipSx}
-        />
-      </Box>
-      <Divider />
-      <Box sx={imageListSx}>
+        <Chip size="xs" variant="soft" style={roundedChipStyle}>
+          {convertKubernetesByteUnits({ from: `${totalSize}B`, to: 'GB' })}
+        </Chip>
+      </div>
+      <Separator />
+      <div style={imageListStyle}>
         {displayed.map((image, idx) => {
           // Use the shortest name as display name (usually the tag-less sha is longest).
           const displayName = image.names
@@ -72,15 +78,16 @@ const NodeImagesSection: React.FC<Props> = ({ node }) => {
             <Stack
               key={displayName}
               direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              sx={imageRowSx}
+              spacing={0}
+              justify="between"
+              align="center"
+              style={imageRowStyle}
             >
-              <Text size="xs" noWrap sx={{ flex: 1, mr: 1 }}>
+              <Text size="xs" truncate style={imageNameStyle}>
                 {displayName}
               </Text>
               {sizeStr && (
-                <Text size="xs" sx={imageSizeTextSx}>
+                <Text size="xs" tone="subtle" style={imageSizeTextStyle}>
                   {sizeStr}
                 </Text>
               )}
@@ -88,21 +95,21 @@ const NodeImagesSection: React.FC<Props> = ({ node }) => {
           );
         })}
         {!expanded && images.length > 5 && (
-          <Box
-            component="span"
-            sx={showAllSx}
+          <Button
+            variant="ghost"
+            color="brand"
+            size="xs"
+            style={showAllStyle}
             onClick={(e: React.MouseEvent) => {
               e.stopPropagation();
               setExpanded(true);
             }}
           >
-            <Text size="xs" sx={showAllTextSx}>
-              Show all {images.length} images...
-            </Text>
-          </Box>
+            Show all {images.length} images...
+          </Button>
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

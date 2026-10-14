@@ -1,5 +1,4 @@
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
+import { Chip, Stack } from '@omniviewdev/base-ui';
 import type { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
 
@@ -18,9 +17,9 @@ const WorkloadStatusSection: React.FC<Props> = ({ title, counts, conditions, pau
   return (
     <SidebarSection
       title={title}
-      headerLeft={paused ? <Chip size="xs" emphasis="soft" color="warning" label="Paused" /> : undefined}
+      headerLeft={paused ? <Chip size="xs" variant="soft" color="warning">Paused</Chip> : undefined}
       headerRight={conditions && conditions.length > 0 ? (
-        <Stack direction="row" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
+        <Stack direction="row" spacing={1} wrap justify="end">
           {conditions.map((c) => (
             <ConditionChip key={c.type} condition={c} />
           ))}
