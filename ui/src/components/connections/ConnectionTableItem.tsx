@@ -74,7 +74,7 @@ const ConnectionTableItem: React.FC<Props> = ({
 
   const handleConnectionStatus = (status: types.ConnectionStatus) => {
     switch (status.status) {
-      case types.ConnectionStatusCode.UNAUTHORIZED:
+      case types.ConnectionStatusCode.ConnectionStatusUnauthorized:
         showSnackbar({
           status: 'warning',
           message: `Failed to authorize to '${displayName}'`,
@@ -82,7 +82,7 @@ const ConnectionTableItem: React.FC<Props> = ({
           icon: 'LuShieldClose',
         });
         break;
-      case types.ConnectionStatusCode.CONNECTED:
+      case types.ConnectionStatusCode.ConnectionStatusConnected:
         showSnackbar({
           status: 'success',
           message: `Connected to '${displayName}'`,

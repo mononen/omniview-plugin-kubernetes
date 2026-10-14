@@ -223,7 +223,7 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
           id: releaseName,
           namespace,
         });
-        setTabData((prev) => ({ ...prev, [actionID]: result.data as TabDataEntry }));
+        setTabData((prev) => ({ ...prev, [actionID]: result?.data as TabDataEntry }));
       } catch {
         setTabData((prev) => ({ ...prev, [actionID]: null }));
       }
@@ -257,7 +257,7 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
         namespace,
         params: { revision: revision - 1 },
       });
-      const manifestData = result.data as ManifestActionData | undefined;
+      const manifestData = result?.data as ManifestActionData | undefined;
       setPrevManifest(manifestData?.manifest ?? '');
     } catch {
       setPrevManifest('# Failed to load previous revision manifest');

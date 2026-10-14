@@ -118,7 +118,7 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
       id: chartID,
     })
       .then((result) => {
-        const versionsData = result.data as VersionsActionData | undefined;
+        const versionsData = result?.data as VersionsActionData | undefined;
         const versionList = versionsData?.versions ?? [];
         setVersions(versionList);
         if (versionList.length > 0) {
@@ -145,7 +145,7 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
           params: selectedVersion ? { version: selectedVersion } : undefined,
         });
         setTabData((prev) => {
-          const next = { ...prev, [cacheKey]: result.data as TabDataEntry };
+          const next = { ...prev, [cacheKey]: result?.data as TabDataEntry };
           tabDataRef.current = next;
           return next;
         });

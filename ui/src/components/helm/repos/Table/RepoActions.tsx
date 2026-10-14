@@ -246,7 +246,7 @@ const AddRepoDialog: React.FC<{
             actionID: 'list-charts',
             id: trimmedName,
           });
-          const chartsData = listResult.data as ListChartsData | undefined;
+          const chartsData = listResult?.data as ListChartsData | undefined;
           const loaded = chartsData?.charts ?? [];
           setCharts(loaded);
         } catch {

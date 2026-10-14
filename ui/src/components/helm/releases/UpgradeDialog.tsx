@@ -63,8 +63,8 @@ const UpgradeDialog: React.FC<Props> = ({
       params: { all: true },
     })
       .then((result) => {
-        // result.data is Record<string, any> (the values object); stringify it for the editor
-        setValues(result.data ? stringify(result.data as Record<string, unknown>) : '');
+        // result?.data is Record<string, any> (the values object); stringify it for the editor
+        setValues(result?.data ? stringify(result?.data as Record<string, unknown>) : '');
         setValuesLoaded(true);
       })
       .catch(() => {
@@ -84,7 +84,7 @@ const UpgradeDialog: React.FC<Props> = ({
           reuse_values: reuseValues,
         },
       });
-      const dryRunData = result.data as DryRunUpgradeData | undefined;
+      const dryRunData = result?.data as DryRunUpgradeData | undefined;
       setDryRunManifest(dryRunData?.manifest ?? 'No manifest generated');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Dry run failed';
