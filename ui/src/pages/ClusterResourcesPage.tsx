@@ -218,6 +218,7 @@ export default function ClusterResourcesPage(): React.ReactElement {
   );
 
   React.useEffect(() => {
+    if (!import.meta.env.DEV) return;
     showSnackbar({
       message: 'You are currently running in development mode',
       details:
