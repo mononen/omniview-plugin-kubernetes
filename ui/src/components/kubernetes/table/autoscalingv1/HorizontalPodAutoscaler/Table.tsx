@@ -162,7 +162,6 @@ const HorizontalPodAutoscalerTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.uid"
-      memoizer="metadata.uid,metadata.resourceVersion,status.desiredReplicas"
       drawer={drawer}
     />
   );

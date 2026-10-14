@@ -254,7 +254,6 @@ const DaemonSetTable: React.FC = () => {
       connectionID={id}
       resourceKey={resourceKey}
       idAccessor="metadata.uid"
-      memoizer="metadata.uid,metadata.resourceVersion,status.numberReady"
       drawer={drawer}
     />
   );
