@@ -98,7 +98,7 @@ const InstallChartDialog: React.FC<Props> = ({
       params: initialVersion ? { version: initialVersion } : undefined,
     })
       .then((result) => {
-        const valuesData = result.data as ChartValuesData | undefined;
+        const valuesData = result?.data as ChartValuesData | undefined;
         setValues(valuesData?.values ?? '');
       })
       .catch(() => {});
@@ -109,7 +109,7 @@ const InstallChartDialog: React.FC<Props> = ({
       id: chartID,
     })
       .then((result) => {
-        const versionsData = result.data as ChartVersionsData | undefined;
+        const versionsData = result?.data as ChartVersionsData | undefined;
         const versionList = versionsData?.versions ?? [];
         setVersions(versionList);
         if (versionList.length > 0 && !version && !initialVersion) {
@@ -137,7 +137,7 @@ const InstallChartDialog: React.FC<Props> = ({
           version,
         },
       });
-      const dryRunData = result.data as DryRunInstallData | undefined;
+      const dryRunData = result?.data as DryRunInstallData | undefined;
       setDryRunManifest(dryRunData?.manifest ?? 'No manifest generated');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Dry run failed';

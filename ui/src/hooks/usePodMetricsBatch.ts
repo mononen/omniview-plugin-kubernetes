@@ -53,8 +53,8 @@ export function usePodMetricsBatch(opts: {
           'prom_memory_working_set', // prometheus
         ],
         0, // ShapeCurrent
-        new Date(0),
-        new Date(0),
+        new Date(0).toISOString(),
+        new Date(0).toISOString(),
         0,
       );
 

@@ -33,7 +33,7 @@ export function useClusterAction(
     }
     startConnection()
       .then((status) => {
-        if (status.status === types.ConnectionStatusCode.CONNECTED) {
+        if (status.status === types.ConnectionStatusCode.ConnectionStatusConnected) {
           navigate(`/cluster/${encodeURIComponent(connectionId)}/resources`);
         } else {
           showSnackbar({
