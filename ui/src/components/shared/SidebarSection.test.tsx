@@ -1,19 +1,7 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
-import type React from 'react';
 import { render, screen } from '@testing-library/react';
+import type React from 'react';
 import { vi, describe, it, expect } from 'vitest';
-
-vi.mock('@omniviewdev/ui/layout', () => ({
-  Stack: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
-    <div data-testid="stack" {...props}>{children}</div>
-  ),
-}));
-
-vi.mock('@omniviewdev/ui/typography', () => ({
-  Text: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
-    <span data-testid="text" {...props}>{children}</span>
-  ),
-}));
 
 import SidebarSection from './SidebarSection';
 

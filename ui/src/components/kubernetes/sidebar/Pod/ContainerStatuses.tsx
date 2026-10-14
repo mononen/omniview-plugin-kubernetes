@@ -1,7 +1,4 @@
-import Grid from '@mui/material/Grid';
-import { Chip } from '@omniviewdev/ui';
-import { Tooltip } from '@omniviewdev/ui/overlays';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Grid, Text } from '@omniviewdev/base-ui';
 import { formatRelative } from 'date-fns';
 import {
   ContainerStateTerminated,
@@ -11,11 +8,15 @@ import {
 import React from 'react';
 
 import Icon from '../../../shared/Icon';
+import SimpleTooltip from '../../../shared/SimpleTooltip';
 
 import ContainerStatusCard from './ContainerStatusCard';
 import { getStatus } from './utils';
 
-const decoratorChipSx = { borderRadius: 'sm', px: 1 } as const;
+const decoratorChipStyle: React.CSSProperties = {
+  borderRadius: 'var(--ov-radius-sm)',
+  paddingInline: 8,
+};
 
 /**
  * Details on a why a container was terminated
@@ -32,23 +33,23 @@ export const ContainerTerminatedStatusInfo: React.FC<{
   };
 
   return (
-    <Grid container spacing={0}>
+    <Grid columns={12} spacing={0}>
       {Object.entries(info).map(([key, value]) =>
         value ? (
           <React.Fragment key={key}>
-            <Grid size={6}>
+            <Grid.Item span={6}>
               <Text size="xs">{key}</Text>
-            </Grid>
-            <Grid size={6}>
+            </Grid.Item>
+            <Grid.Item span={6}>
               <Text size="xs">{value}</Text>
-            </Grid>
+            </Grid.Item>
           </React.Fragment>
         ) : null,
       )}
       {state.message && (
-        <Grid size={12}>
+        <Grid.Item span={12}>
           <Text size="xs">{state.message}</Text>
-        </Grid>
+        </Grid.Item>
       )}
     </Grid>
   );
@@ -66,17 +67,17 @@ export const ContainerWaitingStatusInfo: React.FC<{
   };
 
   return (
-    <Grid container spacing={0}>
+    <Grid columns={12} spacing={0}>
       {Object.entries(info).map(
         ([key, value]) =>
           value && (
             <React.Fragment key={key}>
-              <Grid size={6}>
+              <Grid.Item span={6}>
                 <Text size="xs">{key}</Text>
-              </Grid>
-              <Grid size={6}>
+              </Grid.Item>
+              <Grid.Item span={6}>
                 <Text size="xs">{value}</Text>
-              </Grid>
+              </Grid.Item>
             </React.Fragment>
           ),
       )}
@@ -89,7 +90,7 @@ export const ContainerStatusDecorator: React.FC<{
 }> = ({ status }) => {
   const statusInfo = getStatus(status);
 
-  const getVariant = () => {
+  const getVariant = (): 'outline' | 'soft' | 'solid' => {
     switch (statusInfo.text) {
       case 'Completed':
         return 'outline';
@@ -101,19 +102,20 @@ export const ContainerStatusDecorator: React.FC<{
   };
 
   return (
-    <Tooltip
+    <SimpleTooltip
       key={statusInfo.text}
-      placement="top-end"
+      placement="top"
       content={<ContainerStatusCard status={status} />}
     >
       <Chip
         size="sm"
-        sx={decoratorChipSx}
+        style={decoratorChipStyle}
         color={statusInfo.color}
-        emphasis={getVariant()}
-        startAdornment={statusInfo.icon && <Icon name={statusInfo.icon} size={16} />}
-        label={statusInfo.text}
-      />
-    </Tooltip>
+        variant={getVariant()}
+        startDecorator={statusInfo.icon && <Icon name={statusInfo.icon} size={16} />}
+      >
+        {statusInfo.text}
+      </Chip>
+    </SimpleTooltip>
   );
 };

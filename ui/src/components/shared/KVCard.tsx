@@ -1,23 +1,25 @@
-// @omniviewdev/ui
-import Grid from '@mui/material/Grid';
-import { Chip, ClipboardText } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, ClipboardText, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
 import ExpandableSections from './ExpandableSections';
 
-const titleTextSx = { fontSize: 12 } as const;
+const titleTextStyle: React.CSSProperties = { fontSize: 12 };
+const titleRowStyle: React.CSSProperties = { gap: 6 };
 
-const chipSx = { borderRadius: 1 } as const;
+const chipStyle: React.CSSProperties = { borderRadius: 4 };
 
-const gridContainerSx = { px: 1, py: 0.5 } as const;
+const gridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 2,
+  alignItems: 'center',
+  paddingInline: 8,
+  paddingBlock: 4,
+};
 
-const gridCellSx = { alignItems: 'center' } as const;
+const keyTextStyle: React.CSSProperties = { fontSize: 11, fontWeight: 400, width: '100%', minWidth: 0 };
 
-const keyTextSx = { fontSize: 11, fontWeight: 400 } as const;
-
-const valueTextSx = { fontSize: 11, fontWeight: 600 } as const;
+const valueTextStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, width: '100%', minWidth: 0 };
 
 interface Props {
   title: string;
@@ -30,41 +32,25 @@ const KVCard: React.FC<Props> = ({ title, kvs, defaultExpanded, size = 'sm' }) =
   const sections = [
     {
       title: (
-        <Stack direction="row" gap={0.75} alignItems="center">
-          <Text weight="semibold" size="xs" sx={titleTextSx}>
+        <Stack direction="row" spacing={0} align="center" style={titleRowStyle}>
+          <Text weight="semibold" size="xs" style={titleTextStyle}>
             {title}
           </Text>
-          <Chip
-            size="xs"
-            emphasis="outline"
-            color="primary"
-            sx={chipSx}
-            label={String(Object.keys(kvs).length)}
-          />
+          <Chip size="xs" variant="outline" color="brand" style={chipStyle}>
+            {String(Object.keys(kvs).length)}
+          </Chip>
         </Stack>
       ),
       defaultExpanded: defaultExpanded && Object.keys(kvs).length > 0,
       children: (
-        <Grid container spacing={0.25} sx={gridContainerSx}>
+        <div style={gridStyle}>
           {Object.entries(kvs).map(([key, value]) => (
             <React.Fragment key={key}>
-              <Grid size={6} sx={gridCellSx}>
-                <ClipboardText
-                  value={key}
-                  variant="inherit"
-                  sx={keyTextSx}
-                />
-              </Grid>
-              <Grid size={6} sx={gridCellSx}>
-                <ClipboardText
-                  value={value}
-                  variant="inherit"
-                  sx={valueTextSx}
-                />
-              </Grid>
+              <ClipboardText value={key} truncate style={keyTextStyle} />
+              <ClipboardText value={value} truncate style={valueTextStyle} />
             </React.Fragment>
           ))}
-        </Grid>
+        </div>
       ),
     },
   ];

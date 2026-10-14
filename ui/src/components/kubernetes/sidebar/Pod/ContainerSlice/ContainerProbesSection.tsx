@@ -1,4 +1,4 @@
-import Grid from '@mui/material/Grid';
+import { Grid } from '@omniviewdev/base-ui';
 import type { Container } from 'kubernetes-types/core/v1';
 import React from 'react';
 
@@ -18,31 +18,31 @@ const ContainerProbesSection: React.FC<ContainerProbesSectionProps> = ({ contain
   return (
     <>
       {container.readinessProbe && (
-        <Grid size={numProbes > 1 ? 12 / numProbes : 12}>
+        <Grid.Item span={numProbes > 1 ? 12 / numProbes : 12}>
           <DetailsCard
             title="Readiness Probe"
             titleSize="sm"
             data={probeEntry(container.readinessProbe)}
           />
-        </Grid>
+        </Grid.Item>
       )}
       {container.livenessProbe && (
-        <Grid size={numProbes > 1 ? 12 / numProbes : 12}>
+        <Grid.Item span={numProbes > 1 ? 12 / numProbes : 12}>
           <DetailsCard
             title="Liveness Probe"
             titleSize="sm"
             data={probeEntry(container.livenessProbe)}
           />
-        </Grid>
+        </Grid.Item>
       )}
       {container.startupProbe && (
-        <Grid size={numProbes > 1 ? 12 / numProbes : 12}>
+        <Grid.Item span={numProbes > 1 ? 12 / numProbes : 12}>
           <DetailsCard
             title="Startup Probe"
             titleSize="sm"
             data={probeEntry(container.startupProbe)}
           />
-        </Grid>
+        </Grid.Item>
       )}
     </>
   );

@@ -1,24 +1,19 @@
-import Box from '@mui/material/Box';
-import { Button } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text, Heading } from '@omniviewdev/ui/typography';
+import { Button, EmptyState as BaseEmptyState } from '@omniviewdev/base-ui';
 import React from 'react';
 import { LuSearch, LuServerOff } from 'react-icons/lu';
 
-const containerSx = {
+const containerStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  p: 6,
+  padding: 48,
   borderRadius: 'var(--ov-radius-md, 6px)',
-  gap: 2,
+  gap: 16,
   minHeight: 200,
-  border: '1px solid var(--ov-border-default, rgba(255,255,255,0.08))',
-  bgcolor: 'var(--ov-bg-surface, rgba(255,255,255,0.03))',
-} as const;
-
-const descriptionSx = { textAlign: 'center', maxWidth: 360 } as const;
+  border: '1px solid var(--ov-color-border-default)',
+  backgroundColor: 'var(--ov-color-bg-surface)',
+};
 
 type Props = {
   variant: 'no-connections' | 'no-results';
@@ -26,33 +21,28 @@ type Props = {
 };
 
 const EmptyState: React.FC<Props> = ({ variant, onClearFilters }) => (
-  <Box
-    sx={containerSx}
-  >
+  <div style={containerStyle}>
     {variant === 'no-connections' ? (
-      <Stack alignItems="center" gap={1.5}>
-        <LuServerOff size={40} opacity={0.4} />
-        <Heading level="h4">No Clusters Found</Heading>
-        <Text size="sm" sx={descriptionSx}>
-          No kubeconfig contexts were detected. Add kubeconfig file paths in plugin settings to get
-          started.
-        </Text>
-      </Stack>
+      <BaseEmptyState
+        icon={<LuServerOff size={40} opacity={0.4} />}
+        title="No Clusters Found"
+        description="No kubeconfig contexts were detected. Add kubeconfig file paths in plugin settings to get started."
+      />
     ) : (
-      <Stack alignItems="center" gap={1.5}>
-        <LuSearch size={40} opacity={0.4} />
-        <Heading level="h4">No Results</Heading>
-        <Text size="sm" sx={descriptionSx}>
-          No clusters match your current search or filters.
-        </Text>
-        {onClearFilters && (
-          <Button emphasis="soft" color="neutral" size="sm" onClick={onClearFilters}>
-            Clear Filters
-          </Button>
-        )}
-      </Stack>
+      <BaseEmptyState
+        icon={<LuSearch size={40} opacity={0.4} />}
+        title="No Results"
+        description="No clusters match your current search or filters."
+        action={
+          onClearFilters ? (
+            <Button variant="soft" color="neutral" size="sm" onClick={onClearFilters}>
+              Clear Filters
+            </Button>
+          ) : undefined
+        }
+      />
     )}
-  </Box>
+  </div>
 );
 
 export default EmptyState;

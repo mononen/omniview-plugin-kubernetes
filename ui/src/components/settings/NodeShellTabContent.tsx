@@ -1,9 +1,5 @@
-import Box from '@mui/material/Box';
-import { Card } from '@omniviewdev/ui';
-import { FormField, TextField } from '@omniviewdev/ui/inputs';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
-import React, { useCallback } from 'react';
+import { Card, FormField, Input, Stack, Text } from '@omniviewdev/base-ui';
+import React, { useCallback, useId } from 'react';
 import { LuInfo } from 'react-icons/lu';
 
 import { useClusterPreferences } from '../../hooks/useClusterPreferences';
@@ -17,19 +13,19 @@ interface Props {
 const DEFAULT_IMAGE = 'busybox:latest';
 const DEFAULT_COMMAND = 'nsenter -t 1 -m -u -i -n -p -- /bin/bash';
 
-const cardBorderSx = { borderColor: 'divider' } as const;
+const cardStyle: React.CSSProperties = { minWidth: 0, padding: 0, gap: 0 };
 
-const cardBodySx = { p: 1.5, display: 'flex', flexDirection: 'column' } as const;
+const cardBodyStyle: React.CSSProperties = { padding: 12, display: 'flex', flexDirection: 'column' };
 
-const titleSx = { mb: 0.5 } as const;
+const titleStyle: React.CSSProperties = { marginBottom: 4 };
 
-const subtitleSx = { mb: 1.5, opacity: 0.6 } as const;
+const subtitleStyle: React.CSSProperties = { marginBottom: 12, opacity: 0.6 };
 
-const infoRowSx = { mt: 1.25 } as const;
+const infoRowStyle: React.CSSProperties = { marginTop: 10, gap: 6 };
 
-const infoIconSx = { color: 'text.tertiary', mt: 0.25, flexShrink: 0 } as const;
+const infoIconStyle: React.CSSProperties = { color: 'var(--ov-color-fg-subtle)', marginTop: 2, flexShrink: 0 };
 
-const infoTextSx = { color: 'text.tertiary', lineHeight: 1.4 } as const;
+const infoTextStyle: React.CSSProperties = { lineHeight: 1.4 };
 
 const NodeShellTabContent: React.FC<Props> = ({ pluginID, connectionID }) => {
   const { connectionOverrides, updateOverride } = useClusterPreferences(pluginID);
@@ -61,54 +57,59 @@ const NodeShellTabContent: React.FC<Props> = ({ pluginID, connectionID }) => {
     });
   }, [image, command, connectionID, existing, updateOverride]);
 
+  const imageId = useId();
+  const commandId = useId();
+
   const onBlur = () => {
     void saveConfig();
   };
 
   return (
-    <Stack direction="column" gap={1.5}>
-      <Card variant="outlined" sx={cardBorderSx}>
-        <Box sx={cardBodySx}>
-          <Text size="sm" weight="semibold" sx={titleSx}>
+    <Stack direction="column" spacing={3}>
+      <Card style={cardStyle}>
+        <div style={cardBodyStyle}>
+          <Text size="sm" weight="semibold" style={titleStyle}>
             Node Shell Configuration
           </Text>
-          <Text size="xs" sx={subtitleSx}>
+          <Text size="xs" style={subtitleStyle}>
             Customize the debug pod image and shell command used when opening a node shell. Leave
             fields empty to use defaults.
           </Text>
 
-          <Stack gap={2}>
-            <FormField label="Debug Pod Image">
-              <TextField
+          <Stack direction="column" spacing={4}>
+            <FormField label="Debug Pod Image" htmlFor={imageId} size="sm">
+              <Input.Control
+                id={imageId}
                 size="sm"
                 placeholder={DEFAULT_IMAGE}
                 value={image}
-                onChange={setImage}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImage(e.target.value)}
                 onBlur={onBlur}
               />
             </FormField>
-            <FormField label="Shell Command">
-              <TextField
+            <FormField label="Shell Command" htmlFor={commandId} size="sm">
+              <Input.Control
+                id={commandId}
                 size="sm"
                 placeholder={DEFAULT_COMMAND}
                 value={command}
-                onChange={setCommand}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCommand(e.target.value)}
                 onBlur={onBlur}
               />
             </FormField>
           </Stack>
 
-          <Stack direction="row" gap={0.75} alignItems="flex-start" sx={infoRowSx}>
-            <Box sx={infoIconSx}>
+          <Stack direction="row" spacing={0} align="start" style={infoRowStyle}>
+            <div style={infoIconStyle}>
               <LuInfo size={12} />
-            </Box>
-            <Text size="xs" sx={infoTextSx}>
+            </div>
+            <Text size="xs" tone="subtle" style={infoTextStyle}>
               The debug pod image is used to create a privileged pod on the node. The shell command
               is the full nsenter command that runs inside the pod. When empty, defaults are used:{' '}
               <code>{DEFAULT_IMAGE}</code> with <code>{DEFAULT_COMMAND}</code>.
             </Text>
           </Stack>
-        </Box>
+        </div>
       </Card>
     </Stack>
   );

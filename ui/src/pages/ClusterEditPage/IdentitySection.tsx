@@ -1,12 +1,11 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import { FormField, TextField, TextArea } from '@omniviewdev/ui/inputs';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Input, Separator, Stack, Text, TextArea } from '@omniviewdev/base-ui';
+
 import AvatarEditor from '../../components/connections/AvatarEditor';
 
-import { formRowSx, formLabelColumnSx, formFieldColumnSx, formHintSx } from './constants';
+import { formRowStyle, formLabelColumnStyle, formFieldColumnStyle, formHintStyle } from './constants';
 import SectionWrapper from './SectionWrapper';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 function IdentitySection({
   displayName,
@@ -34,17 +33,17 @@ function IdentitySection({
       title="Identity"
       description="Customize how this cluster appears in the sidebar and connection list."
     >
-      <Stack direction="column" gap={0}>
+      <Stack direction="column" spacing={0}>
         {/* Avatar row */}
-        <Box sx={formRowSx}>
-          <Box sx={formLabelColumnSx}>
+        <div style={formRowStyle}>
+          <div style={formLabelColumnStyle}>
             <Text size="sm" weight="medium">
               Avatar
             </Text>
-            <Text size="xs" sx={formHintSx}>
+            <Text size="xs" tone="muted" style={formHintStyle}>
               Upload an image or pick a color
             </Text>
-          </Box>
+          </div>
           <AvatarEditor
             name={displayName || connName}
             avatarUrl={avatarUrl}
@@ -52,57 +51,59 @@ function IdentitySection({
             onAvatarUrlChange={onAvatarUrlChange}
             onAvatarColorChange={onAvatarColorChange}
           />
-        </Box>
-        <Divider />
+        </div>
+        <Separator />
 
         {/* Display name row */}
-        <Box sx={formRowSx}>
-          <Box sx={formLabelColumnSx}>
+        <div style={formRowStyle}>
+          <div style={formLabelColumnStyle}>
             <Text size="sm" weight="medium">
               Display Name
             </Text>
-            <Text size="xs" sx={formHintSx}>
+            <Text size="xs" tone="muted" style={formHintStyle}>
               Override the default context name
             </Text>
-          </Box>
-          <Box sx={formFieldColumnSx}>
-            <FormField>
-              <TextField
+          </div>
+          <div style={formFieldColumnStyle}>
+            <Input.Root size="sm" style={fullWidthStyle}>
+              <Input.Control
                 size="sm"
+                aria-label="Display name"
                 placeholder={connName}
                 value={displayName}
-                onChange={(e) => onDisplayNameChange(e)}
-                fullWidth
+                onChange={(e) => onDisplayNameChange(e.currentTarget.value)}
+                style={fullWidthStyle}
               />
-            </FormField>
-          </Box>
-        </Box>
-        <Divider />
+            </Input.Root>
+          </div>
+        </div>
+        <Separator />
 
         {/* Description row */}
-        <Box sx={formRowSx}>
-          <Box sx={formLabelColumnSx}>
+        <div style={formRowStyle}>
+          <div style={formLabelColumnStyle}>
             <Text size="sm" weight="medium">
               Description
             </Text>
-            <Text size="xs" sx={formHintSx}>
+            <Text size="xs" tone="muted" style={formHintStyle}>
               Optional note for this cluster
             </Text>
-          </Box>
-          <Box sx={formFieldColumnSx}>
-            <FormField>
-              <TextArea
+          </div>
+          <div style={formFieldColumnStyle}>
+            <TextArea.Root size="sm" style={fullWidthStyle}>
+              <TextArea.Control
                 size="sm"
-                minRows={2}
-                maxRows={4}
+                aria-label="Description"
+                rows={2}
+                resize="vertical"
                 placeholder="Optional description for this cluster"
                 value={description}
-                onChange={(e) => onDescriptionChange(e)}
-                fullWidth
+                onChange={(e) => onDescriptionChange(e.currentTarget.value)}
+                style={fullWidthStyle}
               />
-            </FormField>
-          </Box>
-        </Box>
+            </TextArea.Root>
+          </div>
+        </div>
       </Stack>
     </SectionWrapper>
   );

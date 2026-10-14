@@ -1,37 +1,21 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
+import { Chip, Stack, Text, Separator } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import type { IngressClass } from 'kubernetes-types/networking/v1';
 import React from 'react';
 
 import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 
-const sectionBorderSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-} as const;
+const fullWidthStyle = { width: '100%' } as const;
+const stackStyle2 = { gap: 6 } as const;
 
-const headerSx = {
-  py: 0.5,
-  px: 1,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 1,
-} as const;
+const sectionBorderStyle: React.CSSProperties = { borderRadius: 4, border: '1px solid', borderColor: 'var(--ov-color-border-default)' };
 
-const bodyBgSx = {
-  py: 0.5,
-  px: 1,
-  bgcolor: 'background.level1',
-} as const;
+const headerStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 };
 
-const chipSx = { borderRadius: 1 } as const;
+const bodyBgStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8, background: 'var(--ov-color-bg-surface-raised)' };
+
+const chipStyle = { borderRadius: 4 } as const;
 
 interface Props {
   ctx: DrawerContext<IngressClass>;
@@ -49,51 +33,45 @@ export const IngressClassSidebar: React.FC<Props> = ({ ctx }) => {
   const params = spec?.parameters;
 
   return (
-    <Stack direction="column" width={'100%'} spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={data.metadata} />
 
         {/* Controller */}
-        <Box sx={sectionBorderSx}>
-          <Box sx={headerSx}>
-            <Stack direction="row" gap={0.75} alignItems="center">
+        <div style={sectionBorderStyle}>
+          <div style={headerStyle}>
+            <Stack direction="row" spacing={0} align="center" style={stackStyle2}>
               <Text weight="semibold" size="sm">
                 Controller
               </Text>
               {isDefault && (
-                <Chip
-                  size="xs"
-                  color="primary"
-                  emphasis="soft"
-                  sx={chipSx}
-                  label="Default"
-                />
+                <Chip size="xs" color="brand" style={chipStyle}>Default</Chip>
               )}
             </Stack>
-          </Box>
-          <Divider />
-          <Box sx={bodyBgSx}>
+          </div>
+          <Separator />
+          <div style={bodyBgStyle}>
             <LabeledEntry label="Controller" value={spec?.controller} />
-          </Box>
-        </Box>
+          </div>
+        </div>
 
         {/* Parameters */}
         {params && (
-          <Box sx={sectionBorderSx}>
-            <Box sx={headerSx}>
+          <div style={sectionBorderStyle}>
+            <div style={headerStyle}>
               <Text weight="semibold" size="sm">
                 Parameters
               </Text>
-            </Box>
-            <Divider />
-            <Box sx={bodyBgSx}>
+            </div>
+            <Separator />
+            <div style={bodyBgStyle}>
               {params.apiGroup && <LabeledEntry label="API Group" value={params.apiGroup} />}
               <LabeledEntry label="Kind" value={params.kind} />
               <LabeledEntry label="Name" value={params.name} />
               {params.namespace && <LabeledEntry label="Namespace" value={params.namespace} />}
               {params.scope && <LabeledEntry label="Scope" value={params.scope} />}
-            </Box>
-          </Box>
+            </div>
+          </div>
         )}
       </Stack>
     </Stack>

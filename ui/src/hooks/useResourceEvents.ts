@@ -1,7 +1,8 @@
 import { useResources } from '@omniviewdev/runtime';
-import type { KubeEvent, TimelineEvent } from '@omniviewdev/ui/domain';
 import type { Event as K8sEvent } from 'kubernetes-types/core/v1';
 import { useMemo } from 'react';
+
+import type { KubeEvent, TimelineEvent } from '../types/events';
 
 const MAX_EVENTS = 100;
 

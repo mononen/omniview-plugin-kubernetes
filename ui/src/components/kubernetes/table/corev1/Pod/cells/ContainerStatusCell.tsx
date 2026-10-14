@@ -1,20 +1,88 @@
-import { useTheme } from '@mui/material/styles';
-import { Tooltip } from '@omniviewdev/ui/overlays';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Stack, Text } from '@omniviewdev/base-ui';
 import { ContainerStatus } from 'kubernetes-types/core/v1';
 import React from 'react';
 
 import { getStatus } from '../../../../sidebar/Pod/utils';
+import SimpleTooltip from '../../../../../shared/SimpleTooltip';
 
 type Props = {
   data?: ContainerStatus[];
   initData?: ContainerStatus[];
 };
 
-export const ContainerStatusCell: React.FC<Props> = ({ data, initData }) => {
-  const theme = useTheme();
+const COLOR_READY = 'var(--ov-color-success)';
+const COLOR_INFO = 'var(--ov-color-info)';
+const COLOR_COMPLETED = 'var(--ov-color-border-strong)';
+const COLOR_ERROR = 'var(--ov-color-danger)';
+const COLOR_UNKNOWN = 'var(--ov-color-fg-disabled)';
 
+const tooltipContentStyle = { paddingBlock: 2 } as const;
+const rowStyle = { width: '100%' } as const;
+
+/** Get the color for the status square based on the container status */
+const getColor = (status: ContainerStatus) => {
+  if (status.ready) {
+    return COLOR_READY;
+  }
+
+  if (status.state?.waiting) {
+    return COLOR_INFO;
+  }
+
+  if (status.state?.terminated) {
+    if (status.state.terminated.reason === 'Completed' || status.state.terminated.exitCode === 0) {
+      return COLOR_COMPLETED;
+    }
+
+    return COLOR_ERROR;
+  }
+
+  if (status.state?.running) {
+    // Running but not ready: use info (blue) for visual distinction from green (ready)
+    return COLOR_INFO;
+  }
+
+  return COLOR_UNKNOWN;
+};
+
+const chipStyle = (color: string, dim?: boolean): React.CSSProperties => ({
+  backgroundColor: color,
+  borderRadius: 2,
+  width: 10,
+  height: 10,
+  maxWidth: 10,
+  maxHeight: 10,
+  minWidth: 10,
+  minHeight: 10,
+  flexShrink: 0,
+  cursor: 'default',
+  ...(dim ? { opacity: 0.5 } : {}),
+});
+
+const renderTooltipContent = (status: ContainerStatus, isInit?: boolean) => {
+  const stateInfo = getStatus(status);
+  return (
+    <Stack direction="column" spacing={1} style={tooltipContentStyle}>
+      <Text size="xs" weight="semibold">
+        {isInit ? `${status.name} (init)` : status.name}
+      </Text>
+      <Stack direction="row" align="center" justify="between" spacing={4}>
+        <Text size="xs" tone="muted">
+          State
+        </Text>
+        <Text size="xs">{stateInfo.text}</Text>
+      </Stack>
+      <Stack direction="row" align="center" justify="between" spacing={4}>
+        <Text size="xs" tone="muted">
+          Restarts
+        </Text>
+        <Text size="xs">{status.restartCount ?? 0}</Text>
+      </Stack>
+    </Stack>
+  );
+};
+
+export const ContainerStatusCell: React.FC<Props> = ({ data, initData }) => {
   const containers = data ?? [];
   const initContainers = initData ?? [];
 
@@ -22,86 +90,19 @@ export const ContainerStatusCell: React.FC<Props> = ({ data, initData }) => {
     return null;
   }
 
-  /** Get the color for the chip based on the status */
-  const getColor = (status: ContainerStatus) => {
-    if (status.ready) {
-      return theme.palette.success.main;
-    }
-
-    if (status.state?.waiting) {
-      return theme.palette.info.main;
-    }
-
-    if (status.state?.terminated) {
-      if (status.state.terminated.reason === 'Completed' || status.state.terminated.exitCode === 0) {
-        return theme.palette.grey[800];
-      }
-
-      return theme.palette.error.main;
-    }
-
-    if (status.state?.running) {
-      // Running but not ready: use info (blue) for visual distinction from green (ready)
-      return theme.palette.info.main;
-    }
-
-    return theme.palette.grey[600];
-  };
-
-  const chipStyle = (color: string, dim?: boolean): React.CSSProperties => ({
-    backgroundColor: color,
-    borderRadius: 2,
-    width: 10,
-    height: 10,
-    maxWidth: 10,
-    maxHeight: 10,
-    minWidth: 10,
-    minHeight: 10,
-    flexShrink: 0,
-    cursor: 'default',
-    ...(dim ? { opacity: 0.5 } : {}),
-  });
-
-  const renderTooltipContent = (status: ContainerStatus, isInit?: boolean) => {
-    const stateInfo = getStatus(status);
-    return (
-      <Stack direction="column" spacing={0.5} sx={{ py: 0.25 }}>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Text size="xs" sx={{ fontWeight: 600 }}>
-            {isInit ? `${status.name} (init)` : status.name}
-          </Text>
-        </Stack>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-          <Text size="xs" sx={{ color: 'var(--ov-fg-muted)' }}>State</Text>
-          <Text size="xs">{stateInfo.text}</Text>
-        </Stack>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-          <Text size="xs" sx={{ color: 'var(--ov-fg-muted)' }}>Restarts</Text>
-          <Text size="xs">{status.restartCount ?? 0}</Text>
-        </Stack>
-      </Stack>
-    );
-  };
-
   return (
-    <Stack
-      direction="row"
-      width={'100%'}
-      alignItems={'center'}
-      justifyContent={'flex-start'}
-      spacing={1}
-    >
+    <Stack direction="row" align="center" justify="start" spacing={2} style={rowStyle}>
       {containers.map((status) => (
-        <Tooltip key={status.name} variant="rich" placement="top" content={renderTooltipContent(status)}>
+        <SimpleTooltip key={status.name} placement="top" content={renderTooltipContent(status)}>
           {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- tabIndex needed for keyboard tooltip access */}
           <div role="img" tabIndex={0} aria-label={`${status.name} status`} style={chipStyle(getColor(status))} />
-        </Tooltip>
+        </SimpleTooltip>
       ))}
       {initContainers.map((status) => (
-        <Tooltip key={`init-${status.name}`} variant="rich" placement="top" content={renderTooltipContent(status, true)}>
+        <SimpleTooltip key={`init-${status.name}`} placement="top" content={renderTooltipContent(status, true)}>
           {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- tabIndex needed for keyboard tooltip access */}
           <div role="img" tabIndex={0} aria-label={`${status.name} status`} style={chipStyle(getColor(status), true)} />
-        </Tooltip>
+        </SimpleTooltip>
       ))}
     </Stack>
   );

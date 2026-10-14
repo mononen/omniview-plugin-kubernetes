@@ -1,30 +1,28 @@
-import Box from '@mui/material/Box';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Stack, Text } from '@omniviewdev/base-ui';
 import React, { createContext, useContext } from 'react';
 
 import type { PodMetricsMap } from '../../../../../../hooks/usePodMetricsBatch';
 
-const emptyValueSx = {
+const emptyValueStyle = {
   fontSize: 12,
-  color: 'text.tertiary',
+  color: 'var(--ov-color-fg-subtle)',
   fontVariantNumeric: 'tabular-nums',
 } as const;
 
-const outerStackSx = { width: '100%' } as const;
+const outerStackStyle = { width: '100%' } as const;
 
-const barTrackSx = {
+const barTrackStyle = {
   flex: 1,
   minWidth: 24,
   maxWidth: 40,
   height: 6,
   borderRadius: 3,
-  bgcolor: 'action.hover',
+  background: 'var(--ov-color-state-hover)',
   overflow: 'hidden',
   flexShrink: 0,
 } as const;
 
-const valueLabelSx = {
+const valueLabelStyle = {
   fontSize: 12,
   fontVariantNumeric: 'tabular-nums',
   fontFamily: 'var(--ov-font-mono, monospace)',
@@ -67,9 +65,7 @@ const MetricUsageCell: React.FC<MetricUsageCellProps> = ({ podKey, format }) => 
 
   if (!entry) {
     return (
-      <Text sx={emptyValueSx}>
-        —
-      </Text>
+      <Text style={emptyValueStyle}>—</Text>
     );
   }
 
@@ -84,27 +80,29 @@ const MetricUsageCell: React.FC<MetricUsageCellProps> = ({ podKey, format }) => 
       ? Math.min((raw / 1000) * 100, 100)
       : Math.min((raw / (512 * 1024 * 1024)) * 100, 100);
 
-  const barColor = pct > 80 ? 'error.main' : pct > 60 ? 'warning.main' : 'success.main';
+  const barColor =
+    pct > 80
+      ? 'var(--ov-color-danger)'
+      : pct > 60
+        ? 'var(--ov-color-warning)'
+        : 'var(--ov-color-success)';
 
   return (
-    <Stack direction="row" spacing={0.75} alignItems="center" sx={outerStackSx}>
+    <Stack direction="row" spacing={1} align="center" style={outerStackStyle}>
       {/* Mini bar */}
-      <Box sx={barTrackSx}>
-        <Box
-          sx={{
+      <div style={barTrackStyle}>
+        <div
+          style={{
             width: `${Math.max(pct, 2)}%`,
             height: '100%',
             borderRadius: 3,
-            bgcolor: barColor,
+            background: barColor,
             transition: 'width 0.4s ease',
           }}
         />
-      </Box>
+      </div>
       {/* Value text */}
-      <Text
-        noWrap
-        sx={valueLabelSx}
-      >
+      <Text truncate style={valueLabelStyle}>
         {label}
       </Text>
     </Stack>

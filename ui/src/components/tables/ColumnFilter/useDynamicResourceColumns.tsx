@@ -1,17 +1,11 @@
+import { Chip } from '@omniviewdev/base-ui';
 import { useResources } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
 import { type ColumnDef } from '@tanstack/react-table';
 import React from 'react';
 import { LuTag, LuStickyNote } from 'react-icons/lu';
 
 import { type KubernetesResourceObject } from '../../../types/resource';
 import { useStoredState } from '@/hooks/useStoredState';
-
-// ---------------------------------------------------------------------------
-// Static styles
-// ---------------------------------------------------------------------------
-
-const columnHeaderChipSx = { borderRadius: 'sm' } as const;
 
 type Args = {
   connectionID: string;
@@ -120,40 +114,32 @@ export const useDynamicResourceColumns = <T extends KubernetesResourceObject>({
     const labelCols: Array<ColumnDef<KubernetesResourceObject>> = selectedLabelKeys.map((key) => ({
       id: `label-${key}`,
       header: () => (
-        <Chip
-          size="sm"
-          color={'neutral'}
-          emphasis="soft"
-          sx={columnHeaderChipSx}
-          startAdornment={<LuTag />}
-          label={key}
-        />
+        <Chip size="sm" color="neutral" variant="soft" startDecorator={<LuTag />}>
+          {key}
+        </Chip>
       ),
       accessorFn: (row: KubernetesResourceObject) => row.metadata?.labels?.[key] ?? '',
       size: Math.max(100, key.length * 7 + 50),
       enableHiding: false,
       meta: {
         flex: 1,
+        sortAriaLabel: key,
       },
     }));
 
     const annotationCols: Array<ColumnDef<KubernetesResourceObject>> = selectedAnnotationKeys.map((key) => ({
       id: `annotation-${key}`,
       header: () => (
-        <Chip
-          size="sm"
-          color={'neutral'}
-          emphasis="soft"
-          sx={columnHeaderChipSx}
-          startAdornment={<LuStickyNote />}
-          label={key}
-        />
+        <Chip size="sm" color="neutral" variant="soft" startDecorator={<LuStickyNote />}>
+          {key}
+        </Chip>
       ),
       accessorFn: (row: KubernetesResourceObject) => row.metadata?.annotations?.[key] ?? '',
       size: Math.max(100, key.length * 7 + 50),
       enableHiding: false,
       meta: {
         flex: 1,
+        sortAriaLabel: key,
       },
     }));
 

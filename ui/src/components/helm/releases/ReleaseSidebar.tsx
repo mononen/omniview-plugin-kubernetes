@@ -1,50 +1,38 @@
-// material-ui
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
+import { Button, Card, Chip, IconButton, Separator, Stack, Tabs, Text } from '@omniviewdev/base-ui';
 import { DrawerContext, useExecuteAction, useRightDrawer } from '@omniviewdev/runtime';
-import { Card, Chip } from '@omniviewdev/ui';
-import { Button, IconButton } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Tabs, TabPanel } from '@omniviewdev/ui/navigation';
-import { Text } from '@omniviewdev/ui/typography';
 import React from 'react';
 import { LuCircleArrowUp, LuUndo2, LuGitCompare } from 'react-icons/lu';
 import { stringify, parse } from 'yaml';
 
-// icons
-
-// project-imports
-
 import CodeEditor from '../../shared/CodeEditor';
 
+import styles from './ReleaseSidebar.module.css';
 import UpgradeDialog from './UpgradeDialog';
 
-const metaLabelSx = { color: 'neutral.400' } as const;
-const metaValueSx = { fontWeight: 400, color: 'neutral.100' } as const;
-const editorBoxSx = {
+const metaRowStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 2fr' };
+const metaValueStyle: React.CSSProperties = { fontWeight: 400 };
+const editorBoxStyle: React.CSSProperties = {
   height: 400,
-  border: '1px solid',
-  borderColor: 'neutral.700',
-  borderRadius: 'sm',
+  border: '1px solid var(--ov-color-border-default)',
+  borderRadius: 4,
   overflow: 'hidden',
-} as const;
-const notesSx = {
+};
+const notesStyle: React.CSSProperties = {
   fontSize: 12,
-  fontFamily: 'monospace',
-  bgcolor: 'background.level1',
-  p: 1.5,
-  borderRadius: 'sm',
+  fontFamily: 'var(--ov-font-mono)',
+  backgroundColor: 'var(--ov-color-bg-inset)',
+  padding: 12,
+  borderRadius: 4,
   overflow: 'auto',
   maxHeight: 400,
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-word',
-} as const;
-const hookDetailSx = { color: 'neutral.400' } as const;
-const noDataSx = { color: 'neutral.400' } as const;
-const revisionDetailSx = { color: 'neutral.400' } as const;
-const resourceNsSx = { color: 'neutral.500' } as const;
-const diffButtonSx = { mb: 1 } as const;
+  margin: 0,
+};
+const headerCardStyle: React.CSSProperties = { padding: 12, borderRadius: 4 };
+const itemCardStyle: React.CSSProperties = { padding: 8 };
+const diffButtonRowStyle: React.CSSProperties = { marginBottom: 8 };
+const blockTextStyle: React.CSSProperties = { display: 'block' };
 
 // ── types ──
 
@@ -134,19 +122,37 @@ const statusColorMap: Record<string, 'success' | 'danger' | 'warning' | 'neutral
 };
 
 const MetaEntry: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <Grid container spacing={0}>
-    <Grid size={4}>
-      <Text sx={metaLabelSx} size="sm">
-        {label}
-      </Text>
-    </Grid>
-    <Grid size={8}>
-      <Text sx={metaValueSx} weight="semibold" size="sm">
-        {value}
-      </Text>
-    </Grid>
-  </Grid>
+  <div style={metaRowStyle}>
+    <Text tone="muted" size="sm">
+      {label}
+    </Text>
+    <Text style={metaValueStyle} size="sm">
+      {value}
+    </Text>
+  </div>
 );
+
+const kindToGroup: Record<string, string> = {
+  Deployment: 'apps::v1',
+  Service: 'core::v1',
+  ConfigMap: 'core::v1',
+  Secret: 'core::v1',
+  ServiceAccount: 'core::v1',
+  Ingress: 'networking::v1',
+  PersistentVolumeClaim: 'core::v1',
+  StatefulSet: 'apps::v1',
+  DaemonSet: 'apps::v1',
+  Job: 'batch::v1',
+  CronJob: 'batch::v1',
+  Role: 'rbac::v1',
+  RoleBinding: 'rbac::v1',
+  ClusterRole: 'rbac::v1',
+  ClusterRoleBinding: 'rbac::v1',
+  NetworkPolicy: 'networking::v1',
+  HorizontalPodAutoscaler: 'autoscaling::v1',
+  PodDisruptionBudget: 'policy::v1',
+  Namespace: 'core::v1',
+};
 
 /** Shape of a parsed YAML Kubernetes resource document. */
 interface ParsedK8sResource {
@@ -287,22 +293,19 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
   const historyEntry = tabData['get-history'] as HistoryActionData | null | undefined;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
+    <Stack direction="column" spacing={4} style={{ width: '100%' }}>
       {/* Header card */}
-      <Card sx={{ p: 1.5, borderRadius: 'sm' }} emphasis="outline">
-        <Stack direction="column" spacing={1}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
+      <Card style={headerCardStyle} variant="outline">
+        <Stack direction="column" spacing={2}>
+          <Stack direction="row" justify="between" align="center">
             <Text weight="semibold" size="lg">
               {releaseName}
             </Text>
-            <Chip
-              size="sm"
-              emphasis="soft"
-              color={statusColorMap[status] ?? 'neutral'}
-              label={status}
-            />
+            <Chip size="sm" variant="soft" color={statusColorMap[status] ?? 'neutral'}>
+              {status}
+            </Chip>
           </Stack>
-          <Divider />
+          <Separator />
           <MetaEntry label="Namespace" value={namespace} />
           <MetaEntry label="Chart" value={`${chartName}-${chartVersion}`} />
           <MetaEntry label="App Version" value={appVersion} />
@@ -312,21 +315,22 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
       </Card>
 
       {/* Action buttons */}
-      <Stack direction="row" spacing={1}>
+      <Stack direction="row" spacing={2}>
         <IconButton
           size="sm"
-          emphasis="outline"
-          color="primary"
+          variant="outline"
+          color="brand"
           disabled={isExecuting}
           onClick={() => setShowUpgrade(true)}
           title="Upgrade Release"
+          aria-label="Upgrade Release"
         >
           <LuCircleArrowUp />
         </IconButton>
         {revision > 1 && (
           <IconButton
             size="sm"
-            emphasis="outline"
+            variant="outline"
             color="warning"
             disabled={isExecuting}
             onClick={() =>
@@ -338,6 +342,7 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
               })
             }
             title="Rollback Release"
+            aria-label="Rollback Release"
           >
             <LuUndo2 />
           </IconButton>
@@ -345,23 +350,21 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
       </Stack>
 
       {/* Tabs */}
-      <Tabs
-        tabs={[
-          { key: '0', label: 'Values' },
-          { key: '1', label: 'Manifest' },
-          { key: '2', label: 'Notes' },
-          { key: '3', label: 'Hooks' },
-          { key: '4', label: 'History' },
-          { key: '5', label: 'Resources' },
-        ]}
-        value={activeTab}
-        onChange={(v) => setActiveTab(v)}
-        sx={{ borderRadius: 'sm', bgcolor: 'transparent' }}
-      />
+      <Tabs.Root value={activeTab} onValueChange={(v) => setActiveTab(String(v))}>
+        <Tabs.List aria-label="Release details">
+          <Tabs.Tab value="0">Values</Tabs.Tab>
+          <Tabs.Tab value="1">Manifest</Tabs.Tab>
+          <Tabs.Tab value="2">Notes</Tabs.Tab>
+          <Tabs.Tab value="3">Hooks</Tabs.Tab>
+          <Tabs.Tab value="4">History</Tabs.Tab>
+          <Tabs.Tab value="5">Resources</Tabs.Tab>
+          <Tabs.Indicator />
+        </Tabs.List>
+      </Tabs.Root>
 
       {/* Values - Monaco editor */}
-      <TabPanel value="0" activeValue={activeTab}>
-        <Box sx={editorBoxSx}>
+      {activeTab === '0' && (
+        <div style={editorBoxStyle}>
           <CodeEditor
             filename="values.yaml"
             language="yaml"
@@ -369,61 +372,61 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
             readOnly
             height={400}
           />
-        </Box>
-      </TabPanel>
+        </div>
+      )}
 
       {/* Manifest - Monaco with diff toggle */}
-      <TabPanel value="1" activeValue={activeTab}>
-        {revision > 1 && (
-          <Stack direction="row" spacing={1} sx={diffButtonSx}>
-            <Button
-              size="sm"
-              emphasis={showManifestDiff ? 'solid' : 'outline'}
-              color="neutral"
-              disabled={isExecuting}
-              onClick={handleToggleDiff}
-              startIcon={<LuGitCompare size={14} />}
-            >
-              {showManifestDiff ? 'Hide Diff' : 'Diff with Previous'}
-            </Button>
-          </Stack>
-        )}
-        <Box sx={editorBoxSx}>
-          <CodeEditor
-            filename="manifest.yaml"
-            language="yaml"
-            value={currentManifest || '# Loading...'}
-            readOnly
-            diff={showManifestDiff && prevManifest !== null}
-            original={prevManifest ?? ''}
-            height={400}
-          />
-        </Box>
-      </TabPanel>
+      {activeTab === '1' && (
+        <div>
+          {revision > 1 && (
+            <Stack direction="row" spacing={2} style={diffButtonRowStyle}>
+              <Button
+                size="sm"
+                variant={showManifestDiff ? 'solid' : 'outline'}
+                color="neutral"
+                disabled={isExecuting}
+                onClick={handleToggleDiff}
+                startDecorator={<LuGitCompare size={14} />}
+              >
+                {showManifestDiff ? 'Hide Diff' : 'Diff with Previous'}
+              </Button>
+            </Stack>
+          )}
+          <div style={editorBoxStyle}>
+            <CodeEditor
+              filename="manifest.yaml"
+              language="yaml"
+              value={currentManifest || '# Loading...'}
+              readOnly
+              diff={showManifestDiff && prevManifest !== null}
+              original={prevManifest ?? ''}
+              height={400}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Notes */}
-      <TabPanel value="2" activeValue={activeTab}>
-        <Box component="pre" sx={notesSx}>
-          {notesEntry?.notes ?? 'No release notes'}
-        </Box>
-      </TabPanel>
+      {activeTab === '2' && <pre style={notesStyle}>{notesEntry?.notes ?? 'No release notes'}</pre>}
 
       {/* Hooks */}
-      <TabPanel value="3" activeValue={activeTab}>
-        {hooksEntry?.hooks?.length ? (
-          <Stack spacing={1}>
+      {activeTab === '3' &&
+        (hooksEntry?.hooks?.length ? (
+          <Stack direction="column" spacing={2}>
             {hooksEntry.hooks.map((hook) => (
-              <Card key={hook.name} emphasis="outline">
-                <Text weight="semibold" size="sm">
+              <Card key={hook.name} variant="outline" style={itemCardStyle}>
+                <Text weight="semibold" size="sm" style={blockTextStyle}>
                   {hook.name}
                 </Text>
-                <Text size="xs" sx={hookDetailSx}>
+                <Text size="xs" tone="muted" style={blockTextStyle}>
                   Kind: {hook.kind} | Weight: {String(hook.weight)}
                 </Text>
                 {hook.events && (
-                  <Stack direction="row" spacing={0.5} mt={0.5} flexWrap="wrap">
+                  <Stack direction="row" spacing={1} wrap style={{ marginTop: 4 }}>
                     {hook.events.map((e) => (
-                      <Chip key={e} size="sm" emphasis="soft" label={e} />
+                      <Chip key={e} size="sm" variant="soft">
+                        {e}
+                      </Chip>
                     ))}
                   </Stack>
                 )}
@@ -431,36 +434,36 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
             ))}
           </Stack>
         ) : (
-          <Text size="sm" sx={noDataSx}>
+          <Text size="sm" tone="muted">
             No hooks
           </Text>
-        )}
-      </TabPanel>
+        ))}
 
       {/* History */}
-      <TabPanel value="4" activeValue={activeTab}>
-        {historyEntry?.revisions?.length ? (
-          <Stack spacing={1}>
+      {activeTab === '4' &&
+        (historyEntry?.revisions?.length ? (
+          <Stack direction="column" spacing={2}>
             {historyEntry.revisions.map((rev) => (
-              <Card key={rev.version} emphasis="outline">
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Card key={rev.version} variant="outline" style={itemCardStyle}>
+                <Stack direction="row" justify="between" align="center">
                   <Text weight="semibold" size="sm">
                     Revision {rev.version}
                   </Text>
                   <Chip
                     size="sm"
-                    emphasis="soft"
+                    variant="soft"
                     color={statusColorMap[rev.info?.status ?? ''] ?? 'neutral'}
-                    label={rev.info?.status ?? ''}
-                  />
+                  >
+                    {rev.info?.status ?? ''}
+                  </Chip>
                 </Stack>
-                <Text size="xs" sx={revisionDetailSx}>
+                <Text size="xs" tone="muted" style={blockTextStyle}>
                   {rev.info?.description ?? ''}
                 </Text>
                 {rev.version !== revision && (
                   <IconButton
                     size="sm"
-                    emphasis="ghost"
+                    variant="ghost"
                     color="warning"
                     disabled={isExecuting}
                     onClick={() =>
@@ -472,7 +475,8 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
                       })
                     }
                     title={`Rollback to revision ${rev.version}`}
-                    sx={{ mt: 0.5 }}
+                    aria-label={`Rollback to revision ${rev.version}`}
+                    style={{ marginTop: 4 }}
                   >
                     <LuUndo2 size={14} />
                   </IconButton>
@@ -481,50 +485,23 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
             ))}
           </Stack>
         ) : (
-          <Text size="sm" sx={noDataSx}>
+          <Text size="sm" tone="muted">
             No history
           </Text>
-        )}
-      </TabPanel>
+        ))}
 
       {/* Resources - parsed from manifest */}
-      <TabPanel value="5" activeValue={activeTab}>
-        {manifestResources.length > 0 ? (
-          <Stack spacing={0.5}>
+      {activeTab === '5' &&
+        (manifestResources.length > 0 ? (
+          <Stack direction="column" spacing={1}>
             {manifestResources.map((res) => (
               <Card
                 key={`${res.kind}/${res.name}`}
-                sx={{
-                  p: 1,
-                  borderRadius: 'sm',
-                  cursor: 'pointer',
-                  '&:hover': { bgcolor: 'background.level2' },
-                }}
-                emphasis="outline"
+                className={styles.resourceCard}
+                variant="outline"
                 onClick={() => {
                   // Attempt to navigate to the K8s resource sidebar
                   // This maps common kinds to their resource keys
-                  const kindToGroup: Record<string, string> = {
-                    Deployment: 'apps::v1',
-                    Service: 'core::v1',
-                    ConfigMap: 'core::v1',
-                    Secret: 'core::v1',
-                    ServiceAccount: 'core::v1',
-                    Ingress: 'networking::v1',
-                    PersistentVolumeClaim: 'core::v1',
-                    StatefulSet: 'apps::v1',
-                    DaemonSet: 'apps::v1',
-                    Job: 'batch::v1',
-                    CronJob: 'batch::v1',
-                    Role: 'rbac::v1',
-                    RoleBinding: 'rbac::v1',
-                    ClusterRole: 'rbac::v1',
-                    ClusterRoleBinding: 'rbac::v1',
-                    NetworkPolicy: 'networking::v1',
-                    HorizontalPodAutoscaler: 'autoscaling::v1',
-                    PodDisruptionBudget: 'policy::v1',
-                    Namespace: 'core::v1',
-                  };
                   const group = kindToGroup[res.kind];
                   if (group) {
                     showResourceSidebar({
@@ -537,13 +514,15 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
                   }
                 }}
               >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip size="sm" emphasis="soft" color="neutral" label={res.kind} />
+                <Stack direction="row" spacing={2} align="center">
+                  <Chip size="sm" variant="soft" color="neutral">
+                    {res.kind}
+                  </Chip>
                   <Text size="sm" weight="semibold">
                     {res.name}
                   </Text>
                   {res.namespace && (
-                    <Text size="xs" sx={resourceNsSx}>
+                    <Text size="xs" tone="subtle">
                       {res.namespace}
                     </Text>
                   )}
@@ -552,11 +531,10 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
             ))}
           </Stack>
         ) : (
-          <Text size="sm" sx={noDataSx}>
+          <Text size="sm" tone="muted">
             {manifestEntry ? 'No resources found in manifest' : 'Loading manifest...'}
           </Text>
-        )}
-      </TabPanel>
+        ))}
 
       {/* Upgrade Dialog */}
       <UpgradeDialog

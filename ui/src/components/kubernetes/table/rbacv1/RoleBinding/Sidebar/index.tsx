@@ -1,5 +1,5 @@
+import { Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { RoleBinding } from 'kubernetes-types/rbac/v1';
 import React from 'react';
 
@@ -7,6 +7,8 @@ import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import ResourceLinkChip from '../../../../../shared/ResourceLinkChip';
 import SidebarSection from '../../../../../shared/SidebarSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<RoleBinding>;
@@ -26,8 +28,8 @@ export const RoleBindingSidebar: React.FC<Props> = ({ ctx }) => {
     : 'rbac::v1::Role';
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={rb.metadata} />
 
         {roleRef && (

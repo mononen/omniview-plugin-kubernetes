@@ -9,26 +9,22 @@ import { vi, describe, it, expect } from 'vitest';
 // Mocks
 // ---------------------------------------------------------------------------
 
-vi.mock('@omniviewdev/ui', () => ({
-  Chip: ({ label, color, emphasis }: {
-    label?: string;
-    color?: string;
-    emphasis?: string;
-  }) => (
-    <span data-testid="chip" data-color={color} data-emphasis={emphasis}>{label}</span>
-  ),
-  ClipboardText: ({ value }: { value?: string }) => (
-    <span data-testid="clipboard-text">{value}</span>
-  ),
-}));
-
-vi.mock('@omniviewdev/ui/layout', () => ({
-  Stack: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock('@omniviewdev/ui/typography', () => ({
-  Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-}));
+vi.mock('@omniviewdev/base-ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@omniviewdev/base-ui')>();
+  return {
+    ...actual,
+    Chip: ({ children, color, variant }: {
+      children?: React.ReactNode;
+      color?: string;
+      variant?: string;
+    }) => (
+      <span data-testid="chip" data-color={color} data-variant={variant}>{children}</span>
+    ),
+    ClipboardText: ({ value }: { value?: string }) => (
+      <span data-testid="clipboard-text">{value}</span>
+    ),
+  };
+});
 
 vi.mock('../../../../../shared/ObjectMetaSection', () => ({
   default: ({ data }: { data?: { name?: string } }) => (
@@ -52,8 +48,9 @@ vi.mock('../../../../../shared/ExpandableSections', () => ({
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 
-import PolicyOverviewSection from './PolicyOverviewSection';
 import NetworkPolicyRulesSection from './NetworkPolicyRulesSection';
+import PolicyOverviewSection from './PolicyOverviewSection';
+
 import NetworkPolicySidebar from './index';
 
 // ---------------------------------------------------------------------------

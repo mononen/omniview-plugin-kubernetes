@@ -1,30 +1,23 @@
-import Box from '@mui/material/Box';
-import Modal from '@mui/material/Modal';
+import { Button, Checkbox, Dialog, Stack, Text } from '@omniviewdev/base-ui';
 import { useExecuteAction } from '@omniviewdev/runtime';
-import { Button } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import React from 'react';
 import { stringify } from 'yaml';
 
 import CodeEditor from '../../shared/CodeEditor';
 
-const checkboxLabelSx = { display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' } as const;
-const fieldLabelSx = { color: 'neutral.400' } as const;
-const valuesEditorSx = {
+const dialogStyle: React.CSSProperties = { width: '80%', maxWidth: 800, maxHeight: '85vh' };
+const valuesEditorStyle: React.CSSProperties = {
   height: 250,
-  border: '1px solid',
-  borderColor: 'neutral.700',
-  borderRadius: 'sm',
+  border: '1px solid var(--ov-color-border-default)',
+  borderRadius: 4,
   overflow: 'hidden',
-} as const;
-const dryRunEditorSx = {
+};
+const dryRunEditorStyle: React.CSSProperties = {
   height: 200,
-  border: '1px solid',
-  borderColor: 'neutral.700',
-  borderRadius: 'sm',
+  border: '1px solid var(--ov-color-border-default)',
+  borderRadius: 4,
   overflow: 'hidden',
-} as const;
+};
 
 interface Props {
   open: boolean;
@@ -39,21 +32,6 @@ interface Props {
 interface DryRunUpgradeData {
   manifest?: string;
 }
-
-const modalStyle = {
-  position: 'absolute' as const,
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '80%',
-  maxWidth: 800,
-  maxHeight: '85vh',
-  bgcolor: 'background.paper',
-  borderRadius: 2,
-  boxShadow: 24,
-  p: 3,
-  overflow: 'auto',
-};
 
 const UpgradeDialog: React.FC<Props> = ({
   open,
@@ -138,37 +116,27 @@ const UpgradeDialog: React.FC<Props> = ({
   };
 
   return (
-    <Modal open={open} onClose={handleClose}>
-      <Box sx={modalStyle}>
-        <Stack direction="column" spacing={2}>
-          <Text weight="semibold" size="lg">
-            Upgrade {releaseName}
-          </Text>
-
+    <Dialog open={open} onClose={handleClose} size="xl" style={dialogStyle}>
+      <Dialog.Title>Upgrade {releaseName}</Dialog.Title>
+      <Dialog.Body>
+        <Stack direction="column" spacing={4}>
           {/* Options */}
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Box
-              component="label"
-              sx={checkboxLabelSx}
+          <Stack direction="row" spacing={4} align="center">
+            <Checkbox
+              size="sm"
+              checked={reuseValues}
+              onCheckedChange={(checked) => setReuseValues(checked)}
             >
-              <Box
-                component="input"
-                type="checkbox"
-                checked={reuseValues}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setReuseValues(e.target.checked)
-                }
-              />
-              <Text size="sm">Reuse existing values</Text>
-            </Box>
+              Reuse existing values
+            </Checkbox>
           </Stack>
 
           {/* Values editor */}
-          <Stack direction="column" spacing={0.5}>
-            <Text size="sm" sx={fieldLabelSx}>
+          <Stack direction="column" spacing={1}>
+            <Text size="sm" tone="muted">
               Values (YAML)
             </Text>
-            <Box sx={valuesEditorSx}>
+            <div style={valuesEditorStyle}>
               <CodeEditor
                 filename="values.yaml"
                 language="yaml"
@@ -176,16 +144,16 @@ const UpgradeDialog: React.FC<Props> = ({
                 onChange={(v) => setValues(v)}
                 height={250}
               />
-            </Box>
+            </div>
           </Stack>
 
           {/* Dry run preview */}
           {dryRunManifest !== null && (
-            <Stack direction="column" spacing={0.5}>
-              <Text size="sm" sx={fieldLabelSx}>
+            <Stack direction="column" spacing={1}>
+              <Text size="sm" tone="muted">
                 Dry Run Preview
               </Text>
-              <Box sx={dryRunEditorSx}>
+              <div style={dryRunEditorStyle}>
                 <CodeEditor
                   filename="manifest.yaml"
                   language="yaml"
@@ -193,37 +161,37 @@ const UpgradeDialog: React.FC<Props> = ({
                   readOnly
                   height={200}
                 />
-              </Box>
+              </div>
             </Stack>
           )}
-
-          {/* Action buttons */}
-          <Stack direction="row" spacing={1} justifyContent="flex-end">
-            <Button size="sm" emphasis="outline" color="neutral" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              emphasis="outline"
-              color="neutral"
-              disabled={isExecuting}
-              onClick={() => void handleDryRun()}
-            >
-              Dry Run
-            </Button>
-            <Button
-              size="sm"
-              emphasis="solid"
-              color="primary"
-              disabled={isExecuting}
-              onClick={() => void handleUpgrade()}
-            >
-              Upgrade
-            </Button>
-          </Stack>
         </Stack>
-      </Box>
-    </Modal>
+      </Dialog.Body>
+
+      {/* Action buttons */}
+      <Dialog.Footer>
+        <Button size="sm" variant="outline" color="neutral" onClick={handleClose}>
+          Cancel
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          color="neutral"
+          disabled={isExecuting}
+          onClick={() => void handleDryRun()}
+        >
+          Dry Run
+        </Button>
+        <Button
+          size="sm"
+          variant="solid"
+          color="brand"
+          disabled={isExecuting}
+          onClick={() => void handleUpgrade()}
+        >
+          Upgrade
+        </Button>
+      </Dialog.Footer>
+    </Dialog>
   );
 };
 

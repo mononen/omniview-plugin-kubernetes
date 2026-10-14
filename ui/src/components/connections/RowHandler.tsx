@@ -1,5 +1,4 @@
 import { useDraggable } from '@dnd-kit/core';
-import Box from '@mui/material/Box';
 import React from 'react';
 
 import { useClusterAction } from '../../hooks/useClusterAction';
@@ -42,11 +41,11 @@ const RowHandler: React.FC<Props> = ({
   });
 
   return (
-    <Box
+    <div
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      sx={{
+      style={{
         opacity: isDragging ? 0.4 : 1,
         cursor: isDragging ? 'grabbing' : 'grab',
         touchAction: 'none',
@@ -59,7 +58,7 @@ const RowHandler: React.FC<Props> = ({
         onToggleFavorite={onToggleFavorite}
         onClick={handleClick}
       />
-    </Box>
+    </div>
   );
 };
 

@@ -1,55 +1,32 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import Box from '@mui/material/Box';
-import MuiIconButton from '@mui/material/IconButton';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { IconButton, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 import { LuChevronDown, LuChevronRight, LuGripVertical, LuPencil } from 'react-icons/lu';
 
 import { FolderIconDisplay } from '../../utils/folderIcons';
 
-const headerRowSx = {
-  py: 0.5,
-  px: 0.5,
-  borderRadius: 'sm',
-  userSelect: 'none',
-  '&:hover .folder-edit-btn': { opacity: 1 },
-} as const;
+import styles from './Connections.module.css';
 
-const dragHandleSx = {
-  cursor: 'grab',
-  display: 'flex',
-  alignItems: 'center',
-  color: 'neutral.400',
-  '&:hover': { color: 'neutral.600' },
-  '&:active': { cursor: 'grabbing' },
-} as const;
+const countStyle: React.CSSProperties = { opacity: 0.5 };
 
-const toggleAreaSx = {
-  cursor: 'pointer',
-  flex: 1,
-  borderRadius: 'sm',
-  py: 0.25,
-  px: 0.25,
-  '&:hover': { backgroundColor: 'background.level1' },
-} as const;
+const editButtonStyle: React.CSSProperties = { width: 24, height: 24, minWidth: 24 };
 
-const countSx = { opacity: 0.5 } as const;
+const emptyHintStyle: React.CSSProperties = {
+  display: 'block',
+  padding: '16px 8px',
+  textAlign: 'center',
+  opacity: 0.5,
+};
 
-const editButtonSx = { opacity: 0, transition: 'opacity 0.15s', width: 24, height: 24 } as const;
-
-const emptyHintSx = { py: 2, px: 1, textAlign: 'center', opacity: 0.5 } as const;
-
-const gridSx = {
+const gridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-  gap: 1,
-  py: 0.5,
-  px: 0.5,
-} as const;
+  gap: 8,
+  padding: 4,
+};
 
-const passthroughSx = { py: 0.5, px: 0.5 } as const;
+const passthroughStyle: React.CSSProperties = { padding: 4 };
 
 type Props = {
   id: string;
@@ -93,6 +70,7 @@ const HubSection: React.FC<Props> = ({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    ...(folderColor ? { borderLeft: `3px solid ${folderColor}`, paddingLeft: 4 } : {}),
   };
 
   const isEmpty = count === 0;
@@ -101,81 +79,61 @@ const HubSection: React.FC<Props> = ({
   const isFolder = !!folderColor || !!folderIcon || !!folderCustomImage;
 
   return (
-    <Box
-      ref={setNodeRef}
-      style={style}
-      sx={folderColor ? { borderLeft: `3px solid ${folderColor}`, pl: 0.5 } : undefined}
-    >
-      <Stack
-        direction="row"
-        alignItems="center"
-        gap={0.5}
-        sx={headerRowSx}
-      >
-        <Box
-          {...attributes}
-          {...listeners}
-          sx={dragHandleSx}
-        >
+    <div ref={setNodeRef} style={style}>
+      <div className={styles.sectionHeader}>
+        <div {...attributes} {...listeners} className={styles.dragHandle}>
           <LuGripVertical size={14} />
-        </Box>
-        <Stack
-          direction="row"
-          alignItems="center"
-          gap={0.75}
-          onClick={onToggleCollapse}
-          sx={toggleAreaSx}
-        >
+        </div>
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+        <div className={styles.sectionToggle} onClick={onToggleCollapse}>
           {collapsed ? <LuChevronRight size={14} /> : <LuChevronDown size={14} />}
           {isFolder && (
-            <Box sx={{ display: 'flex', color: folderColor }}>
+            <span style={{ display: 'flex', color: folderColor }}>
               <FolderIconDisplay
                 icon={folderIcon}
                 customImage={folderCustomImage}
                 size={14}
                 color={folderColor}
               />
-            </Box>
+            </span>
           )}
           <Text weight="semibold" size="sm">
             {title}
           </Text>
-          <Text size="xs" sx={countSx}>
+          <Text size="xs" style={countStyle}>
             ({count})
           </Text>
-        </Stack>
+        </div>
         {onEdit && (
-          <MuiIconButton
-            className="folder-edit-btn"
-            size="small"
-            color="default"
+          <IconButton
+            className={styles.sectionEditButton}
+            size="sm"
+            variant="ghost"
+            color="neutral"
+            aria-label="Edit folder"
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
             }}
-            sx={editButtonSx}
+            style={editButtonStyle}
           >
             <LuPencil size={12} />
-          </MuiIconButton>
+          </IconButton>
         )}
-      </Stack>
+      </div>
       {!collapsed &&
         (isEmpty ? (
           emptyHint ? (
-            <Text size="xs" sx={emptyHintSx}>
+            <Text size="xs" style={emptyHintStyle}>
               {emptyHint}
             </Text>
           ) : null
         ) : variant === 'grid' ? (
-          <Box
-            sx={gridSx}
-          >
-            {children}
-          </Box>
+          <div style={gridStyle}>{children}</div>
         ) : (
-          <Box sx={passthroughSx}>{children}</Box>
+          <div style={passthroughStyle}>{children}</div>
         ))}
-    </Box>
+    </div>
   );
 };
 

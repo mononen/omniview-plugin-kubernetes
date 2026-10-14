@@ -1,12 +1,5 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
+import { Button, Card, Chip, Separator, Stack, Tabs, Text } from '@omniviewdev/base-ui';
 import { DrawerContext, useExecuteAction } from '@omniviewdev/runtime';
-import { Card, Chip } from '@omniviewdev/ui';
-import { Button } from '@omniviewdev/ui/buttons';
-import { Select } from '@omniviewdev/ui/inputs';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Tabs } from '@omniviewdev/ui/navigation';
-import { Text } from '@omniviewdev/ui/typography';
 import React from 'react';
 import {
   LuDownload,
@@ -14,6 +7,7 @@ import {
   LuTriangleAlert,
 } from 'react-icons/lu';
 
+import SimpleSelect from '../../../connections/SimpleSelect';
 import NamedAvatar from '../../../shared/NamedAvatar';
 
 import InstallChartDialog from '../InstallChartDialog';
@@ -31,46 +25,54 @@ interface Props {
   ctx: DrawerContext<HelmChart>;
 }
 
-const outerStackSx = { height: '100%', minHeight: 0 } as const;
+const outerStackStyle: React.CSSProperties = { width: '100%', height: '100%', minHeight: 0 };
 
-const headerSectionSx = { flexShrink: 0 } as const;
+const headerSectionStyle: React.CSSProperties = { flexShrink: 0 };
 
-const headerCardSx = { p: 1.5, borderRadius: 'sm' } as const;
+const headerCardStyle: React.CSSProperties = { padding: 12, borderRadius: 4 };
 
-const iconWrapperSx = {
+const iconWrapperStyle: React.CSSProperties = {
   width: 40,
   height: 40,
-  borderRadius: 'sm',
-  bgcolor: 'rgba(255,255,255,0.08)',
+  borderRadius: 4,
+  backgroundColor: 'var(--ov-color-state-hover)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   flexShrink: 0,
-} as const;
+};
 
-const iconImgSx = { width: 36, height: 36, objectFit: 'contain', borderRadius: 'xs' } as const;
+const iconImgStyle: React.CSSProperties = {
+  width: 36,
+  height: 36,
+  objectFit: 'contain',
+  borderRadius: 2,
+};
 
-const titleStackSx = { flex: 1 } as const;
+const titleStackStyle: React.CSSProperties = { flex: 1 };
 
-const repoNameSx = { color: 'neutral.400' } as const;
+const versionLabelStyle: React.CSSProperties = { flexShrink: 0 };
 
-const descriptionSx = { color: 'neutral.300' } as const;
+const versionSelectStyle: React.CSSProperties = { minWidth: 160 };
 
-const versionLabelSx = { color: 'neutral.400', flexShrink: 0 } as const;
-
-const homeLinkSx = {
+const homeLinkStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 0.5,
+  gap: 4,
   textDecoration: 'none',
-  color: 'primary.300',
-} as const;
+  color: 'var(--ov-color-accent-strong)',
+};
 
-const homeLinkTextSx = { color: 'primary.300' } as const;
+const homeLinkTextStyle: React.CSSProperties = { color: 'var(--ov-color-accent-strong)' };
 
-const tabsSx = { borderRadius: 'sm', bgcolor: 'transparent' } as const;
+const installButtonStyle: React.CSSProperties = { width: '100%' };
 
-const scrollableContentSx = { flex: 1, minHeight: 0, overflow: 'auto', pt: 1 } as const;
+const scrollableContentStyle: React.CSSProperties = {
+  flex: 1,
+  minHeight: 0,
+  overflow: 'auto',
+  paddingTop: 8,
+};
 
 /**
  * Renders a sidebar for a Helm Chart resource with tabbed layout,
@@ -239,67 +241,66 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
   const valuesContent = valuesEntry?.values;
 
   return (
-    <Stack direction="column" width="100%" sx={outerStackSx}>
+    <Stack direction="column" style={outerStackStyle}>
       {/* Fixed header section */}
-      <Stack direction="column" spacing={1.5} sx={headerSectionSx}>
+      <Stack direction="column" spacing={3} style={headerSectionStyle}>
         {/* Header card */}
-        <Card sx={headerCardSx} emphasis="outline">
-          <Stack direction="column" spacing={1}>
-            <Stack direction="row" spacing={1.5} alignItems="center">
+        <Card style={headerCardStyle} variant="outline">
+          <Stack direction="column" spacing={2}>
+            <Stack direction="row" spacing={3} align="center">
               {icon && !iconFailed ? (
-                <Box
-                  sx={iconWrapperSx}
-                >
-                  <Box
-                    component="img"
+                <div style={iconWrapperStyle}>
+                  <img
                     src={icon}
                     alt={chartName}
                     onError={() => setIconFailed(true)}
-                    sx={iconImgSx}
+                    style={iconImgStyle}
                   />
-                </Box>
+                </div>
               ) : (
                 <NamedAvatar value={chartName} />
               )}
-              <Stack direction="column" spacing={0} sx={titleStackSx}>
+              <Stack direction="column" spacing={0} style={titleStackStyle}>
                 <Text weight="semibold" size="lg">
                   {chartName}
                 </Text>
-                <Text size="xs" sx={repoNameSx}>
+                <Text size="xs" tone="muted">
                   {repoName}
                 </Text>
               </Stack>
               {deprecated && (
                 <Chip
                   size="sm"
-                  emphasis="soft"
+                  variant="soft"
                   color="warning"
-                  startAdornment={<LuTriangleAlert size={12} />}
-                  label="Deprecated"
-                />
+                  startDecorator={<LuTriangleAlert size={12} />}
+                >
+                  Deprecated
+                </Chip>
               )}
             </Stack>
 
             {description && (
-              <Text size="sm" sx={descriptionSx}>
+              <Text size="sm" tone="muted">
                 {description}
               </Text>
             )}
 
-            <Divider />
+            <Separator />
 
             {/* Version dropdown + meta */}
             {versionOptions.length > 0 && (
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Text size="sm" sx={versionLabelSx}>
+              <Stack direction="row" justify="between" align="center">
+                <Text size="sm" tone="muted" style={versionLabelStyle}>
                   Version
                 </Text>
-                <Select
+                <SimpleSelect
+                  aria-label="Chart version"
                   options={versionOptions}
                   value={selectedVersion}
                   onChange={handleVersionChange}
                   size="xs"
-                  searchable
+                  style={versionSelectStyle}
                 />
               </Stack>
             )}
@@ -311,18 +312,17 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
               <MetaEntry
                 label="Home"
                 value={
-                  <Box
-                    component="a"
+                  <a
                     href={displayHome}
                     target="_blank"
                     rel="noopener noreferrer"
-                    sx={homeLinkSx}
+                    style={homeLinkStyle}
                   >
-                    <Text size="sm" sx={homeLinkTextSx}>
+                    <Text size="sm" style={homeLinkTextStyle}>
                       {displayHome}
                     </Text>
                     <LuExternalLink size={12} />
-                  </Box>
+                  </a>
                 }
               />
             )}
@@ -332,33 +332,34 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
         {/* Install button */}
         <Button
           size="sm"
-          emphasis="solid"
-          color="primary"
+          variant="solid"
+          color="brand"
           disabled={isExecuting}
           onClick={() => setShowInstall(true)}
-          startIcon={<LuDownload size={14} />}
-          fullWidth
+          startDecorator={<LuDownload size={14} />}
+          style={installButtonStyle}
         >
           Install Chart
         </Button>
 
         {/* Tabs */}
-        <Tabs
-          tabs={[
-            { key: 'overview', label: 'Overview' },
-            { key: 'readme', label: 'README' },
-            { key: 'values', label: 'Values' },
-            { key: 'versions', label: `Versions (${versions.length})` },
-          ]}
+        <Tabs.Root
           value={activeTab}
-          onChange={setActiveTab}
+          onValueChange={(v) => setActiveTab(String(v))}
           size="sm"
-          sx={tabsSx}
-        />
+        >
+          <Tabs.List aria-label="Chart details">
+            <Tabs.Tab value="overview">Overview</Tabs.Tab>
+            <Tabs.Tab value="readme">README</Tabs.Tab>
+            <Tabs.Tab value="values">Values</Tabs.Tab>
+            <Tabs.Tab value="versions">{`Versions (${versions.length})`}</Tabs.Tab>
+            <Tabs.Indicator />
+          </Tabs.List>
+        </Tabs.Root>
       </Stack>
 
       {/* Scrollable tab content */}
-      <Box sx={scrollableContentSx}>
+      <div style={scrollableContentStyle}>
         {activeTab === 'overview' && (
           <ChartOverviewTab
             maintainers={maintainers}
@@ -384,7 +385,7 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
             loading={versionsLoading}
           />
         )}
-      </Box>
+      </div>
 
       {/* Install Dialog */}
       <InstallChartDialog

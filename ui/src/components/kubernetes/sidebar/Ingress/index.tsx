@@ -1,8 +1,5 @@
-import Grid from '@mui/material/Grid';
+import { Chip, Grid, Stack, Text } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import { Ingress } from 'kubernetes-types/networking/v1';
 import React from 'react';
 
@@ -14,7 +11,11 @@ import ObjectMetaSection from '../../../shared/ObjectMetaSection';
 
 import RuleTable from './RuleTable';
 
-const ruleChipSx = { px: 1, borderRadius: 'sm' } as const;
+const ruleChipStyle: React.CSSProperties = {
+  paddingInline: 8,
+  borderRadius: 'var(--ov-radius-sm)',
+  alignSelf: 'flex-start',
+};
 
 interface Props {
   ctx: DrawerContext<Ingress>;
@@ -29,23 +30,23 @@ export const IngressSidebar: React.FC<Props> = ({ ctx }) => {
 
   // compose your component here
   return (
-    <Stack direction="column" width={'100%'} spacing={1}>
+    <Stack direction="column" spacing={2} style={{ width: '100%' }}>
       <ObjectMetaSection data={obj.metadata} />
       <div>
-        <Grid container spacing={0.5}>
+        <Grid columns={12} spacing={1}>
           {!!obj.status?.loadBalancer?.ingress?.length && (
-            <Grid size={12}>
+            <Grid.Item span={12}>
               <LoadBalancerInfo obj={obj} />
-            </Grid>
+            </Grid.Item>
           )}
-          <Grid size={12}>
+          <Grid.Item span={12}>
             <RuleInfo obj={obj} />
-          </Grid>
+          </Grid.Item>
           {/* AWS Load Balancer Controller */}
           {containsKeyWithPrefix(obj?.metadata?.annotations, 'alb.ingress.kubernetes.io') && (
-            <Grid size={12}>
+            <Grid.Item span={12}>
               <AWSLoadBalancerControllerInfo obj={obj} />
-            </Grid>
+            </Grid.Item>
           )}
         </Grid>
       </div>
@@ -81,16 +82,19 @@ const RuleInfo: React.FC<InfoSectionProps> = ({ obj }) => {
   return (
     <Card title="Rules" icon="LuNetwork">
       {obj.spec?.rules?.map((rule) => (
-        <Stack key={rule.host ?? '*'} direction="column" spacing={1} p={1}>
+        <Stack key={rule.host ?? '*'} direction="column" spacing={2} style={{ padding: 8 }}>
           <Chip
-            sx={ruleChipSx}
-            emphasis="outline"
+            clickable
+            size="sm"
+            style={ruleChipStyle}
+            variant="outline"
             onClick={() =>
               rule.host &&
               BrowserOpenURL(rule.host.startsWith('http') ? rule.host : 'https://' + rule.host)
             }
-            label={rule.host}
-          />
+          >
+            {rule.host}
+          </Chip>
           {rule.http?.paths ? <RuleTable rule={rule} /> : <Text size="sm">No paths defined</Text>}
         </Stack>
       ))}

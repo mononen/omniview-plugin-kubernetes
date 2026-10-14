@@ -1,7 +1,6 @@
-import Box from '@mui/material/Box';
-import Checkbox from '@mui/material/Checkbox';
+import { Checkbox } from '@omniviewdev/base-ui';
 
-const selectHeaderContainerSx = {
+const selectHeaderContainerStyle = {
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
@@ -9,13 +8,7 @@ const selectHeaderContainerSx = {
   maxWidth: 24,
 } as const;
 
-const selectHeaderCheckboxSx = {
-  p: 0,
-  color: 'var(--ov-fg-faint)',
-  '&.Mui-checked, &.MuiCheckbox-indeterminate': {
-    color: 'var(--ov-accent-fg)',
-  },
-} as const;
+const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
 /**
  * Render a selectbox for the header of the generic resource table.
@@ -33,18 +26,20 @@ export const SelectBoxHeader = ({
   indeterminate: boolean;
   onToggle: (checked: boolean) => void;
 }) => (
-  <Box sx={selectHeaderContainerSx}>
+  // Prevent the click from reaching header handlers (sorting, resizing).
+  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+  <div style={selectHeaderContainerStyle} onClick={stopPropagation}>
     <Checkbox
-      size="small"
+      size="sm"
+      color="brand"
       checked={checked}
       indeterminate={indeterminate}
-      onChange={(_event, value) => {
+      onCheckedChange={(value) => {
         onToggle(value);
       }}
       aria-label="Select all rows"
-      sx={selectHeaderCheckboxSx}
     />
-  </Box>
+  </div>
 );
 
 SelectBoxHeader.displayName = 'SelectBoxHeader';

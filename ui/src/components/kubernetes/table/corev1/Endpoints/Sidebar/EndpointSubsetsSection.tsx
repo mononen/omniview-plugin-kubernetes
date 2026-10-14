@@ -1,8 +1,4 @@
-import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
-import { Chip, ClipboardText } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, ClipboardText, Stack, Text } from '@omniviewdev/base-ui';
 import type {
   EndpointAddress,
   EndpointPort,
@@ -14,33 +10,33 @@ import ExpandableSections from '../../../../../shared/ExpandableSections';
 import type { ExpandableSection } from '../../../../../shared/ExpandableSections';
 import ResourceLinkChip from '../../../../../shared/ResourceLinkChip';
 
-const sectionHeadingLabelSx = {
-  color: 'text.secondary',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  fontSize: 11,
-  flexShrink: 0,
-} as const;
+const span4Style: React.CSSProperties = { gridColumn: 'span 4', minWidth: 0 };
+const span8Style: React.CSSProperties = { gridColumn: 'span 8', minWidth: 0 };
 
-const sectionHeadingDividerSx = { flex: 1, height: '1px', bgcolor: 'divider' } as const;
+const stackStyle1 = { gap: 6 } as const;
 
-const sectionHeadingStackSx = { mb: 0.75 } as const;
+const sectionHeadingLabelStyle: React.CSSProperties = { color: 'var(--ov-color-fg-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 11, flexShrink: 0 };
 
-const chipSx = { borderRadius: 1 } as const;
+const sectionHeadingDividerStyle: React.CSSProperties = { flex: 1, height: '1px', background: 'var(--ov-color-border-default)' };
 
-const subLabelSx = {
-  color: 'neutral.400',
-  fontSize: 10,
-  textTransform: 'uppercase',
-  letterSpacing: 0.5,
-  mb: 0.25,
-} as const;
+const sectionHeadingStackStyle: React.CSSProperties = { marginBottom: 6 };
 
-const contentSx = { py: 0.5, px: 1 } as const;
+const chipStyle = { borderRadius: 4 } as const;
+const smallChipStyle: React.CSSProperties = { ...chipStyle, fontSize: 10 };
+const monoChipStyle: React.CSSProperties = { ...chipStyle, fontSize: 10, fontFamily: 'var(--ov-font-mono, monospace)' };
+const titleTextStyle: React.CSSProperties = { fontSize: 12 };
+const subGroupStyle: React.CSSProperties = { marginBottom: 4 };
+const countChipStyle: React.CSSProperties = { ...chipStyle, flexShrink: 0 };
+const sectionsStyle: React.CSSProperties = { gap: 8 };
 
-const addrValueSx = { fontWeight: 600, fontSize: 11 } as const;
-const addrLabelSx = { color: 'neutral.300', fontSize: 11 } as const;
-const addrRowSx = { minHeight: 20, alignItems: 'center' } as const;
+const subLabelStyle: React.CSSProperties = { color: 'var(--ov-color-fg-muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 };
+
+const contentStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8 };
+
+const addrValueStyle: React.CSSProperties = { fontWeight: 600, fontSize: 11 };
+const addrLabelStyle: React.CSSProperties = { color: 'var(--ov-color-fg-muted)', fontSize: 11 };
+const warningSubLabelStyle: React.CSSProperties = { ...subLabelStyle, color: 'var(--ov-color-warning)' };
+const addrRowStyle: React.CSSProperties = { minHeight: 20, alignItems: 'center', display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))' };
 
 /** Build a resourceKey from an ObjectReference's apiVersion + kind */
 function refToResourceKey(apiVersion?: string, kind?: string): string {
@@ -55,14 +51,14 @@ const AddressRow: React.FC<{
   addr: EndpointAddress;
   connectionID?: string;
 }> = ({ addr, connectionID }) => (
-  <Grid container spacing={0} sx={addrRowSx}>
-    <Grid size={4}>
-      <ClipboardText value={addr.ip} variant="inherit" sx={addrValueSx} />
-    </Grid>
-    <Grid size={8}>
-      <Stack direction="row" gap={0.5} alignItems="center" flexWrap="wrap">
+  <div style={addrRowStyle}>
+    <div style={span4Style}>
+      <ClipboardText value={addr.ip} style={addrValueStyle} />
+    </div>
+    <div style={span8Style}>
+      <Stack direction="row" spacing={1} align="center" wrap>
         {addr.hostname && (
-          <Text size="xs" sx={addrLabelSx}>
+          <Text size="xs" style={addrLabelStyle}>
             {addr.hostname}
           </Text>
         )}
@@ -74,13 +70,7 @@ const AddressRow: React.FC<{
             resourceName={addr.nodeName}
           />
         ) : addr.nodeName ? (
-          <Chip
-            size="xs"
-            emphasis="outline"
-            color="neutral"
-            sx={{ ...chipSx, fontSize: 10 }}
-            label={addr.nodeName}
-          />
+          <Chip size="xs" color="neutral" style={smallChipStyle} variant="outline">{addr.nodeName}</Chip>
         ) : null}
         {addr.targetRef && connectionID && addr.targetRef.name ? (
           <ResourceLinkChip
@@ -94,27 +84,15 @@ const AddressRow: React.FC<{
             namespace={addr.targetRef.namespace}
           />
         ) : addr.targetRef && addr.targetRef.name ? (
-          <Chip
-            size="xs"
-            emphasis="outline"
-            color="primary"
-            sx={{ ...chipSx, fontSize: 10 }}
-            label={`${addr.targetRef.kind}/${addr.targetRef.name}`}
-          />
+          <Chip size="xs" color="brand" style={smallChipStyle} variant="outline">{`${addr.targetRef.kind}/${addr.targetRef.name}`}</Chip>
         ) : null}
       </Stack>
-    </Grid>
-  </Grid>
+    </div>
+  </div>
 );
 
 const PortRow: React.FC<{ port: EndpointPort }> = ({ port }) => (
-  <Chip
-    size="xs"
-    emphasis="outline"
-    color="neutral"
-    sx={{ ...chipSx, fontSize: 10, fontFamily: 'var(--ov-font-mono, monospace)' }}
-    label={`${port.protocol || 'TCP'}/${port.port}${port.name ? ` (${port.name})` : ''}`}
-  />
+  <Chip size="xs" color="neutral" style={monoChipStyle} variant="outline">{`${port.protocol || 'TCP'}/${port.port}${port.name ? ` (${port.name})` : ''}`}</Chip>
 );
 
 interface Props {
@@ -132,87 +110,69 @@ const EndpointSubsetsSection: React.FC<Props> = ({ subsets, connectionID }) => {
 
       return {
         title: (
-          <Stack direction="row" gap={0.75} alignItems="center">
-            <Text weight="semibold" size="xs" sx={{ fontSize: 12 }}>
+          <Stack direction="row" spacing={0} align="center" style={stackStyle1}>
+            <Text weight="semibold" size="xs" style={titleTextStyle}>
               Subset {idx + 1}
             </Text>
             {readyCount > 0 && (
-              <Chip
-                size="xs"
-                emphasis="soft"
-                color="success"
-                sx={chipSx}
-                label={`${readyCount} ready`}
-              />
+              <Chip size="xs" color="success" style={chipStyle}>{`${readyCount} ready`}</Chip>
             )}
             {notReadyCount > 0 && (
-              <Chip
-                size="xs"
-                emphasis="soft"
-                color="warning"
-                sx={chipSx}
-                label={`${notReadyCount} not ready`}
-              />
+              <Chip size="xs" color="warning" style={chipStyle}>{`${notReadyCount} not ready`}</Chip>
             )}
           </Stack>
         ),
         defaultExpanded: subsets.length <= 3,
         children: (
-          <Box sx={contentSx}>
+          <div style={contentStyle}>
             {subset.addresses && subset.addresses.length > 0 && (
-              <Box sx={{ mb: 0.5 }}>
-                <Text size="xs" weight="semibold" sx={subLabelSx}>
+              <div style={subGroupStyle}>
+                <Text size="xs" weight="semibold" style={subLabelStyle}>
                   Ready Addresses
                 </Text>
                 {subset.addresses.map((addr, i) => (
                   <AddressRow key={`${addr.ip}-${addr.nodeName ?? i}`} addr={addr} connectionID={connectionID} />
                 ))}
-              </Box>
+              </div>
             )}
             {subset.notReadyAddresses && subset.notReadyAddresses.length > 0 && (
-              <Box sx={{ mb: 0.5 }}>
-                <Text size="xs" weight="semibold" sx={{ ...subLabelSx, color: 'warning.400' }}>
+              <div style={subGroupStyle}>
+                <Text size="xs" weight="semibold" style={warningSubLabelStyle}>
                   Not Ready Addresses
                 </Text>
                 {subset.notReadyAddresses.map((addr, i) => (
                   <AddressRow key={`${addr.ip}-${addr.nodeName ?? i}`} addr={addr} connectionID={connectionID} />
                 ))}
-              </Box>
+              </div>
             )}
             {subset.ports && subset.ports.length > 0 && (
-              <Box>
-                <Text size="xs" weight="semibold" sx={subLabelSx}>
+              <div>
+                <Text size="xs" weight="semibold" style={subLabelStyle}>
                   Ports
                 </Text>
-                <Stack direction="row" gap={0.5} flexWrap="wrap">
+                <Stack direction="row" spacing={1} wrap>
                   {subset.ports.map((port, i) => (
                     <PortRow key={`${port.protocol}-${port.port}-${i}`} port={port} />
                   ))}
                 </Stack>
-              </Box>
+              </div>
             )}
-          </Box>
+          </div>
         ),
       };
     },
   );
 
   return (
-    <Stack direction="column">
-      <Stack direction="row" alignItems="center" gap={1} sx={sectionHeadingStackSx}>
-        <Text size="xs" weight="semibold" sx={sectionHeadingLabelSx}>
+    <Stack direction="column" spacing={2}>
+      <Stack direction="row" align="center" spacing={2} style={sectionHeadingStackStyle}>
+        <Text size="xs" weight="semibold" style={sectionHeadingLabelStyle}>
           Subsets
         </Text>
-        <Chip
-          size="xs"
-          emphasis="outline"
-          color="primary"
-          sx={{ ...chipSx, flexShrink: 0 }}
-          label={String(subsets.length)}
-        />
-        <Box sx={sectionHeadingDividerSx} />
+        <Chip size="xs" color="brand" style={countChipStyle} variant="outline">{String(subsets.length)}</Chip>
+        <div style={sectionHeadingDividerStyle} />
       </Stack>
-      <ExpandableSections sections={sections} size="sm" sx={{ gap: 1 }} />
+      <ExpandableSections sections={sections} size="sm" style={sectionsStyle} />
     </Stack>
   );
 };

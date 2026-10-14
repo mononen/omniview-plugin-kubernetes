@@ -1,8 +1,7 @@
-import Box from '@mui/material/Box';
-import { Text } from '@omniviewdev/ui/typography';
+import { Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
-import { tileSx, tileLabelSx, tileValueSx } from './constants';
+import { tileStyle, tileLabelStyle, tileValueStyle } from './constants';
 
 interface MetricTileProps {
   label: string;
@@ -10,14 +9,14 @@ interface MetricTileProps {
 }
 
 const MetricTile: React.FC<MetricTileProps> = ({ label, value }) => (
-  <Box sx={tileSx}>
-    <Text size="xs" sx={tileLabelSx}>
+  <div style={tileStyle}>
+    <Text size="xs" tone="muted" style={tileLabelStyle}>
       {label}
     </Text>
-    <Text size="sm" weight="semibold" sx={tileValueSx}>
+    <Text size="sm" weight="semibold" style={tileValueStyle}>
       {value}
     </Text>
-  </Box>
+  </div>
 );
 
 export default MetricTile;

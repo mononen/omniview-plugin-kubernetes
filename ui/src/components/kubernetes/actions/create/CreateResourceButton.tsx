@@ -1,5 +1,5 @@
+import { Button } from '@omniviewdev/base-ui';
 import { useResourceMutations } from '@omniviewdev/runtime';
-import { Button } from '@omniviewdev/ui/buttons';
 import React from 'react';
 import { LuPlus } from 'react-icons/lu';
 import { parse } from 'yaml';
@@ -46,9 +46,9 @@ const CreateResourceButton: React.FC<Props> = ({ connectionID, resourceKey }) =>
     <>
       <Button
         size="xs"
-        emphasis="outline"
+        variant="outline"
         color="neutral"
-        startAdornment={<LuPlus size={13} />}
+        startDecorator={<LuPlus size={13} />}
         onClick={() => setOpen(true)}
       >
         Create {kind}

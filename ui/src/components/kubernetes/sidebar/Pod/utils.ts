@@ -3,7 +3,7 @@ import { ContainerStatus } from 'kubernetes-types/core/v1';
 export type ContainerStatusInfo = {
   text: string;
   icon?: string;
-  color: 'primary' | 'neutral' | 'warning' | 'success' | 'danger' | 'info';
+  color: 'brand' | 'neutral' | 'warning' | 'success' | 'danger' | 'info';
 };
 
 /**

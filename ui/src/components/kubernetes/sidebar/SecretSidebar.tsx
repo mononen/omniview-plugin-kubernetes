@@ -1,11 +1,5 @@
-import FormControl from '@mui/material/FormControl';
-import FormHelperText from '@mui/material/FormHelperText';
-import Grid from '@mui/material/Grid';
-import TextField from '@mui/material/TextField';
-import { useSnackbar, DrawerContext  } from '@omniviewdev/runtime';
-import { Button, IconButton } from '@omniviewdev/ui/buttons';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Button, Grid, IconButton, Input, Stack, Text, TextArea } from '@omniviewdev/base-ui';
+import { useSnackbar, DrawerContext } from '@omniviewdev/runtime';
 import { Secret } from 'kubernetes-types/core/v1';
 import React from 'react';
 import {
@@ -24,9 +18,20 @@ import {
 import { isMultiLine } from '../../../utils/text';
 import ObjectMetaSection from '../../shared/ObjectMetaSection';
 
-const gridAlignCenterSx = { alignItems: 'center', alignContent: 'center' } as const;
+const gridAlignCenterStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  alignContent: 'center',
+};
 
-const removeButtonSx = { '--IconButton-size': '24px' } as const;
+const fullWidthStyle: React.CSSProperties = { width: '100%' };
+
+const multilineRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: 4,
+  width: '100%',
+};
 
 const decodeEntries = (data?: Record<string, string>) => {
   if (!data) {
@@ -173,84 +178,78 @@ export const SecretSidebar: React.FC<Props> = ({ ctx }) => {
     });
   };
 
+  const renderValueActions = (key: string, value: string) => (
+    <Stack direction="row" spacing={0}>
+      <IconButton
+        aria-label="Copy value"
+        variant="ghost"
+        disabled={value === ''}
+        onClick={() => handleCopyToClipboard(key, value)}
+        size="sm"
+      >
+        {copied === key ? <LuClipboardCheck /> : <LuClipboardCopy />}
+      </IconButton>
+      <IconButton
+        aria-label={shown[key] ? 'Hide value' : 'Show value'}
+        variant="ghost"
+        onClick={() => toggleShowSecret(key)}
+        size="sm"
+      >
+        {shown[key] ? <LuEyeOff /> : <LuEye />}
+      </IconButton>
+    </Stack>
+  );
+
   // compose your component here
   return (
-    <Stack direction="column" width={'100%'} spacing={1}>
+    <Stack direction="column" spacing={2} style={fullWidthStyle}>
       <ObjectMetaSection data={secret.metadata} />
       <Stack
         direction="row"
-        pt={1}
-        pl={1}
-        spacing={1}
-        justifyContent={'space-between'}
-        alignItems={'center'}
+        spacing={2}
+        justify="between"
+        align="center"
+        style={{ paddingTop: 8, paddingLeft: 8 }}
       >
-        <Stack direction="row" alignItems="center" gap={0.5}>
+        <Stack direction="row" align="center" spacing={1}>
           <LuKey />
           <Text weight="semibold">Secrets</Text>
         </Stack>
-        <Button emphasis="outline" startAdornment={<LuPlus />} size="sm" onClick={handleAddKey}>
+        <Button variant="outline" startDecorator={<LuPlus />} size="sm" onClick={handleAddKey}>
           Add Entry
         </Button>
       </Stack>
-      <Stack direction="column" spacing={0.25} px={0.25}>
+      <Stack direction="column" spacing={0} style={{ gap: 2, paddingInline: 2 }}>
         {values !== undefined && (
-          <Grid container spacing={0.5}>
+          <Grid columns={12} spacing={1}>
             {Object.entries(values).map(([key, value]) => (
               <React.Fragment key={key}>
-                <Grid size={4} key={key} sx={gridAlignCenterSx}>
+                <Grid.Item span={4} style={gridAlignCenterStyle}>
                   <Text size="sm">{key}</Text>
-                </Grid>
-                <Grid size={8}>
+                </Grid.Item>
+                <Grid.Item span={8}>
                   {shown[key] && isMultiLine(value) ? (
-                    <TextField
-                      multiline
-                      InputProps={{
-                        startAdornment: (
-                          <Stack direction="row" spacing={0} justifyContent={'space-between'}>
-                            <IconButton
-                              disabled={value === ''}
-                              onClick={() => handleCopyToClipboard(key, value)}
-                              size="sm"
-                            >
-                              {copied === key ? <LuClipboardCheck /> : <LuClipboardCopy />}
-                            </IconButton>
-                            <IconButton onClick={() => toggleShowSecret(key)} size="sm">
-                              {shown[key] ? <LuEyeOff /> : <LuEye />}
-                            </IconButton>
-                          </Stack>
-                        ),
-                      }}
-                      size="small"
-                      value={shown[key] ? values[key] : '********'}
-                    />
+                    <div style={multilineRowStyle}>
+                      {renderValueActions(key, value)}
+                      <TextArea.Root style={{ flex: 1 }}>
+                        <TextArea.Control
+                          size="sm"
+                          readOnly
+                          value={shown[key] ? values[key] : '********'}
+                        />
+                      </TextArea.Root>
+                    </div>
                   ) : (
-                    <TextField
-                      InputProps={{
-                        endAdornment: (
-                          <Stack direction="row" spacing={0}>
-                            <IconButton
-                              disabled={value === ''}
-                              onClick={() => handleCopyToClipboard(key, value)}
-                              size="sm"
-                            >
-                              {copied === key ? <LuClipboardCheck /> : <LuClipboardCopy />}
-                            </IconButton>
-                            <IconButton onClick={() => toggleShowSecret(key)} size="sm">
-                              {shown[key] ? <LuEyeOff /> : <LuEye />}
-                            </IconButton>
-                          </Stack>
-                        ),
-                      }}
-                      sx={{
-                        '--Input-focused': +!(values[key] === originalValues[key]),
-                      }}
-                      size="small"
-                      onChange={(e) => handleChange(key, e.target.value)}
-                      value={shown[key] ? values[key] : '********'}
-                    />
+                    <Input.Root style={fullWidthStyle}>
+                      <Input.Control
+                        size="sm"
+                        endDecorator={renderValueActions(key, value)}
+                        onChange={(e) => handleChange(key, e.target.value)}
+                        value={shown[key] ? values[key] : '********'}
+                      />
+                    </Input.Root>
                   )}
-                </Grid>
+                </Grid.Item>
               </React.Fragment>
             ))}
           </Grid>
@@ -258,45 +257,50 @@ export const SecretSidebar: React.FC<Props> = ({ ctx }) => {
         {/* Index keys are correct here: entries are user-editable form inputs with mutable keys */}
         {newValues.map((entry, index) => (
           // eslint-disable-next-line react/no-array-index-key
-          <Grid container spacing={0.5} key={index}>
-            <Grid size={4}>
-              <FormControl error={!!newErrors[index]}>
-                <TextField
-                  size="small"
+          <Grid columns={12} spacing={1} key={index}>
+            <Grid.Item span={4}>
+              <Input.Root invalid={!!newErrors[index]} style={fullWidthStyle}>
+                <Input.Control
+                  size="sm"
+                  aria-invalid={!!newErrors[index]}
                   onChange={(e) => handleEditNewKey(index, e.target.value, entry.value)}
-                  InputProps={{
-                    endAdornment: (
-                      <IconButton
-                        sx={removeButtonSx}
-                        onClick={() => handleRemoveKey(index)}
-                        size="sm"
-                        emphasis="soft"
-                      >
-                        <LuX size={16} />
-                      </IconButton>
-                    ),
-                  }}
+                  endDecorator={
+                    <IconButton
+                      aria-label="Remove entry"
+                      onClick={() => handleRemoveKey(index)}
+                      size="xs"
+                      variant="soft"
+                    >
+                      <LuX size={16} />
+                    </IconButton>
+                  }
                   value={newValues[index].key}
                 />
-                {!!newErrors[index] && <FormHelperText>{newErrors[index]}</FormHelperText>}
-              </FormControl>
-            </Grid>
-            <Grid size={8}>
-              <TextField
-                size="small"
-                onChange={(e) => handleEditNewKey(index, entry.key, e.target.value)}
-                value={newValues[index].value}
-              />
-            </Grid>
+                {!!newErrors[index] && (
+                  <Text as="div" size="xs" tone="danger" style={{ marginTop: 4 }}>
+                    {newErrors[index]}
+                  </Text>
+                )}
+              </Input.Root>
+            </Grid.Item>
+            <Grid.Item span={8}>
+              <Input.Root style={fullWidthStyle}>
+                <Input.Control
+                  size="sm"
+                  onChange={(e) => handleEditNewKey(index, entry.key, e.target.value)}
+                  value={newValues[index].value}
+                />
+              </Input.Root>
+            </Grid.Item>
           </Grid>
         ))}
       </Stack>
       {edited && (
-        <Stack direction="row" justifyContent={'space-between'} spacing={1}>
-          <Stack direction="row" spacing={1}>
+        <Stack direction="row" justify="between" spacing={2}>
+          <Stack direction="row" spacing={2}>
             <Button
-              emphasis="soft"
-              startAdornment={<LuSave />}
+              variant="soft"
+              startDecorator={<LuSave />}
               size="sm"
               onClick={handleSubmit}
               disabled={Object.keys(newErrors).length > 0}
@@ -304,8 +308,8 @@ export const SecretSidebar: React.FC<Props> = ({ ctx }) => {
               Save
             </Button>
             <Button
-              emphasis="soft"
-              startAdornment={<LuRotate3D />}
+              variant="soft"
+              startDecorator={<LuRotate3D />}
               size="sm"
               onClick={() => { /* TODO: implement reload save */ }}
               disabled={Object.keys(newErrors).length > 0}
@@ -314,9 +318,9 @@ export const SecretSidebar: React.FC<Props> = ({ ctx }) => {
             </Button>
           </Stack>
           <Button
-            emphasis="outline"
+            variant="outline"
             color="neutral"
-            startAdornment={<LuCircleX />}
+            startDecorator={<LuCircleX />}
             size="sm"
             onClick={handleClear}
           >

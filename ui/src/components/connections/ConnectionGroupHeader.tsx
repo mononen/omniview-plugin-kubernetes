@@ -1,19 +1,9 @@
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 import { LuChevronRight } from 'react-icons/lu';
 
+import styles from './Connections.module.css';
 import ProviderIcon from './ProviderIcon';
-
-const headerSx = {
-  cursor: 'pointer',
-  py: 0.5,
-  px: 0.75,
-  borderRadius: 'var(--ov-radius-sm, 4px)',
-  '&:hover': { bgcolor: 'var(--ov-bg-surface-hover, rgba(255,255,255,0.05))' },
-  userSelect: 'none',
-} as const;
 
 type Props = {
   label: string;
@@ -30,13 +20,8 @@ const ConnectionGroupHeader: React.FC<Props> = ({
   isCollapsed,
   onToggle,
 }) => (
-  <Stack
-    direction="row"
-    alignItems="center"
-    gap={1}
-    onClick={onToggle}
-    sx={headerSx}
-  >
+  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+  <div className={styles.groupHeader} onClick={onToggle}>
     <LuChevronRight
       size={16}
       style={{
@@ -48,8 +33,10 @@ const ConnectionGroupHeader: React.FC<Props> = ({
     <Text weight="semibold" size="sm">
       {label}
     </Text>
-    <Chip size="sm" emphasis="soft" color="neutral" label={String(count)} />
-  </Stack>
+    <Chip size="sm" variant="soft" color="neutral">
+      {String(count)}
+    </Chip>
+  </div>
 );
 
 export default ConnectionGroupHeader;

@@ -1,10 +1,10 @@
-import { IconButton } from '@omniviewdev/ui/buttons';
-import { Select } from '@omniviewdev/ui/inputs';
-import { Stack } from '@omniviewdev/ui/layout';
+import { IconButton, Stack } from '@omniviewdev/base-ui';
 import React from 'react';
 import { LuArrowUp, LuArrowDown } from 'react-icons/lu';
 
 import type { SortByField, SortDirection, ConnectionAttribute } from '../../types/clusters';
+
+import SimpleSelect from './SimpleSelect';
 
 type Props = {
   sortBy: SortByField;
@@ -13,6 +13,8 @@ type Props = {
   onSortDirectionChange: (value: SortDirection) => void;
   availableAttributes: ConnectionAttribute[];
 };
+
+const selectStyle: React.CSSProperties = { minWidth: 120 };
 
 const SortBySelector: React.FC<Props> = ({
   sortBy,
@@ -25,14 +27,15 @@ const SortBySelector: React.FC<Props> = ({
   const sortableAttrs = availableAttributes.filter((a) => a.coverage >= 0.1);
 
   return (
-    <Stack direction="row" alignItems="center" gap={0.5}>
-      <Select
+    <Stack direction="row" align="center" spacing={1}>
+      <SimpleSelect
         size="sm"
+        aria-label="Sort by"
         value={sortBy}
         onChange={(newValue) => {
           if (newValue) onSortByChange(newValue as SortByField);
         }}
-        sx={{ minWidth: 120 }}
+        style={selectStyle}
         options={[
           { value: 'name', label: 'Name' },
           { value: 'provider', label: 'Provider' },
@@ -46,8 +49,9 @@ const SortBySelector: React.FC<Props> = ({
       />
       <IconButton
         size="sm"
-        emphasis="outline"
+        variant="outline"
         color="neutral"
+        aria-label={sortDirection === 'asc' ? 'Sort ascending' : 'Sort descending'}
         onClick={() => onSortDirectionChange(sortDirection === 'asc' ? 'desc' : 'asc')}
       >
         {sortDirection === 'asc' ? <LuArrowUp size={16} /> : <LuArrowDown size={16} />}

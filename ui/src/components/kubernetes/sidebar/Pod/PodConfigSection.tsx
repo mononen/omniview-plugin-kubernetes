@@ -1,47 +1,35 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Grid, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import type { Pod, Toleration } from 'kubernetes-types/core/v1';
 import React from 'react';
 
 import KVCard from '../../../shared/KVCard';
 import ResourceLinkChip from '../../../shared/ResourceLinkChip';
+import {
+  entryRowStyle,
+  entryValueStyle,
+  roundedChipStyle,
+  sectionBodyStyle,
+  sectionBorderStyle,
+  sectionTitleStyle,
+  subsectionLabelStyle,
+} from '../shared/sectionStyles';
+import rowStyles from '../shared/SidebarRows.module.css';
 
-const entryRowSx = { minHeight: 22, alignItems: 'center' } as const;
-const entryLabelSx = { color: 'neutral.300' } as const;
-const entryValueSx = { fontWeight: 600, fontSize: 12 } as const;
-const outerBoxSx = { borderRadius: 1, border: '1px solid', borderColor: 'divider' } as const;
-const titleAreaSx = { py: 0.5, px: 1 } as const;
-const contentAreaSx = { py: 0.5, px: 1, bgcolor: 'background.level1' } as const;
-const securityContextHeadingSx = { mb: 0.25 } as const;
-const securityContextLabelSx = {
-  color: 'neutral.400',
-  fontSize: 10,
-  textTransform: 'uppercase',
-  letterSpacing: 0.5,
-} as const;
-const tolerationsHeaderSx = {
-  py: 0.5,
-  px: 1,
+const tolerationsHeaderStyle: React.CSSProperties = {
+  padding: '4px 8px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-} as const;
-const tolerationsChipSx = { borderRadius: 1 } as const;
-const tolerationsLegendChipSx = { borderRadius: 1, fontSize: 9 } as const;
-const tolerationsBodySx = { bgcolor: 'background.level1' } as const;
-const tolerationKeyBoxSx = { flex: 1, minWidth: 0 } as const;
-const tolerationOperatorChipSx = {
-  borderRadius: 1,
+};
+const tolerationsLegendChipStyle: React.CSSProperties = { borderRadius: 4, fontSize: 9 };
+const tolerationKeyBoxStyle: React.CSSProperties = { flex: 1, minWidth: 0 };
+const tolerationOperatorChipStyle: React.CSSProperties = {
+  borderRadius: 4,
   fontSize: 10,
   fontFamily: 'var(--ov-font-mono, monospace)',
   flexShrink: 0,
-} as const;
-const tolerationEffectChipSx = { borderRadius: 1, fontSize: 10, flexShrink: 0 } as const;
-const tolerationSecondsChipSx = { borderRadius: 1, fontSize: 10, flexShrink: 0 } as const;
+};
+const tolerationChipStyle: React.CSSProperties = { borderRadius: 4, fontSize: 10, flexShrink: 0 };
 
 interface Props {
   pod: Pod;
@@ -59,21 +47,21 @@ const ConfigEntry: React.FC<{
 }> = ({ label, value }) => {
   if (value === undefined || value === null) return null;
   return (
-    <Grid container spacing={0} sx={entryRowSx}>
-      <Grid size={4}>
-        <Text sx={entryLabelSx} size="xs">
+    <Grid columns={12} spacing={0} style={entryRowStyle}>
+      <Grid.Item span={4}>
+        <Text tone="muted" size="xs">
           {label}
         </Text>
-      </Grid>
-      <Grid size={8}>
+      </Grid.Item>
+      <Grid.Item span={8}>
         {typeof value === 'string' ? (
-          <Text sx={entryValueSx} size="xs">
+          <Text style={entryValueStyle} size="xs">
             {value}
           </Text>
         ) : (
           value
         )}
-      </Grid>
+      </Grid.Item>
     </Grid>
   );
 };
@@ -104,59 +92,51 @@ const TolerationRow: React.FC<{ toleration: Toleration; isLast: boolean }> = ({
   const isExists = toleration.operator === 'Exists' || !toleration.operator;
 
   return (
-    <Box
-      sx={{
-        py: 0.75,
-        px: 1,
+    <div
+      className={rowStyles.hoverRow}
+      style={{
+        padding: '6px 8px',
         display: 'flex',
         alignItems: 'center',
-        gap: 1,
-        borderBottom: isLast ? 'none' : '1px solid',
-        borderColor: 'divider',
-        '&:hover': { bgcolor: 'action.hover' },
+        gap: 8,
+        borderBottom: isLast ? 'none' : '1px solid var(--ov-color-border-default)',
       }}
     >
-      <Box sx={tolerationKeyBoxSx}>
+      <div style={tolerationKeyBoxStyle}>
         <Text
           size="xs"
-          noWrap
-          weight={isMatchAll ? 'normal' : 'semibold'}
-          sx={{
+          truncate
+          weight={isMatchAll ? 'regular' : 'semibold'}
+          mono={!isMatchAll}
+          tone={isMatchAll ? 'muted' : 'default'}
+          style={{
+            display: 'block',
             fontSize: 11,
-            fontFamily: isMatchAll ? undefined : 'var(--ov-font-mono, monospace)',
             fontStyle: isMatchAll ? 'italic' : 'normal',
-            color: isMatchAll ? 'text.secondary' : 'text.primary',
           }}
         >
           {key}
         </Text>
-      </Box>
-      <Chip
-        size="xs"
-        emphasis="soft"
-        color="neutral"
-        sx={tolerationOperatorChipSx}
-        label={isExists ? 'Exists' : `= ${toleration.value || ''}`}
-      />
+      </div>
+      <Chip size="xs" variant="soft" color="neutral" style={tolerationOperatorChipStyle}>
+        {isExists ? 'Exists' : `= ${toleration.value || ''}`}
+      </Chip>
       {toleration.effect && (
         <Chip
           size="xs"
-          emphasis="soft"
+          variant="soft"
           color={effectColor(toleration.effect)}
-          sx={tolerationEffectChipSx}
-          label={toleration.effect}
-        />
+          style={tolerationChipStyle}
+        >
+          {toleration.effect}
+        </Chip>
       )}
       {toleration.tolerationSeconds != null && (
-        <Chip
-          size="xs"
-          emphasis="outline"
-          color="neutral"
-          sx={tolerationSecondsChipSx}
-          label={`${toleration.tolerationSeconds}s`}
-        />
+        <Chip size="xs" variant="outline" color="neutral" style={tolerationChipStyle}>
+          {`${toleration.tolerationSeconds}s`}
+        </Chip>
       )}
-    </Box>
+    </div>
   );
 };
 
@@ -182,16 +162,16 @@ const PodConfigSection: React.FC<Props> = ({ pod, connectionID }) => {
   const hasTolerations = tolerations && tolerations.length > 0;
 
   return (
-    <Stack direction="column" gap={0.5}>
-      {/* Configuration card — same Box style as Status */}
-      <Box sx={outerBoxSx}>
-        <Box sx={titleAreaSx}>
+    <Stack direction="column" spacing={1}>
+      {/* Configuration card — same style as Status */}
+      <div style={sectionBorderStyle}>
+        <div style={sectionTitleStyle}>
           <Text weight="semibold" size="sm">
             Configuration
           </Text>
-        </Box>
-        <Divider />
-        <Box sx={contentAreaSx}>
+        </div>
+        <Separator />
+        <div style={sectionBodyStyle}>
           <ConfigEntry
             label="Service Account"
             value={
@@ -223,22 +203,18 @@ const PodConfigSection: React.FC<Props> = ({ pod, connectionID }) => {
           {spec.priorityClassName && (
             <ConfigEntry label="Priority Class" value={spec.priorityClassName} />
           )}
-        </Box>
+        </div>
 
         {/* Security Context — inline subsection if present */}
         {hasSecurityContext && sc && (
           <>
-            <Divider />
-            <Box sx={contentAreaSx}>
-              <Box sx={securityContextHeadingSx}>
-                <Text
-                  size="xs"
-                  weight="semibold"
-                  sx={securityContextLabelSx}
-                >
+            <Separator />
+            <div style={sectionBodyStyle}>
+              <div style={{ marginBottom: 2 }}>
+                <Text size="xs" weight="semibold" tone="muted" style={subsectionLabelStyle}>
                   Security Context
                 </Text>
-              </Box>
+              </div>
               {sc.runAsUser != null && (
                 <ConfigEntry label="Run As User" value={String(sc.runAsUser)} />
               )}
@@ -249,49 +225,37 @@ const PodConfigSection: React.FC<Props> = ({ pod, connectionID }) => {
               {sc.runAsNonRoot != null && (
                 <ConfigEntry label="Run As Non-Root" value={sc.runAsNonRoot ? 'true' : 'false'} />
               )}
-            </Box>
+            </div>
           </>
         )}
-      </Box>
+      </div>
 
       {nodeSelector && Object.keys(nodeSelector).length > 0 && (
         <KVCard title="Node Selector" kvs={nodeSelector} defaultExpanded />
       )}
 
       {hasTolerations && (
-        <Box sx={outerBoxSx}>
-          <Box sx={tolerationsHeaderSx}>
-            <Stack direction="row" gap={0.75} alignItems="center">
+        <div style={sectionBorderStyle}>
+          <div style={tolerationsHeaderStyle}>
+            <Stack direction="row" spacing={0} align="center" style={{ gap: 6 }}>
               <Text weight="semibold" size="sm">
                 Tolerations
               </Text>
-              <Chip
-                size="xs"
-                emphasis="outline"
-                color="primary"
-                sx={tolerationsChipSx}
-                label={String(tolerations.length)}
-              />
+              <Chip size="xs" variant="outline" color="brand" style={roundedChipStyle}>
+                {String(tolerations.length)}
+              </Chip>
             </Stack>
-            <Stack direction="row" gap={0.5} alignItems="center">
-              <Chip
-                size="xs"
-                emphasis="soft"
-                color="danger"
-                sx={tolerationsLegendChipSx}
-                label="NoExecute"
-              />
-              <Chip
-                size="xs"
-                emphasis="soft"
-                color="warning"
-                sx={tolerationsLegendChipSx}
-                label="NoSchedule"
-              />
+            <Stack direction="row" spacing={1} align="center">
+              <Chip size="xs" variant="soft" color="danger" style={tolerationsLegendChipStyle}>
+                NoExecute
+              </Chip>
+              <Chip size="xs" variant="soft" color="warning" style={tolerationsLegendChipStyle}>
+                NoSchedule
+              </Chip>
             </Stack>
-          </Box>
-          <Divider />
-          <Box sx={tolerationsBodySx}>
+          </div>
+          <Separator />
+          <div>
             {tolerations.map((t, i) => (
               <TolerationRow
                 key={`${t.key}-${t.operator}-${t.value}-${t.effect}`}
@@ -299,8 +263,8 @@ const PodConfigSection: React.FC<Props> = ({ pod, connectionID }) => {
                 isLast={i === tolerations.length - 1}
               />
             ))}
-          </Box>
-        </Box>
+          </div>
+        </div>
       )}
     </Stack>
   );

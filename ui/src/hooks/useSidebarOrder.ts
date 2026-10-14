@@ -1,4 +1,4 @@
-import type { NavSection, NavMenuItem } from '@omniviewdev/ui/sidebars';
+import type { NavSection, NavMenuItem } from '../types/navigation';
 
 import { useStoredState } from './useStoredState';
 

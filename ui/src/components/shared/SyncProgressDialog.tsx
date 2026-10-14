@@ -1,89 +1,87 @@
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
+import { Button, Dialog, IconButton, Progress, Spinner, Text } from '@omniviewdev/base-ui';
 import { useWatchState, WatchState } from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
-import { Button } from '@omniviewdev/ui/buttons';
-import { Text } from '@omniviewdev/ui/typography';
 import React from 'react';
 import { LuCircleCheck, LuCircleAlert, LuCircleSlash, LuShieldAlert, LuX } from 'react-icons/lu';
 
 import { useStableObject } from '../../hooks/useStableRef';
 import { parseResourceKey, formatGroup } from '../../utils/resourceKey';
 
+import styles from './SyncProgressDialog.module.css';
+
 // ---------------------------------------------------------------------------
 // Static styles
 // ---------------------------------------------------------------------------
 
-const pendingSpinnerSx = { color: 'var(--ov-fg-faint)' } as const;
-const syncingSpinnerSx = { color: 'var(--ov-accent-fg, #58a6ff)' } as const;
+const spinnerStyle: React.CSSProperties = { width: 14, height: 14 };
+const headerSpinnerStyle: React.CSSProperties = { width: 16, height: 16 };
 
-const groupProgressWrapperSx = { display: 'flex', alignItems: 'center', gap: 1, ml: 'auto' } as const;
-const groupProgressCountSx = {
-  color: 'var(--ov-fg-faint)',
+const groupProgressWrapperStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' };
+const groupProgressBarStyle: React.CSSProperties = { width: 48 };
+const groupProgressCountStyle: React.CSSProperties = {
+  color: 'var(--ov-color-fg-subtle)',
   minWidth: 28,
   textAlign: 'right',
   fontFamily: 'var(--ov-font-mono, monospace)',
-} as const;
+};
 
-const dialogPaperSx = {
-  bgcolor: 'var(--ov-bg-elevated, #1c2128)',
-  border: '1px solid var(--ov-border-default, #30363d)',
-  borderRadius: '8px',
-  color: 'var(--ov-fg-default, #c9d1d9)',
-  backgroundImage: 'none',
-} as const;
+const dialogStyle: React.CSSProperties = {
+  maxWidth: 600,
+  backgroundColor: 'var(--ov-color-bg-elevated)',
+  border: '1px solid var(--ov-color-border-default)',
+  borderRadius: 8,
+  color: 'var(--ov-color-fg-default)',
+};
 
-const headerSx = {
+const headerStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  px: 2,
-  py: 1.5,
-  borderBottom: '1px solid var(--ov-border-default, #30363d)',
-} as const;
+  paddingInline: 16,
+  paddingBlock: 12,
+  borderBottom: '1px solid var(--ov-color-border-default)',
+};
 
-const headerLeftSx = { display: 'flex', alignItems: 'center', gap: 1 } as const;
-const closeButtonSx = { color: 'var(--ov-fg-muted)' } as const;
+const headerLeftStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8 };
 
-const progressBarWrapperSx = { px: 2, py: 1, borderBottom: '1px solid var(--ov-border-default, #30363d)' } as const;
-const progressBarInnerSx = { display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 } as const;
-const progressPercentSx = { color: 'var(--ov-fg-muted)', minWidth: 64, textAlign: 'right' } as const;
+const progressBarWrapperStyle: React.CSSProperties = {
+  paddingInline: 16,
+  paddingBlock: 8,
+  borderBottom: '1px solid var(--ov-color-border-default)',
+};
+const progressBarInnerStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 };
+const progressBarStyle: React.CSSProperties = { flex: 1 };
+const progressPercentStyle: React.CSSProperties = { minWidth: 64, textAlign: 'right' };
+const skippedSummaryStyle: React.CSSProperties = { marginTop: 2 };
 
-const resourceListSx = { p: 0, maxHeight: 400 } as const;
+const resourceListStyle: React.CSSProperties = { padding: 0, maxHeight: 400, overflowY: 'auto' };
 
-const groupHeaderSx = {
+const groupHeaderStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  px: 2,
-  py: 0.75,
-  bgcolor: 'rgba(255,255,255,0.03)',
-  borderBottom: '1px solid var(--ov-border-default, #30363d)',
-} as const;
+  paddingInline: 16,
+  paddingBlock: 6,
+  backgroundColor: 'var(--ov-color-bg-inset)',
+  borderBottom: '1px solid var(--ov-color-border-default)',
+};
 
-const groupLabelSx = {
-  color: 'var(--ov-fg-muted)',
+const groupLabelStyle: React.CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
-} as const;
+};
 
-const kindTextSx = { flex: 1 } as const;
-const skippedTextSx = { color: 'var(--ov-fg-faint)', fontStyle: 'italic' } as const;
-const countTextSx = {
-  color: 'var(--ov-fg-faint)',
-  fontFamily: 'var(--ov-font-mono, monospace)',
-} as const;
-const retryButtonSx = { minWidth: 0, fontSize: '0.625rem', px: 1, py: 0.25 } as const;
+const kindTextStyle: React.CSSProperties = { flex: 1 };
+const italicStyle: React.CSSProperties = { fontStyle: 'italic' };
+const countTextStyle: React.CSSProperties = { fontFamily: 'var(--ov-font-mono, monospace)' };
+const retryButtonStyle: React.CSSProperties = { minWidth: 0, fontSize: '0.625rem', paddingInline: 8, paddingBlock: 2 };
 
-const footerSx = {
-  borderTop: '1px solid var(--ov-border-default, #30363d)',
-  px: 2,
-  py: 1,
-} as const;
+const footerStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'flex-end',
+  borderTop: '1px solid var(--ov-color-border-default)',
+  paddingInline: 16,
+  paddingBlock: 8,
+};
 
 interface SyncProgressDialogProps {
   open: boolean;
@@ -107,21 +105,21 @@ const isTerminal = (s: WatchState) =>
 function StateIcon({ state }: { state: WatchState }) {
   switch (state) {
     case WatchState.IDLE:
-      return <CircularProgress size={14} thickness={5} sx={pendingSpinnerSx} />;
+      return <Spinner size="xs" color="neutral" style={spinnerStyle} />;
     case WatchState.SYNCING:
-      return <CircularProgress size={14} thickness={5} sx={syncingSpinnerSx} />;
+      return <Spinner size="xs" color="brand" style={spinnerStyle} />;
     case WatchState.SYNCED:
-      return <LuCircleCheck size={14} color="#3fb950" />;
+      return <LuCircleCheck size={14} color="var(--ov-color-success)" />;
     case WatchState.ERROR:
     case WatchState.FAILED:
-      return <LuCircleAlert size={14} color="#f85149" />;
+      return <LuCircleAlert size={14} color="var(--ov-color-danger)" />;
     case WatchState.FORBIDDEN:
-      return <LuShieldAlert size={14} color="#d29922" />;
+      return <LuShieldAlert size={14} color="var(--ov-color-warning)" />;
     case WatchState.STOPPED:
     case WatchState.SKIPPED:
-      return <LuCircleSlash size={14} color="var(--ov-fg-faint)" />;
+      return <LuCircleSlash size={14} color="var(--ov-color-fg-subtle)" />;
     default:
-      return <LuCircleSlash size={14} color="var(--ov-fg-faint)" />;
+      return <LuCircleSlash size={14} color="var(--ov-color-fg-subtle)" />;
   }
 }
 
@@ -137,28 +135,17 @@ const GroupProgress = React.memo(function GroupProgress({ items }: { items: Reso
   const percent = total > 0 ? Math.round((done / total) * 100) : allSkipped ? 100 : 0;
 
   return (
-    <Box sx={groupProgressWrapperSx}>
-      <LinearProgress
-        variant="determinate"
+    <div style={groupProgressWrapperStyle}>
+      <Progress
         value={percent}
-        sx={{
-          width: 48,
-          height: 3,
-          borderRadius: 1.5,
-          bgcolor: 'rgba(255,255,255,0.08)',
-          '& .MuiLinearProgress-bar': {
-            bgcolor: hasError ? '#f85149' : (allDone || allSkipped) ? '#3fb950' : 'var(--ov-accent-fg, #58a6ff)',
-            borderRadius: 1.5,
-          },
-        }}
-      />
-      <Text
         size="xs"
-        sx={groupProgressCountSx}
-      >
+        color={hasError ? 'danger' : (allDone || allSkipped) ? 'success' : 'brand'}
+        style={groupProgressBarStyle}
+      />
+      <Text size="xs" style={groupProgressCountStyle}>
         {allSkipped ? `${skipped} skipped` : `${done}/${total}`}
       </Text>
-    </Box>
+    </div>
   );
 });
 
@@ -239,137 +226,103 @@ function SyncProgressDialogInner({
   );
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      slotProps={{
-        paper: {
-          sx: dialogPaperSx,
-        },
-      }}
-    >
+    <Dialog open={open} onClose={onClose} size="lg" style={dialogStyle} aria-label={`Sync progress for ${clusterName}`}>
       {/* Header */}
-      <Box sx={headerSx}>
-        <Box sx={headerLeftSx}>
-          {!watchedAllDone && (
-            <CircularProgress
-              size={16}
-              thickness={5}
-              sx={syncingSpinnerSx}
-            />
-          )}
-          {watchedAllDone && <LuCircleCheck size={16} color="#3fb950" />}
+      <div style={headerStyle}>
+        <div style={headerLeftStyle}>
+          {!watchedAllDone && <Spinner size="sm" color="brand" style={headerSpinnerStyle} />}
+          {watchedAllDone && <LuCircleCheck size={16} color="var(--ov-color-success)" />}
           <Text weight="semibold" size="sm">
             {watchedAllDone ? `Synced "${clusterName}"` : `Syncing "${clusterName}"`}
           </Text>
-        </Box>
-        <IconButton size="small" onClick={onClose} sx={closeButtonSx}>
+        </div>
+        <IconButton size="sm" variant="ghost" color="neutral" aria-label="Close" onClick={onClose}>
           <LuX size={16} />
         </IconButton>
-      </Box>
+      </div>
 
       {/* Progress bar */}
-      <Box sx={progressBarWrapperSx}>
-        <Box sx={progressBarInnerSx}>
-          <LinearProgress
-            variant="determinate"
+      <div style={progressBarWrapperStyle}>
+        <div style={progressBarInnerStyle}>
+          <Progress
             value={percent}
-            sx={{
-              flex: 1,
-              height: 6,
-              borderRadius: 3,
-              bgcolor: 'rgba(255,255,255,0.08)',
-              '& .MuiLinearProgress-bar': {
-                bgcolor: watchedAllDone ? '#3fb950' : 'var(--ov-accent-fg, #58a6ff)',
-                borderRadius: 3,
-                transition: 'transform 0.3s ease',
-              },
-            }}
+            size="sm"
+            color={watchedAllDone ? 'success' : 'brand'}
+            style={progressBarStyle}
           />
-          <Text size="xs" sx={progressPercentSx}>
+          <Text size="xs" tone="muted" style={progressPercentStyle}>
             {percent}%&ensp;{watchedDone}/{watchedTotal}
           </Text>
-        </Box>
+        </div>
         {skippedCount > 0 && (
-          <Text size="xs" sx={{ color: 'var(--ov-fg-faint)', mt: 0.25 }}>
+          <Text size="xs" tone="subtle" style={skippedSummaryStyle}>
             {skippedCount} resource{skippedCount !== 1 ? 's' : ''} skipped (unavailable on this cluster)
           </Text>
         )}
-      </Box>
+      </div>
 
       {/* Resource list */}
-      <DialogContent sx={resourceListSx}>
+      <div style={resourceListStyle}>
         {grouped.map(([groupLabel, items]) => (
-          <Box key={groupLabel}>
+          <div key={groupLabel}>
             {/* Group header with progress */}
-            <Box sx={groupHeaderSx}>
-              <Text
-                size="xs"
-                weight="semibold"
-                sx={groupLabelSx}
-              >
+            <div style={groupHeaderStyle}>
+              <Text size="xs" weight="semibold" tone="muted" style={groupLabelStyle}>
                 {groupLabel}
               </Text>
               <GroupProgress items={items} />
-            </Box>
+            </div>
             {items.map(({ key, kind, state, count }) => (
-              <Box
+              <div
                 key={key}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.5,
-                  px: 2,
-                  py: 0.5,
-                  borderBottom: '1px solid rgba(255,255,255,0.04)',
-                  '&:last-child': { borderBottom: 'none' },
-                  opacity: (state === WatchState.STOPPED || state === WatchState.SKIPPED || state === WatchState.IDLE) ? 0.4 : 1,
-                }}
+                className={
+                  state === WatchState.STOPPED || state === WatchState.SKIPPED || state === WatchState.IDLE
+                    ? `${styles.Row} ${styles.RowFaded}`
+                    : styles.Row
+                }
               >
                 <StateIcon state={state} />
-                <Text size="xs" sx={kindTextSx}>
+                <Text size="xs" style={kindTextStyle}>
                   {kind}
                 </Text>
                 {state === WatchState.FORBIDDEN && (
-                  <Text size="xs" sx={{ color: '#d29922', fontStyle: 'italic' }}>
+                  <Text size="xs" tone="warning" style={italicStyle}>
                     No access
                   </Text>
                 )}
                 {(state === WatchState.STOPPED || state === WatchState.SKIPPED) && (
-                  <Text size="xs" sx={skippedTextSx}>
+                  <Text size="xs" tone="subtle" style={italicStyle}>
                     Skipped
                   </Text>
                 )}
                 {state === WatchState.SYNCED && count > 0 && (
-                  <Text size="xs" sx={countTextSx}>
+                  <Text size="xs" tone="subtle" style={countTextStyle}>
                     {count}
                   </Text>
                 )}
                 {(state === WatchState.ERROR || state === WatchState.FAILED) && (
                   <Button
-                    emphasis="soft"
-                    size="sm"
+                    variant="soft"
+                    size="xs"
                     color="danger"
                     onClick={() => { void handleRetry(key); }}
-                    sx={retryButtonSx}
+                    style={retryButtonStyle}
                   >
                     Retry
                   </Button>
                 )}
-              </Box>
+              </div>
             ))}
-          </Box>
+          </div>
         ))}
-      </DialogContent>
+      </div>
 
       {/* Footer */}
-      <DialogActions sx={footerSx}>
-        <Button emphasis="soft" size="sm" color="neutral" onClick={onClose}>
+      <div style={footerStyle}>
+        <Button variant="soft" size="sm" color="neutral" onClick={onClose}>
           Dismiss
         </Button>
-      </DialogActions>
+      </div>
     </Dialog>
   );
 }

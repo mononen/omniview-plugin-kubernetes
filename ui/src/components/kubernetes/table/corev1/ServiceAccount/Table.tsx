@@ -4,7 +4,6 @@ import {
   useResourceMutations,
   useRightDrawer,
 } from '@omniviewdev/runtime';
-import { Stack } from '@omniviewdev/ui/layout';
 import { ColumnDef } from '@tanstack/react-table';
 import { LocalObjectReference, ObjectReference, ServiceAccount } from 'kubernetes-types/core/v1';
 import React from 'react';
@@ -13,17 +12,13 @@ import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
+import cellStyles from '../../shared/cells/cells.module.css';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 import ResourceLinkCell from '../Pod/cells/ResourceLinkCell';
 
 import ServiceAccountSidebar from './Sidebar';
 
-const hideScrollbarSx = {
-  scrollbarWidth: 'none',
-  '&::-webkit-scrollbar': {
-    display: 'none',
-  },
-} as const;
+const scrollRowStyle = { gap: 2 } as const;
 
 const resourceKey = 'core::v1::ServiceAccount';
 
@@ -50,12 +45,7 @@ const ServiceAccountTable: React.FC = () => {
               }
 
               return (
-                <Stack
-                  direction={'row'}
-                  overflow={'scroll'}
-                  gap={0.25}
-                  sx={hideScrollbarSx}
-                >
+                <div className={cellStyles.scrollRow} style={scrollRowStyle}>
                   {refs.map((v) => (
                     <ResourceLinkCell
                       key={v.name || ''}
@@ -66,7 +56,7 @@ const ServiceAccountTable: React.FC = () => {
                       namespace={v.namespace}
                     />
                   ))}
-                </Stack>
+                </div>
               );
             },
           },
@@ -89,12 +79,7 @@ const ServiceAccountTable: React.FC = () => {
               }
 
               return (
-                <Stack
-                  direction={'row'}
-                  overflow={'scroll'}
-                  gap={0.25}
-                  sx={hideScrollbarSx}
-                >
+                <div className={cellStyles.scrollRow} style={scrollRowStyle}>
                   {refs.map((v) => (
                     <ResourceLinkCell
                       key={v.name || ''}
@@ -105,7 +90,7 @@ const ServiceAccountTable: React.FC = () => {
                       namespace={row.original.metadata?.namespace}
                     />
                   ))}
-                </Stack>
+                </div>
               );
             },
           },

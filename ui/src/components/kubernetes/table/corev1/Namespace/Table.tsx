@@ -1,10 +1,10 @@
+import { Chip } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
   useConfirmationModal,
   useResourceMutations,
   useRightDrawer,
 } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
 import { ColumnDef } from '@tanstack/react-table';
 import { Namespace } from 'kubernetes-types/core/v1';
 import React from 'react';
@@ -15,12 +15,11 @@ import { useParams } from 'react-router-dom';
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
 import AgeCell from '../../shared/cells/AgeCell';
+import { squareChipStyle } from '../../shared/cells/styles';
 import { withClusterResourceColumns } from '../../shared/columns';
 import ContainerPhaseCell from '../Pod/cells/ContainerPhaseCell';
 
 import NamespaceSidebar from './Sidebar';
-
-const chipBorderRadiusSx = { borderRadius: '2px' } as const;
 
 const resourceKey = 'core::v1::Namespace';
 
@@ -41,7 +40,9 @@ const NamespaceTable: React.FC = () => {
             accessorKey: 'spec.finalizers',
             cell: ({ getValue }) =>
               (getValue() as string[] | undefined)?.map((f) => (
-                <Chip key={f} size="sm" sx={chipBorderRadiusSx} color={'primary'} label={f} />
+                <Chip key={f} size="sm" style={squareChipStyle} color="brand">
+                  {f}
+                </Chip>
               )) ?? '',
             size: 250,
             meta: {

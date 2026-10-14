@@ -3,12 +3,6 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 import ScaleModal from './ScaleModal';
 
-// MUI Modal renders via portal — mock it to render children inline.
-vi.mock('@mui/material/Modal', () => ({
-  default: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? <div data-testid="modal">{children}</div> : null,
-}));
-
 /** Helper: get the number input (not the slider's hidden range input). */
 function getReplicaInput() {
   return screen.getByRole('spinbutton');
@@ -52,30 +46,30 @@ describe('ScaleModal', () => {
 
   it('Scale button is disabled when desired equals current', () => {
     render(<ScaleModal {...defaultProps} />);
-    const scaleButton = screen.getByText('Scale');
-    expect(scaleButton).toHaveStyle({ pointerEvents: 'none' });
+    const scaleButton = screen.getByRole('button', { name: 'Scale' });
+    expect(scaleButton).toBeDisabled();
   });
 
   it('Scale button is enabled when desired differs from current', () => {
     render(<ScaleModal {...defaultProps} />);
     const input = getReplicaInput();
     fireEvent.change(input, { target: { value: '5' } });
-    const scaleButton = screen.getByText('Scale');
-    expect(scaleButton).toHaveStyle({ pointerEvents: 'auto' });
+    const scaleButton = screen.getByRole('button', { name: 'Scale' });
+    expect(scaleButton).toBeEnabled();
   });
 
   it('calls onConfirm with new replica count', () => {
     render(<ScaleModal {...defaultProps} />);
     const input = getReplicaInput();
     fireEvent.change(input, { target: { value: '7' } });
-    const scaleButton = screen.getByText('Scale');
+    const scaleButton = screen.getByRole('button', { name: 'Scale' });
     fireEvent.click(scaleButton);
     expect(defaultProps.onConfirm).toHaveBeenCalledWith(7);
   });
 
   it('calls onClose on Cancel click', () => {
     render(<ScaleModal {...defaultProps} />);
-    const cancelButton = screen.getByText('Cancel');
+    const cancelButton = screen.getByRole('button', { name: 'Cancel' });
     fireEvent.click(cancelButton);
     expect(defaultProps.onClose).toHaveBeenCalled();
   });

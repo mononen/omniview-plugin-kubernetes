@@ -15,20 +15,6 @@ vi.mock('@omniviewdev/runtime', () => ({
   }),
 }));
 
-vi.mock('@omniviewdev/ui', () => ({
-  Chip: ({
-    label,
-    onClick,
-  }: {
-    label: React.ReactNode;
-    onClick?: React.MouseEventHandler<HTMLButtonElement>;
-  }) => (
-    <button onClick={onClick} type="button">
-      {label}
-    </button>
-  ),
-}));
-
 describe('ResourceLinkChip', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -1,38 +1,29 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Modal from '@mui/material/Modal';
+import { Button, Dialog, Input, Stack, Text } from '@omniviewdev/base-ui';
 import { useExecuteAction } from '@omniviewdev/runtime';
-import { Button, IconButton } from '@omniviewdev/ui/buttons';
-import { TextField, Select } from '@omniviewdev/ui/inputs';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
 import React from 'react';
-import { LuX } from 'react-icons/lu';
 import { SiHelm } from 'react-icons/si';
 
+import SimpleSelect from '../../connections/SimpleSelect';
 import CodeEditor from '../../shared/CodeEditor';
 import NamespaceSelect from '../../shared/NamespaceSelect';
 
-const headerSx = { px: 2.5, pt: 2, pb: 1.5 } as const;
-const contentSx = { flex: 1, overflow: 'auto', px: 2.5, py: 2 } as const;
-const footerSx = { px: 2.5, py: 1.5 } as const;
-const fieldLabelSx = { color: 'neutral.400', fontWeight: 500 } as const;
-const fieldFlexSx = { flex: 1 } as const;
-const versionFieldSx = { minWidth: 180 } as const;
-const valuesEditorSx = {
+const dialogStyle: React.CSSProperties = { width: '90%', maxWidth: 900, maxHeight: '90vh' };
+const fieldLabelStyle: React.CSSProperties = { fontWeight: 500 };
+const fieldFlexStyle: React.CSSProperties = { flex: 1 };
+const versionFieldStyle: React.CSSProperties = { minWidth: 180 };
+const fullWidthStyle: React.CSSProperties = { width: '100%' };
+const valuesEditorStyle: React.CSSProperties = {
   height: 400,
-  border: '1px solid',
-  borderColor: 'neutral.700',
-  borderRadius: 'sm',
+  border: '1px solid var(--ov-color-border-default)',
+  borderRadius: 4,
   overflow: 'hidden',
-} as const;
-const dryRunEditorSx = {
+};
+const dryRunEditorStyle: React.CSSProperties = {
   height: 350,
-  border: '1px solid',
-  borderColor: 'neutral.700',
-  borderRadius: 'sm',
+  border: '1px solid var(--ov-color-border-default)',
+  borderRadius: 4,
   overflow: 'hidden',
-} as const;
+};
 
 interface Props {
   open: boolean;
@@ -57,23 +48,6 @@ interface ChartVersionsData {
 interface DryRunInstallData {
   manifest?: string;
 }
-
-const modalStyle = {
-  position: 'absolute' as const,
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '90%',
-  maxWidth: 900,
-  maxHeight: '90vh',
-  bgcolor: 'background.paper',
-  borderRadius: 2,
-  boxShadow: 24,
-  p: 0,
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden',
-};
 
 const InstallChartDialog: React.FC<Props> = ({
   open,
@@ -201,136 +175,120 @@ const InstallChartDialog: React.FC<Props> = ({
   }));
 
   return (
-    <Modal open={open} onClose={handleClose}>
-      <Box sx={modalStyle}>
-        {/* Header */}
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={headerSx}
-        >
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <SiHelm size={16} />
-            <Text weight="semibold" size="md">
-              Install {chartName}
-            </Text>
-          </Stack>
-          <IconButton size="xs" emphasis="ghost" color="neutral" onClick={handleClose}>
-            <LuX size={14} />
-          </IconButton>
-        </Stack>
-        <Divider />
+    <Dialog open={open} onClose={handleClose} size="xl" style={dialogStyle}>
+      {/* Header */}
+      <Dialog.Title icon={<SiHelm size={16} />}>Install {chartName}</Dialog.Title>
+      <Dialog.Close />
 
-        {/* Content */}
-        <Box sx={contentSx}>
-          <Stack direction="column" spacing={2}>
-            {/* Form inputs */}
-            <Stack direction="row" spacing={2}>
-              <Stack direction="column" spacing={0.5} sx={fieldFlexSx}>
-                <Text size="xs" sx={fieldLabelSx}>
-                  Release Name
-                </Text>
-                <TextField
-                  value={releaseName}
-                  onChange={setReleaseName}
-                  placeholder="my-release"
-                  size="sm"
-                  fullWidth
-                  autoComplete="off"
-                />
-              </Stack>
-              <Stack direction="column" spacing={0.5} sx={fieldFlexSx}>
-                <Text size="xs" sx={fieldLabelSx}>
-                  Namespace
-                </Text>
-                <NamespaceSelect
-                  value={namespace}
-                  onChange={handleNamespaceChange}
-                  connectionID={connectionID}
-                  size="sm"
-                  placeholder="Select or create namespace"
-                />
-              </Stack>
-              <Stack direction="column" spacing={0.5} sx={versionFieldSx}>
-                <Text size="xs" sx={fieldLabelSx}>
-                  Version
-                </Text>
-                <Select
-                  options={versionOptions}
-                  value={version}
-                  onChange={(v) => setVersion(Array.isArray(v) ? v[0] : v)}
-                  size="sm"
-                  searchable
-                  fullWidth
-                  loading={versions.length === 0}
-                />
-              </Stack>
-            </Stack>
-
-            {/* Values editor */}
-            <Stack direction="column" spacing={0.5}>
-              <Text size="xs" sx={fieldLabelSx}>
-                Values (YAML)
+      {/* Content */}
+      <Dialog.Body>
+        <Stack direction="column" spacing={4}>
+          {/* Form inputs */}
+          <Stack direction="row" spacing={4}>
+            <Stack direction="column" spacing={1} style={fieldFlexStyle}>
+              <Text as="label" htmlFor="install-release-name" size="xs" tone="muted" style={fieldLabelStyle}>
+                Release Name
               </Text>
-              <Box sx={valuesEditorSx}>
-                <CodeEditor
-                  filename="values.yaml"
-                  language="yaml"
-                  value={values}
-                  onChange={(v) => setValues(v)}
-                  height={400}
-                />
-              </Box>
+              <Input.Control
+                id="install-release-name"
+                value={releaseName}
+                onChange={(e) => setReleaseName(e.target.value)}
+                placeholder="my-release"
+                size="sm"
+                style={fullWidthStyle}
+                autoComplete="off"
+              />
             </Stack>
-
-            {/* Dry run preview */}
-            {dryRunManifest !== null && (
-              <Stack direction="column" spacing={0.5}>
-                <Text size="xs" sx={fieldLabelSx}>
-                  Dry Run Preview
-                </Text>
-                <Box sx={dryRunEditorSx}>
-                  <CodeEditor
-                    filename="manifest.yaml"
-                    language="yaml"
-                    value={dryRunManifest}
-                    readOnly
-                    height={350}
-                  />
-                </Box>
-              </Stack>
-            )}
+            <Stack direction="column" spacing={1} style={fieldFlexStyle}>
+              <Text size="xs" tone="muted" style={fieldLabelStyle}>
+                Namespace
+              </Text>
+              <NamespaceSelect
+                value={namespace}
+                onChange={handleNamespaceChange}
+                connectionID={connectionID}
+                size="sm"
+                placeholder="Select or create namespace"
+              />
+            </Stack>
+            <Stack direction="column" spacing={1} style={versionFieldStyle}>
+              <Text size="xs" tone="muted" style={fieldLabelStyle}>
+                Version
+              </Text>
+              <SimpleSelect
+                aria-label="Version"
+                options={versionOptions}
+                value={version}
+                onChange={setVersion}
+                size="sm"
+                placeholder={versions.length === 0 ? 'Loading...' : undefined}
+                disabled={versions.length === 0}
+                style={fullWidthStyle}
+              />
+            </Stack>
           </Stack>
-        </Box>
 
-        {/* Footer */}
-        <Divider />
-        <Stack direction="row" spacing={1} justifyContent="flex-end" sx={footerSx}>
-          <Button size="xs" emphasis="ghost" color="neutral" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button
-            size="xs"
-            emphasis="outline"
-            color="neutral"
-            disabled={isExecuting || !releaseName}
-            onClick={() => void handleDryRun()}
-          >
-            Dry Run
-          </Button>
-          <Button
-            size="xs"
-            emphasis="solid"
-            color="primary"
-            disabled={isExecuting || !releaseName || !namespace}
-            onClick={() => void handleInstall()}
-          >
-            Install
-          </Button>
+          {/* Values editor */}
+          <Stack direction="column" spacing={1}>
+            <Text size="xs" tone="muted" style={fieldLabelStyle}>
+              Values (YAML)
+            </Text>
+            <div style={valuesEditorStyle}>
+              <CodeEditor
+                filename="values.yaml"
+                language="yaml"
+                value={values}
+                onChange={(v) => setValues(v)}
+                height={400}
+              />
+            </div>
+          </Stack>
+
+          {/* Dry run preview */}
+          {dryRunManifest !== null && (
+            <Stack direction="column" spacing={1}>
+              <Text size="xs" tone="muted" style={fieldLabelStyle}>
+                Dry Run Preview
+              </Text>
+              <div style={dryRunEditorStyle}>
+                <CodeEditor
+                  filename="manifest.yaml"
+                  language="yaml"
+                  value={dryRunManifest}
+                  readOnly
+                  height={350}
+                />
+              </div>
+            </Stack>
+          )}
         </Stack>
-      </Box>
-    </Modal>
+      </Dialog.Body>
+
+      {/* Footer */}
+      <Dialog.Footer>
+        <Button size="xs" variant="ghost" color="neutral" onClick={handleClose}>
+          Cancel
+        </Button>
+        <Button
+          size="xs"
+          variant="outline"
+          color="neutral"
+          disabled={isExecuting || !releaseName}
+          onClick={() => void handleDryRun()}
+        >
+          Dry Run
+        </Button>
+        <Button
+          size="xs"
+          variant="solid"
+          color="brand"
+          disabled={isExecuting || !releaseName || !namespace}
+          onClick={() => void handleInstall()}
+        >
+          Install
+        </Button>
+      </Dialog.Footer>
+    </Dialog>
   );
 };
 

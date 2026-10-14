@@ -1,12 +1,14 @@
-import Grid from '@mui/material/Grid';
-import { Text } from '@omniviewdev/ui/typography';
+import { Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
 import SidebarSection from './SidebarSection';
 
-const cellSx = { alignItems: 'center' } as const;
-
-const headerTextSx = { color: 'neutral.400' } as const;
+const gridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 2,
+  alignItems: 'center',
+};
 
 interface Props {
   hard?: Record<string, string>;
@@ -20,38 +22,26 @@ const QuotaUsageTable: React.FC<Props> = ({ hard, used }) => {
 
   return (
     <SidebarSection title="Resource Quota">
-      <Grid container spacing={0.25}>
-        <Grid size={4} sx={cellSx}>
-          <Text size="xs" weight="semibold" sx={headerTextSx}>
-            Resource
-          </Text>
-        </Grid>
-        <Grid size={4} sx={cellSx}>
-          <Text size="xs" weight="semibold" sx={headerTextSx}>
-            Used
-          </Text>
-        </Grid>
-        <Grid size={4} sx={cellSx}>
-          <Text size="xs" weight="semibold" sx={headerTextSx}>
-            Hard
-          </Text>
-        </Grid>
+      <div style={gridStyle}>
+        <Text size="xs" weight="semibold" tone="muted">
+          Resource
+        </Text>
+        <Text size="xs" weight="semibold" tone="muted">
+          Used
+        </Text>
+        <Text size="xs" weight="semibold" tone="muted">
+          Hard
+        </Text>
         {resources.map((resource) => (
           <React.Fragment key={resource}>
-            <Grid size={4} sx={cellSx}>
-              <Text size="xs" weight="semibold">
-                {resource}
-              </Text>
-            </Grid>
-            <Grid size={4} sx={cellSx}>
-              <Text size="xs">{used?.[resource] ?? '-'}</Text>
-            </Grid>
-            <Grid size={4} sx={cellSx}>
-              <Text size="xs">{hard[resource]}</Text>
-            </Grid>
+            <Text size="xs" weight="semibold">
+              {resource}
+            </Text>
+            <Text size="xs">{used?.[resource] ?? '-'}</Text>
+            <Text size="xs">{hard[resource]}</Text>
           </React.Fragment>
         ))}
-      </Grid>
+      </div>
     </SidebarSection>
   );
 };

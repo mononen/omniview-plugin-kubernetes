@@ -1,6 +1,4 @@
-import { Avatar, Card } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Avatar, Card, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
 import type { EnrichedConnection, ConnectionGroup } from '../../types/clusters';
@@ -8,33 +6,30 @@ import NamedAvatar from '../shared/NamedAvatar';
 
 import ConnectionContextMenu from './ConnectionContextMenu';
 import ConnectionStatusBadge from './ConnectionStatusBadge';
+import styles from './Connections.module.css';
 import FavoriteButton from './FavoriteButton';
 import ProviderIcon from './ProviderIcon';
 
-const cardSx = {
-  cursor: 'pointer',
-  '&:hover': { borderColor: 'primary.outlinedHoverBorder', boxShadow: 'sm' },
-  transition: 'border-color 0.15s, box-shadow 0.15s',
-} as const;
+const cardBodyStyle: React.CSSProperties = { padding: 12 };
 
-const avatarSx = {
+const avatarStyle: React.CSSProperties = {
   borderRadius: 6,
   backgroundColor: 'transparent',
   maxHeight: 28,
   maxWidth: 28,
-} as const;
+};
 
-const headerContentSx = { flex: 1, minWidth: 0 } as const;
+const headerContentStyle: React.CSSProperties = { flex: 1, minWidth: 0 };
 
-const descriptionSx = { opacity: 0.7 } as const;
+const descriptionStyle: React.CSSProperties = { opacity: 0.7 };
 
-const detailsContentSx = { flex: 1, minWidth: 0 } as const;
+const detailsContentStyle: React.CSSProperties = { flex: 1, minWidth: 0 };
 
-const kubeconfigSx = { opacity: 0.6 } as const;
+const kubeconfigStyle: React.CSSProperties = { opacity: 0.6 };
 
-const userSx = { opacity: 0.6 } as const;
+const userStyle: React.CSSProperties = { opacity: 0.6 };
 
-const actionsContainerSx = { flexShrink: 0 } as const;
+const actionsContainerStyle: React.CSSProperties = { flexShrink: 0 };
 
 type Props = {
   enriched: EnrichedConnection;
@@ -67,31 +62,23 @@ const ConnectionCard: React.FC<Props> = ({
     enriched;
 
   return (
-    <Card
-      variant="outlined"
-      sx={cardSx}
-      onClick={onClick}
-    >
-      <Stack gap={0.75}>
+    <Card variant="outline" className={styles.connectionCard} onClick={onClick}>
+      <Stack direction="column" style={{ ...cardBodyStyle, gap: 6 }}>
         {/* Header row */}
-        <Stack direction="row" alignItems="center" gap={1}>
+        <Stack direction="row" align="center" spacing={2}>
           <ConnectionStatusBadge isConnected={isConnected}>
             {enriched.avatar ? (
-              <Avatar
-                size="sm"
-                src={enriched.avatar}
-                sx={avatarSx}
-              />
+              <Avatar size="sm" shape="rounded" src={enriched.avatar} style={avatarStyle} />
             ) : (
               <NamedAvatar value={displayName} color={enriched.avatarColor} />
             )}
           </ConnectionStatusBadge>
-          <Stack sx={headerContentSx}>
-            <Text weight="semibold" size="sm" noWrap>
+          <Stack direction="column" style={headerContentStyle}>
+            <Text weight="semibold" size="sm" truncate>
               {displayName}
             </Text>
             {displayDescription && (
-              <Text size="xs" noWrap sx={descriptionSx}>
+              <Text size="xs" truncate style={descriptionStyle}>
                 {displayDescription}
               </Text>
             )}
@@ -100,27 +87,27 @@ const ConnectionCard: React.FC<Props> = ({
         </Stack>
 
         {/* Details + context menu */}
-        <Stack direction="row" alignItems="flex-end" gap={0.5}>
-          <Stack gap={0.25} sx={detailsContentSx}>
-            <Stack direction="row" alignItems="center" gap={0.75}>
+        <Stack direction="row" align="end" spacing={1}>
+          <Stack direction="column" style={{ ...detailsContentStyle, gap: 2 }}>
+            <Stack direction="row" align="center" style={{ gap: 6 }}>
               <ProviderIcon provider={provider} size={14} />
               <Text size="xs">{String(connection.labels?.cluster ?? '')}</Text>
             </Stack>
             {connection.labels?.kubeconfig && (
-              <Text size="xs" noWrap sx={kubeconfigSx}>
+              <Text size="xs" truncate style={kubeconfigStyle}>
                 {String(connection.labels.kubeconfig)}
               </Text>
             )}
             {connection.labels?.user && (
-              <Text size="xs" sx={userSx}>
+              <Text size="xs" style={userStyle}>
                 {String(connection.labels.user)}
               </Text>
             )}
           </Stack>
           <Stack
             direction="row"
-            alignItems="center"
-            sx={actionsContainerSx}
+            align="center"
+            style={actionsContainerStyle}
             onClick={(e) => e.stopPropagation()}
           >
             <ConnectionContextMenu

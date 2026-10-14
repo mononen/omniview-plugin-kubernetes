@@ -1,11 +1,8 @@
-import Grid from '@mui/material/Grid';
-import { ClipboardText } from '@omniviewdev/ui';
-import { Text } from '@omniviewdev/ui/typography';
+import { ClipboardText, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
-const entryGridSx = { minHeight: 22, alignItems: 'center' } as const;
-const entryLabelSx = { color: 'neutral.300' } as const;
-const entryValueSx = { fontWeight: 600, fontSize: 12 } as const;
+const entryValueStyle: React.CSSProperties = { fontWeight: 600, fontSize: 12, width: '100%', minWidth: 0 };
+const cellStyle: React.CSSProperties = { minWidth: 0 };
 
 interface Props {
   label: string;
@@ -17,21 +14,27 @@ interface Props {
 const LabeledEntry: React.FC<Props> = ({ label, value, labelSize = 4 }) => {
   if (value === undefined || value === null) return null;
   const clamped = Math.min(Math.max(labelSize, 1), 11);
+  const gridStyle: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: `minmax(0, ${clamped}fr) minmax(0, ${12 - clamped}fr)`,
+    minHeight: 22,
+    alignItems: 'center',
+  };
   return (
-    <Grid container spacing={0} sx={entryGridSx}>
-      <Grid size={clamped}>
-        <Text sx={entryLabelSx} size="xs">
+    <div style={gridStyle}>
+      <div style={cellStyle}>
+        <Text tone="muted" size="xs">
           {label}
         </Text>
-      </Grid>
-      <Grid size={12 - clamped}>
+      </div>
+      <div style={cellStyle}>
         {typeof value === 'string' ? (
-          <ClipboardText value={value} variant="inherit" sx={entryValueSx} />
+          <ClipboardText value={value} truncate style={entryValueStyle} />
         ) : (
           value
         )}
-      </Grid>
-    </Grid>
+      </div>
+    </div>
   );
 };
 

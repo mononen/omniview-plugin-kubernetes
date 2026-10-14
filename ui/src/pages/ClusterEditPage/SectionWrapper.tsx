@@ -1,9 +1,7 @@
-import Box from '@mui/material/Box';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Stack, Text } from '@omniviewdev/base-ui';
 import type React from 'react';
 
-import { sectionWrapperStackSx, sectionWrapperHeaderSx, sectionDescriptionSx, sectionWrapperBodySx } from './constants';
+import { sectionWrapperStackStyle, sectionWrapperHeaderStyle, sectionWrapperBodyStyle } from './constants';
 
 function SectionWrapper({
   title,
@@ -15,20 +13,18 @@ function SectionWrapper({
   children: React.ReactNode;
 }) {
   return (
-    <Stack direction="column" gap={0} sx={sectionWrapperStackSx}>
-      <Box
-        sx={sectionWrapperHeaderSx}
-      >
-        <Stack direction="column" gap={0.25}>
+    <Stack direction="column" spacing={0} style={sectionWrapperStackStyle}>
+      <div style={sectionWrapperHeaderStyle}>
+        <Stack direction="column" spacing={0} style={{ gap: 2 }}>
           <Text weight="semibold" size="lg">
             {title}
           </Text>
-          <Text size="xs" sx={sectionDescriptionSx}>
+          <Text size="xs" tone="muted">
             {description}
           </Text>
         </Stack>
-      </Box>
-      <Box sx={sectionWrapperBodySx}>{children}</Box>
+      </div>
+      <div style={sectionWrapperBodyStyle}>{children}</div>
     </Stack>
   );
 }

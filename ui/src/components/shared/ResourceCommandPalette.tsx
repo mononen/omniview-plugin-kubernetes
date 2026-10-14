@@ -1,7 +1,7 @@
-import { CommandPalette } from '@omniviewdev/ui/editors';
-import type { NavSection } from '@omniviewdev/ui/sidebars';
+import { CommandPalette } from '@omniviewdev/editors';
 
 import { useResourceCommandPalette } from '../../hooks/useResourceCommandPalette';
+import type { NavSection } from '../../types/navigation';
 
 interface ResourceCommandPaletteProps {
   connectionID: string;
@@ -14,22 +14,19 @@ export default function ResourceCommandPalette({
   layout,
   onNavigate,
 }: ResourceCommandPaletteProps) {
-  const { open, handleClose, handleSelect, items, categories, recentItems } =
-    useResourceCommandPalette({
-      connectionID,
-      layout,
-      onSelect: onNavigate,
-    });
+  const { open, handleClose, handleSelect, commands } = useResourceCommandPalette({
+    connectionID,
+    layout,
+    onSelect: onNavigate,
+  });
 
   return (
     <CommandPalette
       open={open}
       onClose={handleClose}
-      items={items}
+      commands={commands}
       onSelect={handleSelect}
       placeholder="Go to resource type..."
-      categories={categories}
-      recentItems={recentItems}
     />
   );
 }

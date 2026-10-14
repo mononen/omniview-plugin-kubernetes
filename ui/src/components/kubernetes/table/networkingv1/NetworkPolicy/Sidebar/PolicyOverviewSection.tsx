@@ -1,40 +1,18 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Stack, Text, Separator } from '@omniviewdev/base-ui';
 import type { NetworkPolicy } from 'kubernetes-types/networking/v1';
 import React from 'react';
 
-const sectionBorderSx = {
-  borderRadius: 1,
-  border: '1px solid',
-  borderColor: 'divider',
-} as const;
+const sectionBorderStyle: React.CSSProperties = { borderRadius: 4, border: '1px solid', borderColor: 'var(--ov-color-border-default)' };
 
-const headerSx = {
-  py: 0.5,
-  px: 1,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 1,
-} as const;
+const headerStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 };
 
-const bodyBgSx = {
-  py: 0.5,
-  px: 1,
-  bgcolor: 'background.level1',
-} as const;
+const bodyBgStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8, background: 'var(--ov-color-bg-surface-raised)' };
 
-const chipSx = { borderRadius: 1 } as const;
+const chipStyle = { borderRadius: 4 } as const;
+const subGroupTightStyle: React.CSSProperties = { marginBottom: 2 };
+const monoChipStyle: React.CSSProperties = { ...chipStyle, fontFamily: 'var(--ov-font-mono, monospace)', fontSize: 10 };
 
-const subLabelSx = {
-  color: 'neutral.400',
-  fontSize: 10,
-  textTransform: 'uppercase',
-  letterSpacing: 0.5,
-} as const;
+const subLabelStyle: React.CSSProperties = { color: 'var(--ov-color-fg-muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 };
 
 interface Props {
   policy: NetworkPolicy;
@@ -63,67 +41,40 @@ const PolicyOverviewSection: React.FC<Props> = ({ policy }) => {
   const isSelectAll = !hasSelector;
 
   return (
-    <Box sx={sectionBorderSx}>
-      <Box sx={headerSx}>
+    <div style={sectionBorderStyle}>
+      <div style={headerStyle}>
         <Text weight="semibold" size="sm">
           Policy Overview
         </Text>
-        <Stack direction="row" gap={0.5}>
+        <Stack direction="row" spacing={1}>
           {effectivePolicyTypes.map((pt) => (
-            <Chip
-              key={pt}
-              size="xs"
-              emphasis="soft"
-              color={pt === 'Ingress' ? 'primary' : 'warning'}
-              sx={chipSx}
-              label={pt}
-            />
+            <Chip key={pt} size="xs" color={pt === 'Ingress' ? 'brand' : 'warning'} style={chipStyle}>{pt}</Chip>
           ))}
         </Stack>
-      </Box>
-      <Divider />
-      <Box sx={bodyBgSx}>
-        <Box sx={{ mb: 0.25 }}>
-          <Text size="xs" weight="semibold" sx={subLabelSx}>
+      </div>
+      <Separator />
+      <div style={bodyBgStyle}>
+        <div style={subGroupTightStyle}>
+          <Text size="xs" weight="semibold" style={subLabelStyle}>
             Pod Selector
           </Text>
-        </Box>
+        </div>
         {isSelectAll ? (
-          <Chip
-            size="xs"
-            emphasis="outline"
-            color="neutral"
-            sx={chipSx}
-            label="All Pods"
-          />
+          <Chip size="xs" color="neutral" style={chipStyle} variant="outline">All Pods</Chip>
         ) : (
-          <Stack direction="row" gap={0.5} flexWrap="wrap">
+          <Stack direction="row" spacing={1} wrap>
             {matchLabels &&
               Object.entries(matchLabels).map(([k, v]) => (
-                <Chip
-                  key={k}
-                  size="xs"
-                  emphasis="soft"
-                  color="neutral"
-                  sx={{ ...chipSx, fontFamily: 'var(--ov-font-mono, monospace)', fontSize: 10 }}
-                  label={`${k}=${v}`}
-                />
+                <Chip key={k} size="xs" color="neutral" style={monoChipStyle}>{`${k}=${v}`}</Chip>
               ))}
             {matchExpressions &&
               matchExpressions.map((expr, i) => (
-                <Chip
-                  key={`${expr.key}|${expr.operator}|${expr.values?.join(',') ?? i}`}
-                  size="xs"
-                  emphasis="soft"
-                  color="neutral"
-                  sx={{ ...chipSx, fontFamily: 'var(--ov-font-mono, monospace)', fontSize: 10 }}
-                  label={`${expr.key} ${expr.operator} ${expr.values?.join(', ') || ''}`}
-                />
+                <Chip key={`${expr.key}|${expr.operator}|${expr.values?.join(',') ?? i}`} size="xs" color="neutral" style={monoChipStyle}>{`${expr.key} ${expr.operator} ${expr.values?.join(', ') || ''}`}</Chip>
               ))}
           </Stack>
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

@@ -1,6 +1,4 @@
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Chip, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 
 import ExpandableSections, { type ExpandableSection } from './ExpandableSections';
@@ -33,25 +31,28 @@ interface Props {
   webhooks?: WebhookLike[];
 }
 
-const chipSx = { borderRadius: 1 } as const;
+const chipStyle: React.CSSProperties = { borderRadius: 4 };
+const bodyStyle: React.CSSProperties = { paddingInline: 8, paddingBlock: 4 };
+const chipRowStyle: React.CSSProperties = { gap: 2, paddingBlock: 2 };
+const ruleStyle: React.CSSProperties = {
+  gap: 2,
+  paddingBlock: 2,
+  paddingLeft: 4,
+  borderLeft: '2px solid var(--ov-color-border-default)',
+};
 
 const ChipRow: React.FC<{ label: string; items?: string[] }> = ({ label, items }) => {
   if (!items || items.length === 0) return null;
   return (
-    <Stack direction="column" gap={0.25} sx={{ py: 0.25 }}>
-      <Text size="xs" sx={{ color: 'neutral.400' }}>
+    <Stack direction="column" spacing={0} style={chipRowStyle}>
+      <Text size="xs" tone="muted">
         {label}
       </Text>
-      <Stack direction="row" gap={0.5} flexWrap="wrap">
+      <Stack direction="row" spacing={1} wrap>
         {items.map((item, idx) => (
-          <Chip
-            key={`${item}-${idx}`}
-            size="xs"
-            emphasis="soft"
-            color="neutral"
-            label={item}
-            sx={chipSx}
-          />
+          <Chip key={`${item}-${idx}`} size="xs" variant="soft" color="neutral" style={chipStyle}>
+            {item}
+          </Chip>
         ))}
       </Stack>
     </Stack>
@@ -65,7 +66,7 @@ const WebhookSection: React.FC<Props> = ({ webhooks }) => {
     title: wh.name || `Webhook ${i + 1}`,
     defaultExpanded: i === 0,
     children: (
-      <Stack direction="column" gap={0.5} sx={{ px: 1, py: 0.5 }}>
+      <Stack direction="column" spacing={1} style={bodyStyle}>
         {wh.clientConfig?.service && (
           <LabeledEntry
             label="Service"
@@ -88,10 +89,10 @@ const WebhookSection: React.FC<Props> = ({ webhooks }) => {
           <Stack
             key={ri}
             direction="column"
-            gap={0.25}
-            sx={{ py: 0.25, pl: 0.5, borderLeft: '2px solid', borderColor: 'divider' }}
+            spacing={0}
+            style={ruleStyle}
           >
-            <Text size="xs" weight="semibold" sx={{ color: 'neutral.300' }}>
+            <Text size="xs" weight="semibold" tone="muted">
               Rule {ri + 1}
             </Text>
             <ChipRow label="Operations" items={rule.operations} />

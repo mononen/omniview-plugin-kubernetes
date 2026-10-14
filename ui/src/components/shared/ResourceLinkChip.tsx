@@ -1,19 +1,18 @@
+import { Chip, type ComponentColor } from '@omniviewdev/base-ui';
 import { useRightDrawer } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
-import type { SemanticColor } from '@omniviewdev/ui/types';
 import type { OwnerReference } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuCopy, LuLayers, LuDatabase, LuPlay, LuClock, LuServer, LuUser } from 'react-icons/lu';
 
 type KindConfig = {
-  color: SemanticColor;
+  color: ComponentColor;
   icon: React.ReactElement;
 };
 
 /** Map Kubernetes resource kinds to chip color + icon */
 const kindConfigMap: Record<string, KindConfig> = {
-  ReplicaSet: { color: 'primary', icon: <LuCopy size={10} /> },
-  ReplicationController: { color: 'primary', icon: <LuCopy size={10} /> },
+  ReplicaSet: { color: 'brand', icon: <LuCopy size={10} /> },
+  ReplicationController: { color: 'brand', icon: <LuCopy size={10} /> },
   StatefulSet: { color: 'info', icon: <LuDatabase size={10} /> },
   DaemonSet: { color: 'secondary', icon: <LuLayers size={10} /> },
   Job: { color: 'secondary', icon: <LuPlay size={10} /> },
@@ -36,7 +35,7 @@ export function ownerRefToResourceKey(ref: OwnerReference): string {
   return `${ref.apiVersion?.replace('/', '::')}::${ref.kind}`;
 }
 
-const chipSx = { borderRadius: 1, maxWidth: '100%' } as const;
+const chipStyle: React.CSSProperties = { borderRadius: 4, maxWidth: '100%' };
 
 type Props = {
   /** ID of the plugin this resource belongs to */
@@ -90,13 +89,15 @@ const ResourceLinkChip: React.FC<Props> = ({
   return (
     <Chip
       size="xs"
-      emphasis="outline"
+      variant="outline"
       color={config.color}
-      icon={config.icon}
+      startDecorator={config.icon}
+      clickable
       onClick={handleClick}
-      label={resourceName}
-      sx={chipSx}
-    />
+      style={chipStyle}
+    >
+      {resourceName}
+    </Chip>
   );
 };
 

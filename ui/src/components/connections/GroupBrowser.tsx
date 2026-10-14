@@ -1,15 +1,12 @@
-import Box from '@mui/material/Box';
-import { Card, Chip } from '@omniviewdev/ui';
-import { Button } from '@omniviewdev/ui/buttons';
-import { Select } from '@omniviewdev/ui/inputs';
-import { Stack } from '@omniviewdev/ui/layout';
-import { Text } from '@omniviewdev/ui/typography';
+import { Button, Chip, Stack, Text } from '@omniviewdev/base-ui';
 import React from 'react';
 import { LuArrowLeft } from 'react-icons/lu';
 
 import type { ConnectionAttribute, EnrichedConnection } from '../../types/clusters';
 
 import CompactClusterCard from './CompactClusterCard';
+import styles from './Connections.module.css';
+import SimpleSelect from './SimpleSelect';
 
 type Props = {
   connections: EnrichedConnection[];
@@ -17,39 +14,24 @@ type Props = {
   onConnectionClick: (connectionId: string) => void;
 };
 
-const drillDownHeaderSx = { mb: 1 } as const;
+const headerStyle: React.CSSProperties = { marginBottom: 8 };
 
-const drillDownGridSx = {
+const drillDownGridStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'row',
   flexWrap: 'wrap',
-  gap: 1.5,
-} as const;
+  gap: 12,
+};
 
-const browseHeaderSx = { mb: 1 } as const;
+const browseSelectStyle: React.CSSProperties = { minWidth: 120 };
 
-const browseSelectSx = { minWidth: 120 } as const;
-
-const browseGridSx = {
+const browseGridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-  gap: 1.5,
-} as const;
+  gap: 12,
+};
 
-const groupCardSx = {
-  cursor: 'pointer',
-  p: 1.5,
-  border: '1px solid var(--ov-border-default, rgba(255,255,255,0.08))',
-  bgcolor: 'var(--ov-bg-surface, rgba(255,255,255,0.03))',
-  '&:hover': {
-    borderColor: 'var(--ov-border-emphasis, rgba(255,255,255,0.15))',
-    bgcolor: 'var(--ov-bg-surface-hover, rgba(255,255,255,0.05))',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-  },
-  transition: 'border-color 0.15s, background-color 0.15s, box-shadow 0.15s',
-} as const;
-
-const groupCountSx = { opacity: 0.6 } as const;
+const groupCountStyle: React.CSSProperties = { opacity: 0.6, display: 'block' };
 
 const MIN_COVERAGE = 0.3;
 
@@ -106,13 +88,13 @@ const GroupBrowser: React.FC<Props> = ({ connections, availableAttributes, onCon
   if (drillDown !== null) {
     const groupConns = groups.find(([key]) => key === drillDown)?.[1] ?? [];
     return (
-      <Box>
-        <Stack direction="row" alignItems="center" gap={1} sx={drillDownHeaderSx}>
+      <div>
+        <Stack direction="row" align="center" spacing={2} style={headerStyle}>
           <Button
             size="sm"
-            emphasis="ghost"
+            variant="ghost"
             color="neutral"
-            startAdornment={<LuArrowLeft size={14} />}
+            startDecorator={<LuArrowLeft size={14} />}
             onClick={() => setDrillDown(null)}
           >
             Back
@@ -120,11 +102,11 @@ const GroupBrowser: React.FC<Props> = ({ connections, availableAttributes, onCon
           <Text weight="semibold" size="sm">
             {selectedAttr?.displayName}: {drillDown}
           </Text>
-          <Chip size="sm" emphasis="soft" color="neutral" label={String(groupConns.length)} />
+          <Chip size="sm" variant="soft" color="neutral">
+            {String(groupConns.length)}
+          </Chip>
         </Stack>
-        <Box
-          sx={drillDownGridSx}
-        >
+        <div style={drillDownGridStyle}>
           {groupConns.map((conn) => (
             <CompactClusterCard
               key={conn.connection.id}
@@ -132,50 +114,49 @@ const GroupBrowser: React.FC<Props> = ({ connections, availableAttributes, onCon
               onClick={() => onConnectionClick(conn.connection.id)}
             />
           ))}
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box>
-      <Stack direction="row" alignItems="center" gap={1} sx={browseHeaderSx}>
+    <div>
+      <Stack direction="row" align="center" spacing={2} style={headerStyle}>
         <Text weight="semibold" size="sm">
           Browse by
         </Text>
-        <Select
+        <SimpleSelect
           size="sm"
+          aria-label="Browse by"
           value={browseBy}
           onChange={(val) => {
-            if (val) setBrowseBy(val as string);
+            if (val) setBrowseBy(val);
           }}
-          sx={browseSelectSx}
+          style={browseSelectStyle}
           options={filteredAttributes.map((attr) => ({
             value: attr.key,
             label: attr.displayName,
           }))}
         />
       </Stack>
-      <Box
-        sx={browseGridSx}
-      >
+      <div style={browseGridStyle}>
         {groups.map(([value, conns]) => (
-          <Card
+          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+          <div
             key={value}
-            variant="outlined"
             onClick={() => setDrillDown(value)}
-            sx={groupCardSx}
+            className={`${styles.tile} ${styles.groupTile}`}
           >
-            <Text weight="semibold" size="sm" noWrap>
+            <Text as="div" weight="semibold" size="sm" truncate>
               {value}
             </Text>
-            <Text size="xs" sx={groupCountSx}>
+            <Text size="xs" style={groupCountStyle}>
               {conns.length} cluster{conns.length !== 1 ? 's' : ''}
             </Text>
-          </Card>
+          </div>
         ))}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

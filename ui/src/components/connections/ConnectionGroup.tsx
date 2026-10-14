@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import React from 'react';
 
 import ConnectionGroupHeader from './ConnectionGroupHeader';
@@ -24,7 +23,7 @@ const ConnectionGroup: React.FC<Props> = ({
   hideHeader,
   children,
 }) => (
-  <Box>
+  <div>
     {!hideHeader && (
       <ConnectionGroupHeader
         label={label}
@@ -35,7 +34,7 @@ const ConnectionGroup: React.FC<Props> = ({
       />
     )}
     {!isCollapsed && children}
-  </Box>
+  </div>
 );
 
 export default ConnectionGroup;

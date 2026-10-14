@@ -35,21 +35,21 @@ export interface ContainerSliceProps {
 // ────────────────────────────────────────────────────────────────────────────
 
 export const statusDotColor = (status?: ContainerStatus): string => {
-  if (!status) return 'grey.500';
+  if (!status) return 'var(--ov-color-fg-subtle)';
   const info = getStatus(status);
   switch (info.color) {
     case 'success':
-      return 'success.main';
+      return 'var(--ov-color-success)';
     case 'warning':
-      return 'warning.main';
+      return 'var(--ov-color-warning)';
     case 'info':
-      return 'info.main';
+      return 'var(--ov-color-info)';
     case 'danger':
-      return 'error.main';
-    case 'primary':
-      return 'primary.main';
+      return 'var(--ov-color-danger)';
+    case 'brand':
+      return 'var(--ov-color-brand-500)';
     default:
-      return 'grey.500';
+      return 'var(--ov-color-fg-subtle)';
   }
 };
 
@@ -64,12 +64,12 @@ export const typeLabel = (type: ContainerType): string | undefined => {
   }
 };
 
-export const typeChipColor = (type: ContainerType): 'warning' | 'primary' | undefined => {
+export const typeChipColor = (type: ContainerType): 'warning' | 'brand' | undefined => {
   switch (type) {
     case 'init':
       return 'warning';
     case 'ephemeral':
-      return 'primary';
+      return 'brand';
     default:
       return undefined;
   }
@@ -87,7 +87,7 @@ export const ERROR_WAITING_REASONS = new Set([
 /** Returns a chip color based on the restart/failure state of a container. */
 export function getRestartChipColor(
   status: ContainerStatus,
-): 'danger' | 'warning' | 'success' | 'primary' {
+): 'danger' | 'warning' | 'success' | 'brand' {
   const restarts = status.restartCount ?? 0;
   const waitingReason = status.state?.waiting?.reason;
   const terminated = status.state?.terminated ?? status.lastState?.terminated;
@@ -102,7 +102,7 @@ export function getRestartChipColor(
     return restarts > 10 ? 'danger' : 'warning';
   }
   if (isHealthyExit) return 'success';
-  return 'primary';
+  return 'brand';
 }
 
 /** Returns accentColor and chipColor for the restart info card severity indicator. */
@@ -111,16 +111,16 @@ export function getSeverityColors(
   hasErrorExit: boolean,
   isHealthyExit: boolean,
   restarts: number,
-): { accentColor: string; chipColor: 'danger' | 'warning' | 'success' | 'primary' } {
+): { accentColor: string; chipColor: 'danger' | 'warning' | 'success' | 'brand' } {
   if (isCurrentlyFailing || hasErrorExit) {
     return restarts > 10
-      ? { accentColor: 'error.main', chipColor: 'danger' }
-      : { accentColor: 'warning.main', chipColor: 'warning' };
+      ? { accentColor: 'var(--ov-color-danger)', chipColor: 'danger' }
+      : { accentColor: 'var(--ov-color-warning)', chipColor: 'warning' };
   }
   if (isHealthyExit) {
-    return { accentColor: 'success.main', chipColor: 'success' };
+    return { accentColor: 'var(--ov-color-success)', chipColor: 'success' };
   }
-  return { accentColor: 'info.main', chipColor: 'primary' };
+  return { accentColor: 'var(--ov-color-info)', chipColor: 'brand' };
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -230,10 +230,10 @@ export function getVolumeResourceRef(
   return undefined;
 }
 
-export function volumeTypeColor(type: string): 'primary' | 'warning' | 'success' | 'neutral' {
+export function volumeTypeColor(type: string): 'brand' | 'warning' | 'success' | 'neutral' {
   switch (type) {
     case 'ConfigMap':
-      return 'primary';
+      return 'brand';
     case 'Secret':
       return 'warning';
     case 'PVC':

@@ -1,6 +1,5 @@
+import { Chip, Stack } from '@omniviewdev/base-ui';
 import { DrawerContext } from '@omniviewdev/runtime';
-import { Chip } from '@omniviewdev/ui';
-import { Stack } from '@omniviewdev/ui/layout';
 import type { Namespace } from 'kubernetes-types/core/v1';
 import type { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
@@ -9,6 +8,8 @@ import ConditionChip from '../../../../../shared/ConditionChip';
 import LabeledEntry from '../../../../../shared/LabeledEntry';
 import ObjectMetaSection from '../../../../../shared/ObjectMetaSection';
 import SidebarSection from '../../../../../shared/SidebarSection';
+
+const fullWidthStyle = { width: '100%' } as const;
 
 interface Props {
   ctx: DrawerContext<Namespace>;
@@ -34,25 +35,20 @@ export const NamespaceSidebar: React.FC<Props> = ({ ctx }) => {
   const finalizers = ns.spec?.finalizers;
 
   return (
-    <Stack direction="column" width="100%" spacing={2}>
-      <Stack direction="column" spacing={0.5}>
+    <Stack direction="column" spacing={4} style={fullWidthStyle}>
+      <Stack direction="column" spacing={1}>
         <ObjectMetaSection data={ns.metadata} />
 
         <SidebarSection
           title="Status"
           headerLeft={
             phase && (
-              <Chip
-                size="xs"
-                emphasis="soft"
-                color={phaseColor(phase)}
-                label={phase}
-              />
+              <Chip size="xs" color={phaseColor(phase)}>{phase}</Chip>
             )
           }
           headerRight={
             conditions.length > 0 ? (
-              <Stack direction="row" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
+              <Stack direction="row" spacing={1} wrap justify="end">
                 {conditions.map((c) => (
                   <ConditionChip key={c.type} condition={c} />
                 ))}
