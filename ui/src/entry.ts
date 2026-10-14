@@ -114,8 +114,10 @@ import KubernetesHomepageCard from './components/homepage/KubernetesHomepageCard
 import ClusterEditPage from './pages/ClusterEditPage';
 import ClusterResourcesPage from './pages/ClusterResourcesPage';
 import ClustersPage from './pages/ClustersPage';
+import ClusterExtensionPage, { CLUSTER_PAGE_EXTENSION_POINT_ID } from './pages/extension';
 import ClusterDashboardPage from './pages/dashboard';
 import ClusterDashboardBenchmarksPage from './pages/dashboard/benchmarks';
+import ClusterDashboardExtensionPage from './pages/dashboard/extension';
 import ClusterDashboardMetricsPage from './pages/dashboard/metrics';
 import ClusterDashboardOverviewPage from './pages/dashboard/overview';
 
@@ -288,8 +290,12 @@ const routes: Array<RouteObject> = [
               { path: '', index: true, Component: ClusterDashboardOverviewPage },
               { path: 'metrics', Component: ClusterDashboardMetricsPage },
               { path: 'benchmarks', Component: ClusterDashboardBenchmarksPage },
+              { path: 'ext/:tabPath', Component: ClusterDashboardExtensionPage },
             ],
           },
+          // Pages contributed by other plugins
+          { path: 'page/:pagePath', Component: ClusterExtensionPage },
+          { path: 'page/:pagePath/:subPath', Component: ClusterExtensionPage },
           // admissionregistration.v1
           {
             path: 'admissionregistration_v1_MutatingWebhookConfiguration',
@@ -419,4 +425,7 @@ export const extensionRegistrations: ExtensionRegistration[] = [
   },
 ];
 
-export const plugin = new PluginWindow().setRootPage(ClustersPage).withRoutes(routes);
+export const plugin = new PluginWindow()
+  .registerExtensionPoints([{ id: CLUSTER_PAGE_EXTENSION_POINT_ID, mode: 'multiple' }])
+  .setRootPage(ClustersPage)
+  .withRoutes(routes);

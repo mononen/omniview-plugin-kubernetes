@@ -128,7 +128,7 @@ const ClusterDashboardOverviewPage: React.FC = () => {
   });
 
   // --- Extension point for dashboard widgets ---
-  const widgetEP = useExtensionPoint<{ pluginID: string; connectionID: string }>(
+  const widgetEP = useExtensionPoint<React.FC<{ pluginID: string; connectionID: string }>>(
     'omniview/dashboard/widget',
   );
   const widgets = widgetEP?.list() ?? [];
@@ -214,10 +214,7 @@ const ClusterDashboardOverviewPage: React.FC = () => {
         {widgets.length > 0 && (
           <Grid container spacing={1.5}>
             {widgets.map((w) => {
-              const Component = w.component as unknown as React.FC<{
-                pluginID: string;
-                connectionID: string;
-              }>;
+              const Component = w.value;
               return (
                 <Grid key={w.id} size={{ xs: 12, sm: 6, md: 4 }}>
                   <Component pluginID="kubernetes" connectionID={id} />

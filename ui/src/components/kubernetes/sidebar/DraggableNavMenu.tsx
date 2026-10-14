@@ -39,6 +39,13 @@ const CHEVRON_SIZE = 12;
 const CHEVRON_SLOT = 14;
 const INDENT = 10;
 
+/**
+ * A parent whose own id is a destination (e.g. a plugin-contributed page with
+ * sub-pages). Other parents are pure group headers that only expand.
+ */
+const isSelectableParent = (item: NavMenuItemType): boolean =>
+  (item as NavMenuItemType & { selectable?: boolean }).selectable === true;
+
 function getExplicitExpanded(sections: NavSection[]): Record<string, boolean> {
   const state: Record<string, boolean> = {};
   function walk(items: NavMenuItemType[]) {
@@ -122,7 +129,11 @@ function SortableItem({
       <Box
         onClick={() => {
           if (item.disabled) return;
-          if (hasChildren) {
+          if (hasChildren && isSelectableParent(item)) {
+            // Navigate to the parent's own page; only collapse on a second click.
+            if (!isExpanded || isSelected) onToggleExpanded(item.id);
+            onSelect?.(item.id);
+          } else if (hasChildren) {
             onToggleExpanded(item.id);
           } else {
             onSelect?.(item.id);
