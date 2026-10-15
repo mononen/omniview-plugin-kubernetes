@@ -100,9 +100,9 @@ const getStateBadge = (
 ): React.ReactNode | undefined => {
   if (!states) return undefined;
   const state = states[toResourceKey(navId)];
-  if (state === WatchState.SYNCING || state === WatchState.IDLE)
+  if (state === WatchState.WatchStateSyncing || state === WatchState.WatchStateIdle)
     return SYNCING_BADGE;
-  if (state === WatchState.ERROR || state === WatchState.FAILED || state === WatchState.FORBIDDEN) return ERROR_BADGE;
+  if (state === WatchState.WatchStateError || state === WatchState.WatchStateFailed || state === WatchState.WatchStateForbidden) return ERROR_BADGE;
   return undefined;
 };
 
@@ -116,9 +116,9 @@ const getGroupBadge = (
   let hasError = false;
   for (const child of children) {
     const state = states[toResourceKey(child.id)];
-    if (state === WatchState.SYNCING || state === WatchState.IDLE)
+    if (state === WatchState.WatchStateSyncing || state === WatchState.WatchStateIdle)
       hasSyncing = true;
-    if (state === WatchState.ERROR || state === WatchState.FAILED || state === WatchState.FORBIDDEN) hasError = true;
+    if (state === WatchState.WatchStateError || state === WatchState.WatchStateFailed || state === WatchState.WatchStateForbidden) hasError = true;
   }
   if (hasError) return ERROR_BADGE;
   if (hasSyncing) return SYNCING_BADGE;
@@ -129,7 +129,7 @@ const getGroupBadge = (
  * Calculates the full sidebar layout divided by the API groups
  */
 const calculateFullLayout = (
-  data: Record<string, resource.ResourceGroup>,
+  data: Record<string, resource.ResourceGroup | undefined>,
   watchStates?: Record<string, WatchState>,
 ): Array<NavSection> => {
   if (!data) {
@@ -140,11 +140,12 @@ const calculateFullLayout = (
   const crdSection: NavMenuItem[] = [];
 
   const grouped: NavMenuItem[] = Object.values(data)
+    .filter((group): group is resource.ResourceGroup => group !== undefined)
     .map((group) => {
       const children: NavMenuItem[] = [];
 
       Object.entries(group.resources).forEach(([_, metas]) => {
-        metas.forEach((meta) => {
+        (metas ?? []).forEach((meta) => {
           children.push({
             id: toID(meta),
             label: meta.kind,
@@ -263,7 +264,7 @@ const ModernSectionMap: Record<string, ModernSection> = {
  * resources that are available.
  */
 const calculateModernLayout = (
-  data: Record<string, resource.ResourceGroup>,
+  data: Record<string, resource.ResourceGroup | undefined>,
   watchStates?: Record<string, WatchState>,
 ): Array<NavSection> => {
   if (!data) {
@@ -288,8 +289,9 @@ const calculateModernLayout = (
   const crds: Record<string, Array<NavMenuItem>> = {};
 
   Object.values(data).forEach((group) => {
+    if (!group) return;
     Object.entries(group.resources).forEach(([_, metas]) => {
-      metas.forEach((meta) => {
+      (metas ?? []).forEach((meta) => {
         const navItem = withBadge(toID(meta), meta.kind);
         // if CRD, push to CRD
         if (isCrd(meta.group)) {

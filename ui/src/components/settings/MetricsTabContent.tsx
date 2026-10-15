@@ -1,7 +1,6 @@
 import { Button, Card, Chip, FormField, Grid, IconButton, Input, Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import { useMetricProvidersForResource } from '@omniviewdev/runtime';
 import { MetricClient } from '@omniviewdev/runtime/api';
-import type { metric } from '@omniviewdev/runtime/models';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useRef, useCallback, useId } from 'react';
 import { LuActivity, LuCheck, LuCircle, LuInfo, LuPlugZap, LuRefreshCw, LuX } from 'react-icons/lu';
@@ -221,8 +220,8 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
         resourceData as Record<string, string | number | Record<string, string | number>>,
         ['prom_cluster_node_count'],
         0, // ShapeCurrent
-        new Date(0),
-        new Date(0),
+        new Date(0).toISOString(),
+        new Date(0).toISOString(),
         0, // step
       );
 
@@ -232,7 +231,7 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
       const hasResults =
         results &&
         Object.values(results).some(
-          (resp: metric.QueryResponse) => resp?.success && resp?.results && resp.results.length > 0,
+          (resp) => resp?.success && resp?.results && resp.results.length > 0,
         );
 
       if (hasResults) {

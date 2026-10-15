@@ -95,28 +95,28 @@ type ResourceItem = { key: string; kind: string; state: WatchState; count: numbe
 
 /** Whether a state is terminal (done — won't change further) */
 const isTerminal = (s: WatchState) =>
-  s === WatchState.SYNCED ||
-  s === WatchState.ERROR ||
-  s === WatchState.STOPPED ||
-  s === WatchState.FAILED ||
-  s === WatchState.FORBIDDEN ||
-  s === WatchState.SKIPPED;
+  s === WatchState.WatchStateSynced ||
+  s === WatchState.WatchStateError ||
+  s === WatchState.WatchStateStopped ||
+  s === WatchState.WatchStateFailed ||
+  s === WatchState.WatchStateForbidden ||
+  s === WatchState.WatchStateSkipped;
 
 function StateIcon({ state }: { state: WatchState }) {
   switch (state) {
-    case WatchState.IDLE:
+    case WatchState.WatchStateIdle:
       return <Spinner size="xs" color="neutral" style={spinnerStyle} />;
-    case WatchState.SYNCING:
+    case WatchState.WatchStateSyncing:
       return <Spinner size="xs" color="brand" style={spinnerStyle} />;
-    case WatchState.SYNCED:
+    case WatchState.WatchStateSynced:
       return <LuCircleCheck size={14} color="var(--ov-color-success)" />;
-    case WatchState.ERROR:
-    case WatchState.FAILED:
+    case WatchState.WatchStateError:
+    case WatchState.WatchStateFailed:
       return <LuCircleAlert size={14} color="var(--ov-color-danger)" />;
-    case WatchState.FORBIDDEN:
+    case WatchState.WatchStateForbidden:
       return <LuShieldAlert size={14} color="var(--ov-color-warning)" />;
-    case WatchState.STOPPED:
-    case WatchState.SKIPPED:
+    case WatchState.WatchStateStopped:
+    case WatchState.WatchStateSkipped:
       return <LuCircleSlash size={14} color="var(--ov-color-fg-subtle)" />;
     default:
       return <LuCircleSlash size={14} color="var(--ov-color-fg-subtle)" />;
@@ -125,13 +125,13 @@ function StateIcon({ state }: { state: WatchState }) {
 
 /** Per-group progress summary */
 const GroupProgress = React.memo(function GroupProgress({ items }: { items: ResourceItem[] }) {
-  const watched = items.filter((i) => i.state !== WatchState.SKIPPED);
+  const watched = items.filter((i) => i.state !== WatchState.WatchStateSkipped);
   const skipped = items.length - watched.length;
   const total = watched.length;
   const done = watched.filter((i) => isTerminal(i.state)).length;
   const allDone = total > 0 && done === total;
   const allSkipped = total === 0 && skipped > 0;
-  const hasError = watched.some((i) => i.state === WatchState.ERROR || i.state === WatchState.FAILED);
+  const hasError = watched.some((i) => i.state === WatchState.WatchStateError || i.state === WatchState.WatchStateFailed);
   const percent = total > 0 ? Math.round((done / total) * 100) : allSkipped ? 100 : 0;
 
   return (
@@ -175,7 +175,7 @@ function SyncProgressDialogInner({
     let done = 0;
     let skipped = 0;
     for (const state of Object.values(resources)) {
-      if (state === WatchState.SKIPPED) {
+      if (state === WatchState.WatchStateSkipped) {
         skipped++;
         continue;
       }
@@ -276,7 +276,7 @@ function SyncProgressDialogInner({
               <div
                 key={key}
                 className={
-                  state === WatchState.STOPPED || state === WatchState.SKIPPED || state === WatchState.IDLE
+                  state === WatchState.WatchStateStopped || state === WatchState.WatchStateSkipped || state === WatchState.WatchStateIdle
                     ? `${styles.Row} ${styles.RowFaded}`
                     : styles.Row
                 }
@@ -285,22 +285,22 @@ function SyncProgressDialogInner({
                 <Text size="xs" style={kindTextStyle}>
                   {kind}
                 </Text>
-                {state === WatchState.FORBIDDEN && (
+                {state === WatchState.WatchStateForbidden && (
                   <Text size="xs" tone="warning" style={italicStyle}>
                     No access
                   </Text>
                 )}
-                {(state === WatchState.STOPPED || state === WatchState.SKIPPED) && (
+                {(state === WatchState.WatchStateStopped || state === WatchState.WatchStateSkipped) && (
                   <Text size="xs" tone="subtle" style={italicStyle}>
                     Skipped
                   </Text>
                 )}
-                {state === WatchState.SYNCED && count > 0 && (
+                {state === WatchState.WatchStateSynced && count > 0 && (
                   <Text size="xs" tone="subtle" style={countTextStyle}>
                     {count}
                   </Text>
                 )}
-                {(state === WatchState.ERROR || state === WatchState.FAILED) && (
+                {(state === WatchState.WatchStateError || state === WatchState.WatchStateFailed) && (
                   <Button
                     variant="soft"
                     size="xs"
