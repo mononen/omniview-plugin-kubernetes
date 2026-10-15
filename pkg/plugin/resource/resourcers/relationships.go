@@ -284,12 +284,26 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 		},
 
 		// ── networking::v1::NetworkPolicy ──────────────────────────
+		// labelSelectorObject reads the whole LabelSelector, so matchExpressions
+		// apply and an empty podSelector selects every Pod in the namespace.
+		// Hosts that predate the method skip it (no edges) rather than over-select.
 		"networking::v1::NetworkPolicy": {
 			{
 				Type: resource.RelSelects, TargetResourceKey: "core::v1::Pod",
 				Label: "selects",
 				Extractor: &resource.RelationshipExtractor{
-					Method: "labelSelector", FieldPath: "spec.podSelector.matchLabels",
+					Method: "labelSelectorObject", FieldPath: "spec.podSelector",
+				},
+			},
+		},
+
+		// ── policy::v1::PodDisruptionBudget ────────────────────────
+		"policy::v1::PodDisruptionBudget": {
+			{
+				Type: resource.RelSelects, TargetResourceKey: "core::v1::Pod",
+				Label: "selects",
+				Extractor: &resource.RelationshipExtractor{
+					Method: "labelSelectorObject", FieldPath: "spec.selector",
 				},
 			},
 		},

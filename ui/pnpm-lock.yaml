@@ -30,8 +30,8 @@ importers:
         specifier: ^1.0.1
         version: 1.0.1(@omniviewdev/base-ui@0.2.2(@types/react@19.2.14)(date-fns@4.1.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@omniviewdev/runtime':
-        specifier: ^0.4.0
-        version: 0.4.0(@omniviewdev/base-ui@0.2.2(@types/react@19.2.14)(date-fns@4.1.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
+        specifier: ^0.4.1
+        version: 0.4.1(@omniviewdev/base-ui@0.2.2(@types/react@19.2.14)(date-fns@4.1.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
       '@tanstack/react-query':
         specifier: ^5.76.1
         version: 5.90.21(react@19.2.4)
@@ -857,8 +857,8 @@ packages:
       react: ^19.0.0
       react-dom: ^19.0.0
 
-  '@omniviewdev/runtime@0.4.0':
-    resolution: {integrity: sha512-iOv6HN5YFoXXyiWAvpyCJ+uKZ0UsirOR6jXEiXDTQjZ1WB1rPIJXehfPatnI/O6z9Cp4aGXZMhcVEvhlrGxvRw==}
+  '@omniviewdev/runtime@0.4.1':
+    resolution: {integrity: sha512-kic445IuzsQ1gecDt2sRZn+PrWXfgjA5Lobh1bChqbgsb47XzJW3f+LYWzvjhvDEHM2T5G1dtpwuzwC84gwxZw==}
     peerDependencies:
       '@omniviewdev/base-ui': ^0.2.1
 
@@ -4199,7 +4199,7 @@ snapshots:
       - '@types/react'
       - supports-color
 
-  '@omniviewdev/runtime@0.4.0(@omniviewdev/base-ui@0.2.2(@types/react@19.2.14)(date-fns@4.1.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))':
+  '@omniviewdev/runtime@0.4.1(@omniviewdev/base-ui@0.2.2(@types/react@19.2.14)(date-fns@4.1.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))':
     dependencies:
       '@omniviewdev/base-ui': 0.2.2(@types/react@19.2.14)(date-fns@4.1.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@wailsio/runtime': 3.0.0-beta.29

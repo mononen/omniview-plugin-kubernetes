@@ -23,6 +23,7 @@ func TestRelationshipTable_AllKeysPresent(t *testing.T) {
 		"autoscaling::v2::HorizontalPodAutoscaler",
 		"core::v1::Service",
 		"networking::v1::NetworkPolicy",
+		"policy::v1::PodDisruptionBudget",
 		"rbac::v1::ClusterRoleBinding",
 		"rbac::v1::RoleBinding",
 	}
@@ -94,9 +95,35 @@ func TestRelationshipTable_ExtractorsHaveValidMethod(t *testing.T) {
 			if r.Extractor == nil {
 				continue
 			}
-			if r.Extractor.Method != "fieldPath" && r.Extractor.Method != "labelSelector" {
+			switch r.Extractor.Method {
+			case "fieldPath", "labelSelector", "labelSelectorObject":
+			default:
 				t.Errorf("%s relationship[%d] has unknown method %q", key, i, r.Extractor.Method)
 			}
+		}
+	}
+}
+
+// TestRelationshipTable_PodSelectorsUseFullLabelSelector checks that
+// resources whose selector is a metav1.LabelSelector hand the host the whole
+// object (matchLabels and matchExpressions), not just matchLabels.
+func TestRelationshipTable_PodSelectorsUseFullLabelSelector(t *testing.T) {
+	table := RelationshipTable()
+
+	for key, path := range map[string]string{
+		"networking::v1::NetworkPolicy":   "spec.podSelector",
+		"policy::v1::PodDisruptionBudget": "spec.selector",
+	} {
+		rels := table[key]
+		if len(rels) != 1 || rels[0].Extractor == nil {
+			t.Fatalf("%s: want one selector relationship, got %+v", key, rels)
+		}
+		r := rels[0]
+		if r.Type != resource.RelSelects || r.TargetResourceKey != "core::v1::Pod" {
+			t.Errorf("%s: want selects -> core::v1::Pod, got %s -> %s", key, r.Type, r.TargetResourceKey)
+		}
+		if r.Extractor.Method != "labelSelectorObject" || r.Extractor.FieldPath != path {
+			t.Errorf("%s: want labelSelectorObject at %s, got %s at %s", key, path, r.Extractor.Method, r.Extractor.FieldPath)
 		}
 	}
 }
