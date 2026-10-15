@@ -24,7 +24,7 @@
     "@monaco-editor/react": "^4.6.0",
     "@omniviewdev/base-ui": "^0.2.2",
     "@omniviewdev/editors": "^1.0.1",
-    "@omniviewdev/runtime": "^0.4.0",
+    "@omniviewdev/runtime": "^0.4.1",
     "@tanstack/react-query": "^5.76.1",
     "@tanstack/react-table": "^8.21.3",
     "date-fns": "^4.1.0",
