@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://omniview.dev"><img src="https://img.shields.io/badge/omniview-plugin-326CE5?style=flat-square&logo=kubernetes&logoColor=white" alt="Omniview Plugin" /></a>
-  <img src="https://img.shields.io/badge/version-0.1.1-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-0.3.0-blue?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/license-Apache--2.0-green?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/category-cloud-326CE5?style=flat-square" alt="Category" />
 </p>
@@ -235,19 +235,79 @@ Resource-toolbar Create, search, filter and settings controls should consistentl
 
 ### Prerequisites
 
-- Go 1.21+
-- Node.js 20+
-- pnpm
+- Go 1.25+
+- Node.js 22+
+- pnpm 12.14.0 (pinned by `ui/package.json`)
+
+Registry installs retain pnpm's 24-hour release-age protection. Only coordinated
+`@omniviewdev/*` packages are exempted; linked source worktrees resolve locally.
+The current UI cohort is `@omniviewdev/base-ui` 0.5.0 and
+`@omniviewdev/editors` 4.0.0, paired with host runtime/Vite packages 0.5.0.
 
 ### Building
 
 ```sh
-# Build the Go backend
+# Build the backend and UI (Make forces GOWORK=off)
 make build
 
 # Build the UI
 cd ui && pnpm install && pnpm build
 ```
+
+`make package` always builds into `ui/dist` before archiving its assets, even
+when the environment contains a workspace-owned Vite output directory. Direct
+workspace UI builds continue to honor `OMNIVIEW_BUILD_OUTPUT_DIRECTORY`.
+
+### Tests
+
+```sh
+GOWORK=off GOFLAGS= go test ./... -count=1
+node --test hack/cluster-config.test.mjs
+cd ui && pnpm test
+```
+
+UI persistence tests use the test document's real JSDOM storage, including on
+Node versions that also expose process-global Web Storage.
+
+
+### Isolated workspace development
+
+Select this plugin in an Omniview feature workspace and start its host with the
+host-owned `omniview-dev workspace up` command. The workspace owns package/SDK
+links, plugin generations, Vite ports and rebuilds. Use `workspace paths` for the
+resolved state root; never infer it from a custom directory or copy production
+plugin executables into it.
+
+`make install` delegates the actual source transaction to the live host:
+
+```sh
+OMNIVIEW_WORKSPACE_FILE="$FEATURE/workspace.json" \
+OMNIVIEW_STATE_DIR="$RESOLVED_STATE_ROOT" \
+OMNIVIEW_DEV_CLI="$ABSOLUTE_OMNIVIEW_DEV_CLI" make install
+```
+
+All three values are required. No production fallback, direct state-tree copy,
+independent build/install runner or `installui` shortcut remains. The canonical
+host validates the selected source, builds with its verified SDK and returns the
+operation result. UI edits use the managed Vite feedback loop.
+
+Optional local tools need their own explicit assignments when used concurrently:
+
+```sh
+make storybook STORYBOOK_PORT=26061
+make cluster CLUSTER_NAME=my-feature CLUSTER_HTTP_PORT=28080 \
+  CLUSTER_HTTPS_PORT=28443 CLUSTER_KUBECONFIG="$FEATURE/.local/kubeconfig"
+```
+
+The kind ports bind loopback; the explicit kubeconfig avoids changing the human
+current context. Existing clusters are checked against the requested ingress
+ports before reuse; changing those ports requires deliberate deletion/recreation
+or a different cluster name. `KIND_EXPERIMENTAL_PROVIDER` defaults to `docker`;
+set it to `podman` or `nerdctl` to use the same provider for kind and port inspection.
+Generated configurations are published atomically. Cluster creation/seeding is a
+separate deliberate operation, not a workspace-start prerequisite or permission
+to use a production cluster.
+
 
 ### Project Structure
 
@@ -272,6 +332,25 @@ cd ui && pnpm install && pnpm build
 ├── plugin.yaml             # Plugin manifest
 └── plugin.json             # Plugin metadata & component registry
 ```
+
+### Releasing
+
+Commit matching versions in `plugin.yaml`, `plugin.json`, `.package/plugin.yaml`
+and `ui/package.json` before creating a `vX.Y.Z` tag (or dispatching the release
+workflow with `X.Y.Z`).
+The release workflow checks those committed values; it never pushes version
+changes back to `main`. The Go module and UI lockfile must resolve published
+dependencies without a sibling checkout or workspace replacements. Local
+`go.work` files are not release inputs: development SDK selection belongs to the
+host's isolated workspace, and direct Go commands must use `GOWORK=off GOFLAGS=`.
+
+The reusable marketplace workflow uses Go 1.25, Node.js 22 and native pnpm
+12.14.0, then builds five platform archives. `OMNIVIEW_API_KEY` must authorize
+publisher `omniview` on `https://api.omniview.dev`.
+The publisher action submits the version for review; a successful workflow does
+not establish marketplace approval. Confirm approval and installability in the
+target registry before announcing availability. GitHub release notes are only
+created after the build/submission job succeeds.
 
 ## License
 
