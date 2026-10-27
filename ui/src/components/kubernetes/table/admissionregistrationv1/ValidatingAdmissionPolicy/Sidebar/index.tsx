@@ -85,7 +85,7 @@ export const ValidatingAdmissionPolicySidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={vap.metadata} />
+        <ObjectMetaSection data={vap.metadata} connectionID={ctx.resource?.connectionID} />
 
         <SidebarSection
           title="Configuration"

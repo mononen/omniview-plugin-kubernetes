@@ -23,7 +23,7 @@ export const EndpointsSidebar: React.FC<Props> = ({ ctx }) => {
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
-      <ObjectMetaSection data={endpoints.metadata} />
+      <ObjectMetaSection data={endpoints.metadata} connectionID={ctx.resource?.connectionID} />
       <EndpointSubsetsSection subsets={endpoints.subsets} connectionID={connectionID} />
     </Stack>
   );

@@ -23,7 +23,7 @@ export const ClusterRoleSidebar: React.FC<Props> = ({ ctx }) => {
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
-      <ObjectMetaSection data={cr.metadata} />
+      <ObjectMetaSection data={cr.metadata} connectionID={ctx.resource?.connectionID} />
 
       <RBACRulesSection rules={rules} />
 

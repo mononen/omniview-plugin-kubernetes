@@ -27,7 +27,7 @@ export const ConfigMapSidebar: React.FC<Props> = ({ ctx }) => {
   // compose your component here
   return (
     <Stack direction="column" spacing={4} style={{ width: '100%' }}>
-      <ObjectMetaSection data={configMap.metadata} />
+      <ObjectMetaSection data={configMap.metadata} connectionID={ctx.resource?.connectionID} />
 
       <div>
         <Chip style={configsChipStyle} size="md" variant="soft" startDecorator={<LuCode />}>

@@ -27,7 +27,7 @@ export const LimitRangeSidebar: React.FC<Props> = ({ ctx }) => {
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
-      <ObjectMetaSection data={lr.metadata} />
+      <ObjectMetaSection data={lr.metadata} connectionID={ctx.resource?.connectionID} />
       <LimitRangeItemSection limits={limits} />
     </Stack>
   );

@@ -42,7 +42,7 @@ export const ServiceSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={svc.metadata} />
+        <ObjectMetaSection data={svc.metadata} connectionID={ctx.resource?.connectionID} />
         <ServiceStatusSection service={svc} connectionID={connectionID} />
 
         {hasConfig && (

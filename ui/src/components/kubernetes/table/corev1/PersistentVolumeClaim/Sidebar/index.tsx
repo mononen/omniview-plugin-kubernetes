@@ -50,7 +50,7 @@ export const PersistentVolumeClaimSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={pvc.metadata} />
+        <ObjectMetaSection data={pvc.metadata} connectionID={ctx.resource?.connectionID} />
 
         <SidebarSection
           title="Status"

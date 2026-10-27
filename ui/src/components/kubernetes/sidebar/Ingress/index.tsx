@@ -31,7 +31,7 @@ export const IngressSidebar: React.FC<Props> = ({ ctx }) => {
   // compose your component here
   return (
     <Stack direction="column" spacing={2} style={{ width: '100%' }}>
-      <ObjectMetaSection data={obj.metadata} />
+      <ObjectMetaSection data={obj.metadata} connectionID={ctx.resource?.connectionID} />
       <div>
         <Grid columns={12} spacing={1}>
           {!!obj.status?.loadBalancer?.ingress?.length && (
