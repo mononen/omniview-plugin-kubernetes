@@ -11,6 +11,7 @@ type KindConfig = {
 
 /** Map Kubernetes resource kinds to chip color + icon */
 const kindConfigMap: Record<string, KindConfig> = {
+  Deployment: { color: 'brand', icon: <LuLayers size={10} /> },
   ReplicaSet: { color: 'brand', icon: <LuCopy size={10} /> },
   ReplicationController: { color: 'brand', icon: <LuCopy size={10} /> },
   StatefulSet: { color: 'info', icon: <LuDatabase size={10} /> },

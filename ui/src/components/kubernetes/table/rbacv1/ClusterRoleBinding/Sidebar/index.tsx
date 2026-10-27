@@ -25,7 +25,7 @@ export const ClusterRoleBindingSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={crb.metadata} />
+        <ObjectMetaSection data={crb.metadata} connectionID={ctx.resource?.connectionID} />
 
         {roleRef && (
           <SidebarSection title="Role Reference">

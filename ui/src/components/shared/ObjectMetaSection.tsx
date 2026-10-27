@@ -1,9 +1,10 @@
-import { Card, Separator, Stack, Text } from '@omniviewdev/base-ui';
+import { Card, Chip, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import { formatRelative } from 'date-fns';
 import { ObjectMeta } from 'kubernetes-types/meta/v1';
 import React from 'react';
 
 import ExpandableSections from './ExpandableSections';
+import ResourceLinkChip, { ownerRefToResourceKey } from './ResourceLinkChip';
 
 const entryGridStyle: React.CSSProperties = {
   display: 'grid',
@@ -34,12 +35,18 @@ const metadataBodyStyle: React.CSSProperties = {
   borderBottomLeftRadius: 6,
 };
 
+const ownerChipsStyle: React.CSSProperties = { flexWrap: 'wrap', minWidth: 0 };
+
+const ownerChipStyle: React.CSSProperties = { borderRadius: 4 };
+
 const annotationKeyTextStyle: React.CSSProperties = { fontSize: 13, fontWeight: 400 };
 
 const annotationValueTextStyle: React.CSSProperties = { fontSize: 13, fontWeight: 600 };
 
 interface Props {
   data?: ObjectMeta;
+  /** When provided, owner reference chips become clickable and open the owner's sidebar */
+  connectionID?: string;
 }
 
 const ObjectMetaEntry: React.FC<{
@@ -71,7 +78,41 @@ const KVGrid: React.FC<{ kvs?: Record<string, string> }> = ({ kvs }) => (
   </div>
 );
 
-const ObjectMetaSection: React.FC<Props> = ({ data }) => {
+const OwnersEntry: React.FC<{ data: ObjectMeta; connectionID?: string }> = ({
+  data,
+  connectionID,
+}) => {
+  const owners = data.ownerReferences ?? [];
+  if (owners.length === 0) return null;
+
+  return (
+    <div style={entryGridStyle}>
+      <Text tone="muted" size="sm">
+        {owners.length > 1 ? 'Owners' : 'Owner'}
+      </Text>
+      <Stack direction="row" spacing={1} style={ownerChipsStyle}>
+        {owners.map((ref) =>
+          connectionID ? (
+            <ResourceLinkChip
+              key={ref.uid}
+              connectionID={connectionID}
+              resourceKey={ownerRefToResourceKey(ref)}
+              resourceID={ref.name}
+              resourceName={ref.kind}
+              namespace={data.namespace}
+            />
+          ) : (
+            <Chip key={ref.uid} size="xs" variant="outline" color="neutral" style={ownerChipStyle}>
+              {ref.kind}
+            </Chip>
+          ),
+        )}
+      </Stack>
+    </div>
+  );
+};
+
+const ObjectMetaSection: React.FC<Props> = ({ data, connectionID }) => {
   if (!data) {
     return null;
   }
@@ -110,6 +151,7 @@ const ObjectMetaSection: React.FC<Props> = ({ data }) => {
             }
           />
           <ObjectMetaEntry title="Version" value={data.resourceVersion} />
+          <OwnersEntry data={data} connectionID={connectionID} />
         </div>
       </Card>
       <ExpandableSections sections={kvSections} size="md" />

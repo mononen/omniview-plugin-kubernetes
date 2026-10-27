@@ -19,7 +19,7 @@ export const ValidatingWebhookConfigurationSidebar: React.FC<Props> = ({ ctx }) 
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
-      <ObjectMetaSection data={vwc.metadata} />
+      <ObjectMetaSection data={vwc.metadata} connectionID={ctx.resource?.connectionID} />
       <WebhookSection webhooks={vwc.webhooks} />
     </Stack>
   );

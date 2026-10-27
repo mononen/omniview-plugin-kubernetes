@@ -19,7 +19,7 @@ export const MutatingWebhookConfigurationSidebar: React.FC<Props> = ({ ctx }) =>
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
-      <ObjectMetaSection data={mwc.metadata} />
+      <ObjectMetaSection data={mwc.metadata} connectionID={ctx.resource?.connectionID} />
       <WebhookSection webhooks={mwc.webhooks} />
     </Stack>
   );

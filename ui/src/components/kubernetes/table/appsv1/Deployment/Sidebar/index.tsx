@@ -32,7 +32,7 @@ export const DeploymentSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={dep.metadata} />
+        <ObjectMetaSection data={dep.metadata} connectionID={ctx.resource?.connectionID} />
 
         <WorkloadStatusSection
           title="Status"

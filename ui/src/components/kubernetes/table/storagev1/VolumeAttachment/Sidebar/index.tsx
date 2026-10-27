@@ -27,7 +27,7 @@ export const VolumeAttachmentSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={va.metadata} />
+        <ObjectMetaSection data={va.metadata} connectionID={ctx.resource?.connectionID} />
 
         <SidebarSection
           title="Status"

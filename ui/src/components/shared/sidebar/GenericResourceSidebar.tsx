@@ -92,7 +92,7 @@ const GenericResourceSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={metadata} />
+        <ObjectMetaSection data={metadata} connectionID={ctx.resource?.connectionID} />
 
         {keyFields.length > 0 && (
           <SidebarSection title="Key Fields">

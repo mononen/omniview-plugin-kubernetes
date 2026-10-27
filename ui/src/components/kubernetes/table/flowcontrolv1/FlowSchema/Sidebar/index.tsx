@@ -80,7 +80,7 @@ export const FlowSchemaSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={fs.metadata} />
+        <ObjectMetaSection data={fs.metadata} connectionID={ctx.resource?.connectionID} />
 
         <SidebarSection
           title="Configuration"
