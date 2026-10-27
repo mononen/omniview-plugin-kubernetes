@@ -1,6 +1,10 @@
 packages: []
-allowBuilds:
-  esbuild: set this to true or false
-  unrs-resolver: set this to true or false
+linkWorkspacePackages: false
+strictPeerDependencies: true
+pmOnFail: error
+minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
-  - '@omniviewdev/base-ui@0.2.2'
+  - '@omniviewdev/*'
+allowBuilds:
+  esbuild: true
+  unrs-resolver: false
