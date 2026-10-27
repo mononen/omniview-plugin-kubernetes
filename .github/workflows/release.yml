@@ -84,6 +84,16 @@ jobs:
           name: plugin-archives
           path: dist
 
+      # Plugin ID `kubernetes` belongs to the official `omniview` publisher, and
+      # the marketplace does not check ownership on submit, so publishing it
+      # from here would add versions to the official plugin. Blocked until this
+      # fork publishes under its own plugin ID (ticket omn-4e2f).
+      - name: Refuse to publish the official plugin ID
+        if: ${{ !inputs.dry-run }}
+        run: |
+          echo "::error::Plugin ID 'kubernetes' belongs to the omniview publisher; this fork needs its own plugin ID before it can publish (ticket omn-4e2f)"
+          exit 1
+
       - name: Check marketplace
         env:
           OMNIVIEW_API_URL: ${{ vars.OMNIVIEW_API_URL }}
