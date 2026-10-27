@@ -28,7 +28,7 @@ export const ValidatingAdmissionPolicyBindingSidebar: React.FC<Props> = ({ ctx }
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={vapb.metadata} />
+        <ObjectMetaSection data={vapb.metadata} connectionID={ctx.resource?.connectionID} />
 
         <SidebarSection title="Binding">
             {spec?.policyName && (

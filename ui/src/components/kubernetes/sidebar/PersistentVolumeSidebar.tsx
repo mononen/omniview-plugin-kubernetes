@@ -21,7 +21,7 @@ export const PersistentVolumeSidebar: React.FC<Props> = ({ ctx }) => {
 
   return (
     <Stack direction="column" spacing={2} style={{ width: '100%' }}>
-      <ObjectMetaSection data={pv.metadata} />
+      <ObjectMetaSection data={pv.metadata} connectionID={ctx.resource?.connectionID} />
       <pre>{JSON.stringify(ctx.data, null, 2)}</pre>;
     </Stack>
   );

@@ -50,7 +50,7 @@ export const CSINodeSidebar: React.FC<Props> = ({ ctx }) => {
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
-      <ObjectMetaSection data={node.metadata} />
+      <ObjectMetaSection data={node.metadata} connectionID={ctx.resource?.connectionID} />
       {sections.length > 0 && <ExpandableSections sections={sections} />}
     </Stack>
   );

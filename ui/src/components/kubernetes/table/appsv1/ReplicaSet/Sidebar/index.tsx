@@ -29,7 +29,7 @@ export const ReplicaSetSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={rs.metadata} />
+        <ObjectMetaSection data={rs.metadata} connectionID={ctx.resource?.connectionID} />
 
         <WorkloadStatusSection
           title="Status"

@@ -19,7 +19,7 @@ export const RoleSidebar: React.FC<Props> = ({ ctx }) => {
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
-      <ObjectMetaSection data={role.metadata} />
+      <ObjectMetaSection data={role.metadata} connectionID={ctx.resource?.connectionID} />
       <RBACRulesSection rules={role.rules} />
     </Stack>
   );

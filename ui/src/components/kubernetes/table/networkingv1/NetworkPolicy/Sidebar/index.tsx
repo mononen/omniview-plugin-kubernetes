@@ -53,7 +53,7 @@ export const NetworkPolicySidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={policy.metadata} />
+        <ObjectMetaSection data={policy.metadata} connectionID={ctx.resource?.connectionID} />
         <PolicyOverviewSection policy={policy} />
       </Stack>
 

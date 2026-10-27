@@ -27,7 +27,7 @@ export const JobSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={job.metadata} />
+        <ObjectMetaSection data={job.metadata} connectionID={ctx.resource?.connectionID} />
 
         <JobStatusSection status={status} conditions={conditions} />
 

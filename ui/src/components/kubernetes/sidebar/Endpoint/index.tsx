@@ -25,7 +25,7 @@ export const EndpointSidebar: React.FC<Props> = ({ ctx }) => {
   // compose your component here
   return (
     <Stack direction="column" spacing={4} style={{ width: '100%' }}>
-      <ObjectMetaSection data={obj.metadata} />
+      <ObjectMetaSection data={obj.metadata} connectionID={ctx.resource?.connectionID} />
     </Stack>
   );
 };
