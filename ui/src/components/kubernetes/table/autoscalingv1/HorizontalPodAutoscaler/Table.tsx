@@ -1,14 +1,11 @@
 import {
   DrawerComponent,
-  useConfirmationModal,
-  useResourceMutations,
-  useRightDrawer,
 } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import { HorizontalPodAutoscaler } from 'kubernetes-types/autoscaling/v2';
 import { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
-import { LuActivity, LuTrash } from 'react-icons/lu';
+import { LuActivity } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
@@ -17,6 +14,7 @@ import ResourceLinkCell from '../../corev1/Pod/cells/ResourceLinkCell';
 import ConditionsCell from '../../shared/cells/ConditionsCell';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 
+import { drawerActions } from './actions';
 import HorizontalPodAutoscalerSidebar from './Sidebar';
 
 const resourceKey = 'autoscaling::v2::HorizontalPodAutoscaler';
@@ -24,9 +22,6 @@ const resourceKey = 'autoscaling::v2::HorizontalPodAutoscaler';
 const HorizontalPodAutoscalerTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { remove } = useResourceMutations({ pluginID: 'kubernetes' });
-  const { show } = useConfirmationModal();
-  const { closeDrawer } = useRightDrawer();
 
   const columns = React.useMemo<Array<ColumnDef<HorizontalPodAutoscaler>>>(
     () =>
@@ -118,42 +113,9 @@ const HorizontalPodAutoscalerTable: React.FC = () => {
       title: resourceKey,
       icon: <LuActivity />,
       views: createStandardViews({ SidebarComponent: HorizontalPodAutoscalerSidebar }),
-      actions: [
-        {
-          title: 'Delete',
-          icon: <LuTrash />,
-          action: (ctx) =>
-            show({
-              title: (
-                <span>
-                  Delete <strong>{ctx.data?.metadata?.name}</strong>?
-                </span>
-              ),
-              body: (
-                <span>
-                  Are you sure you want to delete the HPA <code>{ctx.data?.metadata?.name}</code> in{' '}
-                  <strong>{ctx.data?.metadata?.namespace}</strong>?
-                </span>
-              ),
-              confirmLabel: 'Delete',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await remove({
-                  opts: {
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                    namespace: ctx.data?.metadata?.namespace as string,
-                  },
-                  input: {},
-                });
-                closeDrawer();
-              },
-            }),
-        },
-      ],
+      actions: drawerActions,
     }),
-    [id, closeDrawer, remove, show],
+    [],
   );
 
   return (

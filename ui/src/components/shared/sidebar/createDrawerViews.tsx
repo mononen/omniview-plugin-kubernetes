@@ -6,6 +6,7 @@ import type { KubernetesResourceObject } from '../../../types/resource';
 import RelatedResourcesView from '../../kubernetes/sidebar/RelatedResourcesView';
 import ResourceEventsView from '../../kubernetes/sidebar/ResourceEventsView';
 import ResourceGraphView from '../../kubernetes/sidebar/ResourceGraphView';
+import DrawerActionsBridge from '../drawer/DrawerActionsBridge';
 
 import BaseEditorPage from './pages/editor/BaseEditorPage';
 import { createMetricsView } from './pages/metrics/ResourceMetricsPage';
@@ -24,7 +25,7 @@ export function createStandardViews<T = KubernetesResourceObject>(opts: {
 }): Array<DrawerComponentView<T>> {
   const { SidebarComponent, onEditorSubmit } = opts;
 
-  return [
+  const views: Array<DrawerComponentView<T>> = [
     {
       title: 'Overview',
       icon: <LuSquareChartGantt />,
@@ -60,4 +61,18 @@ export function createStandardViews<T = KubernetesResourceObject>(opts: {
         : (ctx) => <BaseEditorPage data={ctx.data as KubernetesResourceObject} resourceKey={ctx.resource?.key} />,
     },
   ];
+
+  // Every view mounts the action handlers, so header actions work whichever
+  // view is showing and however the drawer was opened.
+  return views.map((view) => ({
+    ...view,
+    component: (ctx) => (
+      <>
+        {ctx.resource && (
+          <DrawerActionsBridge connectionID={ctx.resource.connectionID} resourceKey={ctx.resource.key} />
+        )}
+        {view.component(ctx)}
+      </>
+    ),
+  }));
 }

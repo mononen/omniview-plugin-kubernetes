@@ -1,19 +1,17 @@
 import {
   DrawerComponent,
-  useConfirmationModal,
-  useResourceMutations,
-  useRightDrawer,
 } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import { PodDisruptionBudget } from 'kubernetes-types/policy/v1';
 import React from 'react';
-import { LuShieldCheck, LuTrash } from 'react-icons/lu';
+import { LuShieldCheck } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 
+import { drawerActions } from './actions';
 import PodDisruptionBudgetSidebar from './Sidebar';
 
 const resourceKey = 'policy::v1::PodDisruptionBudget';
@@ -21,9 +19,6 @@ const resourceKey = 'policy::v1::PodDisruptionBudget';
 const PodDisruptionBudgetTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { remove } = useResourceMutations({ pluginID: 'kubernetes' });
-  const { show } = useConfirmationModal();
-  const { closeDrawer } = useRightDrawer();
 
   const columns = React.useMemo<Array<ColumnDef<PodDisruptionBudget>>>(
     () =>
@@ -90,43 +85,9 @@ const PodDisruptionBudgetTable: React.FC = () => {
       title: resourceKey,
       icon: <LuShieldCheck />,
       views: createStandardViews({ SidebarComponent: PodDisruptionBudgetSidebar }),
-      actions: [
-        {
-          title: 'Delete',
-          icon: <LuTrash />,
-          action: (ctx) =>
-            show({
-              title: (
-                <span>
-                  Delete <strong>{ctx.data?.metadata?.name}</strong>?
-                </span>
-              ),
-              body: (
-                <span>
-                  Are you sure you want to delete the PodDisruptionBudget{' '}
-                  <code>{ctx.data?.metadata?.name}</code> from{' '}
-                  <strong>{ctx.data?.metadata?.namespace}</strong>?
-                </span>
-              ),
-              confirmLabel: 'Delete',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await remove({
-                  opts: {
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                    namespace: ctx.data?.metadata?.namespace as string,
-                  },
-                  input: {},
-                });
-                closeDrawer();
-              },
-            }),
-        },
-      ],
+      actions: drawerActions,
     }),
-    [id, closeDrawer, remove, show],
+    [],
   );
 
   return (

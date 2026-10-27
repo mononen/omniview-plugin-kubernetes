@@ -31,6 +31,7 @@ import type { KubernetesResourceObject } from '../../../../types/resource';
 import { plural } from '../../../../utils/language';
 import { useDynamicResourceColumns } from '../../../tables/ColumnFilter/useDynamicResourceColumns';
 
+import DrawerActionsBridge from '../../drawer/DrawerActionsBridge';
 import { TableDrawerContext } from '../TableDrawerContext';
 import { ColumnMeta } from '../types';
 import { useRowSelectionCleanup } from '../useRowSelectionCleanup';
@@ -283,6 +284,8 @@ const ResourceTableContainer: React.FC<Props> = ({
 
   return (
     <TableDrawerContext.Provider value={drawer}>
+      {/* Row menu actions run outside the drawer, so the table mounts their handlers too */}
+      {drawer && <DrawerActionsBridge connectionID={connectionID} resourceKey={resourceKey} />}
       <div className={styles.outer}>
         <DataTable.Root
           table={table}
