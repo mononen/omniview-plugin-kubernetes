@@ -1,15 +1,10 @@
 import {
   DrawerComponent,
-  DrawerComponentActionListItem,
-  useConfirmationModal,
-  useLogs,
-  useResourceMutations,
-  useRightDrawer,
 } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import { CronJob } from 'kubernetes-types/batch/v1';
 import React from 'react';
-import { LuCalendarClock, LuLogs, LuTrash } from 'react-icons/lu';
+import { LuCalendarClock } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
@@ -17,6 +12,7 @@ import ResourceTable from '../../../../shared/table/ResourceTable';
 import { CopyableCell } from '../../shared/cells/CopyableCell';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 
+import { drawerActions } from './actions';
 import CronJobSidebar from './Sidebar';
 
 const resourceKey = 'batch::v1::CronJob';
@@ -24,10 +20,6 @@ const resourceKey = 'batch::v1::CronJob';
 const CronJobTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { remove } = useResourceMutations({ pluginID: 'kubernetes' });
-  const { createLogSession } = useLogs({ pluginID: 'kubernetes' });
-  const { show } = useConfirmationModal();
-  const { closeDrawer } = useRightDrawer();
 
   const columns = React.useMemo<Array<ColumnDef<CronJob>>>(
     () =>
@@ -110,90 +102,9 @@ const CronJobTable: React.FC = () => {
       title: resourceKey,
       icon: <LuCalendarClock />,
       views: createStandardViews({ SidebarComponent: CronJobSidebar }),
-      actions: [
-        {
-          title: 'Delete',
-          icon: <LuTrash />,
-          action: (ctx) => {
-            void show({
-              title: (
-                <span>
-                  Delete <strong>{ctx.data?.metadata?.name}</strong>?
-                </span>
-              ),
-              body: (
-                <span>
-                  Are you sure you want to delete the CronJob{' '}
-                  <code>{ctx.data?.metadata?.name}</code> from{' '}
-                  <strong>{ctx.data?.metadata?.namespace}</strong>?
-                </span>
-              ),
-              confirmLabel: 'Delete',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await remove({
-                  opts: {
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                    namespace: ctx.data?.metadata?.namespace as string,
-                  },
-                  input: {},
-                });
-                closeDrawer();
-              },
-            });
-          },
-        },
-        {
-          title: 'Logs',
-          icon: <LuLogs />,
-          enabled: true,
-          list: (ctx) => {
-            const list: Array<DrawerComponentActionListItem> = [];
-            const containers = ctx.data?.spec?.jobTemplate?.spec?.template?.spec?.containers ?? [];
-            const filterParams = { filter_labels: 'pod,container' };
-
-            list.push({
-              title: 'All Containers',
-              action: () => {
-                void createLogSession({
-                  connectionID: id,
-                  resourceKey,
-                  resourceID: ctx.data?.metadata?.name as string,
-                  resourceData: ctx.data as Record<string, never>,
-                  target: '',
-                  label: `CronJob ${ctx.data?.metadata?.name}`,
-                  icon: 'LuLogs',
-                  params: filterParams,
-                }).then(() => closeDrawer());
-              },
-            });
-
-            containers.forEach((container) => {
-              list.push({
-                title: container.name,
-                action: () => {
-                  void createLogSession({
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                    resourceData: ctx.data as Record<string, never>,
-                    target: container.name,
-                    label: `CronJob ${ctx.data?.metadata?.name}`,
-                    icon: 'LuLogs',
-                    params: filterParams,
-                  }).then(() => closeDrawer());
-                },
-              });
-            });
-
-            return list;
-          },
-        },
-      ],
+      actions: drawerActions,
     }),
-    [id, closeDrawer, createLogSession, remove, show],
+    [],
   );
 
   return (

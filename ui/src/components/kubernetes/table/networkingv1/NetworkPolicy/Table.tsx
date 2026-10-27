@@ -1,13 +1,10 @@
 import {
   DrawerComponent,
-  useConfirmationModal,
-  useResourceMutations,
-  useRightDrawer,
 } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import { NetworkPolicy } from 'kubernetes-types/networking/v1';
 import React from 'react';
-import { LuShield, LuTrash } from 'react-icons/lu';
+import { LuShield } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
@@ -15,6 +12,7 @@ import ResourceTable from '../../../../shared/table/ResourceTable';
 import ChipList from '../../shared/cells/ChipList';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 
+import { drawerActions } from './actions';
 import NetworkPolicySidebar from './Sidebar';
 
 const resourceKey = 'networking::v1::NetworkPolicy';
@@ -22,9 +20,6 @@ const resourceKey = 'networking::v1::NetworkPolicy';
 const NetworkPolicyTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { remove } = useResourceMutations({ pluginID: 'kubernetes' });
-  const { show } = useConfirmationModal();
-  const { closeDrawer } = useRightDrawer();
 
   const columns = React.useMemo<Array<ColumnDef<NetworkPolicy>>>(
     () =>
@@ -86,43 +81,9 @@ const NetworkPolicyTable: React.FC = () => {
       title: resourceKey,
       icon: <LuShield />,
       views: createStandardViews({ SidebarComponent: NetworkPolicySidebar }),
-      actions: [
-        {
-          title: 'Delete',
-          icon: <LuTrash />,
-          action: (ctx) =>
-            show({
-              title: (
-                <span>
-                  Delete <strong>{ctx.data?.metadata?.name}</strong>?
-                </span>
-              ),
-              body: (
-                <span>
-                  Are you sure you want to delete the NetworkPolicy{' '}
-                  <code>{ctx.data?.metadata?.name}</code> from{' '}
-                  <strong>{ctx.data?.metadata?.namespace}</strong>?
-                </span>
-              ),
-              confirmLabel: 'Delete',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await remove({
-                  opts: {
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                    namespace: ctx.data?.metadata?.namespace as string,
-                  },
-                  input: {},
-                });
-                closeDrawer();
-              },
-            }),
-        },
-      ],
+      actions: drawerActions,
     }),
-    [id, closeDrawer, remove, show],
+    [],
   );
 
   return (

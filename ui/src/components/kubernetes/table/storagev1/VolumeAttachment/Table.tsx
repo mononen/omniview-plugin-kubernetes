@@ -1,13 +1,10 @@
 import {
   DrawerComponent,
-  useConfirmationModal,
-  useResourceMutations,
-  useRightDrawer,
 } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import { VolumeAttachment } from 'kubernetes-types/storage/v1';
 import React from 'react';
-import { LuPlugZap, LuTrash } from 'react-icons/lu';
+import { LuPlugZap } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
@@ -15,6 +12,7 @@ import ResourceTable from '../../../../shared/table/ResourceTable';
 import { CopyableCell } from '../../shared/cells/CopyableCell';
 import { withClusterResourceColumns } from '../../shared/columns';
 
+import { drawerActions } from './actions';
 import VolumeAttachmentSidebar from './Sidebar';
 
 const resourceKey = 'storage::v1::VolumeAttachment';
@@ -22,9 +20,6 @@ const resourceKey = 'storage::v1::VolumeAttachment';
 const VolumeAttachmentTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { remove } = useResourceMutations({ pluginID: 'kubernetes' });
-  const { show } = useConfirmationModal();
-  const { closeDrawer } = useRightDrawer();
 
   const columns = React.useMemo<Array<ColumnDef<VolumeAttachment>>>(
     () =>
@@ -76,41 +71,9 @@ const VolumeAttachmentTable: React.FC = () => {
       title: resourceKey,
       icon: <LuPlugZap />,
       views: createStandardViews({ SidebarComponent: VolumeAttachmentSidebar }),
-      actions: [
-        {
-          title: 'Delete',
-          icon: <LuTrash />,
-          action: (ctx) =>
-            show({
-              title: (
-                <>
-                  Delete <strong>{ctx.data?.metadata?.name}</strong>?
-                </>
-              ),
-              body: (
-                <>
-                  Are you sure you want to delete the VolumeAttachment{' '}
-                  <code>{ctx.data?.metadata?.name}</code>?
-                </>
-              ),
-              confirmLabel: 'Delete',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await remove({
-                  opts: {
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                  },
-                  input: {},
-                });
-                closeDrawer();
-              },
-            }),
-        },
-      ],
+      actions: drawerActions,
     }),
-    [id, closeDrawer, remove, show],
+    [],
   );
 
   return (

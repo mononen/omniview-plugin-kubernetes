@@ -1,13 +1,10 @@
 import {
   DrawerComponent,
-  useConfirmationModal,
-  useResourceMutations,
-  useRightDrawer,
 } from '@omniviewdev/runtime';
 import { ColumnDef, FilterFn } from '@tanstack/react-table';
 import { Service } from 'kubernetes-types/core/v1';
 import React from 'react';
-import { LuNetwork, LuTrash } from 'react-icons/lu';
+import { LuNetwork } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
@@ -17,6 +14,7 @@ import { CopyableCell } from '../../shared/cells/CopyableCell';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 import { inclusionFilter } from '../../shared/filters';
 
+import { drawerActions } from './actions';
 import ServiceSidebar from './Sidebar';
 
 const resourceKey = 'core::v1::Service';
@@ -24,9 +22,6 @@ const resourceKey = 'core::v1::Service';
 const ServiceTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { remove } = useResourceMutations({ pluginID: 'kubernetes' });
-  const { show } = useConfirmationModal();
-  const { closeDrawer } = useRightDrawer();
 
   const columns = React.useMemo<Array<ColumnDef<Service>>>(
     () =>
@@ -127,43 +122,9 @@ const ServiceTable: React.FC = () => {
       title: resourceKey,
       icon: <LuNetwork />,
       views: createStandardViews({ SidebarComponent: ServiceSidebar }),
-      actions: [
-        {
-          title: 'Delete',
-          icon: <LuTrash />,
-          action: (ctx) =>
-            show({
-              title: (
-                <span>
-                  Delete <strong>{ctx.data?.metadata?.name}</strong>?
-                </span>
-              ),
-              body: (
-                <span>
-                  Are you sure you want to delete the Service{' '}
-                  <code>{ctx.data?.metadata?.name}</code> from{' '}
-                  <strong>{ctx.data?.metadata?.namespace}</strong>?
-                </span>
-              ),
-              confirmLabel: 'Delete',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await remove({
-                  opts: {
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                    namespace: ctx.data?.metadata?.namespace as string,
-                  },
-                  input: {},
-                });
-                closeDrawer();
-              },
-            }),
-        },
-      ],
+      actions: drawerActions,
     }),
-    [id, closeDrawer, remove, show],
+    [],
   );
 
   return (
