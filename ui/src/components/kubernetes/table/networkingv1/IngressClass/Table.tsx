@@ -1,13 +1,10 @@
 import {
   DrawerComponent,
-  useConfirmationModal,
-  useResourceMutations,
-  useRightDrawer,
 } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import { IngressClass } from 'kubernetes-types/networking/v1';
 import React from 'react';
-import { LuCircleCheck, LuCloudCog, LuTrash } from 'react-icons/lu';
+import { LuCircleCheck, LuCloudCog } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
@@ -15,6 +12,7 @@ import ResourceTable from '../../../../shared/table/ResourceTable';
 import { CopyableCell } from '../../shared/cells/CopyableCell';
 import { withClusterResourceColumns } from '../../shared/columns';
 
+import { drawerActions } from './actions';
 import IngressClassSidebar from './Sidebar';
 
 const resourceKey = 'networking::v1::IngressClass';
@@ -22,9 +20,6 @@ const resourceKey = 'networking::v1::IngressClass';
 const IngressClassTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { remove } = useResourceMutations({ pluginID: 'kubernetes' });
-  const { show } = useConfirmationModal();
-  const { closeDrawer } = useRightDrawer();
 
   const columns = React.useMemo<Array<ColumnDef<IngressClass>>>(
     () =>
@@ -73,41 +68,9 @@ const IngressClassTable: React.FC = () => {
       title: resourceKey,
       icon: <LuCloudCog />,
       views: createStandardViews({ SidebarComponent: IngressClassSidebar }),
-      actions: [
-        {
-          title: 'Delete',
-          icon: <LuTrash />,
-          action: (ctx) =>
-            show({
-              title: (
-                <span>
-                  Delete <strong>{ctx.data?.metadata?.name}</strong>?
-                </span>
-              ),
-              body: (
-                <span>
-                  Are you sure you want to delete the IngressClass{' '}
-                  <code>{ctx.data?.metadata?.name}</code>?
-                </span>
-              ),
-              confirmLabel: 'Delete',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await remove({
-                  opts: {
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                  },
-                  input: {},
-                });
-                closeDrawer();
-              },
-            }),
-        },
-      ],
+      actions: drawerActions,
     }),
-    [id, closeDrawer, remove, show],
+    [],
   );
 
   return (

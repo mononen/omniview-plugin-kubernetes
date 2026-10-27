@@ -1,27 +1,20 @@
 import {
   DrawerComponent,
-  DrawerComponentActionListItem,
-  useConfirmationModal,
-  useExecuteAction,
-  useLogs,
-  useResourceMutations,
-  useRightDrawer,
-  useStreamAction,
 } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import { StatefulSet } from 'kubernetes-types/apps/v1';
 import { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
-import { LuClipboardList, LuLogs, LuRefreshCw, LuScaling, LuTrash } from 'react-icons/lu';
+import { LuClipboardList } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
-import ScaleModal from '../../../actions/ScaleModal';
 import ResourceLinkCell from '../../corev1/Pod/cells/ResourceLinkCell';
 import ConditionsCell from '../../shared/cells/ConditionsCell';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 
+import { drawerActions } from './actions';
 import StatefulSetSidebar from './Sidebar';
 
 const resourceKey = 'apps::v1::StatefulSet';
@@ -29,26 +22,7 @@ const resourceKey = 'apps::v1::StatefulSet';
 const StatefulSetTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { remove } = useResourceMutations({ pluginID: 'kubernetes' });
-  const { createLogSession } = useLogs({ pluginID: 'kubernetes' });
-  const { executeAction, isExecuting } = useExecuteAction({
-    pluginID: 'kubernetes',
-    connectionID: id,
-    resourceKey,
-  });
-  const { startStreamAction } = useStreamAction({
-    pluginID: 'kubernetes',
-    connectionID: id,
-    resourceKey,
-  });
-  const { show } = useConfirmationModal();
-  const { closeDrawer } = useRightDrawer();
 
-  const [scaleTarget, setScaleTarget] = React.useState<{
-    name: string;
-    namespace: string;
-    replicas: number;
-  } | null>(null);
 
   const columns = React.useMemo<Array<ColumnDef<StatefulSet>>>(
     () =>
@@ -158,165 +132,19 @@ const StatefulSetTable: React.FC = () => {
       title: resourceKey,
       icon: <LuClipboardList />,
       views: createStandardViews({ SidebarComponent: StatefulSetSidebar }),
-      actions: [
-        {
-          title: 'Restart',
-          icon: <LuRefreshCw />,
-          action: (ctx) => {
-            void show({
-              title: (
-                <span>
-                  Restart <strong>{ctx.data?.metadata?.name}</strong>?
-                </span>
-              ),
-              body: (
-                <span>
-                  This will perform a rolling restart of the StatefulSet{' '}
-                  <code>{ctx.data?.metadata?.name}</code> in{' '}
-                  <strong>{ctx.data?.metadata?.namespace}</strong>.
-                </span>
-              ),
-              confirmLabel: 'Restart',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await startStreamAction({
-                  actionID: 'restart',
-                  id: ctx.data?.metadata?.name as string,
-                  namespace: ctx.data?.metadata?.namespace as string,
-                  label: `Restart ${ctx.data?.metadata?.name}`,
-                });
-                closeDrawer();
-              },
-            });
-          },
-        },
-        {
-          title: 'Scale',
-          icon: <LuScaling />,
-          action: (ctx) => {
-            setScaleTarget({
-              name: ctx.data?.metadata?.name as string,
-              namespace: ctx.data?.metadata?.namespace as string,
-              replicas: ctx.data?.spec?.replicas ?? 1,
-            });
-          },
-        },
-        {
-          title: 'Delete',
-          icon: <LuTrash />,
-          action: (ctx) => {
-            void show({
-              title: (
-                <span>
-                  Delete <strong>{ctx.data?.metadata?.name}</strong>?
-                </span>
-              ),
-              body: (
-                <span>
-                  Are you sure you want to delete the StatefulSet{' '}
-                  <code>{ctx.data?.metadata?.name}</code> from{' '}
-                  <strong>{ctx.data?.metadata?.namespace}</strong>?
-                </span>
-              ),
-              confirmLabel: 'Delete',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await remove({
-                  opts: {
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                    namespace: ctx.data?.metadata?.namespace as string,
-                  },
-                  input: {},
-                });
-                closeDrawer();
-              },
-            });
-          },
-        },
-        {
-          title: 'Logs',
-          icon: <LuLogs />,
-          enabled: true,
-          list: (ctx) => {
-            const list: Array<DrawerComponentActionListItem> = [];
-            const containers = ctx.data?.spec?.template?.spec?.containers ?? [];
-            const filterParams = { filter_labels: 'pod,container' };
-
-            list.push({
-              title: 'All Containers',
-              action: () => {
-                void createLogSession({
-                  connectionID: id,
-                  resourceKey,
-                  resourceID: ctx.data?.metadata?.name as string,
-                  resourceData: ctx.data as Record<string, never>,
-                  target: '',
-                  label: `StatefulSet ${ctx.data?.metadata?.name}`,
-                  icon: 'LuLogs',
-                  params: filterParams,
-                }).then(() => closeDrawer());
-              },
-            });
-
-            containers.forEach((container) => {
-              list.push({
-                title: container.name,
-                action: () => {
-                  void createLogSession({
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                    resourceData: ctx.data as Record<string, never>,
-                    target: container.name,
-                    label: `StatefulSet ${ctx.data?.metadata?.name}`,
-                    icon: 'LuLogs',
-                    params: filterParams,
-                  }).then(() => closeDrawer());
-                },
-              });
-            });
-
-            return list;
-          },
-        },
-      ],
+      actions: drawerActions,
     }),
-    [id, closeDrawer, createLogSession, remove, show, startStreamAction],
+    [],
   );
 
   return (
-    <>
-      <ResourceTable
-        columns={columns}
-        connectionID={id}
-        resourceKey={resourceKey}
-        idAccessor="metadata.uid"
-        drawer={drawer}
-      />
-      {scaleTarget && (
-        <ScaleModal
-          open={!!scaleTarget}
-          onClose={() => setScaleTarget(null)}
-          onConfirm={(replicas) => {
-            void executeAction({
-              actionID: 'scale',
-              id: scaleTarget.name,
-              namespace: scaleTarget.namespace,
-              params: { replicas },
-            }).then(() => {
-              setScaleTarget(null);
-              closeDrawer();
-            });
-          }}
-          resourceType="StatefulSet"
-          resourceName={scaleTarget.name}
-          currentReplicas={scaleTarget.replicas}
-          isExecuting={isExecuting}
-        />
-      )}
-    </>
+    <ResourceTable
+      columns={columns}
+      connectionID={id}
+      resourceKey={resourceKey}
+      idAccessor="metadata.uid"
+      drawer={drawer}
+    />
   );
 };
 

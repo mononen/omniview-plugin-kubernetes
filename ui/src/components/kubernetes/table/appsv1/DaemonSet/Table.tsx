@@ -1,17 +1,11 @@
 import {
   DrawerComponent,
-  DrawerComponentActionListItem,
-  useConfirmationModal,
-  useLogs,
-  useResourceMutations,
-  useRightDrawer,
-  useStreamAction,
 } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import { DaemonSet } from 'kubernetes-types/apps/v1';
 import { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
-import { LuLogs, LuRefreshCw, LuServerCog, LuTrash } from 'react-icons/lu';
+import { LuServerCog } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 // import ResourceLinkCell from './cells/ResourceLinkCell'
@@ -20,6 +14,7 @@ import ResourceTable from '../../../../shared/table/ResourceTable';
 import ConditionsCell from '../../shared/cells/ConditionsCell';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 
+import { drawerActions } from './actions';
 import DaemonSetSidebar from './Sidebar';
 
 const resourceKey = 'apps::v1::DaemonSet';
@@ -27,15 +22,6 @@ const resourceKey = 'apps::v1::DaemonSet';
 const DaemonSetTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { remove } = useResourceMutations({ pluginID: 'kubernetes' });
-  const { createLogSession } = useLogs({ pluginID: 'kubernetes' });
-  const { startStreamAction } = useStreamAction({
-    pluginID: 'kubernetes',
-    connectionID: id,
-    resourceKey,
-  });
-  const { show } = useConfirmationModal();
-  const { closeDrawer } = useRightDrawer();
 
   const columns = React.useMemo<Array<ColumnDef<DaemonSet>>>(
     () =>
@@ -131,121 +117,9 @@ const DaemonSetTable: React.FC = () => {
       title: resourceKey,
       icon: <LuServerCog />,
       views: createStandardViews({ SidebarComponent: DaemonSetSidebar }),
-      actions: [
-        {
-          title: 'Restart',
-          icon: <LuRefreshCw />,
-          action: (ctx) => {
-            void show({
-              title: (
-                <span>
-                  Restart <strong>{ctx.data?.metadata?.name}</strong>?
-                </span>
-              ),
-              body: (
-                <span>
-                  This will perform a rolling restart of the DaemonSet{' '}
-                  <code>{ctx.data?.metadata?.name}</code> in{' '}
-                  <strong>{ctx.data?.metadata?.namespace}</strong>.
-                </span>
-              ),
-              confirmLabel: 'Restart',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await startStreamAction({
-                  actionID: 'restart',
-                  id: ctx.data?.metadata?.name as string,
-                  namespace: ctx.data?.metadata?.namespace as string,
-                  label: `Restart ${ctx.data?.metadata?.name}`,
-                });
-                closeDrawer();
-              },
-            });
-          },
-        },
-        {
-          title: 'Delete',
-          icon: <LuTrash />,
-          action: (ctx) => {
-            void show({
-              title: (
-                <span>
-                  Delete <strong>{ctx.data?.metadata?.name}</strong>?
-                </span>
-              ),
-              body: (
-                <span>
-                  Are you sure you want to delete the DaemonSet{' '}
-                  <code>{ctx.data?.metadata?.name}</code> from{' '}
-                  <strong>{ctx.data?.metadata?.namespace}</strong>?
-                </span>
-              ),
-              confirmLabel: 'Delete',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await remove({
-                  opts: {
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                    namespace: ctx.data?.metadata?.namespace as string,
-                  },
-                  input: {},
-                });
-                closeDrawer();
-              },
-            });
-          },
-        },
-        {
-          title: 'Logs',
-          icon: <LuLogs />,
-          enabled: true,
-          list: (ctx) => {
-            const list: Array<DrawerComponentActionListItem> = [];
-            const containers = ctx.data?.spec?.template?.spec?.containers ?? [];
-            const filterParams = { filter_labels: 'pod,container' };
-
-            list.push({
-              title: 'All Containers',
-              action: () => {
-                void createLogSession({
-                  connectionID: id,
-                  resourceKey,
-                  resourceID: ctx.data?.metadata?.name as string,
-                  resourceData: ctx.data as Record<string, never>,
-                  target: '',
-                  label: `DaemonSet ${ctx.data?.metadata?.name}`,
-                  icon: 'LuLogs',
-                  params: filterParams,
-                }).then(() => closeDrawer());
-              },
-            });
-
-            containers.forEach((container) => {
-              list.push({
-                title: container.name,
-                action: () => {
-                  void createLogSession({
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                    resourceData: ctx.data as Record<string, never>,
-                    target: container.name,
-                    label: `DaemonSet ${ctx.data?.metadata?.name}`,
-                    icon: 'LuLogs',
-                    params: filterParams,
-                  }).then(() => closeDrawer());
-                },
-              });
-            });
-
-            return list;
-          },
-        },
-      ],
+      actions: drawerActions,
     }),
-    [id, closeDrawer, createLogSession, remove, show, startStreamAction],
+    [],
   );
 
   return (

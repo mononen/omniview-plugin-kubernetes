@@ -17,6 +17,7 @@ import ReleaseSidebar from './components/helm/releases/ReleaseSidebar';
 import HelmReleaseTable from './components/helm/releases/Table';
 import RepoSidebar from './components/helm/repos/RepoSidebar';
 import HelmRepoTable from './components/helm/repos/Table';
+import { resourceDrawerActions } from './components/kubernetes/drawerActions';
 import NodeSidebar from './components/kubernetes/sidebar/NodeSidebar';
 import PodSidebar from './components/kubernetes/sidebar/Pod';
 import SecretSidebar from './components/kubernetes/sidebar/SecretSidebar';
@@ -229,17 +230,18 @@ export const sidebars: Record<string, React.FC<{ ctx: DrawerContext }>> = {
 /**
  * Creates a DrawerFactory for a resource that has a sidebar component.
  * Produces a DrawerComponent with the standard view set (Overview, Metrics,
- * Events, Editor). Used by the host's drawer registry so ref chip clicks
- * render the same rich sidebar as table row clicks (minus table-local actions).
+ * Events, Editor) and the resource's shared actions. Used by the host's drawer
+ * registry so ref chip clicks render the same drawer as table row clicks.
  */
 function createResourceDrawerFactory(
   resourceKey: string,
   SidebarComponent: React.FC<{ ctx: DrawerContext }>,
 ): DrawerFactory {
+  const shared = resourceDrawerActions[resourceKey];
   return (_closeDrawer: () => void): DrawerComponent => ({
     title: resourceKey,
-    views: createStandardViews({ SidebarComponent }),
-    actions: [],
+    views: createStandardViews({ SidebarComponent, onEditorSubmit: shared?.editorSubmit }),
+    actions: shared?.actions ?? [],
   });
 }
 

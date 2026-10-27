@@ -1,13 +1,10 @@
 import {
   DrawerComponent,
-  useConfirmationModal,
-  useResourceMutations,
-  useRightDrawer,
 } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import { CSINode } from 'kubernetes-types/storage/v1';
 import React from 'react';
-import { LuHardDrive, LuTrash } from 'react-icons/lu';
+import { LuHardDrive } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
@@ -15,6 +12,7 @@ import ResourceTable from '../../../../shared/table/ResourceTable';
 import { ChipListCell } from '../../shared/cells/ChipList';
 import { withClusterResourceColumns } from '../../shared/columns';
 
+import { drawerActions } from './actions';
 import CSINodeSidebar from './Sidebar';
 
 const resourceKey = 'storage::v1::CSINode';
@@ -22,9 +20,6 @@ const resourceKey = 'storage::v1::CSINode';
 const CSINodeTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { remove } = useResourceMutations({ pluginID: 'kubernetes' });
-  const { show } = useConfirmationModal();
-  const { closeDrawer } = useRightDrawer();
 
   const columns = React.useMemo<Array<ColumnDef<CSINode>>>(
     () =>
@@ -67,41 +62,9 @@ const CSINodeTable: React.FC = () => {
       title: resourceKey,
       icon: <LuHardDrive />,
       views: createStandardViews({ SidebarComponent: CSINodeSidebar }),
-      actions: [
-        {
-          title: 'Delete',
-          icon: <LuTrash />,
-          action: (ctx) =>
-            show({
-              title: (
-                <span>
-                  Delete <strong>{ctx.data?.metadata?.name}</strong>?
-                </span>
-              ),
-              body: (
-                <span>
-                  Are you sure you want to delete the CSINode{' '}
-                  <code>{ctx.data?.metadata?.name}</code>?
-                </span>
-              ),
-              confirmLabel: 'Delete',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await remove({
-                  opts: {
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                  },
-                  input: {},
-                });
-                closeDrawer();
-              },
-            }),
-        },
-      ],
+      actions: drawerActions,
     }),
-    [id, closeDrawer, remove, show],
+    [],
   );
 
   return (

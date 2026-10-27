@@ -1,13 +1,10 @@
 import {
   DrawerComponent,
-  useConfirmationModal,
-  useResourceMutations,
-  useRightDrawer,
 } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import { RoleBinding, RoleRef, Subject } from 'kubernetes-types/rbac/v1';
 import React from 'react';
-import { LuLink, LuTrash } from 'react-icons/lu';
+import { LuLink } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
@@ -16,6 +13,7 @@ import ResourceLinkCell from '../../corev1/Pod/cells/ResourceLinkCell';
 import cellStyles from '../../shared/cells/cells.module.css';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 
+import { drawerActions } from './actions';
 import RoleBindingSidebar from './Sidebar';
 
 const scrollRowStyle = { gap: 2 } as const;
@@ -31,9 +29,6 @@ const ownerRefKeyMap: Record<string, string> = {
 const RoleBindingTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { remove } = useResourceMutations({ pluginID: 'kubernetes' });
-  const { show } = useConfirmationModal();
-  const { closeDrawer } = useRightDrawer();
 
   const columns = React.useMemo<Array<ColumnDef<RoleBinding>>>(
     () =>
@@ -99,41 +94,9 @@ const RoleBindingTable: React.FC = () => {
       title: resourceKey,
       icon: <LuLink />,
       views: createStandardViews({ SidebarComponent: RoleBindingSidebar }),
-      actions: [
-        {
-          title: 'Delete',
-          icon: <LuTrash />,
-          action: (ctx) =>
-            show({
-              title: (
-                <>
-                  Delete <strong>{ctx.data?.metadata?.name}</strong>?
-                </>
-              ),
-              body: (
-                <>
-                  Are you sure you want to delete RoleBinding{' '}
-                  <code>{ctx.data?.metadata?.name}</code>?
-                </>
-              ),
-              confirmLabel: 'Delete',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await remove({
-                  opts: {
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                  },
-                  input: {},
-                });
-                closeDrawer();
-              },
-            }),
-        },
-      ],
+      actions: drawerActions,
     }),
-    [id, closeDrawer, remove, show],
+    [],
   );
 
   return (

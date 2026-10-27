@@ -1,16 +1,11 @@
 import {
   DrawerComponent,
-  DrawerComponentActionListItem,
-  useConfirmationModal,
-  useLogs,
-  useResourceMutations,
-  useRightDrawer,
 } from '@omniviewdev/runtime';
 import { ColumnDef, FilterFn } from '@tanstack/react-table';
 import { Job } from 'kubernetes-types/batch/v1';
 import { Condition, OwnerReference } from 'kubernetes-types/meta/v1';
 import React from 'react';
-import { LuClock, LuLogs, LuTrash } from 'react-icons/lu';
+import { LuClock } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
@@ -21,6 +16,7 @@ import ConditionsCell from '../../shared/cells/ConditionsCell';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 import { ownerRefFilter } from '../../shared/filters';
 
+import { drawerActions } from './actions';
 import JobSidebar from './Sidebar';
 
 const resourceKey = 'batch::v1::Job';
@@ -32,10 +28,6 @@ const ownerRefKeyMap: Record<string, string> = {
 const JobTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { remove } = useResourceMutations({ pluginID: 'kubernetes' });
-  const { createLogSession } = useLogs({ pluginID: 'kubernetes' });
-  const { show } = useConfirmationModal();
-  const { closeDrawer } = useRightDrawer();
 
   const columns = React.useMemo<Array<ColumnDef<Job>>>(
     () =>
@@ -214,89 +206,9 @@ This field is beta-level. It can be used when the \`JobPodFailurePolicy\` featur
       title: resourceKey,
       icon: <LuClock />,
       views: createStandardViews({ SidebarComponent: JobSidebar }),
-      actions: [
-        {
-          title: 'Delete',
-          icon: <LuTrash />,
-          action: (ctx) => {
-            void show({
-              title: (
-                <span>
-                  Delete <strong>{ctx.data?.metadata?.name}</strong>?
-                </span>
-              ),
-              body: (
-                <span>
-                  Are you sure you want to delete the Job <code>{ctx.data?.metadata?.name}</code>{' '}
-                  from <strong>{ctx.data?.metadata?.namespace}</strong>?
-                </span>
-              ),
-              confirmLabel: 'Delete',
-              cancelLabel: 'Cancel',
-              onConfirm: async () => {
-                await remove({
-                  opts: {
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                    namespace: ctx.data?.metadata?.namespace as string,
-                  },
-                  input: {},
-                });
-                closeDrawer();
-              },
-            });
-          },
-        },
-        {
-          title: 'Logs',
-          icon: <LuLogs />,
-          enabled: true,
-          list: (ctx) => {
-            const list: Array<DrawerComponentActionListItem> = [];
-            const containers = ctx.data?.spec?.template?.spec?.containers ?? [];
-            const filterParams = { filter_labels: 'pod,container' };
-
-            list.push({
-              title: 'All Containers',
-              action: () => {
-                void createLogSession({
-                  connectionID: id,
-                  resourceKey,
-                  resourceID: ctx.data?.metadata?.name as string,
-                  resourceData: ctx.data as Record<string, never>,
-                  target: '',
-                  label: `Job ${ctx.data?.metadata?.name}`,
-                  icon: 'LuLogs',
-                  params: filterParams,
-                }).then(() => closeDrawer());
-              },
-            });
-
-            containers.forEach((container) => {
-              list.push({
-                title: container.name,
-                action: () => {
-                  void createLogSession({
-                    connectionID: id,
-                    resourceKey,
-                    resourceID: ctx.data?.metadata?.name as string,
-                    resourceData: ctx.data as Record<string, never>,
-                    target: container.name,
-                    label: `Job ${ctx.data?.metadata?.name}`,
-                    icon: 'LuLogs',
-                    params: filterParams,
-                  }).then(() => closeDrawer());
-                },
-              });
-            });
-
-            return list;
-          },
-        },
-      ],
+      actions: drawerActions,
     }),
-    [id, closeDrawer, createLogSession, remove, show],
+    [],
   );
 
   return (
