@@ -1,31 +1,55 @@
 name: Release Plugin
 
+# Publishes to the marketplace in the OMNIVIEW_API_URL repository variable as
+# the `omniview` publisher. The tag is the version: push v1.2.3 and 1.2.3 is
+# what gets published; the version committed in plugin.yaml, .package/plugin.yaml,
+# plugin.json and ui/package.json must match it.
+#
+# The build runs on a GitHub-hosted runner. Publishing runs on the self-hosted
+# `omniview` runners, which sit in the marketplace's cluster and reach its API
+# directly: the public marketplace hostname is behind Cloudflare bot protection
+# that blocks GitHub-hosted runners. The archives are still uploaded to the
+# public storage hostname the API signs upload links for.
+
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (e.g., 0.1.0)'
+        description: 'Version to publish (e.g. 0.6.0)'
         required: true
+      dry-run:
+        description: 'Build and package only; do not publish'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
+env:
+  PLATFORMS: darwin_arm64 darwin_amd64 linux_amd64 linux_arm64 windows_amd64
+
 jobs:
-  validate-version:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+      platforms: ${{ steps.version.outputs.platforms }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
+
       - name: Require a commit merged into main
+        if: ${{ !inputs.dry-run }}
         run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
       - name: Validate committed release versions
+        id: version
         env:
-          RELEASE_VERSION: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', inputs.version) }}
+          RELEASE_VERSION: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
         run: |
           node <<'NODE'
           const fs = require('node:fs');
@@ -40,32 +64,87 @@ jobs:
           if ([ui, manifest, metadata, packaged].some(value => value !== version)) {
             throw new Error(`Commit release versions before tagging: requested=${version}, ui=${ui}, manifest=${manifest}, metadata=${metadata}, packaged=${packaged}`);
           }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `value=${version}\nplatforms=${process.env.PLATFORMS.split(' ').join(',')}\n`);
           NODE
 
-  publish:
-    needs: validate-version
-    uses: omniviewdev/publish-plugin-action/.github/workflows/build-and-publish.yml@v1
-    with:
-      go-version: '1.25'
-      pnpm-version: '12.14.0'
-      node-version: '22'
-      plugin-id: kubernetes
-      publisher-slug: omniview
-      api-url: https://api.omniview.dev
-      version: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', inputs.version) }}
-      go-entry: ./pkg
-      ui-path: ./ui
-    secrets:
-      api-key: ${{ secrets.OMNIVIEW_API_KEY }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
 
-  github-release:
-    needs: publish
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+      - uses: pnpm/setup@c9883cc79df532ad1a7b81bf9ab944ceb090d65c # v2.0.0
+        with:
+          version: 12.14.0
+          install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - name: Build and package
+        run: hack/package.sh "${{ steps.version.outputs.value }}" $PLATFORMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-archives
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: ${{ !inputs.dry-run }}
+    runs-on: [omniview]
     steps:
-      - name: Create GitHub Release
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin-archives
+          path: dist
+
+      - name: Check marketplace
+        env:
+          OMNIVIEW_API_URL: ${{ vars.OMNIVIEW_API_URL }}
+        run: |
+          # Without api-url the publish action falls back to the retired upstream marketplace.
+          if [ -z "$OMNIVIEW_API_URL" ]; then
+            echo "::error::Repository variable OMNIVIEW_API_URL is not set"
+            exit 1
+          fi
+          curl -fsS --retry 3 --max-time 15 "${OMNIVIEW_API_URL%/}/v1/health" > /dev/null
+
+      # Cluster DNS drops the odd lookup and the publish action does not retry
+      # an upload, so resolve the storage host once, with retries, and pin it.
+      - name: Pin storage host
+        env:
+          STORAGE_HOST: ${{ vars.OMNIVIEW_STORAGE_HOST }}
+        run: |
+          [ -n "$STORAGE_HOST" ] || exit 0
+          for attempt in 1 2 3 4 5; do
+            ip=$(getent ahostsv4 "$STORAGE_HOST" | awk 'NR==1 {print $1}')
+            if [ -n "$ip" ]; then
+              echo "$ip $STORAGE_HOST" | sudo tee -a /etc/hosts
+              exit 0
+            fi
+            echo "lookup of $STORAGE_HOST failed (attempt $attempt), retrying"; sleep 5
+          done
+          exit 1
+
+      - name: Publish to marketplace
+        uses: omniviewdev/publish-plugin-action@v1
+        with:
+          api-key: ${{ secrets.OMNIVIEW_API_KEY }}
+          api-url: ${{ vars.OMNIVIEW_API_URL }}
+          publisher-slug: omniview
+          plugin-id: kubernetes
+          version: ${{ needs.build.outputs.version }}
+          artifact-path: dist/
+          architectures: ${{ needs.build.outputs.platforms }}
+
+      - name: Create GitHub release
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          files: dist/*.tar.gz
