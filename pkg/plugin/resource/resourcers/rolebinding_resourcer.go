@@ -2,8 +2,8 @@ package resourcers
 
 import (
 	"context"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
@@ -17,7 +17,6 @@ type RoleBindingResourcer struct {
 	*KubernetesResourcerBase[MetaAccessor]
 	log *zap.SugaredLogger
 }
-
 
 // NewRoleBindingResourcer creates a RoleBindingResourcer for k8s:rbac.authorization.k8s.io/rolebindings.
 func NewRoleBindingResourcer(logger *zap.SugaredLogger, opts ...Option) *RoleBindingResourcer {
@@ -46,7 +45,9 @@ func (r *RoleBindingResourcer) ResolveRelationships(
 	request resource.RelationshipResolutionRequest,
 ) ([]resource.ResolvedRelationship, error) {
 	namespace, err := nativeRequestNamespace(request.Source.Reference.Address.Scope)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	id := request.Source.Reference.Address.ID
 	rb, err := client.KubeClient.RbacV1().RoleBindings(namespace).Get(ctx, id, metav1.GetOptions{})
 	if err != nil {
@@ -77,7 +78,9 @@ func (r *RoleBindingResourcer) ResolveRelationships(
 	}
 
 	target, err := makeRef(request, resourceKey, refName, targetNamespace)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	return []resource.ResolvedRelationship{
 		{

@@ -157,7 +157,7 @@ const ClusterInfoCard: React.FC<Props> = ({ data, loading, nodes, pods, events }
         startDecorator={<HealthIcon size={12} />}
         style={healthChipStyle}
       >
-        {health.issues.length === 0 ? 'Healthy' : health.issues.join(' \u00b7 ')}
+        {health.issues.length === 0 ? 'No issues observed on selected pages' : `Issues on selected pages: ${health.issues.join(' \u00b7 ')}`}
       </Chip>
     </Stack>
   );

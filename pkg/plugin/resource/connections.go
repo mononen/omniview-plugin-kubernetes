@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	"github.com/omniview/kubernetes/pkg/utils/kubeauth"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,7 +50,10 @@ func enrichConnectionData(
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if data, err := client.DiscoveryClient.RESTClient().Get().AbsPath("/version").DoRaw(ctx); err == nil {
-		var info struct { GitVersion string `json:"gitVersion"`; Platform string `json:"platform"` }
+		var info struct {
+			GitVersion string `json:"gitVersion"`
+			Platform   string `json:"platform"`
+		}
 		if json.Unmarshal(data, &info) == nil {
 			conn.Data["k8s_version"] = info.GitVersion
 			conn.Data["k8s_platform"] = info.Platform
@@ -61,10 +63,15 @@ func enrichConnectionData(
 	count, continuation := 0, ""
 	for {
 		page, err := client.KubeClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{Limit: 256, Continue: continuation})
-		if err != nil { break }
+		if err != nil {
+			break
+		}
 		count += len(page.Items)
 		continuation = page.Continue
-		if continuation == "" { conn.Data["node_count"] = count; break }
+		if continuation == "" {
+			conn.Data["node_count"] = count
+			break
+		}
 	}
 
 	conn.Data["last_checked"] = time.Now().UTC().Format(time.RFC3339)
@@ -222,4 +229,3 @@ func enrichAKSLabels(labels map[string]interface{}, authInfo *clientcmdapi.AuthI
 		}
 	}
 }
-

@@ -43,9 +43,13 @@ func (d *DeploymentResourcer) ResolveRelationships(
 	source := request.Source
 	id := source.Reference.Address.ID
 	namespace, err := nativeRequestNamespace(source.Reference.Address.Scope)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	dep, err := client.KubeClient.AppsV1().Deployments(namespace).Get(ctx, id, metav1.GetOptions{})
-	if err != nil { return nil, fmt.Errorf("failed to get deployment %s: %w", id, err) }
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deployment %s: %w", id, err)
+	}
 
 	var rels []resource.ResolvedRelationship
 	byTarget := descriptorByTarget(d.DeclareRelationships())
@@ -53,31 +57,37 @@ func (d *DeploymentResourcer) ResolveRelationships(
 	// ReplicaSet relationships via label selector.
 	if dep.Spec.Selector != nil {
 		selector, err := metav1.LabelSelectorAsSelector(dep.Spec.Selector)
-		if err != nil { return nil, err }
-			rsList, err := client.KubeClient.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{
-				LabelSelector: selector.String(),
-			})
-			if err != nil { return nil, fmt.Errorf("failed to list replicasets for deployment %s: %w", id, err) }
-			if len(rsList.Items) > 0 {
-				targets := make([]resource.RelationshipTarget, 0, len(rsList.Items))
-				for _, rs := range rsList.Items {
-					// Only include ReplicaSets owned by this Deployment.
-					for _, ref := range rs.OwnerReferences {
-						if ref.Kind == "Deployment" && ref.Name == id && dep.UID != "" && ref.UID == dep.UID {
-							target, err := makeRef(request, "k8s:apps/replicasets", rs.Name, namespace, string(rs.UID))
-							if err != nil { return nil, err }
-							targets = append(targets, target)
-							break
+		if err != nil {
+			return nil, err
+		}
+		rsList, err := client.KubeClient.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: selector.String(),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list replicasets for deployment %s: %w", id, err)
+		}
+		if len(rsList.Items) > 0 {
+			targets := make([]resource.RelationshipTarget, 0, len(rsList.Items))
+			for _, rs := range rsList.Items {
+				// Only include ReplicaSets owned by this Deployment.
+				for _, ref := range rs.OwnerReferences {
+					if ref.Kind == "Deployment" && ref.Name == id && dep.UID != "" && ref.UID == dep.UID {
+						target, err := makeRef(request, "k8s:apps/replicasets", rs.Name, namespace, string(rs.UID))
+						if err != nil {
+							return nil, err
 						}
+						targets = append(targets, target)
+						break
 					}
 				}
-				if len(targets) > 0 {
-					rels = append(rels, resource.ResolvedRelationship{
-						Descriptor: byTarget["k8s:apps/replicasets"],
-						Targets:    targets,
-					})
-				}
 			}
+			if len(targets) > 0 {
+				rels = append(rels, resource.ResolvedRelationship{
+					Descriptor: byTarget["k8s:apps/replicasets"],
+					Targets:    targets,
+				})
+			}
+		}
 	}
 
 	// ConfigMap relationships from volumes.
@@ -85,7 +95,9 @@ func (d *DeploymentResourcer) ResolveRelationships(
 		targets := make([]resource.RelationshipTarget, 0, len(cms))
 		for _, name := range cms {
 			target, err := makeRef(request, "k8s:/configmaps", name, namespace)
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
@@ -99,7 +111,9 @@ func (d *DeploymentResourcer) ResolveRelationships(
 		targets := make([]resource.RelationshipTarget, 0, len(secrets))
 		for _, name := range secrets {
 			target, err := makeRef(request, "k8s:/secrets", name, namespace)
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
@@ -199,7 +213,9 @@ func (d *DeploymentResourcer) executeRestart(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
-	if scopeErr != nil { return resource.Value{}, scopeErr }
+	if scopeErr != nil {
+		return resource.Value{}, scopeErr
+	}
 	patch := fmt.Sprintf(
 		`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`,
 		time.Now().Format(time.RFC3339),
@@ -226,7 +242,9 @@ func (d *DeploymentResourcer) streamRestart(
 	stream chan<- resource.ActionEvent,
 ) error {
 	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
-	if scopeErr != nil { return scopeErr }
+	if scopeErr != nil {
+		return scopeErr
+	}
 
 	// Patch to trigger restart.
 	patch := fmt.Sprintf(
@@ -253,8 +271,12 @@ func (d *DeploymentResourcer) streamRestart(
 	defer watcher.Stop()
 	if input.Reference.Incarnation != nil {
 		current, err := client.KubeClient.AppsV1().Deployments(namespace).Get(ctx, input.Reference.Address.ID, metav1.GetOptions{})
-		if err != nil { return err }
-		if err := nativeActionObjectMatches(input, current); err != nil { return err }
+		if err != nil {
+			return err
+		}
+		if err := nativeActionObjectMatches(input, current); err != nil {
+			return err
+		}
 	}
 	select {
 	case stream <- resource.ActionEvent{Type: "ready"}:
@@ -276,7 +298,9 @@ func (d *DeploymentResourcer) streamRestart(
 				return fmt.Errorf("watch channel closed")
 			}
 			if object, ok := event.Object.(metav1.Object); ok {
-				if err := nativeActionObjectMatches(input, object); err != nil { return err }
+				if err := nativeActionObjectMatches(input, object); err != nil {
+					return err
+				}
 			}
 			if event.Type != watch.Modified {
 				continue
@@ -297,7 +321,9 @@ func (d *DeploymentResourcer) streamRestart(
 				"updated": dep.Status.UpdatedReplicas,
 				"message": fmt.Sprintf("%d/%d replicas ready", dep.Status.AvailableReplicas, desired),
 			})
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 			select {
 			case stream <- resource.ActionEvent{Type: "progress", Data: progress}:
 			case <-ctx.Done():
@@ -310,7 +336,9 @@ func (d *DeploymentResourcer) streamRestart(
 				complete, err := nativeActionEventValue(map[string]interface{}{
 					"message": fmt.Sprintf("Deployment %s successfully restarted", input.Reference.Address.ID),
 				})
-				if err != nil { return err }
+				if err != nil {
+					return err
+				}
 				select {
 				case stream <- resource.ActionEvent{Type: "complete", Data: complete}:
 				case <-ctx.Done():
@@ -329,11 +357,17 @@ func (d *DeploymentResourcer) executeScale(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
-	if scopeErr != nil { return resource.Value{}, scopeErr }
+	if scopeErr != nil {
+		return resource.Value{}, scopeErr
+	}
 	params, paramsErr := nativeActionParams(input.Input)
-	if paramsErr != nil { return resource.Value{}, paramsErr }
+	if paramsErr != nil {
+		return resource.Value{}, paramsErr
+	}
 	replicas, parseErr := nativeActionInteger(params["replicas"], 0, 2147483647)
-	if parseErr != nil { return resource.Value{}, fmt.Errorf("replicas: %w", parseErr) }
+	if parseErr != nil {
+		return resource.Value{}, fmt.Errorf("replicas: %w", parseErr)
+	}
 	replicaCount := int32(replicas)
 	patch := fmt.Sprintf(`{"spec":{"replicas":%d}}`, replicaCount)
 	_, err := client.KubeClient.AppsV1().Deployments(namespace).Patch(
@@ -358,7 +392,9 @@ func (d *DeploymentResourcer) executePauseResume(
 	paused bool,
 ) (resource.Value, error) {
 	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
-	if scopeErr != nil { return resource.Value{}, scopeErr }
+	if scopeErr != nil {
+		return resource.Value{}, scopeErr
+	}
 	patch := fmt.Sprintf(`{"spec":{"paused":%t}}`, paused)
 	_, err := client.KubeClient.AppsV1().Deployments(namespace).Patch(
 		ctx, input.Reference.Address.ID, k8stypes.StrategicMergePatchType,

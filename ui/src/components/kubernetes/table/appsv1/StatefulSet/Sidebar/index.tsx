@@ -103,7 +103,7 @@ export const StatefulSetSidebar: React.FC<Props> = ({ ctx }) => {
         <WorkloadPortsCard
           podSpec={sts.spec.template.spec}
           resourceKey="k8s:apps/statefulsets"
-          resourceData={sts}
+          resource={ctx.resource}
           resourceID={ctx.resource?.reference.address.id || ''}
           connectionID={ctx.resource?.route.connection || ''}
         />

@@ -1,12 +1,14 @@
 import { Button, Card, Chip, FormField, Grid, IconButton, Input, Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import { useMetricProvidersForResource } from '@omniviewdev/runtime';
 import { MetricClient } from '@omniviewdev/runtime/api';
+import { metric } from '@omniviewdev/runtime/models';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useRef, useCallback, useId } from 'react';
 import { LuActivity, LuCheck, LuCircle, LuInfo, LuPlugZap, LuRefreshCw, LuX } from 'react-icons/lu';
 
 import { useClusterPreferences } from '../../hooks/useClusterPreferences';
 import type { MetricConfig } from '../../types/clusters';
+import { metricQueryParams } from '../../utils/metricParams';
 
 interface Props {
   pluginID: string;
@@ -197,33 +199,27 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
     setTestError('');
     abortRef.current = false;
 
-    // Build resourceData with per-connection config
-    const resourceData: Record<string, unknown> = {};
-    if (service || namespace || port) {
-      resourceData.__metric_config__ = {
-        service: service || '',
-        namespace: namespace || '',
-        port: parseInt(port, 10) || 0,
-      };
-    }
+    const params = metricQueryParams({
+      prometheusService: service,
+      prometheusNamespace: namespace,
+      prometheusPort: parseInt(port, 10) || undefined,
+    });
 
     try {
       // Call QueryAll via the MetricClient binding — bypasses the
       // useResourceMetrics hook's provider-count guard so we get a real
       // backend round-trip even when the provider cache is stale.
-      // QueryAll requires Record<string, any> per the Wails binding signature
-      const results = await MetricClient.QueryAll(
-        connectionID,
-        'cluster::metrics',
-        '_test',
-        '',
-        resourceData as Record<string, string | number | Record<string, string | number>>,
-        ['prom_cluster_node_count'],
-        0, // ShapeCurrent
-        new Date(0).toISOString(),
-        new Date(0).toISOString(),
-        0, // step
-      );
+      const results = await MetricClient.QueryAll(connectionID, metric.QueryRequest.createFrom({
+        resource_key: 'cluster::metrics',
+        resource_id: '_test',
+        resource_namespace: '',
+        params,
+        metric_ids: ['prom_cluster_node_count'],
+        shape: 0, // ShapeCurrent
+        start_time: new Date(0).toISOString(),
+        end_time: new Date(0).toISOString(),
+        step: 0,
+      }));
 
       if (abortRef.current) return;
 

@@ -46,9 +46,8 @@ func GenerateResourceDef(columndefs []types.ColumnDefinition, namespaced bool) t
 	)
 
 	def := types.ResourceDefinition{
-		ColumnDefs:       cols,
+		ColumnDefs: cols,
 	}
-
 
 	return def
 }
@@ -106,7 +105,7 @@ var ResourceDefs = map[string]types.ResourceDefinition{
 	"k8s:/persistentvolumeclaims": corev1.PVCDef,
 	"k8s:/persistentvolumes":      corev1.PVDef,
 	"k8s:/namespaces":             corev1.NamespaceDef,
-	"k8s:/componentstatuses":       corev1.ComponentStatusDef,
+	"k8s:/componentstatuses":      corev1.ComponentStatusDef,
 	"k8s:autoscaling/horizontalpodautoscalers": GenerateResourceDef(
 		autoscalingv2.HPACols,
 		true,

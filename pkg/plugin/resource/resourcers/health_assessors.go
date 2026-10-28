@@ -2,8 +2,8 @@ package resourcers
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/runtime"
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	appsv1 "k8s.io/api/apps/v1"
@@ -11,7 +11,6 @@ import (
 
 	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
-
 
 // ====================== NODE HEALTH ====================== //
 
@@ -76,7 +75,9 @@ func (n *NodeResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ 
 }
 
 func (n *NodeResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, request resource.GetRequest, limit uint32) ([]resource.ResourceEvent, error) {
-	if _, err := nativeRequestNamespace(request.Reference.Address.Scope); err != nil { return nil, err }
+	if _, err := nativeRequestNamespace(request.Reference.Address.Scope); err != nil {
+		return nil, err
+	}
 	fieldSelector := nativeEventSelector(request, "Node")
 	return getK8sEvents(ctx, client, "", fieldSelector, limit)
 }
@@ -126,7 +127,9 @@ func (d *DeploymentResourcer) AssessHealth(_ context.Context, _ *clients.ClientS
 
 func (d *DeploymentResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, request resource.GetRequest, limit uint32) ([]resource.ResourceEvent, error) {
 	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	fieldSelector := nativeEventSelector(request, "Deployment")
 	return getK8sEvents(ctx, client, namespace, fieldSelector, limit)
 }
@@ -176,7 +179,9 @@ func (s *StatefulSetResourcer) AssessHealth(_ context.Context, _ *clients.Client
 
 func (s *StatefulSetResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, request resource.GetRequest, limit uint32) ([]resource.ResourceEvent, error) {
 	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	fieldSelector := nativeEventSelector(request, "StatefulSet")
 	return getK8sEvents(ctx, client, namespace, fieldSelector, limit)
 }
@@ -227,16 +232,22 @@ func (d *DaemonSetResourcer) AssessHealth(_ context.Context, _ *clients.ClientSe
 
 func (d *DaemonSetResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, request resource.GetRequest, limit uint32) ([]resource.ResourceEvent, error) {
 	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	fieldSelector := nativeEventSelector(request, "DaemonSet")
 	return getK8sEvents(ctx, client, namespace, fieldSelector, limit)
 }
 
 func decodeHealthValue(value resource.Value, target interface{}) error {
 	native, err := resource.NativeFromValue(value)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	object, ok := native.(map[string]interface{})
-	if !ok { return resource.NewError("INVALID_REQUEST", "Kubernetes health body must be an object") }
+	if !ok {
+		return resource.NewError("INVALID_REQUEST", "Kubernetes health body must be an object")
+	}
 	return runtime.DefaultUnstructuredConverter.FromUnstructured(object, target)
 }
 

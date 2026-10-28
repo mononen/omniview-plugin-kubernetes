@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useKubernetesResources } from './useKubernetesResources';
 
@@ -6,9 +6,12 @@ const mocks = vi.hoisted(() => ({
   types: vi.fn(), resolve: vi.fn(), resources: vi.fn(), decode: vi.fn(),
 }));
 vi.mock('@omniviewdev/runtime', () => ({
-  useResourceTypes: mocks.types,
+  useResourceTypes: () => ({ resourceTypes: mocks.types() }),
   useResolvedResourceTarget: mocks.resolve,
-  useResources: mocks.resources,
+  useResources: (options: { request?: unknown }) => {
+    const result = mocks.resources(options);
+    return { ...result, refreshAcquiredPage: result.resources.refetch, acquired: result.resources.data ? { request: options.request, page: result.resources.data } : undefined };
+  },
   valueToJSON: mocks.decode,
 }));
 
@@ -39,7 +42,7 @@ describe('useKubernetesResources', () => {
       scope: [{ dimension: 'namespace', match: 'oneOf', values: ['team'] }],
     }));
     expect(mocks.resources).toHaveBeenCalledWith(expect.objectContaining({
-      request: { targetId: 'host-membership', request: { target: { authority: 'host-authority' }, pageSize: 200 } },
+      request: { targetId: 'host-membership', request: { target: { authority: 'host-authority' }, pageSize: 200, cursor: undefined } },
       live: true,
     }));
     expect(result.current.bodies).toEqual([9007199254740993n]);
@@ -63,5 +66,50 @@ describe('useKubernetesResources', () => {
     mocks.resolve.mockReturnValue({ data: undefined, isLoading: false });
     renderHook(() => useKubernetesResources({ connectionID: '', resourceType: 'k8s:/pods' }));
     expect(mocks.resources).toHaveBeenCalledWith(expect.objectContaining({ request: undefined, enabled: false }));
+  });
+
+  it('exposes explicit continuation without draining or accumulating rows', () => {
+    mocks.resources.mockReturnValue({ resources: { data: {
+      records: [{ key: 'first', record: { body: {} } }],
+      sourcePage: { nextCursor: 'native/source/cursor', count: { kind: 'unknown' }, consistency: 'bestEffort' },
+    }, isLoading: false } });
+    const { result, rerender } = renderHook(() => useKubernetesResources({ connectionID: 'selected', resourceType: 'k8s:/pods' }));
+    expect(mocks.resources).toHaveBeenCalledTimes(1);
+    expect(result.current.sourcePage?.count.kind).toBe('unknown');
+    act(() => result.current.pagination.nextPage(result.current.sourcePage?.nextCursor));
+    expect(mocks.resources).toHaveBeenLastCalledWith(expect.objectContaining({
+      request: expect.objectContaining({ request: expect.objectContaining({ cursor: 'native/source/cursor', pageSize: 200 }) }),
+    }));
+    mocks.resources.mockReturnValue({ resources: { data: { records: [{ key: 'second', record: { body: {} } }], sourcePage: { count: { kind: 'unknown' } } }, isLoading: false } });
+    rerender();
+    expect(result.current.records.map(({ key }) => key)).toEqual(['second']);
+    act(() => result.current.pagination.previousPage());
+    expect(mocks.resources).toHaveBeenLastCalledWith(expect.objectContaining({
+      request: expect.objectContaining({ request: expect.objectContaining({ cursor: undefined }) }),
+    }));
+  });
+
+  it('never sends a previous target cursor to a newly resolved membership', () => {
+    const { result, rerender } = renderHook(() => useKubernetesResources({ connectionID: 'selected', resourceType: 'k8s:/pods' }));
+    act(() => result.current.pagination.nextPage('old-cursor'));
+    mocks.resolve.mockReturnValue({ data: { targetId: 'new-membership', target: { authority: 'new-authority' } }, isLoading: false });
+    rerender();
+    expect(mocks.resources).toHaveBeenLastCalledWith(expect.objectContaining({
+      request: { targetId: 'new-membership', request: { target: { authority: 'new-authority' }, pageSize: 200, cursor: undefined } },
+    }));
+  });
+
+  it('preserves visible-page advisory updates and exposes explicit stale-page refresh', () => {
+    const refetch = vi.fn();
+    mocks.resources.mockReturnValue({
+      resources: { data: { records: [], sourcePage: { count: { kind: 'unknown' } } }, isFetching: false, refetch },
+      membershipStale: true,
+    });
+    const { result } = renderHook(() => useKubernetesResources({ connectionID: 'selected', resourceType: 'k8s:/pods' }));
+    expect(mocks.resources).toHaveBeenLastCalledWith(expect.objectContaining({ live: true }));
+    expect(result.current.pageControls.membershipStale).toBe(true);
+    expect(refetch).not.toHaveBeenCalled();
+    act(() => result.current.pageControls.refresh?.());
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 });

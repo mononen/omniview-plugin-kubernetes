@@ -1,8 +1,8 @@
 package logs
 
 import (
-	"github.com/omniviewdev/plugin-sdk/pkg/v1/logs"
 	"github.com/omniviewdev/plugin-sdk/pkg/sdk"
+	"github.com/omniviewdev/plugin-sdk/pkg/v1/logs"
 )
 
 // Register registers the log capability with the Kubernetes plugin.

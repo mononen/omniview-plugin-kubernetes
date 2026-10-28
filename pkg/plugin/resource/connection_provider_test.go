@@ -2,19 +2,19 @@ package resource
 
 import (
 	"context"
-	"testing"
 	"os"
 	"path/filepath"
+	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/settings/settingstest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	"go.uber.org/zap"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
@@ -66,9 +66,9 @@ func TestDestroyClient_NilClient(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestDestroyClient_NilFactory(t *testing.T) {
+func TestDestroyClient_NoSources(t *testing.T) {
 	p := &kubeConnectionProvider{logger: zap.NewNop().Sugar()}
-	// ClientSet with nil DynamicInformerFactory — should not panic.
+	// An unused ClientSet has no native sources to stop.
 	cs := &clients.ClientSet{}
 	err := p.DestroyClient(context.Background(), cs)
 	assert.NoError(t, err)
@@ -130,7 +130,9 @@ func TestWatchConnectionsRefreshesAtomicReplacementAndCloses(t *testing.T) {
 				for {
 					select {
 					case _, open := <-updates:
-						if !open { return }
+						if !open {
+							return
+						}
 					case <-closed:
 						t.Fatal("connection watcher did not close after cancellation")
 					}

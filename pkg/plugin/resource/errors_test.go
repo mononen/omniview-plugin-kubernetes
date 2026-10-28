@@ -229,7 +229,7 @@ func TestClassifyResourceError_JSONRoundTrip(t *testing.T) {
 func TestClassifyResourceErrorFiniteSourceFailures(t *testing.T) {
 	for _, test := range []struct {
 		status int32
-		code string
+		code   string
 	}{
 		{400, "INVALID_REQUEST"},
 		{422, "INVALID_REQUEST"},

@@ -79,7 +79,7 @@ func nativeTestGet(namespace string) resourcev2.GetRequest {
 
 func nativeTestEnumerate(scope resourcev2.QueryScope) resourcev2.EnumerateRequest {
 	return resourcev2.EnumerateRequest{Target: resourcev2.ReadTarget{
-		Route: resourcev2.AccessRoute{Connection: "route"},
+		Route:    resourcev2.AccessRoute{Connection: "route"},
 		Provider: "kubernetes", Authority: "authority", Type: "k8s:sample.example/widgets", Scope: scope, Representation: "native",
 	}, PageSize: 2}
 }
@@ -109,10 +109,10 @@ func nativeTestList(items ...*unstructured.Unstructured) *unstructured.Unstructu
 func TestNativeGetPreservesCanonicalBodyAndIdentity(t *testing.T) {
 	object := nativeTestObject("native-name", "selected")
 	object.Object["spec"] = map[string]any{
-		"exact": int64(9223372036854775807),
+		"exact":  int64(9223372036854775807),
 		"double": float64(3),
 		"nested": []any{nil, true, "value"},
-		"large": strings.Repeat("x", 2<<20),
+		"large":  strings.Repeat("x", 2<<20),
 	}
 	client := nativeTestClient(object)
 	record, err := NativeGet(context.Background(), client, nativeTestGVR, true, nativeTestGet("selected"), nativeTestRepresentation())
@@ -166,9 +166,9 @@ func TestNativeGetIncarnationAndOptionalTokens(t *testing.T) {
 
 func TestNativeGetRejectsInvalidScopeBeforeAcquisition(t *testing.T) {
 	cases := []struct {
-		name string
+		name       string
 		namespaced bool
-		scope []resourcev2.ScopeEntry
+		scope      []resourcev2.ScopeEntry
 	}{
 		{"missing", true, nil},
 		{"empty", true, []resourcev2.ScopeEntry{{Dimension: "namespace"}}},
@@ -311,10 +311,10 @@ func TestNativeEnumerateRejectsInvalidScopeAndPageSize(t *testing.T) {
 	empty := []string{""}
 	values := []string{"a"}
 	cases := []struct {
-		name string
+		name       string
 		namespaced bool
-		scope resourcev2.QueryScope
-		pageSize uint32
+		scope      resourcev2.QueryScope
+		pageSize   uint32
 	}{
 		{"missing", true, nil, 2},
 		{"unknown", true, resourcev2.QueryScope{{Dimension: "region", Match: resourcev2.ScopeAny}}, 2},
@@ -351,20 +351,39 @@ func TestNativeEnumerateCursorBindsSource(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, first.NextCursor)
 	cases := []struct {
-		name string
+		name   string
 		change func(*resourcev2.EnumerateRequest, *schema.GroupVersionResource, *bool)
 	}{
-		{"provider", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) { r.Target.Provider = "other" }},
-		{"authority", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) { r.Target.Authority = "other" }},
+		{"provider", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) {
+			r.Target.Provider = "other"
+		}},
+		{"authority", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) {
+			r.Target.Authority = "other"
+		}},
 		{"type", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) { r.Target.Type = "other" }},
-		{"route", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) { r.Target.Route.Connection = "other" }},
-		{"scope", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) { r.Target.Scope = nativeTestOneOf("b") }},
+		{"route", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) {
+			r.Target.Route.Connection = "other"
+		}},
+		{"scope", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) {
+			r.Target.Scope = nativeTestOneOf("b")
+		}},
 		{"page size", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) { r.PageSize = 1 }},
 		{"GVR", func(_ *resourcev2.EnumerateRequest, g *schema.GroupVersionResource, _ *bool) { g.Resource = "other" }},
-		{"namespace mode", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, n *bool) { *n = false; r.Target.Scope = resourcev2.QueryScope{} }},
-		{"malformed", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) { r.Cursor = nativeOptionalToken("not-a-source-cursor") }},
-		{"empty", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) { value := ""; r.Cursor = &value }},
-		{"oversized", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) { value := strings.Repeat("x", nativeReadMaxCursorBytes+1); r.Cursor = &value }},
+		{"namespace mode", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, n *bool) {
+			*n = false
+			r.Target.Scope = resourcev2.QueryScope{}
+		}},
+		{"malformed", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) {
+			r.Cursor = nativeOptionalToken("not-a-source-cursor")
+		}},
+		{"empty", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) {
+			value := ""
+			r.Cursor = &value
+		}},
+		{"oversized", func(r *resourcev2.EnumerateRequest, _ *schema.GroupVersionResource, _ *bool) {
+			value := strings.Repeat("x", nativeReadMaxCursorBytes+1)
+			r.Cursor = &value
+		}},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {

@@ -48,7 +48,7 @@ export const JobSidebar: React.FC<Props> = ({ ctx }) => {
         <WorkloadPortsCard
           podSpec={job.spec.template.spec}
           resourceKey="k8s:batch/jobs"
-          resourceData={job}
+          resource={ctx.resource}
           resourceID={ctx.resource?.reference.address.id || ''}
           connectionID={ctx.resource?.route.connection || ''}
         />

@@ -3,8 +3,8 @@ import type { Event as K8sEvent } from 'kubernetes-types/core/v1';
 import { useMemo } from 'react';
 
 import type { KubeEvent, TimelineEvent } from '../types/events';
+import type { SourcePageControlsProps } from '../components/shared/SourcePageControls';
 
-const MAX_EVENTS = 100;
 
 export interface UseResourceEventsOptions {
   pluginID: string;
@@ -24,6 +24,8 @@ export interface UseResourceEventsResult {
   timelineEvents: TimelineEvent[];
   isLoading: boolean;
   warningCount: number;
+  pageControls: SourcePageControlsProps;
+  error: unknown;
 }
 
 
@@ -42,8 +44,8 @@ function formatAge(timestamp?: string): string {
 }
 
 /**
- * Reads canonical Kubernetes Event bodies with best-effort live updates,
- * then filters by the provider-native involved object fields.
+ * Reads one bounded canonical Kubernetes Event page,
+ * then filters by the provider-native involved object fields on that page.
  */
 export function useResourceEvents({
   pluginID,
@@ -80,8 +82,7 @@ export function useResourceEvents({
         const tsA = (a.lastTimestamp ?? a.firstTimestamp ?? a.metadata?.creationTimestamp ?? '');
         const tsB = (b.lastTimestamp ?? b.firstTimestamp ?? b.metadata?.creationTimestamp ?? '');
         return new Date(tsB).getTime() - new Date(tsA).getTime();
-      })
-      .slice(0, MAX_EVENTS);
+      });
 
     const events: KubeEvent[] = filtered.map((ev) => ({
       type: (ev.type as 'Normal' | 'Warning') ?? 'Normal',
@@ -115,5 +116,7 @@ export function useResourceEvents({
   return {
     ...result,
     isLoading: enabled && resources.isLoading,
+    pageControls: resources.pageControls,
+    error: resources.error,
   };
 }

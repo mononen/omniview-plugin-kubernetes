@@ -67,7 +67,7 @@ export const DaemonSetSidebar: React.FC<Props> = ({ ctx }) => {
         <WorkloadPortsCard
           podSpec={ds.spec.template.spec}
           resourceKey="k8s:apps/daemonsets"
-          resourceData={ds}
+          resource={ctx.resource}
           resourceID={ctx.resource?.reference.address.id || ''}
           connectionID={ctx.resource?.route.connection || ''}
         />

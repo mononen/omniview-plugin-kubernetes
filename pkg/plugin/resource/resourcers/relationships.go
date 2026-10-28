@@ -4,7 +4,6 @@ import (
 	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
-
 // RelationshipTable returns all declarative relationship descriptors for Kubernetes resources.
 // Keys and target types use the native API group and plural resource, independent of served version.
 //
@@ -18,7 +17,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelOwns, TargetType: "k8s:apps/replicasets",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "owned by", Direction: resource.EdgeIncoming,
+				Label:           "owned by", Direction: resource.EdgeIncoming,
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: `metadata.ownerReferences.#(kind=="ReplicaSet").name`,
 				},
@@ -26,7 +25,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelOwns, TargetType: "k8s:apps/daemonsets",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "owned by", Direction: resource.EdgeIncoming,
+				Label:           "owned by", Direction: resource.EdgeIncoming,
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: `metadata.ownerReferences.#(kind=="DaemonSet").name`,
 				},
@@ -34,7 +33,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelOwns, TargetType: "k8s:apps/statefulsets",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "owned by", Direction: resource.EdgeIncoming,
+				Label:           "owned by", Direction: resource.EdgeIncoming,
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: `metadata.ownerReferences.#(kind=="StatefulSet").name`,
 				},
@@ -42,7 +41,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelOwns, TargetType: "k8s:batch/jobs",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "owned by", Direction: resource.EdgeIncoming,
+				Label:           "owned by", Direction: resource.EdgeIncoming,
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: `metadata.ownerReferences.#(kind=="Job").name`,
 				},
@@ -58,7 +57,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelUses, TargetType: "k8s:/serviceaccounts",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.serviceAccountName",
 				},
@@ -66,7 +65,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelUses, TargetType: "k8s:/persistentvolumeclaims",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.volumes.#.persistentVolumeClaim.claimName",
 				},
@@ -74,7 +73,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelUses, TargetType: "k8s:/configmaps",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.volumes.#.configMap.name",
 				},
@@ -82,7 +81,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelUses, TargetType: "k8s:/secrets",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.volumes.#.secret.secretName",
 				},
@@ -90,7 +89,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelUses, TargetType: "k8s:/configmaps",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.containers.#.envFrom.#.configMapRef.name",
 				},
@@ -98,7 +97,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelUses, TargetType: "k8s:/secrets",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.containers.#.envFrom.#.secretRef.name",
 				},
@@ -110,11 +109,11 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 		// Kept so that NodeResourcer.ResolveRelationships() has a descriptor template.
 		"k8s:/nodes": {
 			{
-				Type:              resource.RelRunsOn,
-				TargetType: "k8s:/pods",
-				Label:             "runs",
-				InverseLabel:      "runs on",
-				Cardinality:       "one-to-many",
+				Type:         resource.RelRunsOn,
+				TargetType:   "k8s:/pods",
+				Label:        "runs",
+				InverseLabel: "runs on",
+				Cardinality:  "one-to-many",
 			},
 		},
 
@@ -123,7 +122,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelOwns, TargetType: "k8s:apps/deployments",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "owned by", Direction: resource.EdgeIncoming,
+				Label:           "owned by", Direction: resource.EdgeIncoming,
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: `metadata.ownerReferences.#(kind=="Deployment").name`,
 				},
@@ -135,7 +134,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelOwns, TargetType: "k8s:batch/cronjobs",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "owned by", Direction: resource.EdgeIncoming,
+				Label:           "owned by", Direction: resource.EdgeIncoming,
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: `metadata.ownerReferences.#(kind=="CronJob").name`,
 				},
@@ -148,14 +147,14 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelManages, TargetType: "k8s:apps/replicasets",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "manages", InverseLabel: "managed by",
+				Label:           "manages", InverseLabel: "managed by",
 				Cardinality: "one-to-many",
 			},
 			// Graph indexer extractors
 			{
 				Type: resource.RelUses, TargetType: "k8s:/configmaps",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.template.spec.volumes.#.configMap.name",
 				},
@@ -163,7 +162,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelUses, TargetType: "k8s:/secrets",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.template.spec.volumes.#.secret.secretName",
 				},
@@ -176,14 +175,14 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelOwns, TargetType: "k8s:/pods",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "owns", InverseLabel: "owned by",
+				Label:           "owns", InverseLabel: "owned by",
 				Cardinality: "one-to-many",
 			},
 			// Graph indexer extractors
 			{
 				Type: resource.RelUses, TargetType: "k8s:/configmaps",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.template.spec.volumes.#.configMap.name",
 				},
@@ -191,7 +190,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelUses, TargetType: "k8s:/secrets",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.template.spec.volumes.#.secret.secretName",
 				},
@@ -204,20 +203,20 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelOwns, TargetType: "k8s:/pods",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "owns", InverseLabel: "owned by",
+				Label:           "owns", InverseLabel: "owned by",
 				Cardinality: "one-to-many",
 			},
 			{
 				Type: resource.RelUses, TargetType: "k8s:/persistentvolumeclaims",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses", InverseLabel: "used by",
+				Label:           "uses", InverseLabel: "used by",
 				Cardinality: "one-to-many",
 			},
 			// Graph indexer extractors
 			{
 				Type: resource.RelUses, TargetType: "k8s:/configmaps",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.template.spec.volumes.#.configMap.name",
 				},
@@ -225,7 +224,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelUses, TargetType: "k8s:/secrets",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.template.spec.volumes.#.secret.secretName",
 				},
@@ -237,7 +236,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelUses, TargetType: "k8s:/secrets",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "fieldPath", FieldPath: "spec.tls.#.secretName",
 				},
@@ -287,12 +286,12 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelManages, TargetType: "k8s:apps/deployments",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "manages",
+				Label:           "manages",
 			},
 			{
 				Type: resource.RelManages, TargetType: "k8s:apps/statefulsets",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "manages",
+				Label:           "manages",
 			},
 		},
 
@@ -301,7 +300,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelSelects, TargetType: "k8s:/pods",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "selects",
+				Label:           "selects",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "labelSelector", FieldPath: "spec.selector",
 				},
@@ -316,7 +315,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelSelects, TargetType: "k8s:/pods",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "selects",
+				Label:           "selects",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "labelSelectorObject", FieldPath: "spec.podSelector",
 				},
@@ -328,7 +327,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelSelects, TargetType: "k8s:/pods",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "selects",
+				Label:           "selects",
 				Extractor: &resource.RelationshipExtractor{
 					Method: "labelSelectorObject", FieldPath: "spec.selector",
 				},
@@ -353,7 +352,7 @@ func RelationshipTable() map[string][]resource.RelationshipDescriptor {
 			{
 				Type: resource.RelUses, TargetType: "k8s:rbac.authorization.k8s.io/roles",
 				ScopeExtractors: []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "metadata.namespace"}},
-				Label: "uses",
+				Label:           "uses",
 			},
 			{
 				Type: resource.RelUses, TargetType: "k8s:rbac.authorization.k8s.io/clusterroles",

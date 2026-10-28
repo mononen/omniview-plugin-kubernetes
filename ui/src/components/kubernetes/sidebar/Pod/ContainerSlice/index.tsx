@@ -25,6 +25,7 @@ const ContainerSlice: React.FC<ContainerSliceProps> = ({
   status,
   type,
   pod,
+  resource,
   volumes,
   podCpuUsage,
   podMemoryUsage,
@@ -102,7 +103,7 @@ const ContainerSlice: React.FC<ContainerSliceProps> = ({
           resourceID={resourceID}
           connectionID={connectionID}
           container={container}
-          pod={pod}
+          resource={resource}
         />
 
         {/* Environment Variables — full width */}

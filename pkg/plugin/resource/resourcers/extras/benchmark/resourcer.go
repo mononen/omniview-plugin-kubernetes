@@ -39,7 +39,6 @@ func (s *ClusterBenchmarker) Audit(
 	return resource.JSONToValue(jsonData)
 }
 
-
 // ============================ PRIVATE METHODS ============================ //.
 
 func createPolarisConf() conf.Configuration {

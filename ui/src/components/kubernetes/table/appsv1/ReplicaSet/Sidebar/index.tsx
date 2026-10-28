@@ -53,7 +53,7 @@ export const ReplicaSetSidebar: React.FC<Props> = ({ ctx }) => {
         <WorkloadPortsCard
           podSpec={rs.spec.template.spec}
           resourceKey="k8s:apps/replicasets"
-          resourceData={rs}
+          resource={ctx.resource}
           resourceID={ctx.resource?.reference.address.id || ''}
           connectionID={ctx.resource?.route.connection || ''}
         />

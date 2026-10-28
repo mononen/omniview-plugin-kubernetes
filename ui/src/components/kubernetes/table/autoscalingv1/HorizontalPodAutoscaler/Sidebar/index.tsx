@@ -15,20 +15,6 @@ interface Props {
   ctx: DrawerContext<HorizontalPodAutoscaler>;
 }
 
-function resolveResourceKey(kind?: string): string {
-  switch (kind) {
-    case 'Deployment':
-      return 'k8s:apps/deployments';
-    case 'StatefulSet':
-      return 'k8s:apps/statefulsets';
-    case 'ReplicaSet':
-      return 'k8s:apps/replicasets';
-    case 'ReplicationController':
-      return 'k8s:/replicationcontrollers';
-    default:
-      return `apps::v1::${kind || 'Deployment'}`;
-  }
-}
 
 export const HorizontalPodAutoscalerSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) return null;
@@ -50,13 +36,12 @@ export const HorizontalPodAutoscalerSidebar: React.FC<Props> = ({ ctx }) => {
             <LabeledEntry
               label={targetRef.kind || 'Target'}
               value={
-                <ResourceLinkChip
+                targetRef.apiVersion && targetRef.kind && targetRef.name ? <ResourceLinkChip
                   connectionID={connectionID}
                   namespace={namespace}
-                  resourceID={targetRef.name || ''}
-                  resourceKey={resolveResourceKey(targetRef.kind)}
+                  ownerReference={{ apiVersion: targetRef.apiVersion, kind: targetRef.kind, name: targetRef.name, uid: '' }}
                   resourceName={targetRef.name}
-                />
+                /> : targetRef.name
               }
             />
           </SidebarSection>

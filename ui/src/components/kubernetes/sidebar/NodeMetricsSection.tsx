@@ -1,5 +1,5 @@
 import { Progress, Spinner, Stack, Text } from '@omniviewdev/base-ui';
-import { useResourceMetrics } from '@omniviewdev/runtime';
+import { useResourceMetrics, type Value, type ResourceReference, type AccessRoute } from '@omniviewdev/runtime';
 import { type metric } from '@omniviewdev/runtime/models';
 import { MetricsPanel } from '../../shared/charts';
 import type { TimeSeriesDef, ChartTimeRange } from '../../shared/charts';
@@ -54,7 +54,9 @@ interface Props {
   connectionID: string;
   resourceKey: string;
   resourceID: string;
-  resourceData?: Record<string, unknown>;
+  resourceData?: Value;
+  reference?: ResourceReference;
+  route?: AccessRoute;
 }
 
 /** Extract current-value metrics keyed by metric_id */
@@ -169,6 +171,8 @@ const NodeMetricsSection: React.FC<Props> = ({
   resourceKey,
   resourceID,
   resourceData,
+  reference,
+  route,
 }) => {
   const [timeRange, setTimeRange] = useState<ChartTimeRange>(() => ({
     from: new Date(Date.now() - 60 * 60 * 1000),
@@ -186,6 +190,8 @@ const NodeMetricsSection: React.FC<Props> = ({
     resourceKey,
     resourceID,
     resourceData,
+    reference,
+    route,
     refreshInterval: 30000,
   });
 
@@ -196,6 +202,8 @@ const NodeMetricsSection: React.FC<Props> = ({
     resourceKey,
     resourceID,
     resourceData,
+    reference,
+    route,
     shape: 1,
     timeRange: {
       start: timeRange.from,

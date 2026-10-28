@@ -1,3 +1,4 @@
+import type { DrawerContext } from '@omniviewdev/runtime';
 import { Separator, Text } from '@omniviewdev/base-ui';
 import { Container, ContainerStatus, Pod, PodSpec } from 'kubernetes-types/core/v1';
 import React from 'react';
@@ -89,6 +90,7 @@ interface ContainersSectionProps {
   resourceID: string;
   connectionID: string;
   obj: Pod;
+  resource?: DrawerContext['resource'];
   /** Pod-level CPU usage in millicores (from metrics-server) */
   podCpuUsage?: number;
   /** Pod-level memory usage in bytes (from metrics-server) */
@@ -97,6 +99,7 @@ interface ContainersSectionProps {
 
 const PodContainersSection: React.FC<ContainersSectionProps> = ({
   obj,
+  resource,
   resourceID,
   connectionID,
   podCpuUsage,
@@ -122,6 +125,7 @@ const PodContainersSection: React.FC<ContainersSectionProps> = ({
                 <ContainerSlice
                   {...c}
                   pod={obj}
+                  resource={resource}
                   volumes={obj.spec?.volumes}
                   podCpuUsage={podCpuUsage}
                   podMemoryUsage={podMemoryUsage}
@@ -137,6 +141,7 @@ const PodContainersSection: React.FC<ContainersSectionProps> = ({
             <ContainerSlice
               {...c}
               pod={obj}
+              resource={resource}
               volumes={obj.spec?.volumes}
               podCpuUsage={podCpuUsage}
               podMemoryUsage={podMemoryUsage}
@@ -153,6 +158,7 @@ const PodContainersSection: React.FC<ContainersSectionProps> = ({
                 <ContainerSlice
                   {...c}
                   pod={obj}
+                  resource={resource}
                   volumes={obj.spec?.volumes}
                   podCpuUsage={podCpuUsage}
                   podMemoryUsage={podMemoryUsage}

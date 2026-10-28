@@ -122,11 +122,11 @@ func main() {
 	}
 
 	// Register the capabilities
-	resource.Register(plugin)
+	retireMetrics := pluginmetric.Register(plugin)
+	resource.Register(plugin, retireMetrics)
 	exec.Register(plugin)
 	networker.Register(plugin)
 	pluginlogs.Register(plugin)
-	pluginmetric.Register(plugin)
 
 	// Serve the plugin
 	plugin.Serve()

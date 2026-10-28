@@ -218,10 +218,10 @@ func TestPodToSources(t *testing.T) {
 
 func TestExtractNameAndNamespace(t *testing.T) {
 	tests := []struct {
-		name      string
-		data      map[string]interface{}
-		wantName  string
-		wantNS    string
+		name     string
+		data     map[string]interface{}
+		wantName string
+		wantNS   string
 	}{
 		{
 			name:     "nil data",
@@ -308,7 +308,7 @@ func TestExtractNameAndNamespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			name, ns := extractNameAndNamespace(tt.data)
+			name, ns := extractNameAndNamespace(taggedFixture(tt.data))
 			assert.Equal(t, tt.wantName, name)
 			assert.Equal(t, tt.wantNS, ns)
 		})
@@ -388,7 +388,7 @@ func TestExtractNodeName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			node, ok := extractNodeName(tt.data)
+			node, ok := extractNodeName(taggedFixture(tt.data))
 			assert.Equal(t, tt.wantNode, node)
 			assert.Equal(t, tt.wantOK, ok)
 		})
@@ -421,12 +421,12 @@ func TestPodSourceBuilder(t *testing.T) {
 	}
 
 	t.Run("nil resource data returns nil", func(t *testing.T) {
-		result := PodSourceBuilder("id", nil, logs.LogSessionOptions{})
+		result := PodSourceBuilder("id", taggedFixture(nil), logs.LogSessionOptions{})
 		assert.Nil(t, result)
 	})
 
 	t.Run("empty resource data returns nil", func(t *testing.T) {
-		result := PodSourceBuilder("id", map[string]interface{}{}, logs.LogSessionOptions{})
+		result := PodSourceBuilder("id", taggedFixture(map[string]interface{}{}), logs.LogSessionOptions{})
 		assert.Nil(t, result)
 	})
 
@@ -441,7 +441,7 @@ func TestPodSourceBuilder(t *testing.T) {
 				},
 			},
 		}
-		result := PodSourceBuilder("id", data, logs.LogSessionOptions{})
+		result := PodSourceBuilder("id", taggedFixture(data), logs.LogSessionOptions{})
 		assert.Nil(t, result)
 	})
 
@@ -452,7 +452,7 @@ func TestPodSourceBuilder(t *testing.T) {
 				"namespace": "ns",
 			},
 		}
-		result := PodSourceBuilder("id", data, logs.LogSessionOptions{})
+		result := PodSourceBuilder("id", taggedFixture(data), logs.LogSessionOptions{})
 		assert.Nil(t, result)
 	})
 
@@ -464,7 +464,7 @@ func TestPodSourceBuilder(t *testing.T) {
 			},
 			"spec": "bad-value",
 		}
-		result := PodSourceBuilder("id", data, logs.LogSessionOptions{})
+		result := PodSourceBuilder("id", taggedFixture(data), logs.LogSessionOptions{})
 		assert.Nil(t, result)
 	})
 
@@ -478,12 +478,12 @@ func TestPodSourceBuilder(t *testing.T) {
 				"containers": []interface{}{},
 			},
 		}
-		result := PodSourceBuilder("id", data, logs.LogSessionOptions{})
+		result := PodSourceBuilder("id", taggedFixture(data), logs.LogSessionOptions{})
 		assert.Nil(t, result)
 	})
 
 	t.Run("all containers returned with empty target", func(t *testing.T) {
-		sources := PodSourceBuilder("res-123", fullData, logs.LogSessionOptions{})
+		sources := PodSourceBuilder("res-123", taggedFixture(fullData), logs.LogSessionOptions{})
 		require.Len(t, sources, 4)
 
 		// Order: initContainers, containers, ephemeralContainers
@@ -495,33 +495,33 @@ func TestPodSourceBuilder(t *testing.T) {
 
 	t.Run("target filters to single container", func(t *testing.T) {
 		opts := logs.LogSessionOptions{Target: "web"}
-		sources := PodSourceBuilder("res-123", fullData, opts)
+		sources := PodSourceBuilder("res-123", taggedFixture(fullData), opts)
 		require.Len(t, sources, 1)
 		assert.Equal(t, "web-pod/web", sources[0].ID)
 	})
 
 	t.Run("target matches init container", func(t *testing.T) {
 		opts := logs.LogSessionOptions{Target: "init-migrate"}
-		sources := PodSourceBuilder("res-123", fullData, opts)
+		sources := PodSourceBuilder("res-123", taggedFixture(fullData), opts)
 		require.Len(t, sources, 1)
 		assert.Equal(t, "web-pod/init-migrate", sources[0].ID)
 	})
 
 	t.Run("target matches ephemeral container", func(t *testing.T) {
 		opts := logs.LogSessionOptions{Target: "debug-shell"}
-		sources := PodSourceBuilder("res-123", fullData, opts)
+		sources := PodSourceBuilder("res-123", taggedFixture(fullData), opts)
 		require.Len(t, sources, 1)
 		assert.Equal(t, "web-pod/debug-shell", sources[0].ID)
 	})
 
 	t.Run("nonexistent target returns nil", func(t *testing.T) {
 		opts := logs.LogSessionOptions{Target: "no-such-container"}
-		sources := PodSourceBuilder("res-123", fullData, opts)
+		sources := PodSourceBuilder("res-123", taggedFixture(fullData), opts)
 		assert.Nil(t, sources)
 	})
 
 	t.Run("labels include node name", func(t *testing.T) {
-		sources := PodSourceBuilder("res-123", fullData, logs.LogSessionOptions{Target: "web"})
+		sources := PodSourceBuilder("res-123", taggedFixture(fullData), logs.LogSessionOptions{Target: "web"})
 		require.Len(t, sources, 1)
 		assert.Equal(t, map[string]string{
 			"pod":       "web-pod",
@@ -543,7 +543,7 @@ func TestPodSourceBuilder(t *testing.T) {
 				},
 			},
 		}
-		sources := PodSourceBuilder("id", data, logs.LogSessionOptions{})
+		sources := PodSourceBuilder("id", taggedFixture(data), logs.LogSessionOptions{})
 		require.Len(t, sources, 1)
 		assert.Equal(t, "", sources[0].Labels["node"])
 	})
@@ -561,7 +561,7 @@ func TestPodSourceBuilder(t *testing.T) {
 				},
 			},
 		}
-		sources := PodSourceBuilder("id", data, logs.LogSessionOptions{})
+		sources := PodSourceBuilder("id", taggedFixture(data), logs.LogSessionOptions{})
 		require.Len(t, sources, 1)
 		assert.Equal(t, "pod-1/valid", sources[0].ID)
 	})
@@ -579,7 +579,7 @@ func TestPodSourceBuilder(t *testing.T) {
 				},
 			},
 		}
-		sources := PodSourceBuilder("id", data, logs.LogSessionOptions{})
+		sources := PodSourceBuilder("id", taggedFixture(data), logs.LogSessionOptions{})
 		require.Len(t, sources, 1)
 		assert.Equal(t, "pod-1/real", sources[0].ID)
 	})
@@ -594,14 +594,14 @@ func TestPodSourceBuilder(t *testing.T) {
 				"containers": "not-a-slice",
 			},
 		}
-		sources := PodSourceBuilder("id", data, logs.LogSessionOptions{})
+		sources := PodSourceBuilder("id", taggedFixture(data), logs.LogSessionOptions{})
 		assert.Nil(t, sources)
 	})
 
 	t.Run("resourceID argument does not affect output", func(t *testing.T) {
 		// PodSourceBuilder uses metadata name, not resourceID, for source IDs
-		s1 := PodSourceBuilder("id-a", fullData, logs.LogSessionOptions{Target: "web"})
-		s2 := PodSourceBuilder("id-b", fullData, logs.LogSessionOptions{Target: "web"})
+		s1 := PodSourceBuilder("id-a", taggedFixture(fullData), logs.LogSessionOptions{Target: "web"})
+		s2 := PodSourceBuilder("id-b", taggedFixture(fullData), logs.LogSessionOptions{Target: "web"})
 		require.Len(t, s1, 1)
 		require.Len(t, s2, 1)
 		assert.Equal(t, s1[0].ID, s2[0].ID)
@@ -614,10 +614,10 @@ func TestPodSourceBuilder(t *testing.T) {
 
 func TestExtractPodIdentity(t *testing.T) {
 	tests := []struct {
-		name      string
-		data      map[string]interface{}
-		wantName  string
-		wantNS    string
+		name     string
+		data     map[string]interface{}
+		wantName string
+		wantNS   string
 	}{
 		{
 			name:     "nil data",
@@ -682,7 +682,7 @@ func TestExtractPodIdentity(t *testing.T) {
 			name: "metadata with non-string values",
 			data: map[string]interface{}{
 				"metadata": map[string]interface{}{
-					"name":      []string{"not", "a", "string"},
+					"name":      []interface{}{"not", "a", "string"},
 					"namespace": false,
 				},
 			},
@@ -707,7 +707,7 @@ func TestExtractPodIdentity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			name, ns := extractPodIdentity(tt.data)
+			name, ns := extractPodIdentity(taggedFixture(tt.data))
 			assert.Equal(t, tt.wantName, name)
 			assert.Equal(t, tt.wantNS, ns)
 		})

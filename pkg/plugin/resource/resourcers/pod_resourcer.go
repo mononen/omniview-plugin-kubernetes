@@ -14,7 +14,6 @@ import (
 	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
-
 // PodResourcer wraps KubernetesResourcerBase for Pods with health, events, and relationships.
 type PodResourcer struct {
 	*KubernetesResourcerBase[MetaAccessor]
@@ -41,7 +40,9 @@ func (p *PodResourcer) ResolveRelationships(
 	request resource.RelationshipResolutionRequest,
 ) ([]resource.ResolvedRelationship, error) {
 	namespace, err := nativeRequestNamespace(request.Source.Reference.Address.Scope)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	id := request.Source.Reference.Address.ID
 	pod, err := client.KubeClient.CoreV1().Pods(namespace).Get(ctx, id, metav1.GetOptions{})
 	if err != nil {
@@ -60,10 +61,14 @@ func (p *PodResourcer) ResolveRelationships(
 		}
 		targetType := ""
 		switch gv.Group + "/" + owner.Kind {
-		case "apps/ReplicaSet": targetType = "k8s:apps/replicasets"
-		case "apps/DaemonSet": targetType = "k8s:apps/daemonsets"
-		case "apps/StatefulSet": targetType = "k8s:apps/statefulsets"
-		case "batch/Job": targetType = "k8s:batch/jobs"
+		case "apps/ReplicaSet":
+			targetType = "k8s:apps/replicasets"
+		case "apps/DaemonSet":
+			targetType = "k8s:apps/daemonsets"
+		case "apps/StatefulSet":
+			targetType = "k8s:apps/statefulsets"
+		case "batch/Job":
+			targetType = "k8s:batch/jobs"
 		default:
 			return nil, resource.NewError("UNSUPPORTED", "pod owner reference target is unsupported")
 		}
@@ -72,7 +77,9 @@ func (p *PodResourcer) ResolveRelationships(
 			return nil, resource.NewError("UNSUPPORTED", "pod owner relationship descriptor is unavailable")
 		}
 		target, err := makeRef(request, targetType, owner.Name, namespace, string(owner.UID))
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		rels = append(rels, resource.ResolvedRelationship{Descriptor: descriptor,
 			Targets: []resource.RelationshipTarget{target}})
 	}
@@ -80,7 +87,9 @@ func (p *PodResourcer) ResolveRelationships(
 	// Node relationship.
 	if pod.Spec.NodeName != "" {
 		target, err := makeRef(request, "k8s:/nodes", pod.Spec.NodeName, "")
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		rels = append(rels, resource.ResolvedRelationship{
 			Descriptor: byTarget["k8s:/nodes"],
 			Targets:    []resource.RelationshipTarget{target},
@@ -92,7 +101,9 @@ func (p *PodResourcer) ResolveRelationships(
 		targets := make([]resource.RelationshipTarget, 0, len(pvcs))
 		for _, name := range pvcs {
 			target, err := makeRef(request, "k8s:/persistentvolumeclaims", name, namespace)
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
@@ -106,7 +117,9 @@ func (p *PodResourcer) ResolveRelationships(
 		targets := make([]resource.RelationshipTarget, 0, len(cms))
 		for _, name := range cms {
 			target, err := makeRef(request, "k8s:/configmaps", name, namespace)
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
@@ -120,7 +133,9 @@ func (p *PodResourcer) ResolveRelationships(
 		targets := make([]resource.RelationshipTarget, 0, len(secrets))
 		for _, name := range secrets {
 			target, err := makeRef(request, "k8s:/secrets", name, namespace)
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
@@ -132,7 +147,9 @@ func (p *PodResourcer) ResolveRelationships(
 	// ServiceAccount relationship.
 	if pod.Spec.ServiceAccountName != "" {
 		target, err := makeRef(request, "k8s:/serviceaccounts", pod.Spec.ServiceAccountName, namespace)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		rels = append(rels, resource.ResolvedRelationship{
 			Descriptor: byTarget["k8s:/serviceaccounts"],
 			Targets:    []resource.RelationshipTarget{target},
@@ -146,9 +163,13 @@ func (p *PodResourcer) ResolveRelationships(
 func (p *PodResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ resource.GetRequest, data resource.Value) (*resource.ResourceHealth, error) {
 	var pod corev1.Pod
 	raw, err := resource.NativeFromValue(data)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	body, err := json.Marshal(raw)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	if err := json.Unmarshal(body, &pod); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal pod: %w", err)
 	}
@@ -243,7 +264,9 @@ func (p *PodResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ r
 // matching events from previous pod instances with the same name.
 func (p *PodResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, request resource.GetRequest, limit uint32) ([]resource.ResourceEvent, error) {
 	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	id := request.Reference.Address.ID
 	if client == nil || client.KubeClient == nil {
 		return nil, fmt.Errorf("client is required for event retrieval")

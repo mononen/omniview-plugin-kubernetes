@@ -2,7 +2,7 @@ package resourcers
 
 import (
 	"context"
- "encoding/json"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,9 +21,9 @@ func TestPodHealth_Running(t *testing.T) {
 	pod := corev1.Pod{
 		Status: corev1.PodStatus{Phase: corev1.PodRunning},
 	}
- body, err := json.Marshal(pod)
- require.NoError(t, err)
- data := mustTestValue(t, body)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
 	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
@@ -36,9 +36,9 @@ func TestPodHealth_Succeeded(t *testing.T) {
 	pod := corev1.Pod{
 		Status: corev1.PodStatus{Phase: corev1.PodSucceeded},
 	}
- body, err := json.Marshal(pod)
- require.NoError(t, err)
- data := mustTestValue(t, body)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
 	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
@@ -51,9 +51,9 @@ func TestPodHealth_Pending(t *testing.T) {
 	pod := corev1.Pod{
 		Status: corev1.PodStatus{Phase: corev1.PodPending},
 	}
- body, err := json.Marshal(pod)
- require.NoError(t, err)
- data := mustTestValue(t, body)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
 	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
@@ -69,9 +69,9 @@ func TestPodHealth_Failed(t *testing.T) {
 			Message: "OOMKilled",
 		},
 	}
- body, err := json.Marshal(pod)
- require.NoError(t, err)
- data := mustTestValue(t, body)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
 	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
@@ -95,9 +95,9 @@ func TestPodHealth_CrashLoopBackOff(t *testing.T) {
 			},
 		},
 	}
- body, err := json.Marshal(pod)
- require.NoError(t, err)
- data := mustTestValue(t, body)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
 	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
@@ -124,9 +124,9 @@ func TestPodHealth_ImagePullBackOff(t *testing.T) {
 			},
 		},
 	}
- body, err := json.Marshal(pod)
- require.NoError(t, err)
- data := mustTestValue(t, body)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
 	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
@@ -150,9 +150,9 @@ func TestPodHealth_HighRestarts(t *testing.T) {
 			},
 		},
 	}
- body, err := json.Marshal(pod)
- require.NoError(t, err)
- data := mustTestValue(t, body)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
 	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
@@ -176,9 +176,9 @@ func TestPodHealth_ContainerCreating(t *testing.T) {
 			},
 		},
 	}
- body, err := json.Marshal(pod)
- require.NoError(t, err)
- data := mustTestValue(t, body)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
 	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
@@ -195,9 +195,9 @@ func TestPodHealth_StartTime(t *testing.T) {
 			StartTime: &now,
 		},
 	}
- body, err := json.Marshal(pod)
- require.NoError(t, err)
- data := mustTestValue(t, body)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
 	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
@@ -225,10 +225,10 @@ func TestPodRelationships_Types(t *testing.T) {
 
 	// Verify all expected target keys are present.
 	expectedTargets := map[string]bool{
-		"k8s:apps/replicasets":            false,
-		"k8s:apps/daemonsets":             false,
-		"k8s:apps/statefulsets":           false,
-		"k8s:batch/jobs":                  false,
+		"k8s:apps/replicasets":        false,
+		"k8s:apps/daemonsets":         false,
+		"k8s:apps/statefulsets":       false,
+		"k8s:batch/jobs":              false,
 		"k8s:/nodes":                  false,
 		"k8s:/serviceaccounts":        false,
 		"k8s:/persistentvolumeclaims": false,

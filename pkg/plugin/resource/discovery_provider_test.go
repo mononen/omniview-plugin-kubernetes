@@ -18,8 +18,8 @@ import (
 type catalogDiscovery struct {
 	*fakediscovery.FakeDiscovery
 	groups []*metav1.APIGroup
-	lists []*metav1.APIResourceList
-	err error
+	lists  []*metav1.APIResourceList
+	err    error
 }
 
 func (d catalogDiscovery) ServerGroupsAndResources() ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {
@@ -36,7 +36,9 @@ func TestNativeDiscoveryMergesVersionsUsingPreferredRepresentation(t *testing.T)
 			old := &metav1.APIResourceList{GroupVersion: "apps/v1beta1", APIResources: []metav1.APIResource{{Name: "deployments", Kind: "Deployment", Namespaced: true, Verbs: metav1.Verbs{"get"}}}}
 			preferred := &metav1.APIResourceList{GroupVersion: "apps/v1", APIResources: []metav1.APIResource{{Name: "deployments", Kind: "Deployment", Namespaced: true, Verbs: metav1.Verbs{"get", "list"}}}}
 			d := discoveryFixture(old, preferred)
-			if reverse { d.lists = []*metav1.APIResourceList{preferred, old} }
+			if reverse {
+				d.lists = []*metav1.APIResourceList{preferred, old}
+			}
 			d.groups = []*metav1.APIGroup{{Name: "apps", PreferredVersion: metav1.GroupVersionForDiscovery{GroupVersion: "apps/v1", Version: "v1"}}}
 			bindings, coverage, err := discoverNativeTypes(context.Background(), d)
 			require.NoError(t, err)

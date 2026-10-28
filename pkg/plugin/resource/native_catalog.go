@@ -11,15 +11,15 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
 )
 
 // nativeType is an adapter-owned dispatch binding. The public type token is
 // looked up verbatim; callers never parse it to reconstruct a Kubernetes GVR.
 type nativeType struct {
-	GVR schema.GroupVersionResource
-	API metav1.APIResource
+	GVR        schema.GroupVersionResource
+	API        metav1.APIResource
 	Descriptor resourcev2.ResourceType
 }
 
@@ -117,12 +117,12 @@ func discoverNativeTypes(ctx context.Context, client discovery.DiscoveryInterfac
 				GVR: gvr,
 				API: api,
 				Descriptor: resourcev2.ResourceType{
-					Type: token,
-					DisplayName: api.Kind,
+					Type:               token,
+					DisplayName:        api.Kind,
 					IdentityDimensions: dimensions,
-					QueryDimensions: dimensions,
-					Representations: []resourcev2.Representation{},
-					Capabilities: capabilities,
+					QueryDimensions:    dimensions,
+					Representations:    []resourcev2.Representation{},
+					Capabilities:       capabilities,
 				},
 			}
 		}
@@ -162,7 +162,9 @@ func nativeClusterIdentity(ctx context.Context, client kubernetes.Interface) (*s
 
 func verbSliceContains(verbs []string, target string) bool {
 	for _, verb := range verbs {
-		if verb == target { return true }
+		if verb == target {
+			return true
+		}
 	}
 	return false
 }

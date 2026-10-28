@@ -8,12 +8,15 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	sdkmetric "github.com/omniviewdev/plugin-sdk/pkg/v1/metric"
+	"github.com/omniview/kubernetes/pkg/utils"
+	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
+	sdkmetric "github.com/omniviewdev/plugin-sdk/pkg/v1/metric"
 	pkgsettings "github.com/omniviewdev/plugin-sdk/settings"
 
 	"k8s.io/client-go/kubernetes"
@@ -47,6 +50,15 @@ func newPrometheusClient(settings pkgsettings.Provider) *prometheusClient {
 	}
 }
 
+func (c *prometheusClient) retireConnection(connectionID string) {
+	c.proxyFailedMu.Lock()
+	c.clientCache.Evict(connectionID)
+	delete(c.proxyFailed, connectionID)
+	c.proxyFailedMu.Unlock()
+	c.detector.InvalidateConnection(connectionID)
+	c.pfManager.Close(connectionID)
+}
+
 // prometheusConfig holds the user-configured Prometheus overrides.
 type prometheusConfig struct {
 	Service   string
@@ -54,25 +66,30 @@ type prometheusConfig struct {
 	Port      int
 }
 
-func (c *prometheusClient) getConfig(resourceData map[string]interface{}) prometheusConfig {
+func (c *prometheusClient) getConfig(params map[string]string) (prometheusConfig, error) {
 	cfg := prometheusConfig{
 		Service:   "prometheus-server",
 		Namespace: "monitoring",
 		Port:      9090,
 	}
 
-	// Per-connection override (injected by frontend into resourceData).
-	if mc, ok := resourceData["__metric_config__"].(map[string]interface{}); ok {
-		if svc, ok := mc["service"].(string); ok && svc != "" {
-			cfg.Service = svc
+	// Explicit query metadata is separate from the immutable observation body.
+	service, namespace, portText := params["prometheus_service_name"], params["prometheus_service_namespace"], params["prometheus_service_port"]
+	if service != "" || namespace != "" || portText != "" {
+		if service != "" {
+			cfg.Service = service
 		}
-		if ns, ok := mc["namespace"].(string); ok && ns != "" {
-			cfg.Namespace = ns
+		if namespace != "" {
+			cfg.Namespace = namespace
 		}
-		if port, ok := mc["port"].(float64); ok && port > 0 {
-			cfg.Port = int(port)
+		if portText != "" {
+			port, err := strconv.Atoi(portText)
+			if err != nil || port < 1 || port > 65535 {
+				return cfg, resourcev2.NewError("INVALID_REQUEST", "Prometheus service port must be an integer from 1 to 65535")
+			}
+			cfg.Port = port
 		}
-		return cfg
+		return cfg, nil
 	}
 
 	// Fall back to global plugin settings.
@@ -85,24 +102,34 @@ func (c *prometheusClient) getConfig(resourceData map[string]interface{}) promet
 	if port, err := c.settings.GetInt("prometheus_service_port"); err == nil && port > 0 {
 		cfg.Port = port
 	}
-	return cfg
+	return cfg, nil
 }
 
 // detect checks whether Prometheus is available for the given connection,
 // using the cached kube clients and auto-detection.
 func (c *prometheusClient) detect(
+	ctx context.Context,
 	connectionID string,
 	conn *types.Connection,
-	resourceData map[string]interface{},
+	params map[string]string,
 ) (*DetectionResult, error) {
-	clients, err := c.clientCache.Get(connectionID, conn)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	cfg, err := c.getConfig(params)
+	if err != nil {
+		return nil, err
+	}
+	clients, err := c.clientCache.Get(ctx, connectionID, conn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get kube clients for detection: %w", err)
 	}
 
-	cfg := c.getConfig(resourceData)
 	checker := &kubeServiceChecker{clientset: clients.Clientset}
-	result := c.detector.Detect(connectionID, checker, cfg.Service, cfg.Namespace, cfg.Port)
+	result := c.detector.Detect(ctx, connectionID, checker, cfg.Service, cfg.Namespace, cfg.Port)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -150,10 +177,10 @@ func (c *prometheusClient) query(
 	connectionID string,
 	conn *types.Connection,
 	promql string,
-	resourceData map[string]interface{},
+	params map[string]string,
 ) (*promAPIResponse, error) {
 	// Auto-detect Prometheus availability.
-	detection, err := c.detect(connectionID, conn, resourceData)
+	detection, err := c.detect(ctx, connectionID, conn, params)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +188,7 @@ func (c *prometheusClient) query(
 		return nil, fmt.Errorf("prometheus not detected in cluster for connection %s", connectionID)
 	}
 
-	clients, err := c.clientCache.Get(connectionID, conn)
+	clients, err := c.clientCache.Get(ctx, connectionID, conn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get kube clients: %w", err)
 	}
@@ -178,7 +205,7 @@ func (c *prometheusClient) query(
 		// Try API proxy first — uses the kube API server's service proxy,
 		// which reuses the existing kubeconfig auth with no port management.
 		var result *promAPIResponse
-		result, proxyErr = c.queryViaProxy(clients.Clientset, detection, promql)
+		result, proxyErr = c.queryViaProxy(ctx, clients.Clientset, detection, promql)
 		if proxyErr == nil {
 			log.Printf("[DEBUG] proxy succeeded: resultType=%s numResults=%d", result.Data.ResultType, len(result.Data.Result))
 			if len(result.Data.Result) > 0 {
@@ -186,26 +213,24 @@ func (c *prometheusClient) query(
 			}
 			return result, nil
 		}
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		log.Printf("[DEBUG] proxy failed (caching for future queries): %v", proxyErr)
 		c.proxyFailedMu.Lock()
-		c.proxyFailed[connectionID] = true
+		if c.clientCache.isCurrent(connectionID, clients) {
+			c.proxyFailed[connectionID] = true
+		}
 		c.proxyFailedMu.Unlock()
 	}
 
 	// Use SPDY port-forward (reuses existing tunnel if available).
-	pfURL, err := c.pfManager.GetOrCreate(
-		connectionID,
-		clients.RestConfig,
-		clients.Clientset,
-		detection.Namespace,
-		detection.Service,
-		detection.Port,
-	)
+	pfURL, err := c.pfManager.GetOrCreate(ctx, connectionID, clients.RestConfig, clients.Clientset, detection.Namespace, detection.Service, detection.Port)
 	if err != nil {
 		return nil, fmt.Errorf("all prometheus query methods failed: proxy: %v, port-forward: %w", proxyErr, err)
 	}
 
-	result, err := c.queryDirect(pfURL, promql)
+	result, err := c.queryDirect(ctx, pfURL, promql)
 	if err != nil {
 		return nil, fmt.Errorf("all prometheus query methods failed: proxy: %v, direct: %w", proxyErr, err)
 	}
@@ -219,6 +244,7 @@ func (c *prometheusClient) query(
 // queryViaProxy queries Prometheus through the Kubernetes API server's
 // service proxy endpoint.
 func (c *prometheusClient) queryViaProxy(
+	ctx context.Context,
 	clientset kubernetes.Interface,
 	detection *DetectionResult,
 	promql string,
@@ -229,7 +255,7 @@ func (c *prometheusClient) queryViaProxy(
 		fmt.Sprintf("%d", detection.Port),
 		fmt.Sprintf("/api/v1/query?query=%s&time=%d", url.QueryEscape(promql), time.Now().Unix()),
 		nil,
-	).DoRaw(context.Background())
+	).DoRaw(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("API proxy request failed: %w", err)
 	}
@@ -245,14 +271,18 @@ func (c *prometheusClient) queryViaProxy(
 }
 
 // queryDirect queries a Prometheus instance at the given base URL (port-forward path).
-func (c *prometheusClient) queryDirect(baseURL string, promql string) (*promAPIResponse, error) {
+func (c *prometheusClient) queryDirect(ctx context.Context, baseURL string, promql string) (*promAPIResponse, error) {
 	u := fmt.Sprintf("%s/api/v1/query?query=%s&time=%d",
 		strings.TrimRight(baseURL, "/"),
 		url.QueryEscape(promql),
 		time.Now().Unix(),
 	)
 
-	resp, err := http.Get(u)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("prometheus query failed: %w", err)
 	}
@@ -312,11 +342,11 @@ func (c *prometheusClient) queryRange(
 	connectionID string,
 	conn *types.Connection,
 	promql string,
-	resourceData map[string]interface{},
+	params map[string]string,
 	start, end time.Time,
 	step time.Duration,
 ) (*promMatrixAPIResponse, error) {
-	detection, err := c.detect(connectionID, conn, resourceData)
+	detection, err := c.detect(ctx, connectionID, conn, params)
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +354,7 @@ func (c *prometheusClient) queryRange(
 		return nil, fmt.Errorf("prometheus not detected in cluster for connection %s", connectionID)
 	}
 
-	clients, err := c.clientCache.Get(connectionID, conn)
+	clients, err := c.clientCache.Get(ctx, connectionID, conn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get kube clients: %w", err)
 	}
@@ -338,26 +368,28 @@ func (c *prometheusClient) queryRange(
 
 	var proxyErr error
 	if !skipProxy {
-		result, pErr := c.queryRangeViaProxy(clients.Clientset, detection, promql, start, end, step)
+		result, pErr := c.queryRangeViaProxy(ctx, clients.Clientset, detection, promql, start, end, step)
 		if pErr == nil {
 			return result, nil
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
 		proxyErr = pErr
 		log.Printf("[DEBUG] range proxy failed: %v", proxyErr)
 		c.proxyFailedMu.Lock()
-		c.proxyFailed[connectionID] = true
+		if c.clientCache.isCurrent(connectionID, clients) {
+			c.proxyFailed[connectionID] = true
+		}
 		c.proxyFailedMu.Unlock()
 	}
 
-	pfURL, err := c.pfManager.GetOrCreate(
-		connectionID, clients.RestConfig, clients.Clientset,
-		detection.Namespace, detection.Service, detection.Port,
-	)
+	pfURL, err := c.pfManager.GetOrCreate(ctx, connectionID, clients.RestConfig, clients.Clientset, detection.Namespace, detection.Service, detection.Port)
 	if err != nil {
 		return nil, fmt.Errorf("all prometheus query_range methods failed: proxy: %v, port-forward: %w", proxyErr, err)
 	}
 
-	result, err := c.queryRangeDirect(pfURL, promql, start, end, step)
+	result, err := c.queryRangeDirect(ctx, pfURL, promql, start, end, step)
 	if err != nil {
 		return nil, fmt.Errorf("all prometheus query_range methods failed: proxy: %v, direct: %w", proxyErr, err)
 	}
@@ -365,6 +397,7 @@ func (c *prometheusClient) queryRange(
 }
 
 func (c *prometheusClient) queryRangeViaProxy(
+	ctx context.Context,
 	clientset kubernetes.Interface,
 	detection *DetectionResult,
 	promql string,
@@ -376,7 +409,7 @@ func (c *prometheusClient) queryRangeViaProxy(
 
 	raw, err := clientset.CoreV1().Services(detection.Namespace).ProxyGet(
 		"", detection.Service, fmt.Sprintf("%d", detection.Port), path, nil,
-	).DoRaw(context.Background())
+	).DoRaw(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("API proxy range request failed: %w", err)
 	}
@@ -392,6 +425,7 @@ func (c *prometheusClient) queryRangeViaProxy(
 }
 
 func (c *prometheusClient) queryRangeDirect(
+	ctx context.Context,
 	baseURL string,
 	promql string,
 	start, end time.Time,
@@ -402,7 +436,11 @@ func (c *prometheusClient) queryRangeDirect(
 		url.QueryEscape(promql),
 		start.Unix(), end.Unix(), int(step.Seconds()))
 
-	resp, err := http.Get(u)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("prometheus range query failed: %w", err)
 	}
@@ -513,12 +551,15 @@ func (c *prometheusClient) queryPodPrometheus(
 	req sdkmetric.QueryRequest,
 ) (*sdkmetric.QueryResponse, error) {
 	// Auto-detect — if Prometheus isn't available, return empty (not error).
-	detection, err := c.detect(qctx.ConnectionID, qctx.Connection, req.ResourceData)
+	detection, err := c.detect(metricQueryContext(qctx), qctx.ConnectionID, qctx.Connection, req.Params)
 	if err != nil || !detection.Found {
+		if err != nil {
+			return nil, err
+		}
 		return &sdkmetric.QueryResponse{Success: true, Results: nil}, nil
 	}
 
-	ctx := context.Background()
+	ctx := metricQueryContext(qctx)
 	pod := extractResourceName(req.ResourceData, req.ResourceID)
 	ns := extractResourceNamespace(req.ResourceData, req.ResourceNamespace)
 	now := time.Now()
@@ -526,8 +567,7 @@ func (c *prometheusClient) queryPodPrometheus(
 	log.Printf("[DEBUG] queryPodPrometheus: pod=%q namespace=%q (raw resourceID=%q) metricIDs=%v", pod, ns, req.ResourceID, req.MetricIDs)
 
 	// Diagnostic: check if cAdvisor metrics exist at all for this pod.
-	diagResp, diagErr := c.query(ctx, qctx.ConnectionID, qctx.Connection,
-		fmt.Sprintf(`container_cpu_usage_seconds_total{pod="%s",namespace="%s"}`, pod, ns), req.ResourceData)
+	diagResp, diagErr := c.query(ctx, qctx.ConnectionID, qctx.Connection, fmt.Sprintf(`container_cpu_usage_seconds_total{pod="%s",namespace="%s"}`, pod, ns), req.Params)
 	if diagErr != nil {
 		log.Printf("[DEBUG] diagnostic: cAdvisor check failed: %v", diagErr)
 	} else {
@@ -536,8 +576,7 @@ func (c *prometheusClient) queryPodPrometheus(
 			log.Printf("[DEBUG] diagnostic: first result labels: %v value: %v", diagResp.Data.Result[0].Metric, diagResp.Data.Result[0].Value)
 		} else {
 			// Check if ANY cAdvisor metrics exist in this namespace
-			anyResp, anyErr := c.query(ctx, qctx.ConnectionID, qctx.Connection,
-				fmt.Sprintf(`count(container_cpu_usage_seconds_total{namespace="%s"})`, ns), req.ResourceData)
+			anyResp, anyErr := c.query(ctx, qctx.ConnectionID, qctx.Connection, fmt.Sprintf(`count(container_cpu_usage_seconds_total{namespace="%s"})`, ns), req.Params)
 			if anyErr != nil {
 				log.Printf("[DEBUG] diagnostic: cAdvisor namespace check failed: %v", anyErr)
 			} else if len(anyResp.Data.Result) > 0 {
@@ -694,7 +733,7 @@ func (c *prometheusClient) queryPodPrometheus(
 		if !wantMetric(m.id) {
 			continue
 		}
-		resp, err := c.query(ctx, qctx.ConnectionID, qctx.Connection, m.promql, req.ResourceData)
+		resp, err := c.query(ctx, qctx.ConnectionID, qctx.Connection, m.promql, req.Params)
 		if err != nil {
 			log.Printf("prometheus query %s failed: %v", m.id, err)
 			continue
@@ -721,12 +760,15 @@ func (c *prometheusClient) queryAllPodPrometheus(
 	qctx *sdkmetric.QueryContext,
 	req sdkmetric.QueryRequest,
 ) (*sdkmetric.QueryResponse, error) {
-	detection, err := c.detect(qctx.ConnectionID, qctx.Connection, req.ResourceData)
+	detection, err := c.detect(metricQueryContext(qctx), qctx.ConnectionID, qctx.Connection, req.Params)
 	if err != nil || !detection.Found {
+		if err != nil {
+			return nil, err
+		}
 		return &sdkmetric.QueryResponse{Success: true, Results: nil}, nil
 	}
 
-	ctx := context.Background()
+	ctx := metricQueryContext(qctx)
 	now := time.Now()
 
 	wantAll := len(req.MetricIDs) == 0
@@ -760,7 +802,7 @@ func (c *prometheusClient) queryAllPodPrometheus(
 		if !wantMetric(q.metricID) {
 			continue
 		}
-		resp, err := c.query(ctx, qctx.ConnectionID, qctx.Connection, q.promql, req.ResourceData)
+		resp, err := c.query(ctx, qctx.ConnectionID, qctx.Connection, q.promql, req.Params)
 		if err != nil {
 			log.Printf("prometheus batch query %s failed: %v", q.metricID, err)
 			continue
@@ -805,12 +847,15 @@ func (c *prometheusClient) queryPodPrometheusTimeseries(
 	qctx *sdkmetric.QueryContext,
 	req sdkmetric.QueryRequest,
 ) (*sdkmetric.QueryResponse, error) {
-	detection, err := c.detect(qctx.ConnectionID, qctx.Connection, req.ResourceData)
+	detection, err := c.detect(metricQueryContext(qctx), qctx.ConnectionID, qctx.Connection, req.Params)
 	if err != nil || !detection.Found {
+		if err != nil {
+			return nil, err
+		}
 		return &sdkmetric.QueryResponse{Success: true, Results: nil}, nil
 	}
 
-	ctx := context.Background()
+	ctx := metricQueryContext(qctx)
 	pod := extractResourceName(req.ResourceData, req.ResourceID)
 	ns := extractResourceNamespace(req.ResourceData, req.ResourceNamespace)
 
@@ -929,8 +974,7 @@ func (c *prometheusClient) queryPodPrometheusTimeseries(
 		if !wantMetric(m.id) {
 			continue
 		}
-		resp, err := c.queryRange(ctx, qctx.ConnectionID, qctx.Connection, m.promql,
-			req.ResourceData, req.StartTime, req.EndTime, req.Step)
+		resp, err := c.queryRange(ctx, qctx.ConnectionID, qctx.Connection, m.promql, req.Params, req.StartTime, req.EndTime, req.Step)
 		if err != nil {
 			log.Printf("prometheus range query %s failed: %v", m.id, err)
 			continue
@@ -961,10 +1005,10 @@ func (c *prometheusClient) resolveNodeInstance(
 	connectionID string,
 	conn *types.Connection,
 	node string,
-	resourceData map[string]interface{},
+	params map[string]string,
 ) string {
 	q := fmt.Sprintf(`kube_node_info{node="%s"}`, node)
-	resp, err := c.query(ctx, connectionID, conn, q, resourceData)
+	resp, err := c.query(ctx, connectionID, conn, q, params)
 	if err == nil && len(resp.Data.Result) > 0 {
 		if ip, ok := resp.Data.Result[0].Metric["internal_ip"]; ok && ip != "" {
 			log.Printf("[DEBUG] resolveNodeInstance: node=%q -> internal_ip=%q", node, ip)
@@ -981,15 +1025,18 @@ func (c *prometheusClient) queryNodePrometheus(
 	qctx *sdkmetric.QueryContext,
 	req sdkmetric.QueryRequest,
 ) (*sdkmetric.QueryResponse, error) {
-	detection, err := c.detect(qctx.ConnectionID, qctx.Connection, req.ResourceData)
+	detection, err := c.detect(metricQueryContext(qctx), qctx.ConnectionID, qctx.Connection, req.Params)
 	if err != nil || !detection.Found {
+		if err != nil {
+			return nil, err
+		}
 		return &sdkmetric.QueryResponse{Success: true, Results: nil}, nil
 	}
 
-	ctx := context.Background()
+	ctx := metricQueryContext(qctx)
 	node := extractResourceName(req.ResourceData, req.ResourceID)
 	now := time.Now()
-	inst := c.resolveNodeInstance(ctx, qctx.ConnectionID, qctx.Connection, node, req.ResourceData)
+	inst := c.resolveNodeInstance(ctx, qctx.ConnectionID, qctx.Connection, node, req.Params)
 
 	wantAll := len(req.MetricIDs) == 0
 	wantMetric := makeWantFunc(req.MetricIDs, wantAll)
@@ -1069,7 +1116,7 @@ func (c *prometheusClient) queryNodePrometheus(
 		if !wantMetric(m.id) {
 			continue
 		}
-		resp, err := c.query(ctx, qctx.ConnectionID, qctx.Connection, m.promql, req.ResourceData)
+		resp, err := c.query(ctx, qctx.ConnectionID, qctx.Connection, m.promql, req.Params)
 		if err != nil {
 			log.Printf("prometheus query %s failed: %v", m.id, err)
 			continue
@@ -1093,14 +1140,17 @@ func (c *prometheusClient) queryNodePrometheusTimeseries(
 	qctx *sdkmetric.QueryContext,
 	req sdkmetric.QueryRequest,
 ) (*sdkmetric.QueryResponse, error) {
-	detection, err := c.detect(qctx.ConnectionID, qctx.Connection, req.ResourceData)
+	detection, err := c.detect(metricQueryContext(qctx), qctx.ConnectionID, qctx.Connection, req.Params)
 	if err != nil || !detection.Found {
+		if err != nil {
+			return nil, err
+		}
 		return &sdkmetric.QueryResponse{Success: true, Results: nil}, nil
 	}
 
-	ctx := context.Background()
+	ctx := metricQueryContext(qctx)
 	node := extractResourceName(req.ResourceData, req.ResourceID)
-	inst := c.resolveNodeInstance(ctx, qctx.ConnectionID, qctx.Connection, node, req.ResourceData)
+	inst := c.resolveNodeInstance(ctx, qctx.ConnectionID, qctx.Connection, node, req.Params)
 
 	wantAll := len(req.MetricIDs) == 0
 	wantMetric := makeWantFunc(req.MetricIDs, wantAll)
@@ -1172,8 +1222,7 @@ func (c *prometheusClient) queryNodePrometheusTimeseries(
 		if !wantMetric(m.id) {
 			continue
 		}
-		resp, err := c.queryRange(ctx, qctx.ConnectionID, qctx.Connection, m.promql,
-			req.ResourceData, req.StartTime, req.EndTime, req.Step)
+		resp, err := c.queryRange(ctx, qctx.ConnectionID, qctx.Connection, m.promql, req.Params, req.StartTime, req.EndTime, req.Step)
 		if err != nil {
 			log.Printf("prometheus range query %s failed: %v", m.id, err)
 			continue
@@ -1209,12 +1258,15 @@ func (c *prometheusClient) queryClusterPrometheus(
 	qctx *sdkmetric.QueryContext,
 	req sdkmetric.QueryRequest,
 ) (*sdkmetric.QueryResponse, error) {
-	detection, err := c.detect(qctx.ConnectionID, qctx.Connection, req.ResourceData)
+	detection, err := c.detect(metricQueryContext(qctx), qctx.ConnectionID, qctx.Connection, req.Params)
 	if err != nil || !detection.Found {
+		if err != nil {
+			return nil, err
+		}
 		return &sdkmetric.QueryResponse{Success: true, Results: nil}, nil
 	}
 
-	ctx := context.Background()
+	ctx := metricQueryContext(qctx)
 	now := time.Now()
 	ns := nsFilter(req.ResourceNamespace)
 
@@ -1312,7 +1364,7 @@ func (c *prometheusClient) queryClusterPrometheus(
 		if !wantMetric(m.id) {
 			continue
 		}
-		resp, err := c.query(ctx, qctx.ConnectionID, qctx.Connection, m.promql, req.ResourceData)
+		resp, err := c.query(ctx, qctx.ConnectionID, qctx.Connection, m.promql, req.Params)
 		if err != nil {
 			log.Printf("prometheus query %s failed: %v", m.id, err)
 			continue
@@ -1336,12 +1388,15 @@ func (c *prometheusClient) queryClusterPrometheusTimeseries(
 	qctx *sdkmetric.QueryContext,
 	req sdkmetric.QueryRequest,
 ) (*sdkmetric.QueryResponse, error) {
-	detection, err := c.detect(qctx.ConnectionID, qctx.Connection, req.ResourceData)
+	detection, err := c.detect(metricQueryContext(qctx), qctx.ConnectionID, qctx.Connection, req.Params)
 	if err != nil || !detection.Found {
+		if err != nil {
+			return nil, err
+		}
 		return &sdkmetric.QueryResponse{Success: true, Results: nil}, nil
 	}
 
-	ctx := context.Background()
+	ctx := metricQueryContext(qctx)
 	ns := nsFilter(req.ResourceNamespace)
 
 	wantAll := len(req.MetricIDs) == 0
@@ -1455,8 +1510,7 @@ func (c *prometheusClient) queryClusterPrometheusTimeseries(
 		if !wantMetric(m.id) {
 			continue
 		}
-		resp, err := c.queryRange(ctx, qctx.ConnectionID, qctx.Connection, m.promql,
-			req.ResourceData, req.StartTime, req.EndTime, req.Step)
+		resp, err := c.queryRange(ctx, qctx.ConnectionID, qctx.Connection, m.promql, req.Params, req.StartTime, req.EndTime, req.Step)
 		if err != nil {
 			log.Printf("prometheus range query %s failed: %v", m.id, err)
 			continue
@@ -1492,39 +1546,22 @@ func makeWantFunc(metricIDs []string, wantAll bool) func(string) bool {
 	}
 }
 
-// mapKeys returns the keys of a map for debug logging.
-func mapKeys(m map[string]interface{}) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
 // extractResourceName extracts metadata.name from resourceData (the full K8s object).
 // Falls back to the provided fallback (typically req.ResourceID) if not found.
-func extractResourceName(resourceData map[string]interface{}, fallback string) string {
-	meta, ok := resourceData["metadata"].(map[string]interface{})
-	if !ok {
+func extractResourceName(resourceData *resourcev2.Value, fallback string) string {
+	value, ok := utils.TaggedField(resourceData, "metadata", "name")
+	if !ok || value.Kind != "string" || value.String == "" {
 		return fallback
 	}
-	name, ok := meta["name"].(string)
-	if !ok || name == "" {
-		return fallback
-	}
-	return name
+	return value.String
 }
 
 // extractResourceNamespace extracts metadata.namespace from resourceData.
 // Falls back to the provided fallback (typically req.ResourceNamespace) if not found.
-func extractResourceNamespace(resourceData map[string]interface{}, fallback string) string {
-	meta, ok := resourceData["metadata"].(map[string]interface{})
-	if !ok {
+func extractResourceNamespace(resourceData *resourcev2.Value, fallback string) string {
+	value, ok := utils.TaggedField(resourceData, "metadata", "namespace")
+	if !ok || value.Kind != "string" || value.String == "" {
 		return fallback
 	}
-	ns, ok := meta["namespace"].(string)
-	if !ok || ns == "" {
-		return fallback
-	}
-	return ns
+	return value.String
 }

@@ -43,21 +43,29 @@ func (d *DaemonSetResourcer) ResolveRelationships(
 	source := request.Source
 	id := source.Reference.Address.ID
 	namespace, err := nativeRequestNamespace(source.Reference.Address.Scope)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	ds, err := client.KubeClient.AppsV1().DaemonSets(namespace).Get(ctx, id, metav1.GetOptions{})
-	if err != nil { return nil, fmt.Errorf("failed to get daemonset %s: %w", id, err) }
+	if err != nil {
+		return nil, fmt.Errorf("failed to get daemonset %s: %w", id, err)
+	}
 
 	var rels []resource.ResolvedRelationship
 	byTarget := descriptorByTarget(d.DeclareRelationships())
 
 	// Pod relationships via ownerRef.
 	pods, err := listPodsByOwner(ctx, client, namespace, "DaemonSet", id, string(ds.UID))
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	if len(pods) > 0 {
 		targets := make([]resource.RelationshipTarget, 0, len(pods))
 		for _, pod := range pods {
 			target, err := makeRef(request, "k8s:/pods", pod.Name, namespace, string(pod.UID))
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
@@ -71,7 +79,9 @@ func (d *DaemonSetResourcer) ResolveRelationships(
 		targets := make([]resource.RelationshipTarget, 0, len(cms))
 		for _, name := range cms {
 			target, err := makeRef(request, "k8s:/configmaps", name, namespace)
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
@@ -85,7 +95,9 @@ func (d *DaemonSetResourcer) ResolveRelationships(
 		targets := make([]resource.RelationshipTarget, 0, len(secrets))
 		for _, name := range secrets {
 			target, err := makeRef(request, "k8s:/secrets", name, namespace)
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
@@ -151,7 +163,9 @@ func (d *DaemonSetResourcer) executeRestart(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
-	if scopeErr != nil { return resource.Value{}, scopeErr }
+	if scopeErr != nil {
+		return resource.Value{}, scopeErr
+	}
 	patch := fmt.Sprintf(
 		`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`,
 		time.Now().Format(time.RFC3339),
@@ -177,7 +191,9 @@ func (d *DaemonSetResourcer) streamRestart(
 	stream chan<- resource.ActionEvent,
 ) error {
 	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
-	if scopeErr != nil { return scopeErr }
+	if scopeErr != nil {
+		return scopeErr
+	}
 
 	patch := fmt.Sprintf(
 		`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`,
@@ -202,8 +218,12 @@ func (d *DaemonSetResourcer) streamRestart(
 	defer watcher.Stop()
 	if input.Reference.Incarnation != nil {
 		current, err := client.KubeClient.AppsV1().DaemonSets(namespace).Get(ctx, input.Reference.Address.ID, metav1.GetOptions{})
-		if err != nil { return err }
-		if err := nativeActionObjectMatches(input, current); err != nil { return err }
+		if err != nil {
+			return err
+		}
+		if err := nativeActionObjectMatches(input, current); err != nil {
+			return err
+		}
 	}
 	select {
 	case stream <- resource.ActionEvent{Type: "ready"}:
@@ -225,7 +245,9 @@ func (d *DaemonSetResourcer) streamRestart(
 				return fmt.Errorf("watch channel closed")
 			}
 			if object, ok := event.Object.(metav1.Object); ok {
-				if err := nativeActionObjectMatches(input, object); err != nil { return err }
+				if err := nativeActionObjectMatches(input, object); err != nil {
+					return err
+				}
 			}
 			if event.Type != watch.Modified {
 				continue
@@ -243,7 +265,9 @@ func (d *DaemonSetResourcer) streamRestart(
 				"updated": ds.Status.UpdatedNumberScheduled,
 				"message": fmt.Sprintf("%d/%d nodes ready", ds.Status.NumberReady, desired),
 			})
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 			select {
 			case stream <- resource.ActionEvent{Type: "progress", Data: progress}:
 			case <-ctx.Done():
@@ -256,7 +280,9 @@ func (d *DaemonSetResourcer) streamRestart(
 				complete, err := nativeActionEventValue(map[string]interface{}{
 					"message": fmt.Sprintf("DaemonSet %s successfully restarted", input.Reference.Address.ID),
 				})
-				if err != nil { return err }
+				if err != nil {
+					return err
+				}
 				select {
 				case stream <- resource.ActionEvent{Type: "complete", Data: complete}:
 				case <-ctx.Done():

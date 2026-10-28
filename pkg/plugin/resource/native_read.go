@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	nativeReadMaxPageSize = resourcev2.MaxPageRecords
+	nativeReadMaxPageSize    = resourcev2.MaxPageRecords
 	nativeReadMaxCursorBytes = 64 * 1024
 )
 
@@ -91,9 +91,9 @@ func NativeEnumerate(ctx context.Context, client dynamic.Interface, gvr schema.G
 		return resourcev2.SourcePage{}, err
 	}
 	page := resourcev2.SourcePage{
-		Records: []resourcev2.Record{},
-		Count: resourcev2.Count{Kind: "unknown"},
-		Coverage: nativeCompleteCoverage(),
+		Records:     []resourcev2.Record{},
+		Count:       resourcev2.Count{Kind: "unknown"},
+		Coverage:    nativeCompleteCoverage(),
 		Consistency: "bestEffort",
 	}
 	if len(namespaces) == 0 {
@@ -101,7 +101,7 @@ func NativeEnumerate(ctx context.Context, client dynamic.Interface, gvr schema.G
 	}
 	namespace := namespaces[cursor.Namespace]
 	list, err := nativeResourceClient(client, gvr, namespaced, namespace).List(ctx, metav1.ListOptions{
-		Limit: int64(request.PageSize),
+		Limit:    int64(request.PageSize),
 		Continue: cursor.Continue,
 	})
 	if err != nil {
@@ -114,9 +114,9 @@ func NativeEnumerate(ctx context.Context, client dynamic.Interface, gvr schema.G
 		return resourcev2.SourcePage{}, resourcev2.NewError("RESOURCE_LIMIT", "The API server exceeded the requested native source page size")
 	}
 	address := resourcev2.ResourceAddress{
-		Provider: request.Target.Provider,
+		Provider:  request.Target.Provider,
 		Authority: request.Target.Authority,
-		Type: request.Target.Type,
+		Type:      request.Target.Type,
 	}
 	page.Records = make([]resourcev2.Record, 0, len(list.Items))
 	bodyBytes := 0
@@ -246,10 +246,10 @@ func nativeRecord(object *unstructured.Unstructured, address resourcev2.Resource
 		return resourcev2.Record{}, err
 	}
 	return resourcev2.Record{
-		Reference: resourcev2.ResourceReference{Address: address, Incarnation: nativeOptionalToken(string(object.GetUID()))},
-		Body: body,
+		Reference:      resourcev2.ResourceReference{Address: address, Incarnation: nativeOptionalToken(string(object.GetUID()))},
+		Body:           body,
 		Representation: representation,
-		Coverage: nativeCompleteCoverage(),
+		Coverage:       nativeCompleteCoverage(),
 		SourceRevision: nativeOptionalToken(object.GetResourceVersion()),
 	}, nil
 }
@@ -266,10 +266,10 @@ func nativeOptionalToken(value string) *string {
 }
 
 type nativeReadCursor struct {
-	Version int `json:"version"`
-	Binding string `json:"binding"`
-	Namespace int `json:"namespace"`
-	Continue string `json:"continue"`
+	Version   int    `json:"version"`
+	Binding   string `json:"binding"`
+	Namespace int    `json:"namespace"`
+	Continue  string `json:"continue"`
 }
 
 func nativeCursorBinding(request resourcev2.EnumerateRequest, gvr schema.GroupVersionResource, namespaced bool, namespaces []string) (string, error) {
@@ -280,10 +280,10 @@ func nativeCursorBinding(request resourcev2.EnumerateRequest, gvr schema.GroupVe
 		target.Scope = resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeOneOf, Values: &namespaces}}
 	}
 	encoded, err := json.Marshal(struct {
-		Target resourcev2.ReadTarget `json:"target"`
-		GVR schema.GroupVersionResource `json:"gvr"`
-		Namespaced bool `json:"namespaced"`
-		PageSize uint32 `json:"pageSize"`
+		Target     resourcev2.ReadTarget       `json:"target"`
+		GVR        schema.GroupVersionResource `json:"gvr"`
+		Namespaced bool                        `json:"namespaced"`
+		PageSize   uint32                      `json:"pageSize"`
 	}{target, gvr, namespaced, request.PageSize})
 	if err != nil {
 		return "", err

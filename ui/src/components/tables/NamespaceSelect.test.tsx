@@ -8,12 +8,14 @@ import NamespaceSelect from './NamespaceSelect';
 
 let mockNamespaces: string[] = [];
 
-vi.mock('@omniviewdev/runtime', () => ({
-  useResources: () => ({
-    resources: {
-      data: {
-        result: mockNamespaces.map((name) => ({ metadata: { name } })),
-      },
+const paging = vi.hoisted(() => ({ nextPage: vi.fn() }));
+vi.mock('../../hooks/useKubernetesResources', () => ({
+  useKubernetesResources: () => ({
+    bodies: mockNamespaces.map((name) => ({ metadata: { name } })),
+    pageControls: {
+      pagination: { pageNumber: 1, canPrevious: false, firstPage: vi.fn(), previousPage: vi.fn(), nextPage: paging.nextPage },
+      nextCursor: 'namespace-source-cursor',
+      loading: false,
     },
   }),
 }));
@@ -126,5 +128,13 @@ describe('NamespaceSelect', () => {
 
     fireEvent.click(getClearAllButton()!);
     expect(setNamespaces).toHaveBeenCalledWith([]);
+  });
+
+  it('offers explicit continuation without losing selected namespaces from another page', () => {
+    renderNs(['earlier-page-namespace']);
+    expect(screen.getByText('earlier-page-namespace')).toBeInTheDocument();
+    expect(paging.nextPage).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(paging.nextPage).toHaveBeenCalledWith('namespace-source-cursor');
   });
 });

@@ -16,10 +16,10 @@ var PVDef = types.ResourceDefinition{
 			Accessors: "$.spec.claimRef",
 			Width:     280,
 			ResourceLink: &types.ResourceLink{
-				IDAccessor:        "name",
-				Type: "k8s:/persistentvolumeclaims",
+				IDAccessor:     "name",
+				Type:           "k8s:/persistentvolumeclaims",
 				ScopeAccessors: []types.ScopeExtractor{{Dimension: "namespace", FieldPath: "namespace"}},
-				DisplayID: true,
+				DisplayID:      true,
 			},
 		},
 		{

@@ -3,6 +3,7 @@ import { useResourceMetrics } from '@omniviewdev/runtime';
 import type { metric } from '@omniviewdev/runtime/models';
 import React, { useMemo } from 'react';
 import { LuCpu, LuMemoryStick, LuBox, LuHardDrive } from 'react-icons/lu';
+import { metricQueryParams } from '../../../../utils/metricParams';
 
 const gaugeGridStyle: React.CSSProperties = {
   display: 'grid',
@@ -103,29 +104,14 @@ const ClusterResourceGauges: React.FC<ClusterResourceGaugesProps> = ({
   connectionID,
   metricConfig,
 }) => {
-  const resourceData = useMemo(() => {
-    if (
-      !metricConfig?.prometheusService &&
-      !metricConfig?.prometheusNamespace &&
-      !metricConfig?.prometheusPort
-    ) {
-      return {};
-    }
-    return {
-      __metric_config__: {
-        service: metricConfig.prometheusService || '',
-        namespace: metricConfig.prometheusNamespace || '',
-        port: metricConfig.prometheusPort || 0,
-      },
-    };
-  }, [metricConfig]);
+  const params = useMemo(() => metricQueryParams(metricConfig), [metricConfig]);
 
   const { data, providers, isLoading } = useResourceMetrics({
     pluginID: 'kubernetes',
     connectionID,
     resourceKey: 'cluster::metrics',
     resourceID: '',
-    resourceData,
+    params,
     shape: 0,
     metricIDs: GAUGE_METRIC_IDS,
     refreshInterval: 30000,

@@ -2,42 +2,35 @@ package resourcers
 
 import (
 	"context"
-	"testing"
 	"fmt"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 	fakedynamic "k8s.io/client-go/dynamic/fake"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/tools/cache"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/tools/cache"
 
 	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
-// newWatchableClientSet creates a fake ClientSet where the informer for testGVR
-// is pre-registered so that Watch's EnsureFactoryStarted will start it.
-// Unlike newSyncedClientSet, the factory is NOT started yet — Watch will start it.
-func newWatchableClientSet(gvr schema.GroupVersionResource, gvrToListKind map[schema.GroupVersionResource]string, objects ...runtime.Object) *clients.ClientSet {
+// newWatchableClientSet creates native clients; Watch acquires its own sources.
+func newWatchableClientSet(gvrToListKind map[schema.GroupVersionResource]string, objects ...runtime.Object) *clients.ClientSet {
 	scheme := runtime.NewScheme()
 	dynamicClient := fakedynamic.NewSimpleDynamicClientWithCustomListKinds(scheme, gvrToListKind, objects...)
-	factory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
-
-	// Pre-register the informer so that Start() will pick it up.
-	factory.ForResource(gvr).Informer()
 
 	return &clients.ClientSet{
-		DynamicClient:          dynamicClient,
-		DynamicInformerFactory: factory,
+		DynamicClient: dynamicClient,
 	}
 }
 
@@ -45,10 +38,9 @@ func TestWatch_EmitsAddEvents(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cs := newWatchableClientSet(testGVR, defaultGVRListKinds(),
+	cs := newWatchableClientSet(defaultGVRListKinds(),
 		newTestPod("pod-a", "default"),
-		newTestPod("pod-b", "default"),
-	)
+		newTestPod("pod-b", "default"))
 	r := newBaseResourcer()
 	sink := newRecordingSink()
 	meta := testWatchTarget()
@@ -72,9 +64,8 @@ func TestWatch_EmitsDeleteEvents(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cs := newWatchableClientSet(testGVR, defaultGVRListKinds(),
-		newTestPod("doomed", "default"),
-	)
+	cs := newWatchableClientSet(defaultGVRListKinds(),
+		newTestPod("doomed", "default"))
 	r := newBaseResourcer()
 	sink := newRecordingSink()
 	meta := testWatchTarget()
@@ -100,7 +91,7 @@ func TestWatch_EmitsStateChanges(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cs := newWatchableClientSet(testGVR, defaultGVRListKinds())
+	cs := newWatchableClientSet(defaultGVRListKinds())
 	r := newBaseResourcer()
 	sink := newRecordingSink()
 	meta := testWatchTarget()
@@ -121,7 +112,7 @@ func TestWatch_EmitsStateChanges(t *testing.T) {
 func TestWatch_CancelContextStops(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	cs := newWatchableClientSet(testGVR, defaultGVRListKinds())
+	cs := newWatchableClientSet(defaultGVRListKinds())
 	r := newBaseResourcer()
 	sink := newRecordingSink()
 	meta := testWatchTarget()
@@ -148,7 +139,7 @@ func TestWatch_NewObjectAfterSync(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cs := newWatchableClientSet(testGVR, defaultGVRListKinds())
+	cs := newWatchableClientSet(defaultGVRListKinds())
 	r := newBaseResourcer()
 	sink := newRecordingSink()
 	meta := testWatchTarget()
@@ -194,7 +185,7 @@ func TestWatch_AddPayloadCarriesMetadata(t *testing.T) {
 		},
 	}}
 
-	cs := newWatchableClientSet(testGVR, defaultGVRListKinds(), pod)
+	cs := newWatchableClientSet(defaultGVRListKinds(), pod)
 	r := newBaseResourcer()
 	sink := newRecordingSink()
 	meta := testWatchTarget()
@@ -236,11 +227,10 @@ func TestWatch_SyncedStateHasResourceCount(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cs := newWatchableClientSet(testGVR, defaultGVRListKinds(),
+	cs := newWatchableClientSet(defaultGVRListKinds(),
 		newTestPod("a", "default"),
 		newTestPod("b", "default"),
-		newTestPod("c", "default"),
-	)
+		newTestPod("c", "default"))
 	r := NewKubernetesResourcerBase[MetaAccessor](zap.NewNop().Sugar(), testGVR)
 	sink := newRecordingSink()
 	meta := testWatchTarget()
@@ -270,132 +260,166 @@ func TestWatch_SyncedStateHasResourceCount(t *testing.T) {
 
 // recordingSink records canonical payloads while native informers run.
 type recordingSink struct {
-	mu sync.Mutex
-	Adds []resource.WatchAddPayload
+	mu      sync.Mutex
+	Adds    []resource.WatchAddPayload
 	updates []resource.WatchUpdatePayload
 	deletes []resource.WatchDeletePayload
-	states []resource.WatchStateEvent
+	states  []resource.WatchStateEvent
 }
+
 func newRecordingSink() *recordingSink { return &recordingSink{} }
-func (s *recordingSink) OnAdd(p resource.WatchAddPayload) { s.mu.Lock(); defer s.mu.Unlock(); s.Adds = append(s.Adds,p) }
-func (s *recordingSink) OnUpdate(p resource.WatchUpdatePayload) { s.mu.Lock(); defer s.mu.Unlock(); s.updates = append(s.updates,p) }
-func (s *recordingSink) OnDelete(p resource.WatchDeletePayload) { s.mu.Lock(); defer s.mu.Unlock(); s.deletes = append(s.deletes,p) }
-func (s *recordingSink) OnStateChange(p resource.WatchStateEvent) { s.mu.Lock(); defer s.mu.Unlock(); s.states = append(s.states,p) }
+func (s *recordingSink) OnAdd(p resource.WatchAddPayload) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Adds = append(s.Adds, p)
+}
+func (s *recordingSink) OnUpdate(p resource.WatchUpdatePayload) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.updates = append(s.updates, p)
+}
+func (s *recordingSink) OnDelete(p resource.WatchDeletePayload) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.deletes = append(s.deletes, p)
+}
+func (s *recordingSink) OnStateChange(p resource.WatchStateEvent) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.states = append(s.states, p)
+}
 func (s *recordingSink) WaitForState(t *testing.T, typ string, state resource.WatchState, timeout time.Duration) {
 	t.Helper()
-	require.Eventually(t,func() bool { s.mu.Lock(); defer s.mu.Unlock(); for _, event := range s.states { if event.Type == typ && event.State == state { return true } }; return false },timeout,time.Millisecond*5)
+	require.Eventually(t, func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		for _, event := range s.states {
+			if event.Type == typ && event.State == state {
+				return true
+			}
+		}
+		return false
+	}, timeout, time.Millisecond*5)
 }
 func (s *recordingSink) WaitForAdds(t *testing.T, count int, timeout time.Duration) {
 	t.Helper()
-	require.Eventually(t,func() bool { s.mu.Lock(); defer s.mu.Unlock(); return len(s.Adds)>=count },timeout,time.Millisecond*5)
+	require.Eventually(t, func() bool { s.mu.Lock(); defer s.mu.Unlock(); return len(s.Adds) >= count }, timeout, time.Millisecond*5)
 }
 func (s *recordingSink) WaitForDeletes(t *testing.T, count int, timeout time.Duration) {
 	t.Helper()
-	require.Eventually(t,func() bool { s.mu.Lock(); defer s.mu.Unlock(); return len(s.deletes)>=count },timeout,time.Millisecond*5)
+	require.Eventually(t, func() bool { s.mu.Lock(); defer s.mu.Unlock(); return len(s.deletes) >= count }, timeout, time.Millisecond*5)
 }
 func (s *recordingSink) StateCount() int { s.mu.Lock(); defer s.mu.Unlock(); return len(s.states) }
 
 func TestWatch_UpdateAfterSync(t *testing.T) {
-	ctx,cancel:=context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cs:=newWatchableClientSet(testGVR,defaultGVRListKinds(),newTestPod("pod-a","default"))
-	defer cs.StopFactory()
-	sink:=newRecordingSink()
-	target:=testWatchTarget()
-	done:=make(chan error,1)
-	go func(){done<-newBaseResourcer().Watch(ctx,cs,target,testWatchRepresentation(),sink)}()
-	sink.WaitForState(t,target.Type,resource.WatchStateSynced,5*time.Second)
-	pod,err:=cs.DynamicClient.Resource(testGVR).Namespace("default").Get(ctx,"pod-a",metav1.GetOptions{})
-	require.NoError(t,err)
-	pod.SetLabels(map[string]string{"version":"next"})
+	cs := newWatchableClientSet(defaultGVRListKinds(), newTestPod("pod-a", "default"))
+	defer cs.ShutdownInformers()
+	sink := newRecordingSink()
+	target := testWatchTarget()
+	done := make(chan error, 1)
+	go func() { done <- newBaseResourcer().Watch(ctx, cs, target, testWatchRepresentation(), sink) }()
+	sink.WaitForState(t, target.Type, resource.WatchStateSynced, 5*time.Second)
+	pod, err := cs.DynamicClient.Resource(testGVR).Namespace("default").Get(ctx, "pod-a", metav1.GetOptions{})
+	require.NoError(t, err)
+	pod.SetLabels(map[string]string{"version": "next"})
 	pod.SetResourceVersion("opaque-next")
-	_,err=cs.DynamicClient.Resource(testGVR).Namespace("default").Update(ctx,pod,metav1.UpdateOptions{})
-	require.NoError(t,err)
-	require.Eventually(t,func()bool{sink.mu.Lock();defer sink.mu.Unlock();for _,event:=range sink.updates{if event.Record.SourceRevision!=nil && *event.Record.SourceRevision=="opaque-next"{return true}};return false},5*time.Second,5*time.Millisecond)
+	_, err = cs.DynamicClient.Resource(testGVR).Namespace("default").Update(ctx, pod, metav1.UpdateOptions{})
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		sink.mu.Lock()
+		defer sink.mu.Unlock()
+		for _, event := range sink.updates {
+			if event.Record.SourceRevision != nil && *event.Record.SourceRevision == "opaque-next" {
+				return true
+			}
+		}
+		return false
+	}, 5*time.Second, 5*time.Millisecond)
 	cancel()
-	require.NoError(t,<-done)
+	require.NoError(t, <-done)
 }
 
 func TestWatch_ScopedNamespaces(t *testing.T) {
-	ctx,cancel:=context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cs:=newWatchableClientSet(testGVR,defaultGVRListKinds(),newTestPod("included","team-a"),newTestPod("excluded","team-b"))
-	target:=testWatchTarget()
-	namespaces:=[]string{"team-a"}
-	target.Scope=resource.QueryScope{{Dimension:"namespace",Match:resource.ScopeOneOf,Values:&namespaces}}
-	sink:=newRecordingSink()
-	done:=make(chan error,1)
-	go func(){done<-newBaseResourcer().Watch(ctx,cs,target,testWatchRepresentation(),sink)}()
-	sink.WaitForState(t,target.Type,resource.WatchStateSynced,5*time.Second)
-	sink.WaitForAdds(t,1,5*time.Second)
+	cs := newWatchableClientSet(defaultGVRListKinds(), newTestPod("included", "team-a"), newTestPod("excluded", "team-b"))
+	target := testWatchTarget()
+	namespaces := []string{"team-a"}
+	target.Scope = resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeOneOf, Values: &namespaces}}
+	sink := newRecordingSink()
+	done := make(chan error, 1)
+	go func() { done <- newBaseResourcer().Watch(ctx, cs, target, testWatchRepresentation(), sink) }()
+	sink.WaitForState(t, target.Type, resource.WatchStateSynced, 5*time.Second)
+	sink.WaitForAdds(t, 1, 5*time.Second)
 	cancel()
-	require.NoError(t,<-done)
-	cs.StopFactory()
-	cs.ShutdownNamespaceFactories()
-	require.NotEmpty(t,sink.Adds)
-	for _,event:=range sink.Adds {
-		assert.Equal(t,"included",event.Record.Reference.Address.ID)
-		assert.Equal(t,[]resource.ScopeEntry{{Dimension:"namespace",Value:"team-a"}},event.Record.Reference.Address.Scope)
+	require.NoError(t, <-done)
+	cs.ShutdownInformers()
+	require.NotEmpty(t, sink.Adds)
+	for _, event := range sink.Adds {
+		assert.Equal(t, "included", event.Record.Reference.Address.ID)
+		assert.Equal(t, []resource.ScopeEntry{{Dimension: "namespace", Value: "team-a"}}, event.Record.Reference.Address.Scope)
 	}
 }
 
 func TestWatch_ForbiddenPreflight(t *testing.T) {
-	ctx,cancel:=context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cs:=newWatchableClientSet(testGVR,defaultGVRListKinds())
-	cs.DynamicClient.(*fakedynamic.FakeDynamicClient).PrependReactor("list","pods",func(k8stesting.Action)(bool,runtime.Object,error){
-		return true,nil,k8serrors.NewForbidden(testGVR.GroupResource(),"",fmt.Errorf("denied"))
+	cs := newWatchableClientSet(defaultGVRListKinds())
+	cs.DynamicClient.(*fakedynamic.FakeDynamicClient).PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, k8serrors.NewForbidden(testGVR.GroupResource(), "", fmt.Errorf("denied"))
 	})
-	target:=testWatchTarget()
-	sink:=newRecordingSink()
-	done:=make(chan error,1)
-	go func(){done<-newBaseResourcer().Watch(ctx,cs,target,testWatchRepresentation(),sink)}()
-	sink.WaitForState(t,target.Type,resource.WatchStateForbidden,5*time.Second)
+	target := testWatchTarget()
+	sink := newRecordingSink()
+	done := make(chan error, 1)
+	go func() { done <- newBaseResourcer().Watch(ctx, cs, target, testWatchRepresentation(), sink) }()
+	sink.WaitForState(t, target.Type, resource.WatchStateForbidden, 5*time.Second)
 	cancel()
-	require.NoError(t,<-done)
-	require.Empty(t,sink.Adds)
-	require.Len(t,sink.states,1)
-	assert.Equal(t,resource.BestEffortGuarantee,sink.states[0].Guarantee)
-	require.NotNil(t,sink.states[0].Error)
-	assert.Equal(t,"FORBIDDEN",sink.states[0].Error.Code)
+	require.NoError(t, <-done)
+	require.Empty(t, sink.Adds)
+	require.Len(t, sink.states, 1)
+	assert.Equal(t, resource.BestEffortGuarantee, sink.states[0].Guarantee)
+	require.NotNil(t, sink.states[0].Error)
+	assert.Equal(t, "FORBIDDEN", sink.states[0].Error.Code)
 }
 
 func TestWatchHandler_TombstoneAndCancellation(t *testing.T) {
-	ctx,cancel:=context.WithCancel(context.Background())
-	target:=testWatchTarget()
-	sink:=newRecordingSink()
-	handler:=makeEventHandler(ctx,target,testWatchRepresentation(),sink)
-	pod:=newTestPod("retired","default")
+	ctx, cancel := context.WithCancel(context.Background())
+	target := testWatchTarget()
+	sink := newRecordingSink()
+	handler := makeEventHandler(ctx, target, testWatchRepresentation(), sink)
+	pod := newTestPod("retired", "default")
 	pod.SetUID("native-incarnation")
-	handler.OnDelete(cache.DeletedFinalStateUnknown{Key:"default/retired",Obj:pod})
-	require.Len(t,sink.deletes,1)
-	deleted:=sink.deletes[0]
-	assert.Equal(t,target.Route,deleted.Route)
-	assert.Equal(t,target.Authority,deleted.Reference.Address.Authority)
-	require.NotNil(t,deleted.Reference.Incarnation)
-	assert.Equal(t,"native-incarnation",*deleted.Reference.Incarnation)
-	require.NotNil(t,deleted.LastKnown)
-	assert.Equal(t,resource.BestEffortGuarantee,deleted.Guarantee)
+	handler.OnDelete(cache.DeletedFinalStateUnknown{Key: "default/retired", Obj: pod})
+	require.Len(t, sink.deletes, 1)
+	deleted := sink.deletes[0]
+	assert.Equal(t, target.Route, deleted.Route)
+	assert.Equal(t, target.Authority, deleted.Reference.Address.Authority)
+	require.NotNil(t, deleted.Reference.Incarnation)
+	assert.Equal(t, "native-incarnation", *deleted.Reference.Incarnation)
+	require.NotNil(t, deleted.LastKnown)
+	assert.Equal(t, resource.BestEffortGuarantee, deleted.Guarantee)
 	cancel()
-	handler.OnAdd(pod,false)
-	handler.OnUpdate(pod,pod)
+	handler.OnAdd(pod, false)
+	handler.OnUpdate(pod, pod)
 	handler.OnDelete(pod)
-	assert.Empty(t,sink.Adds)
-	assert.Empty(t,sink.updates)
-	assert.Len(t,sink.deletes,1)
+	assert.Empty(t, sink.Adds)
+	assert.Empty(t, sink.updates)
+	assert.Len(t, sink.deletes, 1)
 }
 
 func TestWatch_InvalidScope(t *testing.T) {
-	target:=testWatchTarget()
-	target.Scope=resource.QueryScope{{Dimension:"native-location",Match:resource.ScopeAny}}
-	err:=newBaseResourcer().Watch(context.Background(),newWatchableClientSet(testGVR,defaultGVRListKinds()),target,testWatchRepresentation(),newRecordingSink())
-	require.Error(t,err)
-	assert.Equal(t,"INVALID_REQUEST",resource.ErrorCode(err))
+	target := testWatchTarget()
+	target.Scope = resource.QueryScope{{Dimension: "native-location", Match: resource.ScopeAny}}
+	err := newBaseResourcer().Watch(context.Background(), newWatchableClientSet(defaultGVRListKinds()), target, testWatchRepresentation(), newRecordingSink())
+	require.Error(t, err)
+	assert.Equal(t, "INVALID_REQUEST", resource.ErrorCode(err))
 }
 
-func TestWatch_ScopedRestartReusesClientFactory(t *testing.T) {
-	cs := newWatchableClientSet(testGVR, defaultGVRListKinds(), newTestPod("stable", "team-a"))
-	defer func() { cs.StopFactory(); cs.ShutdownNamespaceFactories() }()
+func TestWatch_ScopedRestartAcquiresFreshSource(t *testing.T) {
+	cs := newWatchableClientSet(defaultGVRListKinds(), newTestPod("stable", "team-a"))
+	defer cs.ShutdownInformers()
 	target := testWatchTarget()
 	namespaces := []string{"team-a"}
 	target.Scope = resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeOneOf, Values: &namespaces}}
@@ -410,5 +434,84 @@ func TestWatch_ScopedRestartReusesClientFactory(t *testing.T) {
 		require.NoError(t, <-done)
 		require.NotEmpty(t, sink.Adds)
 		assert.Equal(t, "stable", sink.Adds[0].Record.Reference.Address.ID)
+	}
+}
+
+func TestWatch_ConsumerRetirementStopsNativeWatch(t *testing.T) {
+	for _, namespace := range []string{"", "team-a"} {
+		name := namespace
+		if name == "" {
+			name = "all-namespaces"
+		}
+		t.Run(name, func(t *testing.T) {
+			cs := newWatchableClientSet(defaultGVRListKinds())
+			defer cs.ShutdownInformers()
+			started := make(chan *watch.RaceFreeFakeWatcher, 4)
+			cs.DynamicClient.(*fakedynamic.FakeDynamicClient).PrependWatchReactor("pods", func(action k8stesting.Action) (bool, watch.Interface, error) {
+				if action.GetNamespace() != namespace {
+					return true, nil, fmt.Errorf("unexpected native namespace %q", action.GetNamespace())
+				}
+				w := watch.NewRaceFreeFake()
+				started <- w
+				return true, w, nil
+			})
+			target := testWatchTarget()
+			if namespace != "" {
+				values := []string{namespace}
+				target.Scope = resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeOneOf, Values: &values}}
+			}
+			startConsumer := func() (context.CancelFunc, <-chan error, *recordingSink) {
+				ctx, cancel := context.WithCancel(context.Background())
+				t.Cleanup(cancel)
+				sink := newRecordingSink()
+				done := make(chan error, 1)
+				go func() { done <- newBaseResourcer().Watch(ctx, cs, target, testWatchRepresentation(), sink) }()
+				sink.WaitForState(t, target.Type, resource.WatchStateSynced, 5*time.Second)
+				return cancel, done, sink
+			}
+			nextWatch := func() *watch.RaceFreeFakeWatcher {
+				select {
+				case w := <-started:
+					return w
+				case <-time.After(5 * time.Second):
+					t.Fatal("native watch did not start")
+					return nil
+				}
+			}
+			waitConsumer := func(done <-chan error) {
+				select {
+				case err := <-done:
+					require.NoError(t, err)
+				case <-time.After(5 * time.Second):
+					t.Fatal("consumer did not retire")
+				}
+			}
+			cancelFirst, firstDone, _ := startConsumer()
+			firstWatch := nextWatch()
+			cancelSecond, secondDone, secondSink := startConsumer()
+			cancelFirst()
+			waitConsumer(firstDone)
+			require.False(t, firstWatch.IsStopped(), "remaining consumer still owns this source")
+			firstWatch.Add(newTestPod("still-live", namespace))
+			secondSink.WaitForAdds(t, 1, 5*time.Second)
+			cancelSecond()
+			waitConsumer(secondDone)
+			require.True(t, firstWatch.IsStopped(), "last consumer must stop the actual native watch")
+			select {
+			case <-started:
+				t.Fatal("shared consumers created duplicate native watches")
+			default:
+			}
+			_, thirdDone, thirdSink := startConsumer()
+			thirdWatch := nextWatch()
+			require.NotSame(t, firstWatch, thirdWatch, "later consumer must start a fresh native watch")
+			thirdSink.mu.Lock()
+			adds := len(thirdSink.Adds)
+			thirdSink.mu.Unlock()
+			require.Zero(t, adds, "retired cache must not replay stale objects")
+			cs.ShutdownInformers()
+			waitConsumer(thirdDone)
+			require.True(t, thirdWatch.IsStopped(), "connection shutdown must stop native watches")
+		})
 	}
 }

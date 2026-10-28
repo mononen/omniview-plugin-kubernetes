@@ -12,6 +12,8 @@ import NamedAvatar from '../shared/NamedAvatar';
 import SimpleTooltip from '../shared/SimpleTooltip';
 
 import styles from './ConnectedClusterCard.module.css';
+import { SourcePageControls } from '../shared/SourcePageControls';
+import { metricQueryParams } from '../../utils/metricParams';
 
 const PLUGIN_ID = 'kubernetes';
 
@@ -76,27 +78,12 @@ const ConnectedClusterCard: React.FC<Props> = ({
   const nodesQuery = useKubernetesResources({ connectionID, resourceType: 'k8s:/nodes' });
   const deploymentsQuery = useKubernetesResources({ connectionID, resourceType: 'k8s:apps/deployments' });
 
-  const metricConfig = override?.metricConfig;
-
-  const resourceData = React.useMemo(() => {
-    if (!metricConfig?.prometheusService && !metricConfig?.prometheusNamespace && !metricConfig?.prometheusPort) {
-      return {};
-    }
-    return {
-      __metric_config__: {
-        service: metricConfig.prometheusService ?? '',
-        namespace: metricConfig.prometheusNamespace ?? '',
-        port: metricConfig.prometheusPort ?? 0,
-      },
-    };
-  }, [metricConfig]);
-
   const { data: metricsData, providers } = useResourceMetrics({
     pluginID: PLUGIN_ID,
     connectionID,
     resourceKey: 'cluster::metrics',
     resourceID: '',
-    resourceData,
+    params: metricQueryParams(override?.metricConfig),
     shape: 0,
     metricIDs: METRIC_IDS,
     refreshInterval: 30_000,
@@ -189,7 +176,7 @@ const ConnectedClusterCard: React.FC<Props> = ({
                 )}
               </>
             ) : (
-              <StatLine icon={null} label="Healthy" color="var(--ov-color-success)" />
+              <StatLine icon={null} label="No issues observed on these pages" color="var(--ov-color-success)" />
             )}
           </div>
 
@@ -203,9 +190,16 @@ const ConnectedClusterCard: React.FC<Props> = ({
         </div>
         {/* Resource counts */}
         <div style={countsRowStyle}>
+          <span>Counts on selected pages; totals unknown</span>
           <CountBadge icon={<LuBox size={11} />} count={podCount} />
           <CountBadge icon={<LuServer size={11} />} count={nodeCount} />
           <CountBadge icon={<LuLayers size={11} />} count={deploymentCount} />
+        </div>
+        <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+          <SourcePageControls {...podsQuery.pageControls} label="Pods" />
+          <SourcePageControls {...nodesQuery.pageControls} label="Nodes" />
+          <SourcePageControls {...eventsQuery.pageControls} label="Events" />
+          <SourcePageControls {...deploymentsQuery.pageControls} label="Deployments" />
         </div>
       </div>
     </div>

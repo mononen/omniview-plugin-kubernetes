@@ -48,7 +48,9 @@ func (n *NodeResourcer) ResolveRelationships(
 ) ([]resource.ResolvedRelationship, error) {
 	source := request.Source
 	id := source.Reference.Address.ID
-	if _, err := nativeRequestNamespace(source.Reference.Address.Scope); err != nil { return nil, err }
+	if _, err := nativeRequestNamespace(source.Reference.Address.Scope); err != nil {
+		return nil, err
+	}
 	podList, err := client.KubeClient.CoreV1().Pods("").List(ctx, metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": id}).String(),
 	})
@@ -63,7 +65,9 @@ func (n *NodeResourcer) ResolveRelationships(
 	targets := make([]resource.RelationshipTarget, 0, len(podList.Items))
 	for _, pod := range podList.Items {
 		target, err := makeRef(request, "k8s:/pods", pod.Name, pod.Namespace, string(pod.UID))
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		targets = append(targets, target)
 	}
 
@@ -227,13 +231,17 @@ func (n *NodeResourcer) executeDrain(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	params, paramsErr := nativeActionParams(input.Input)
-	if paramsErr != nil { return resource.Value{}, paramsErr }
+	if paramsErr != nil {
+		return resource.Value{}, paramsErr
+	}
 	// Parse optional params.
 	gracePeriod := int64(30)
 	if v, ok := params["gracePeriodSeconds"]; ok {
 		var err error
 		gracePeriod, err = nativeActionInteger(v, 0, 9223372036854775807)
-		if err != nil { return resource.Value{}, fmt.Errorf("gracePeriodSeconds: %w", err) }
+		if err != nil {
+			return resource.Value{}, fmt.Errorf("gracePeriodSeconds: %w", err)
+		}
 	}
 	ignoreDaemonSets := true
 	if v, ok := params["ignoreDaemonSets"].(bool); ok {
@@ -292,7 +300,7 @@ func (n *NodeResourcer) executeDrain(
 			},
 			DeleteOptions: &metav1.DeleteOptions{
 				GracePeriodSeconds: &gracePeriod,
-				Preconditions: nativePodUIDPreconditions(pod),
+				Preconditions:      nativePodUIDPreconditions(pod),
 			},
 		}
 		if err := client.KubeClient.PolicyV1().Evictions(pod.Namespace).Evict(ctx, eviction); err != nil {
@@ -301,7 +309,7 @@ func (n *NodeResourcer) executeDrain(
 				zero := int64(0)
 				if delErr := client.KubeClient.CoreV1().Pods(pod.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{
 					GracePeriodSeconds: &zero,
-				Preconditions: nativePodUIDPreconditions(pod),
+					Preconditions:      nativePodUIDPreconditions(pod),
 				}); delErr != nil {
 					evictErrors = append(evictErrors, fmt.Sprintf("%s/%s: force-delete failed: %v", pod.Namespace, pod.Name, delErr))
 					continue
@@ -348,7 +356,9 @@ func (n *NodeResourcer) executeAddTaint(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	params, paramsErr := nativeActionParams(input.Input)
-	if paramsErr != nil { return resource.Value{}, paramsErr }
+	if paramsErr != nil {
+		return resource.Value{}, paramsErr
+	}
 	key, _ := params["key"].(string)
 	value, _ := params["value"].(string)
 	effect, _ := params["effect"].(string)
@@ -362,7 +372,11 @@ func (n *NodeResourcer) executeAddTaint(
 
 	// Get the current node to read existing taints.
 	node, err := client.KubeClient.CoreV1().Nodes().Get(ctx, input.Reference.Address.ID, metav1.GetOptions{})
-	if err == nil { if err := nativeActionObjectMatches(input, node); err != nil { return resource.Value{}, err } }
+	if err == nil {
+		if err := nativeActionObjectMatches(input, node); err != nil {
+			return resource.Value{}, err
+		}
+	}
 	if err != nil {
 		return resource.Value{}, fmt.Errorf("failed to get node %s: %w", input.Reference.Address.ID, err)
 	}
@@ -411,7 +425,9 @@ func (n *NodeResourcer) executeRemoveTaint(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	params, paramsErr := nativeActionParams(input.Input)
-	if paramsErr != nil { return resource.Value{}, paramsErr }
+	if paramsErr != nil {
+		return resource.Value{}, paramsErr
+	}
 	key, _ := params["key"].(string)
 	effect, _ := params["effect"].(string)
 
@@ -420,7 +436,11 @@ func (n *NodeResourcer) executeRemoveTaint(
 	}
 
 	node, err := client.KubeClient.CoreV1().Nodes().Get(ctx, input.Reference.Address.ID, metav1.GetOptions{})
-	if err == nil { if err := nativeActionObjectMatches(input, node); err != nil { return resource.Value{}, err } }
+	if err == nil {
+		if err := nativeActionObjectMatches(input, node); err != nil {
+			return resource.Value{}, err
+		}
+	}
 	if err != nil {
 		return resource.Value{}, fmt.Errorf("failed to get node %s: %w", input.Reference.Address.ID, err)
 	}
@@ -470,7 +490,11 @@ func (n *NodeResourcer) executeGetConditions(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	node, err := client.KubeClient.CoreV1().Nodes().Get(ctx, input.Reference.Address.ID, metav1.GetOptions{})
-	if err == nil { if err := nativeActionObjectMatches(input, node); err != nil { return resource.Value{}, err } }
+	if err == nil {
+		if err := nativeActionObjectMatches(input, node); err != nil {
+			return resource.Value{}, err
+		}
+	}
 	if err != nil {
 		return resource.Value{}, fmt.Errorf("failed to get node %s: %w", input.Reference.Address.ID, err)
 	}
@@ -509,28 +533,42 @@ func WaitForPodRunning(ctx context.Context, client kubernetes.Interface, namespa
 
 // nativeActionParams decodes canonical values without losing integer intent.
 func nativeActionParams(value resource.Value) (map[string]any, error) {
- native, err := resource.NativeFromValue(value)
- if err != nil { return nil, err }
- if native == nil { return nil, nil }
- params, ok := native.(map[string]any)
- if !ok { return nil, fmt.Errorf("action input must be an object") }
- return params, nil
+	native, err := resource.NativeFromValue(value)
+	if err != nil {
+		return nil, err
+	}
+	if native == nil {
+		return nil, nil
+	}
+	params, ok := native.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("action input must be an object")
+	}
+	return params, nil
 }
 
 func nativeActionInteger(value any, minimum, maximum int64) (int64, error) {
- var number int64
- switch v := value.(type) {
- case int64: number = v
- case uint64:
-  if v > uint64(maximum) { return 0, fmt.Errorf("integer exceeds native range") }
-  number = int64(v)
- case float64:
-  if math.IsNaN(v) || math.IsInf(v, 0) || math.Trunc(v) != v || v < float64(minimum) || v >= 9223372036854775808.0 { return 0, fmt.Errorf("expected an integer in native range") }
-  number = int64(v)
- default: return 0, fmt.Errorf("expected an integer")
- }
- if number < minimum || number > maximum { return 0, fmt.Errorf("integer exceeds native range") }
- return number, nil
+	var number int64
+	switch v := value.(type) {
+	case int64:
+		number = v
+	case uint64:
+		if v > uint64(maximum) {
+			return 0, fmt.Errorf("integer exceeds native range")
+		}
+		number = int64(v)
+	case float64:
+		if math.IsNaN(v) || math.IsInf(v, 0) || math.Trunc(v) != v || v < float64(minimum) || v >= 9223372036854775808.0 {
+			return 0, fmt.Errorf("expected an integer in native range")
+		}
+		number = int64(v)
+	default:
+		return 0, fmt.Errorf("expected an integer")
+	}
+	if number < minimum || number > maximum {
+		return 0, fmt.Errorf("integer exceeds native range")
+	}
+	return number, nil
 }
 
 // nativeActionEventValue encodes internally constructed event payloads.
@@ -541,22 +579,27 @@ func nativeActionEventValue(payload any) (*resource.Value, error) {
 	}
 	return &value, nil
 }
+
 // nativeActionPatch pins native mutations to the requested incarnation.
 func nativeActionPatch(request resource.ActionRequest, patch string) []byte {
- if request.Reference.Incarnation == nil { return []byte(patch) }
- uid, _ := json.Marshal(*request.Reference.Incarnation)
- return []byte("{\"metadata\":{\"uid\":" + string(uid) + "}," + patch[1:])
+	if request.Reference.Incarnation == nil {
+		return []byte(patch)
+	}
+	uid, _ := json.Marshal(*request.Reference.Incarnation)
+	return []byte("{\"metadata\":{\"uid\":" + string(uid) + "}," + patch[1:])
 }
 
 func nativeActionObjectMatches(request resource.ActionRequest, object metav1.Object) error {
- if request.Reference.Incarnation != nil && string(object.GetUID()) != *request.Reference.Incarnation {
-  return resource.NewError("CONFLICT", "resource incarnation changed")
- }
- return nil
+	if request.Reference.Incarnation != nil && string(object.GetUID()) != *request.Reference.Incarnation {
+		return resource.NewError("CONFLICT", "resource incarnation changed")
+	}
+	return nil
 }
 
 func nativePodUIDPreconditions(pod *corev1.Pod) *metav1.Preconditions {
- if pod.UID == "" { return nil }
- uid := pod.UID
- return &metav1.Preconditions{UID: &uid}
+	if pod.UID == "" {
+		return nil
+	}
+	uid := pod.UID
+	return &metav1.Preconditions{UID: &uid}
 }

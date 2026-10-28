@@ -2,8 +2,8 @@ package resourcers
 
 import (
 	"context"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
@@ -18,7 +18,6 @@ type HPAResourcer struct {
 	*KubernetesResourcerBase[MetaAccessor]
 	log *zap.SugaredLogger
 }
-
 
 // NewHPAResourcer creates an HPAResourcer for k8s:autoscaling/horizontalpodautoscalers.
 func NewHPAResourcer(logger *zap.SugaredLogger, opts ...Option) *HPAResourcer {
@@ -47,7 +46,9 @@ func (h *HPAResourcer) ResolveRelationships(
 	request resource.RelationshipResolutionRequest,
 ) ([]resource.ResolvedRelationship, error) {
 	namespace, err := nativeRequestNamespace(request.Source.Reference.Address.Scope)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	id := request.Source.Reference.Address.ID
 	hpa, err := client.KubeClient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(ctx, id, metav1.GetOptions{})
 	if err != nil {
@@ -76,7 +77,9 @@ func (h *HPAResourcer) ResolveRelationships(
 	}
 
 	target, err := makeRef(request, resourceKey, ref.Name, namespace)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	return []resource.ResolvedRelationship{
 		{

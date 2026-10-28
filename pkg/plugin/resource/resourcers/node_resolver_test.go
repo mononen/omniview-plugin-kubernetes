@@ -2,8 +2,8 @@ package resourcers
 
 import (
 	"context"
-	"testing"
 	"errors"
+	"testing"
 
 	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,7 +17,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
-
 
 func TestNodeResourcer_ResolveRelationships(t *testing.T) {
 	pod1 := &corev1.Pod{

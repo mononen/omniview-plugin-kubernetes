@@ -15,8 +15,8 @@ import (
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/resourcers"
 	"github.com/omniview/kubernetes/pkg/utils/kubeauth"
-	"github.com/omniviewdev/plugin-sdk/pkg/v1/exec"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
+	"github.com/omniviewdev/plugin-sdk/pkg/v1/exec"
 )
 
 // TestDebugPodSpec verifies that the debug pod created by NodeHandler has the

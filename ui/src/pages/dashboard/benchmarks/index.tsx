@@ -4,6 +4,7 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 
 import CodeEditor from '../../../components/shared/editor/Editor';
+import { SourcePageControls } from '../../../components/shared/SourcePageControls';
 
 import ClusterOverviewCard from './components/ClusterOverviewCard';
 import ScorecardChart from './components/ScorecardChart';
@@ -54,6 +55,7 @@ const ClusterDashboardBenchmarksPage: React.FC = () => {
 
   return (
     <div style={pageStyle}>
+      <SourcePageControls {...resources.pageControls} label="Benchmarks" />
       <div>
         <ClusterOverviewCard
           cluster={id}

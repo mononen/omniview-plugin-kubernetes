@@ -21,7 +21,6 @@ type RepoResourcer struct {
 	log *zap.SugaredLogger
 }
 
-
 // NewRepoResourcer creates a new RepoResourcer.
 func NewRepoResourcer(logger *zap.SugaredLogger) *RepoResourcer {
 	return &RepoResourcer{
@@ -37,9 +36,15 @@ func repoFile() string {
 func loadRepoFile() (*repo.File, error) {
 	path := repoFile()
 	info, err := os.Stat(path)
-	if os.IsNotExist(err) { return repo.NewFile(), nil }
-	if err != nil { return nil, err }
-	if info.Size() > 16<<20 { return nil, fmt.Errorf("Helm repositories exceed 16 MiB") }
+	if os.IsNotExist(err) {
+		return repo.NewFile(), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() > 16<<20 {
+		return nil, fmt.Errorf("Helm repositories exceed 16 MiB")
+	}
 	f, err := repo.LoadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -209,7 +214,9 @@ func (r *RepoResourcerWithActions) executeListCharts(input resource.ActionReques
 		return resource.Value{}, fmt.Errorf("repository %s index not found in local cache", repoName)
 	}
 
-	if len(idx.Entries) > 256 { return resource.Value{}, fmt.Errorf("repository chart action exceeds 256 entries; use chart enumeration") }
+	if len(idx.Entries) > 256 {
+		return resource.Value{}, fmt.Errorf("repository chart action exceeds 256 entries; use chart enumeration")
+	}
 	charts := make([]interface{}, 0, len(idx.Entries))
 	for _, versions := range idx.Entries {
 		if len(versions) == 0 {
@@ -229,7 +236,9 @@ func (r *RepoResourcerWithActions) executeListCharts(input resource.ActionReques
 
 func (r *RepoResourcerWithActions) executeAdd(input resource.ActionRequest) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	name := input.Reference.Address.ID
 	url, _ := params["url"].(string)
 
@@ -352,5 +361,3 @@ func validateOCIRegistry(
 	// specific repository reference, and users may be adding a registry root.
 	return nil
 }
-
-

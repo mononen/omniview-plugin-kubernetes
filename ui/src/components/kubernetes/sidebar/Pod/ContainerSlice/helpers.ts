@@ -1,3 +1,4 @@
+import type { DrawerContext } from '@omniviewdev/runtime';
 import type {
   Container,
   ContainerStatus,
@@ -23,6 +24,7 @@ export interface ContainerSliceProps {
   status?: ContainerStatus;
   type: ContainerType;
   pod?: Pod;
+  resource?: DrawerContext['resource'];
   volumes?: Volume[];
   /** Pod-level CPU usage in millicores (from metrics-server) */
   podCpuUsage?: number;

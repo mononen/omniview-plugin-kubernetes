@@ -2,10 +2,10 @@ package helm
 
 import (
 	"context"
-	"testing"
-	"strings"
 	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"go.uber.org/zap"
+	"strings"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -484,7 +484,7 @@ func TestReleaseToMap_PopulatedConfig(t *testing.T) {
 
 func TestCanonicalHelmRegistrations(t *testing.T) {
 	t.Setenv("HELM_DRIVER", "")
-	registrations := HelmRegistrations(zap.NewNop().Sugar(), NewHelmService())
+	registrations := NewHelmAncillary(zap.NewNop().Sugar()).Registrations()
 	require.Len(t, registrations, 3)
 	for _, registration := range registrations {
 		require.NotNil(t, registration.Get)
@@ -551,7 +551,7 @@ func TestHelmStorageDriverEnumerationAdmission(t *testing.T) {
 				}
 				assert.Equal(t, descriptor.Type != ReleaseType || supported, hasEnumeration)
 			}
-			for _, registration := range HelmRegistrations(zap.NewNop().Sugar(), NewHelmService()) {
+			for _, registration := range NewHelmAncillary(zap.NewNop().Sugar()).Registrations() {
 				assert.Equal(t, registration.Type != ReleaseType || supported, registration.Enumerate != nil)
 				assert.NotNil(t, registration.Get)
 				assert.NotNil(t, registration.Action)
@@ -569,7 +569,7 @@ func TestNativeActionConversionErrorsPropagate(t *testing.T) {
 	_, err := actionParams(input)
 	assert.Equal(t, "INVALID_REQUEST", resource.ErrorCode(err))
 	logger := zap.NewNop().Sugar()
-	_, err = NewReleaseResourcer(logger, NewHelmService()).executeRollback(nil, input)
+	_, err = NewReleaseResourcer(logger).executeRollback(nil, input)
 	assert.Equal(t, "INVALID_REQUEST", resource.ErrorCode(err))
 	_, err = NewRepoResourcerWithActions(logger).executeAdd(input)
 	assert.Equal(t, "INVALID_REQUEST", resource.ErrorCode(err))
@@ -607,4 +607,23 @@ func TestHelmEditorSchemaFiniteAndHonest(t *testing.T) {
 	assert.Equal(t, "INVALID_REQUEST", resource.ErrorCode(err))
 	_, _, err = helmEditorSchema([]byte(`{}`), strings.Repeat("x", resource.MaxDocumentBytes/6), "*.yaml")
 	assert.Equal(t, "RESOURCE_LIMIT", resource.ErrorCode(err))
+}
+
+func TestHelmCatalogDeclaresEveryCapabilityQueryDimension(t *testing.T) {
+	t.Setenv("HELM_DRIVER", "secrets")
+	catalog := resource.Catalog{
+		Provider: "kubernetes", Revision: "fixture-native-catalog",
+		Types: HelmResourceTypes(), Coverage: resource.Coverage{Kind: "complete", Paths: []string{}},
+	}
+	require.NoError(t, resource.ValidateCatalog(catalog))
+	for _, descriptor := range catalog.Types {
+		require.Equal(t, helmRepresentation, descriptor.DefaultRepresentation)
+		for _, capability := range descriptor.Capabilities {
+			require.Len(t, capability.Scope, len(descriptor.QueryDimensions), descriptor.Type)
+			for index, dimension := range descriptor.QueryDimensions {
+				assert.Equal(t, dimension.Name, capability.Scope[index].Dimension)
+				assert.Equal(t, resource.ScopeAny, capability.Scope[index].Match)
+			}
+		}
+	}
 }

@@ -1,5 +1,5 @@
 import { Spinner, Stack, Text } from '@omniviewdev/base-ui';
-import { useResourceMetrics } from '@omniviewdev/runtime';
+import { useResourceMetrics, type Value, type ResourceReference, type AccessRoute } from '@omniviewdev/runtime';
 import { metric } from '@omniviewdev/runtime/models';
 import { MetricsPanel } from '../../../shared/charts';
 import type { TimeSeriesDef, ChartTimeRange } from '../../../shared/charts';
@@ -62,7 +62,9 @@ interface Props {
   resourceKey: string;
   resourceID: string;
   resourceNamespace: string;
-  resourceData?: Record<string, unknown>;
+  resourceData?: Value;
+  reference?: ResourceReference;
+  route?: AccessRoute;
 }
 
 function formatValue(value: number, unitCode: number): string {
@@ -185,6 +187,8 @@ const PodMetricsSection: React.FC<Props> = ({
   resourceID,
   resourceNamespace,
   resourceData,
+  reference,
+  route,
 }) => {
   const [timeRange, setTimeRange] = useState<ChartTimeRange>(() => ({
     from: new Date(Date.now() - 60 * 60 * 1000), // 1h ago
@@ -203,6 +207,8 @@ const PodMetricsSection: React.FC<Props> = ({
     resourceID,
     resourceNamespace,
     resourceData,
+    reference,
+    route,
     refreshInterval: 30000,
   });
 
@@ -214,6 +220,8 @@ const PodMetricsSection: React.FC<Props> = ({
     resourceID,
     resourceNamespace,
     resourceData,
+    reference,
+    route,
     shape: 1,
     timeRange: {
       start: timeRange.from,

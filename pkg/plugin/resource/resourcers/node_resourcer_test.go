@@ -197,9 +197,9 @@ func TestNodeResourcer_Drain_EvictsPods(t *testing.T) {
 	r := newTestNodeResourcer()
 
 	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("drain", "drain-node", "", map[string]interface{}{
-			"gracePeriodSeconds": int64(30),
-			"ignoreDaemonSets":   true,
-		}))
+		"gracePeriodSeconds": int64(30),
+		"ignoreDaemonSets":   true,
+	}))
 
 	require.NoError(t, err)
 	require.Equal(t, "map", result.Kind)
@@ -218,8 +218,8 @@ func TestNodeResourcer_Drain_SkipsDaemonSetPods(t *testing.T) {
 	r := newTestNodeResourcer()
 
 	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("drain", "drain-node", "", map[string]interface{}{
-			"ignoreDaemonSets": true,
-		}))
+		"ignoreDaemonSets": true,
+	}))
 
 	require.NoError(t, err)
 	require.Equal(t, "map", result.Kind)
@@ -275,10 +275,10 @@ func TestNodeResourcer_AddTaint(t *testing.T) {
 	r := newTestNodeResourcer()
 
 	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("add-taint", "taint-node", "", map[string]interface{}{
-			"key":    "dedicated",
-			"value":  "gpu",
-			"effect": "NoSchedule",
-		}))
+		"key":    "dedicated",
+		"value":  "gpu",
+		"effect": "NoSchedule",
+	}))
 
 	require.NoError(t, err)
 	require.Equal(t, "map", result.Kind)
@@ -301,10 +301,10 @@ func TestNodeResourcer_AddTaint_Duplicate(t *testing.T) {
 	r := newTestNodeResourcer()
 
 	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("add-taint", "taint-node", "", map[string]interface{}{
-			"key":    "dedicated",
-			"value":  "gpu",
-			"effect": "NoSchedule",
-		}))
+		"key":    "dedicated",
+		"value":  "gpu",
+		"effect": "NoSchedule",
+	}))
 
 	require.NoError(t, err)
 	require.Equal(t, "map", result.Kind)
@@ -323,8 +323,8 @@ func TestNodeResourcer_AddTaint_MissingKey(t *testing.T) {
 	r := newTestNodeResourcer()
 
 	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("add-taint", "taint-node", "", map[string]interface{}{
-			"effect": "NoSchedule",
-		}))
+		"effect": "NoSchedule",
+	}))
 
 	require.Error(t, err)
 	assert.Equal(t, resource.Value{}, result)
@@ -337,8 +337,8 @@ func TestNodeResourcer_AddTaint_MissingEffect(t *testing.T) {
 	r := newTestNodeResourcer()
 
 	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("add-taint", "taint-node", "", map[string]interface{}{
-			"key": "dedicated",
-		}))
+		"key": "dedicated",
+	}))
 
 	require.Error(t, err)
 	assert.Equal(t, resource.Value{}, result)
@@ -350,9 +350,9 @@ func TestNodeResourcer_AddTaint_NodeNotFound(t *testing.T) {
 	r := newTestNodeResourcer()
 
 	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("add-taint", "nonexistent", "", map[string]interface{}{
-			"key":    "foo",
-			"effect": "NoSchedule",
-		}))
+		"key":    "foo",
+		"effect": "NoSchedule",
+	}))
 
 	require.Error(t, err)
 	assert.Equal(t, resource.Value{}, result)
@@ -369,9 +369,9 @@ func TestNodeResourcer_RemoveTaint(t *testing.T) {
 	r := newTestNodeResourcer()
 
 	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("remove-taint", "taint-node", "", map[string]interface{}{
-			"key":    "dedicated",
-			"effect": "NoSchedule",
-		}))
+		"key":    "dedicated",
+		"effect": "NoSchedule",
+	}))
 
 	require.NoError(t, err)
 	require.Equal(t, "map", result.Kind)
@@ -393,9 +393,9 @@ func TestNodeResourcer_RemoveTaint_ByKeyOnly(t *testing.T) {
 	r := newTestNodeResourcer()
 
 	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("remove-taint", "taint-node", "", map[string]interface{}{
-			"key": "foo",
-			// no effect — removes all taints with this key
-		}))
+		"key": "foo",
+		// no effect — removes all taints with this key
+	}))
 
 	require.NoError(t, err)
 	require.Equal(t, "map", result.Kind)
@@ -412,9 +412,9 @@ func TestNodeResourcer_RemoveTaint_NotFound(t *testing.T) {
 	r := newTestNodeResourcer()
 
 	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("remove-taint", "taint-node", "", map[string]interface{}{
-			"key":    "nonexistent",
-			"effect": "NoSchedule",
-		}))
+		"key":    "nonexistent",
+		"effect": "NoSchedule",
+	}))
 
 	require.NoError(t, err)
 	require.Equal(t, "map", result.Kind)
@@ -551,30 +551,34 @@ func TestWaitForPodRunning_PodNotFound_TimesOut(t *testing.T) {
 	require.Error(t, err)
 }
 func workloadGetRequest(id, namespace string) resource.GetRequest {
- scope := []resource.ScopeEntry{}
- if namespace != "" { scope = append(scope, resource.ScopeEntry{Dimension: "namespace", Value: namespace}) }
- return resource.GetRequest{Route: resource.AccessRoute{Connection: "test-connection"}, Reference: resource.ResourceReference{Address: resource.ResourceAddress{Provider: "kubernetes", Authority: "test-cluster", Type: "native-workload", Scope: scope, ID: id}}}
+	scope := []resource.ScopeEntry{}
+	if namespace != "" {
+		scope = append(scope, resource.ScopeEntry{Dimension: "namespace", Value: namespace})
+	}
+	return resource.GetRequest{Route: resource.AccessRoute{Connection: "test-connection"}, Reference: resource.ResourceReference{Address: resource.ResourceAddress{Provider: "kubernetes", Authority: "test-cluster", Type: "native-workload", Scope: scope, ID: id}}, Representation: "native"}
 }
 
 func workloadActionRequest(action, id, namespace string, params map[string]interface{}) resource.ActionRequest {
- input, err := resource.ValueFromNative(params)
- if err != nil { panic(err) }
- request := workloadGetRequest(id, namespace)
- return resource.ActionRequest{Route: request.Route, Reference: request.Reference, Action: action, Input: input}
+	input, err := resource.ValueFromNative(params)
+	if err != nil {
+		panic(err)
+	}
+	request := workloadGetRequest(id, namespace)
+	return resource.ActionRequest{Route: request.Route, Reference: request.Reference, Action: action, Input: input}
 }
 
 func TestNativeActionIntegerExactRange(t *testing.T) {
- for _, value := range []resource.Value{{Kind: "int64", Int: "9223372036854775807"}, {Kind: "uint64", Uint: "9223372036854775807"}} {
-  native, err := resource.NativeFromValue(value)
-  require.NoError(t, err)
-  actual, err := nativeActionInteger(native, 0, 9223372036854775807)
-  require.NoError(t, err)
-  assert.Equal(t, int64(9223372036854775807), actual)
- }
- for _, value := range []any{uint64(9223372036854775808), float64(9223372036854775808), -int64(1), 1.5} {
-  _, err := nativeActionInteger(value, 0, 9223372036854775807)
-  require.Error(t, err)
- }
+	for _, value := range []resource.Value{{Kind: "int64", Int: "9223372036854775807"}, {Kind: "uint64", Uint: "9223372036854775807"}} {
+		native, err := resource.NativeFromValue(value)
+		require.NoError(t, err)
+		actual, err := nativeActionInteger(native, 0, 9223372036854775807)
+		require.NoError(t, err)
+		assert.Equal(t, int64(9223372036854775807), actual)
+	}
+	for _, value := range []any{uint64(9223372036854775808), float64(9223372036854775808), -int64(1), 1.5} {
+		_, err := nativeActionInteger(value, 0, 9223372036854775807)
+		require.Error(t, err)
+	}
 }
 
 func TestNativeActionIncarnationGuards(t *testing.T) {

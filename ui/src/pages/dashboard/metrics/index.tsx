@@ -21,6 +21,7 @@ import {
 import { useParams } from 'react-router-dom';
 
 import { useClusterPreferences } from '../../../hooks/useClusterPreferences';
+import { metricQueryParams } from '../../../utils/metricParams';
 
 const emptyStateStyle: React.CSSProperties = { padding: 24, textAlign: 'center' };
 
@@ -255,22 +256,7 @@ const ClusterDashboardMetricsPage: React.FC = () => {
   const { connectionOverrides } = useClusterPreferences('kubernetes');
   const metricConfig = connectionOverrides[id]?.metricConfig;
 
-  const resourceData = useMemo(() => {
-    if (
-      !metricConfig?.prometheusService &&
-      !metricConfig?.prometheusNamespace &&
-      !metricConfig?.prometheusPort
-    ) {
-      return {};
-    }
-    return {
-      __metric_config__: {
-        service: metricConfig.prometheusService || '',
-        namespace: metricConfig.prometheusNamespace || '',
-        port: metricConfig.prometheusPort || 0,
-      },
-    };
-  }, [metricConfig]);
+  const params = useMemo(() => metricQueryParams(metricConfig), [metricConfig]);
 
   // All time-series metric IDs
   const tsMetricIDs = useMemo(() => {
@@ -302,7 +288,7 @@ const ClusterDashboardMetricsPage: React.FC = () => {
     connectionID: id,
     resourceKey: 'cluster::metrics',
     resourceID: '',
-    resourceData,
+    params,
     shape: 1,
     timeRange: {
       start: timeRange.from,
@@ -319,7 +305,7 @@ const ClusterDashboardMetricsPage: React.FC = () => {
     connectionID: id,
     resourceKey: 'cluster::metrics',
     resourceID: '',
-    resourceData,
+    params,
     shape: 0,
     metricIDs: annotationMetricIDs,
     refreshInterval: 30000,

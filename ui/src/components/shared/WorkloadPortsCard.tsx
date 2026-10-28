@@ -9,7 +9,7 @@ import {
   Stack,
   Text,
 } from '@omniviewdev/base-ui';
-import { useResourcePortForwarder } from '@omniviewdev/runtime';
+import { useResourcePortForwarder, type DrawerContext } from '@omniviewdev/runtime';
 import { networker } from '@omniviewdev/runtime/models';
 import { Browser } from '@omniviewdev/runtime/runtime';
 import type { ContainerPort, PodSpec } from 'kubernetes-types/core/v1';
@@ -282,8 +282,8 @@ export interface WorkloadPortsCardProps {
   podSpec: PodSpec;
   /** Native logical Type for the port-forward call (e.g. 'k8s:apps/deployments'). */
   resourceKey: string;
-  /** Full resource data object passed to the port-forward call. */
-  resourceData: unknown;
+  /** Canonical observation and admitted target used for port-forward calls. */
+  resource: DrawerContext['resource'];
   /** Resource ID (e.g. the deployment name). */
   resourceID: string;
   /** Connection ID. */
@@ -293,7 +293,7 @@ export interface WorkloadPortsCardProps {
 const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
   podSpec,
   resourceKey,
-  resourceData,
+  resource,
   resourceID,
   connectionID,
 }) => {
@@ -317,11 +317,14 @@ const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
     port: number,
     opts?: { localPort?: number; protocol?: 'TCP' | 'UDP'; openInBrowser?: boolean },
   ) => {
+    if (!resource?.record) throw new Error('Resource observation is unavailable');
     void forward({
       opts: {
         resourceId: resourceID,
         resourceKey,
-        resource: resourceData,
+        resource: resource.record.record.body,
+        reference: resource.reference,
+        route: resource.route,
         remotePort: port,
         localPort: opts?.localPort,
         protocol: opts?.protocol ?? 'TCP',

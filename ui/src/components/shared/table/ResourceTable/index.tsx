@@ -36,6 +36,8 @@ import { useRowSelectionCleanup } from '../useRowSelectionCleanup';
 import { getBodyCellStyles } from '../utils';
 import { useConnectionNamespaces } from '@/hooks/useConnectionNamespaces';
 import { useStoredState } from '@/hooks/useStoredState';
+import { useSourcePageNavigation } from '@/hooks/useSourcePageNavigation';
+import { SourcePageControls } from '../../SourcePageControls';
 
 import ResourceTableErrorState from './ResourceTableErrorState';
 import styles from './ResourceTable.module.css';
@@ -111,7 +113,10 @@ const ResourceTableContainer: React.FC<Props> = ({
     `kubernetes-${connectionID}-${resourceKey}-column-sizing`,
     {},
   );
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [pageSelections, setPageSelections] = useState<{
+    context: string;
+    pages: Array<{ cursor?: string; selection: RowSelectionState }>;
+  }>({ context: '', pages: [] });
   const { location } = usePluginRouter();
   const navigationSearch = new URLSearchParams(location.search).get('search') ?? '';
   const [search, setSearch] = useState<string>(navigationSearch);
@@ -142,19 +147,37 @@ const ResourceTableContainer: React.FC<Props> = ({
     route: { connection: connectionID },
     type: resourceKey,
   });
-  const { resources, isSyncing, watchError } = useResources({
+  const pageContext = JSON.stringify([connectionID, resourceKey, target.data]);
+  const navigation = useSourcePageNavigation(pageContext);
+  const { resources, acquired, refreshAcquiredPage, isSyncing, watchError, membershipStale } = useResources({
     pluginID: 'kubernetes',
     request: target.data ? {
       targetId: target.data.targetId,
-      request: { target: target.data.target, pageSize: 256 },
+      request: { target: target.data.target, pageSize: 256, cursor: navigation.cursor },
     } : undefined,
     live: resourceType.data?.capabilities.some((capability) => capability.operation === 'update') ?? false,
   });
+  const pagination = acquired ? navigation.forAcquiredPage(acquired.request.request.cursor) : navigation;
+  const rowSelection = pageSelections.context === pageContext
+    ? pageSelections.pages.find((page) => page.cursor === pagination.displayedCursor)?.selection ?? {}
+    : {};
+  const setRowSelection = React.useCallback<React.Dispatch<React.SetStateAction<RowSelectionState>>>((update) => {
+    setPageSelections((state) => {
+      const pages = state.context === pageContext ? state.pages : [];
+      const current = pages.find((page) => page.cursor === pagination.displayedCursor)?.selection ?? {};
+      const selection = typeof update === 'function' ? update(current) : update;
+      if (selection === current) return state;
+      return {
+        context: pageContext,
+        pages: [...pages.filter((page) => page.cursor !== pagination.displayedCursor), { cursor: pagination.displayedCursor, selection }].slice(-17),
+      };
+    });
+  }, [pageContext, pagination.displayedCursor]);
   const { rows, recordsByBody, rowKeys } = useMemo(
-    () => decodeResourceTableRows(resources.data?.records ?? []),
-    [resources.data],
+    () => decodeResourceTableRows(acquired?.page.records ?? []),
+    [acquired?.page],
   );
-  useRowSelectionCleanup(rowKeys, setRowSelection);
+  useRowSelectionCleanup(rowKeys, setRowSelection, resources.isSuccess && !resources.isFetching);
 
   const showSyncingIndicator = isSyncing && rows.length > 0;
   const { labels, setLabels, annotations, setAnnotations, columnDefs } = useDynamicResourceColumns({
@@ -282,15 +305,18 @@ const ResourceTableContainer: React.FC<Props> = ({
 
     const count = rows.length;
 
-    return `Search ${count ? `${count} ` : ''}${resource}...`;
+    return `Search ${count ? `${count} ` : ''}${resource} on this page...`;
   };
 
-  if (target.isError || resources.isError) {
+  if (target.isError || (resources.isError && !acquired)) {
     return (
-      <ResourceTableErrorState
-        error={target.error ?? resources.error}
-        resourceKey={resourceKey}
-      />
+      <>
+        <ResourceTableErrorState
+          error={target.error ?? resources.error}
+          resourceKey={resourceKey}
+        />
+        <SourcePageControls pagination={pagination} label={resourceKey} loading={resources.isFetching} error={target.error ?? resources.error} retry={target.data ? () => { void resources.refetch(); } : undefined} />
+      </>
     );
   }
 
@@ -300,6 +326,8 @@ const ResourceTableContainer: React.FC<Props> = ({
       {drawer && <DrawerActionsBridge connectionID={connectionID} resourceKey={resourceKey} />}
       <div className={styles.outer}>
         {watchError && <div role="status">Live updates unavailable. Showing the last acquired resources.</div>}
+        <SourcePageControls pagination={pagination} nextCursor={acquired?.page.sourcePage.nextCursor} loading={target.isLoading || resources.isFetching} error={resources.error} retry={() => { void resources.refetch(); }} refresh={target.data ? refreshAcquiredPage : undefined} membershipStale={membershipStale} label={resourceType.data?.displayName ?? resourceKey} />
+        <div role="status">Bounded source page. Visible-row updates are best effort, not a complete live collection. Refresh to check page membership.</div>
         <DataTable.Root
           table={table}
           features={TABLE_FEATURES}
@@ -343,7 +371,7 @@ const ResourceTableContainer: React.FC<Props> = ({
             aria-labelledby={'table-title'}
           >
             <DataTable.Header />
-            {target.isLoading || resourceType.isLoading || resources.isLoading ? (
+            {target.isLoading || resourceType.isLoading || (resources.isLoading && !acquired) ? (
               <tbody style={{ display: 'grid' }}>
                 {SKELETON_ROWS.map((rowKey) => (
                   <tr key={rowKey} className={styles.skeletonRow}>

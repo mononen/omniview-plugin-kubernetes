@@ -273,6 +273,8 @@ export const drawers: Record<string, DrawerFactory> = Object.fromEntries(
 export const defaultDrawerFactory: DrawerFactory =
   createResourceDrawerFactory('__default__', GenericResourceSidebar);
 
+// React Router decodes incoming segments before matching, except encoded slashes.
+// Static logical Types therefore retain ':' while protecting '/' as '%2F'.
 const routes: Array<RouteObject> = [
   {
     path: '/',
@@ -310,100 +312,100 @@ const routes: Array<RouteObject> = [
           { path: 'page/:pagePath/:subPath', Component: ClusterExtensionPage },
           // admissionregistration.v1
           {
-            path: encodeURIComponent('k8s:admissionregistration.k8s.io/mutatingwebhookconfigurations'),
+            path: 'k8s:admissionregistration.k8s.io/mutatingwebhookconfigurations'.replaceAll('/', '%2F'),
             Component: MutatingWebhookConfigurationTable,
           },
           {
-            path: encodeURIComponent('k8s:admissionregistration.k8s.io/validatingadmissionpolicies'),
+            path: 'k8s:admissionregistration.k8s.io/validatingadmissionpolicies'.replaceAll('/', '%2F'),
             Component: ValidatingAdmissionPolicyTable,
           },
           {
-            path: encodeURIComponent('k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings'),
+            path: 'k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings'.replaceAll('/', '%2F'),
             Component: ValidatingAdmissionPolicyBindingTable,
           },
           {
-            path: encodeURIComponent('k8s:admissionregistration.k8s.io/validatingwebhookconfigurations'),
+            path: 'k8s:admissionregistration.k8s.io/validatingwebhookconfigurations'.replaceAll('/', '%2F'),
             Component: ValidatingWebhookConfigurationTable,
           },
 
           // apps.v1
-          { path: encodeURIComponent('k8s:apps/daemonsets'), Component: DaemonSetTable },
-          { path: encodeURIComponent('k8s:apps/deployments'), Component: DeploymentTable },
-          { path: encodeURIComponent('k8s:apps/replicasets'), Component: ReplicaSetTable },
-          { path: encodeURIComponent('k8s:apps/statefulsets'), Component: StatefulSetTable },
+          { path: 'k8s:apps/daemonsets'.replaceAll('/', '%2F'), Component: DaemonSetTable },
+          { path: 'k8s:apps/deployments'.replaceAll('/', '%2F'), Component: DeploymentTable },
+          { path: 'k8s:apps/replicasets'.replaceAll('/', '%2F'), Component: ReplicaSetTable },
+          { path: 'k8s:apps/statefulsets'.replaceAll('/', '%2F'), Component: StatefulSetTable },
 
           // autoscaling.v1
           {
-            path: encodeURIComponent('k8s:autoscaling/horizontalpodautoscalers'),
+            path: 'k8s:autoscaling/horizontalpodautoscalers'.replaceAll('/', '%2F'),
             Component: HorizontalPodAutoscalerTable,
           },
 
 
           // batch.v1
-          { path: encodeURIComponent('k8s:batch/cronjobs'), Component: CronJobTable },
-          { path: encodeURIComponent('k8s:batch/jobs'), Component: JobTable },
+          { path: 'k8s:batch/cronjobs'.replaceAll('/', '%2F'), Component: CronJobTable },
+          { path: 'k8s:batch/jobs'.replaceAll('/', '%2F'), Component: JobTable },
 
           // core.v1
-          { path: encodeURIComponent('k8s:/componentstatuses'), Component: ComponentStatusTable },
-          { path: encodeURIComponent('k8s:/configmaps'), Component: ConfigMapTable },
-          { path: encodeURIComponent('k8s:/endpoints'), Component: EndpointsTable },
-          { path: encodeURIComponent('k8s:/events'), Component: EventTable },
-          { path: encodeURIComponent('k8s:/limitranges'), Component: LimitRangeTable },
-          { path: encodeURIComponent('k8s:/namespaces'), Component: NamespaceTable },
-          { path: encodeURIComponent('k8s:/nodes'), Component: NodeTable },
-          { path: encodeURIComponent('k8s:/persistentvolumes'), Component: PersistentVolumeTable },
-          { path: encodeURIComponent('k8s:/persistentvolumeclaims'), Component: PersistentVolumeClaimTable },
-          { path: encodeURIComponent('k8s:/pods'), Component: PodTable },
-          { path: encodeURIComponent('k8s:/resourcequotas'), Component: ResourceQuotaTable },
-          { path: encodeURIComponent('k8s:/secrets'), Component: SecretTable },
-          { path: encodeURIComponent('k8s:/services'), Component: ServiceTable },
-          { path: encodeURIComponent('k8s:/serviceaccounts'), Component: ServiceAccountTable },
-          { path: encodeURIComponent('k8s:/replicationcontrollers'), Component: ReplicationControllerTable },
+          { path: 'k8s:/componentstatuses'.replaceAll('/', '%2F'), Component: ComponentStatusTable },
+          { path: 'k8s:/configmaps'.replaceAll('/', '%2F'), Component: ConfigMapTable },
+          { path: 'k8s:/endpoints'.replaceAll('/', '%2F'), Component: EndpointsTable },
+          { path: 'k8s:/events'.replaceAll('/', '%2F'), Component: EventTable },
+          { path: 'k8s:/limitranges'.replaceAll('/', '%2F'), Component: LimitRangeTable },
+          { path: 'k8s:/namespaces'.replaceAll('/', '%2F'), Component: NamespaceTable },
+          { path: 'k8s:/nodes'.replaceAll('/', '%2F'), Component: NodeTable },
+          { path: 'k8s:/persistentvolumes'.replaceAll('/', '%2F'), Component: PersistentVolumeTable },
+          { path: 'k8s:/persistentvolumeclaims'.replaceAll('/', '%2F'), Component: PersistentVolumeClaimTable },
+          { path: 'k8s:/pods'.replaceAll('/', '%2F'), Component: PodTable },
+          { path: 'k8s:/resourcequotas'.replaceAll('/', '%2F'), Component: ResourceQuotaTable },
+          { path: 'k8s:/secrets'.replaceAll('/', '%2F'), Component: SecretTable },
+          { path: 'k8s:/services'.replaceAll('/', '%2F'), Component: ServiceTable },
+          { path: 'k8s:/serviceaccounts'.replaceAll('/', '%2F'), Component: ServiceAccountTable },
+          { path: 'k8s:/replicationcontrollers'.replaceAll('/', '%2F'), Component: ReplicationControllerTable },
 
           // coordination.v1
-          { path: encodeURIComponent('k8s:coordination.k8s.io/leases'), Component: LeaseTable },
+          { path: 'k8s:coordination.k8s.io/leases'.replaceAll('/', '%2F'), Component: LeaseTable },
 
           // discovery.v1
-          { path: encodeURIComponent('k8s:discovery.k8s.io/endpointslices'), Component: EndpointSliceTable },
+          { path: 'k8s:discovery.k8s.io/endpointslices'.replaceAll('/', '%2F'), Component: EndpointSliceTable },
 
           // flowcontrol.v1
           {
-            path: encodeURIComponent('k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations'),
+            path: 'k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations'.replaceAll('/', '%2F'),
             Component: PriorityLevelConfigurationTable,
           },
-          { path: encodeURIComponent('k8s:flowcontrol.apiserver.k8s.io/flowschemas'), Component: FlowSchemaTable },
+          { path: 'k8s:flowcontrol.apiserver.k8s.io/flowschemas'.replaceAll('/', '%2F'), Component: FlowSchemaTable },
 
           // networking.v1
-          { path: encodeURIComponent('k8s:networking.k8s.io/ingresses'), Component: IngressTable },
-          { path: encodeURIComponent('k8s:networking.k8s.io/ingressclasses'), Component: IngressClassTable },
-          { path: encodeURIComponent('k8s:networking.k8s.io/networkpolicies'), Component: NetworkPolicyTable },
+          { path: 'k8s:networking.k8s.io/ingresses'.replaceAll('/', '%2F'), Component: IngressTable },
+          { path: 'k8s:networking.k8s.io/ingressclasses'.replaceAll('/', '%2F'), Component: IngressClassTable },
+          { path: 'k8s:networking.k8s.io/networkpolicies'.replaceAll('/', '%2F'), Component: NetworkPolicyTable },
 
           // node.v1
-          { path: encodeURIComponent('k8s:node.k8s.io/runtimeclasses'), Component: RuntimeClassTable },
+          { path: 'k8s:node.k8s.io/runtimeclasses'.replaceAll('/', '%2F'), Component: RuntimeClassTable },
 
           // policy.v1
-          { path: encodeURIComponent('k8s:policy/poddisruptionbudgets'), Component: PodDisruptionBudgetTable },
+          { path: 'k8s:policy/poddisruptionbudgets'.replaceAll('/', '%2F'), Component: PodDisruptionBudgetTable },
 
           // rbac.v1
-          { path: encodeURIComponent('k8s:rbac.authorization.k8s.io/clusterroles'), Component: ClusterRoleTable },
-          { path: encodeURIComponent('k8s:rbac.authorization.k8s.io/clusterrolebindings'), Component: ClusterRoleBindingTable },
-          { path: encodeURIComponent('k8s:rbac.authorization.k8s.io/roles'), Component: RoleTable },
-          { path: encodeURIComponent('k8s:rbac.authorization.k8s.io/rolebindings'), Component: RoleBindingTable },
+          { path: 'k8s:rbac.authorization.k8s.io/clusterroles'.replaceAll('/', '%2F'), Component: ClusterRoleTable },
+          { path: 'k8s:rbac.authorization.k8s.io/clusterrolebindings'.replaceAll('/', '%2F'), Component: ClusterRoleBindingTable },
+          { path: 'k8s:rbac.authorization.k8s.io/roles'.replaceAll('/', '%2F'), Component: RoleTable },
+          { path: 'k8s:rbac.authorization.k8s.io/rolebindings'.replaceAll('/', '%2F'), Component: RoleBindingTable },
 
           // scheduling.v1
-          { path: encodeURIComponent('k8s:scheduling.k8s.io/priorityclasses'), Component: PriorityClassTable },
+          { path: 'k8s:scheduling.k8s.io/priorityclasses'.replaceAll('/', '%2F'), Component: PriorityClassTable },
 
           // storage.v1
-          { path: encodeURIComponent('k8s:storage.k8s.io/csidrivers'), Component: CSIDriverTable },
-          { path: encodeURIComponent('k8s:storage.k8s.io/csinodes'), Component: CSINodeTable },
-          { path: encodeURIComponent('k8s:storage.k8s.io/csistoragecapacities'), Component: CSIStorageCapacityTable },
-          { path: encodeURIComponent('k8s:storage.k8s.io/storageclasses'), Component: StorageClassTable },
-          { path: encodeURIComponent('k8s:storage.k8s.io/volumeattachments'), Component: VolumeAttachmentTable },
+          { path: 'k8s:storage.k8s.io/csidrivers'.replaceAll('/', '%2F'), Component: CSIDriverTable },
+          { path: 'k8s:storage.k8s.io/csinodes'.replaceAll('/', '%2F'), Component: CSINodeTable },
+          { path: 'k8s:storage.k8s.io/csistoragecapacities'.replaceAll('/', '%2F'), Component: CSIStorageCapacityTable },
+          { path: 'k8s:storage.k8s.io/storageclasses'.replaceAll('/', '%2F'), Component: StorageClassTable },
+          { path: 'k8s:storage.k8s.io/volumeattachments'.replaceAll('/', '%2F'), Component: VolumeAttachmentTable },
 
           // helm.v1
-          { path: encodeURIComponent('helm:releases'), Component: HelmReleaseTable },
-          { path: encodeURIComponent('helm:repositories'), Component: HelmRepoTable },
-          { path: encodeURIComponent('helm:charts'), Component: HelmChartTable },
+          { path: 'helm:releases'.replaceAll('/', '%2F'), Component: HelmReleaseTable },
+          { path: 'helm:repositories'.replaceAll('/', '%2F'), Component: HelmRepoTable },
+          { path: 'helm:charts'.replaceAll('/', '%2F'), Component: HelmChartTable },
 
           // Custom Resource Definitions / breaking api versions
           { path: ':resourceKey', Component: DefaultTable },

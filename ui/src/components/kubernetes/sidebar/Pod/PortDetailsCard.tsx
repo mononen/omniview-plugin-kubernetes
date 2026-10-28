@@ -1,8 +1,8 @@
 import { Avatar, Button, Chip, Grid, Input, Popover, Stack, Text } from '@omniviewdev/base-ui';
-import { useResourcePortForwarder } from '@omniviewdev/runtime';
+import { useResourcePortForwarder, type DrawerContext } from '@omniviewdev/runtime';
 import { networker } from '@omniviewdev/runtime/models';
 import { Browser } from '@omniviewdev/runtime/runtime';
-import { ContainerPort, Pod } from 'kubernetes-types/core/v1';
+import { ContainerPort } from 'kubernetes-types/core/v1';
 import React from 'react';
 
 import Icon from '../../../shared/Icon';
@@ -112,8 +112,8 @@ export interface PortDetailsCardProps {
   data: ContainerPort[];
   resourceID: string;
   connectionID: string;
-  /** Full pod object used for port-forward calls (provides real name/namespace) */
-  podData?: Pod;
+  /** Canonical observation and admitted target used for port-forward calls. */
+  resource?: DrawerContext['resource'];
 }
 
 const sizeConfig = {
@@ -300,7 +300,7 @@ const PortDetailsCard: React.FC<PortDetailsCardProps> = ({
   titleSize = 'md',
   icon,
   data,
-  podData,
+  resource,
 }) => {
   const cfg = sizeConfig[titleSize];
 
@@ -324,11 +324,14 @@ const PortDetailsCard: React.FC<PortDetailsCardProps> = ({
     port: number,
     opts?: { localPort?: number; protocol?: 'TCP' | 'UDP'; openInBrowser?: boolean },
   ) => {
+    if (!resource?.record) throw new Error('Resource observation is unavailable');
     void forward({
       opts: {
         resourceId: resourceID,
         resourceKey: 'k8s:/pods',
-        resource: podData ?? { metadata: { name: resourceID, namespace: 'default' } },
+        resource: resource.record.record.body,
+        reference: resource.reference,
+        route: resource.route,
         remotePort: port,
         localPort: opts?.localPort,
         protocol: opts?.protocol ?? 'TCP',

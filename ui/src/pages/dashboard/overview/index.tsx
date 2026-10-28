@@ -12,6 +12,7 @@ import { useParams } from 'react-router-dom';
 import type { ChartTimeRange } from '../../../components/shared/charts';
 import NamespaceSelect from '../../../components/tables/NamespaceSelect';
 import { useClusterPreferences } from '../../../hooks/useClusterPreferences';
+import { SourcePageControls } from '../../../components/shared/SourcePageControls';
 
 import ClusterInfoCard from './components/ClusterInfoCard';
 import ClusterMetricsSection from './components/ClusterMetricsSection';
@@ -116,6 +117,7 @@ const ClusterDashboardOverviewPage: React.FC = () => {
   const { connectionOverrides } = useClusterPreferences('kubernetes');
   const metricConfig = connectionOverrides[id]?.metricConfig;
 
+  // Dashboard summaries describe the selected bounded pages, never cluster totals.
   // Only keep the resource hooks needed for ClusterInfoCard and EventsTable
   const pods = useKubernetesResources<Pod>({ connectionID: id, resourceType: 'k8s:/pods', namespaces });
   const nodes = useKubernetesResources<K8sNode>({ connectionID: id, resourceType: 'k8s:/nodes' });
@@ -150,6 +152,8 @@ const ClusterDashboardOverviewPage: React.FC = () => {
           pods={allPods}
           events={allEvents}
         />
+        <SourcePageControls {...pods.pageControls} label="Health pods" />
+        <SourcePageControls {...nodes.pageControls} label="Health nodes" />
 
         {/* Namespace filter */}
         <Stack direction="row" align="center" spacing={2}>
@@ -198,8 +202,9 @@ const ClusterDashboardOverviewPage: React.FC = () => {
         {/* Recent events — responsive height, scrolls independently */}
         <Stack direction="column" spacing={1} style={{ gap: 6 }}>
           <Text weight="semibold" size="sm">
-            Recent Events ({allEvents.length})
+            Events on this page ({allEvents.length})
           </Text>
+          <SourcePageControls {...events.pageControls} label="Events" />
           <div style={eventsContainerStyle}>
             <EventsTable events={allEvents} loading={events.isLoading} connectionID={id} />
           </div>

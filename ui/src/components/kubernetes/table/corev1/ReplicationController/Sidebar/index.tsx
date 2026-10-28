@@ -47,7 +47,7 @@ export const ReplicationControllerSidebar: React.FC<Props> = ({ ctx }) => {
         <WorkloadPortsCard
           podSpec={rc.spec.template.spec}
           resourceKey="k8s:/replicationcontrollers"
-          resourceData={rc}
+          resource={ctx.resource}
           resourceID={ctx.resource?.reference.address.id || ''}
           connectionID={ctx.resource?.route.connection || ''}
         />

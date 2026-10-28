@@ -2,8 +2,8 @@ package resourcers
 
 import (
 	"context"
-	"testing"
 	"errors"
+	"testing"
 
 	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	k8stesting "k8s.io/client-go/testing"
@@ -15,15 +15,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 )
-
 
 func TestStatefulSetResourcer_ResolveRelationships(t *testing.T) {
 	replicas := int32(2)
@@ -73,20 +70,14 @@ func TestStatefulSetResourcer_ResolveRelationships(t *testing.T) {
 
 	fakeKube := fake.NewSimpleClientset(sts, pod)
 	fakeDynamic := dynamicfake.NewSimpleDynamicClient(scheme, sts)
-	factory := dynamicinformer.NewDynamicSharedInformerFactory(fakeDynamic, 0)
 
 	cs := &clients.ClientSet{
-		KubeClient:             fakeKube,
-		DynamicClient:          fakeDynamic,
-		DynamicInformerFactory: factory,
+		KubeClient:    fakeKube,
+		DynamicClient: fakeDynamic,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
-	factory.ForResource(gvr).Informer()
-	factory.Start(ctx.Done())
-	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
 	resourcer := NewStatefulSetResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/statefulsets"]))
@@ -155,20 +146,14 @@ func TestStatefulSetResourcer_ResolveRelationships_Empty(t *testing.T) {
 
 	fakeKube := fake.NewSimpleClientset(sts)
 	fakeDynamic := dynamicfake.NewSimpleDynamicClient(scheme, sts)
-	factory := dynamicinformer.NewDynamicSharedInformerFactory(fakeDynamic, 0)
 
 	cs := &clients.ClientSet{
-		KubeClient:             fakeKube,
-		DynamicClient:          fakeDynamic,
-		DynamicInformerFactory: factory,
+		KubeClient:    fakeKube,
+		DynamicClient: fakeDynamic,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
-	factory.ForResource(gvr).Informer()
-	factory.Start(ctx.Done())
-	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
 	resourcer := NewStatefulSetResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/statefulsets"]))

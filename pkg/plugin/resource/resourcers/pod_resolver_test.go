@@ -9,14 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	corev1 "k8s.io/api/core/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -28,17 +26,15 @@ func newTestClientSet(objs ...runtime.Object) *clients.ClientSet {
 
 	fakeKube := fake.NewSimpleClientset(objs...)
 	fakeDynamic := dynamicfake.NewSimpleDynamicClient(scheme, objs...)
-	factory := dynamicinformer.NewDynamicSharedInformerFactory(fakeDynamic, 0)
 
 	return &clients.ClientSet{
-		KubeClient:             fakeKube,
-		DynamicClient:          fakeDynamic,
-		DynamicInformerFactory: factory,
+		KubeClient:    fakeKube,
+		DynamicClient: fakeDynamic,
 	}
 }
 
 func podRequest(id, namespace string) resource.GetRequest {
- return resource.GetRequest{Route: resource.AccessRoute{Connection: "test"}, Reference: resource.ResourceReference{Address: resource.ResourceAddress{Provider: "kubernetes", Authority: "test-cluster", Type: "k8s:/pods", ID: id, Scope: []resource.ScopeEntry{{Dimension: "namespace", Value: namespace}}}}}
+	return resource.GetRequest{Route: resource.AccessRoute{Connection: "test"}, Reference: resource.ResourceReference{Address: resource.ResourceAddress{Provider: "kubernetes", Authority: "test-cluster", Type: "k8s:/pods", ID: id, Scope: []resource.ScopeEntry{{Dimension: "namespace", Value: namespace}}}}, Representation: "native"}
 }
 
 func TestPodResourcer_ResolveRelationships(t *testing.T) {
@@ -69,13 +65,8 @@ func TestPodResourcer_ResolveRelationships(t *testing.T) {
 
 	cs := newTestClientSet(pod)
 
-	// Start the informer factory and wait for cache sync.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
-	cs.DynamicInformerFactory.ForResource(gvr).Informer()
-	cs.DynamicInformerFactory.Start(ctx.Done())
-	cs.DynamicInformerFactory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
 	resourcer := NewPodResourcer(logger, WithRelationships(RelationshipTable()["k8s:/pods"]))
@@ -130,10 +121,6 @@ func TestPodResourcer_ResolveRelationships_NoVolumes(t *testing.T) {
 	cs := newTestClientSet(pod)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
-	cs.DynamicInformerFactory.ForResource(gvr).Informer()
-	cs.DynamicInformerFactory.Start(ctx.Done())
-	cs.DynamicInformerFactory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
 	resourcer := NewPodResourcer(logger, WithRelationships(RelationshipTable()["k8s:/pods"]))
@@ -150,10 +137,6 @@ func TestPodResourcer_ResolveRelationships_NotFound(t *testing.T) {
 	cs := newTestClientSet() // no pods
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
-	cs.DynamicInformerFactory.ForResource(gvr).Informer()
-	cs.DynamicInformerFactory.Start(ctx.Done())
-	cs.DynamicInformerFactory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
 	resourcer := NewPodResourcer(logger, WithRelationships(RelationshipTable()["k8s:/pods"]))
@@ -225,23 +208,23 @@ func TestRoleBindingRelationshipClusterScope(t *testing.T) {
 
 func TestNativeRelationshipRequiresAdmittedTarget(t *testing.T) {
 	cases := []struct {
-		name string
-		source resource.GetRequest
+		name       string
+		source     resource.GetRequest
 		targetType string
-		object runtime.Object
-		resolve func(context.Context, *clients.ClientSet, resource.RelationshipResolutionRequest) ([]resource.ResolvedRelationship, error)
+		object     runtime.Object
+		resolve    func(context.Context, *clients.ClientSet, resource.RelationshipResolutionRequest) ([]resource.ResolvedRelationship, error)
 	}{
 		{
-			name: "pod owner",
-			source: podRequest("child", "ns"),
+			name:       "pod owner",
+			source:     podRequest("child", "ns"),
 			targetType: "k8s:apps/replicasets",
 			object: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "child", Namespace: "ns",
 				OwnerReferences: []metav1.OwnerReference{{APIVersion: "apps/v1", Kind: "ReplicaSet", Name: "parent", UID: "owner-uid"}}}},
 			resolve: NewPodResourcer(zap.NewNop().Sugar(), WithRelationships(RelationshipTable()["k8s:/pods"])).ResolveRelationships,
 		},
 		{
-			name: "HPA target",
-			source: podRequest("scale", "ns"),
+			name:       "HPA target",
+			source:     podRequest("scale", "ns"),
 			targetType: "k8s:apps/statefulsets",
 			object: &autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metav1.ObjectMeta{Name: "scale", Namespace: "ns"},
 				Spec: autoscalingv2.HorizontalPodAutoscalerSpec{ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
@@ -249,8 +232,8 @@ func TestNativeRelationshipRequiresAdmittedTarget(t *testing.T) {
 			resolve: NewHPAResourcer(zap.NewNop().Sugar(), WithRelationships(RelationshipTable()["k8s:autoscaling/horizontalpodautoscalers"])).ResolveRelationships,
 		},
 		{
-			name: "RoleBinding role",
-			source: podRequest("binding", "ns"),
+			name:       "RoleBinding role",
+			source:     podRequest("binding", "ns"),
 			targetType: "k8s:rbac.authorization.k8s.io/roles",
 			object: &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "binding", Namespace: "ns"},
 				RoleRef: rbacv1.RoleRef{APIGroup: "rbac.authorization.k8s.io", Kind: "Role", Name: "reader"}},
@@ -302,11 +285,11 @@ func TestNativeRelationshipRequiresAdmittedTarget(t *testing.T) {
 
 func TestNativeRelationshipRejectsUnresolvedLinks(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		kind string
+		name       string
+		kind       string
 		apiVersion string
 		targetName string
-		code string
+		code       string
 	}{
 		{"unknown kind", "Unknown", "apps/v1", "target", "UNSUPPORTED"},
 		{"wrong group", "ReplicaSet", "example.com/v1", "target", "UNSUPPORTED"},
@@ -327,7 +310,10 @@ func TestNativeRelationshipRejectsUnresolvedLinks(t *testing.T) {
 			t.Run(kind+map[bool]string{false: "/unknown target", true: "/empty name"}[invalidName], func(t *testing.T) {
 				name := "target"
 				code := "UNSUPPORTED"
-				if invalidName { name = ""; code = "INVALID_REQUEST" }
+				if invalidName {
+					name = ""
+					code = "INVALID_REQUEST"
+				}
 				source := podRequest("source", "ns")
 				var rels []resource.ResolvedRelationship
 				var err error

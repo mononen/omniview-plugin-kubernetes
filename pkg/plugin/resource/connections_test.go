@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/omniviewdev/plugin-sdk/pkg/types"
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
+	"github.com/omniviewdev/plugin-sdk/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"

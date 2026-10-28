@@ -9,8 +9,10 @@ import { LuContainer } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
 import { usePodMetricsBatch } from '../../../../../hooks/usePodMetricsBatch';
+import { sumIntegerValues } from '../../../../../utils/convert';
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
+import ResourceLinkChip from '../../../../shared/ResourceLinkChip';
 import PodSidebar from '../../../sidebar/Pod';
 import ConditionsCell from '../../shared/cells/ConditionsCell';
 import { CopyableCell } from '../../shared/cells/CopyableCell';
@@ -26,15 +28,6 @@ import ResourceLinkCell from './cells/ResourceLinkCell';
 
 const resourceKey = 'k8s:/pods';
 
-const ownerRefKeyMap: Record<string, string> = {
-  ReplicaSet: 'k8s:apps/replicasets',
-  ReplicationController: 'k8s:/replicationcontrollers',
-  StatefulSet: 'k8s:apps/statefulsets',
-  DaemonSet: 'k8s:apps/daemonsets',
-  Job: 'k8s:batch/jobs',
-  CronJob: 'k8s:batch/cronjobs',
-  Node: 'k8s:/nodes',
-};
 
 const PodTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -90,27 +83,11 @@ const PodTable: React.FC = () => {
               if (refs == null || refs.length === 0) {
                 return null;
               }
-              const ownerKind = refs[0].kind;
-              const ownerKey = ownerRefKeyMap[ownerKind];
-              if (!ownerKey) {
-                return (
-                  <ResourceLinkCell
-                    pluginID="kubernetes"
-                    connectionId={id}
-                    resourceId={refs[0].name}
-                    resourceKey={`${refs[0].apiVersion?.replace('/', '::')}::${ownerKind}`}
-                    resourceName={ownerKind}
-                    namespace={row.original.metadata?.namespace}
-                  />
-                );
-              }
               return (
-                <ResourceLinkCell
-                  pluginID="kubernetes"
-                  connectionId={id}
-                  resourceId={refs[0].name}
-                  resourceKey={ownerKey}
-                  resourceName={ownerKind}
+                <ResourceLinkChip
+                  connectionID={id}
+                  ownerReference={refs[0]}
+                  resourceName={refs[0].kind}
                   namespace={row.original.metadata?.namespace}
                 />
               );
@@ -227,11 +204,10 @@ const PodTable: React.FC = () => {
             id: 'restarts',
             header: 'Restarts',
             accessorFn: (row) => {
-              let count = 0;
-              for (const container of row.status?.containerStatuses ?? []) {
-                count += container.restartCount ?? 0;
-              }
-              return count;
+              const count = sumIntegerValues(
+                (row.status?.containerStatuses ?? []).map((container) => container.restartCount),
+              );
+              return typeof count === 'bigint' ? count.toString() : count;
             },
             size: 80,
             meta: {

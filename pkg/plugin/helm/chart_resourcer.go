@@ -43,9 +43,15 @@ func loadAllIndexes() (map[string]*repo.IndexFile, error) {
 	var totalBytes int64
 	for _, entry := range f.Repositories {
 		info, err := os.Stat(filepath.Join(cachePath, entry.Name+"-index.yaml"))
-		if os.IsNotExist(err) { continue }
-		if err != nil { return nil, err }
-		if info.Size() > (16<<20)-totalBytes { return nil, fmt.Errorf("Helm cached indexes exceed 16 MiB") }
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if info.Size() > (16<<20)-totalBytes {
+			return nil, fmt.Errorf("Helm cached indexes exceed 16 MiB")
+		}
 		totalBytes += info.Size()
 	}
 	indexes := make(map[string]*repo.IndexFile, len(f.Repositories))
@@ -196,7 +202,9 @@ func (r *ChartResourcerWithActions) Action(
 
 func (r *ChartResourcerWithActions) executeGetValues(repoName, chartName string, input resource.ActionRequest) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	chartRef := repoName + "/" + chartName
 
 	settings := cli.New()
@@ -231,7 +239,9 @@ func (r *ChartResourcerWithActions) executeGetValues(repoName, chartName string,
 
 func (r *ChartResourcerWithActions) executeGetReadme(repoName, chartName string, input resource.ActionRequest) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	chartRef := repoName + "/" + chartName
 
 	settings := cli.New()
@@ -280,7 +290,9 @@ func (r *ChartResourcerWithActions) executeGetVersions(repoName, chartName strin
 		return resource.Value{}, fmt.Errorf("chart %s not found in repository %s", chartName, repoName)
 	}
 
-	if len(versions) > 256 { return resource.Value{}, fmt.Errorf("chart versions exceed finite action limit of 256") }
+	if len(versions) > 256 {
+		return resource.Value{}, fmt.Errorf("chart versions exceed finite action limit of 256")
+	}
 	allVersions := make([]interface{}, 0, len(versions))
 	for _, v := range versions {
 		entry := map[string]interface{}{
@@ -321,7 +333,9 @@ func (r *ChartResourcerWithActions) executeGetVersions(repoName, chartName strin
 
 func (r *ChartResourcerWithActions) executeGetChartDetail(repoName, chartName string, input resource.ActionRequest) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	chartRef := repoName + "/" + chartName
 
 	settings := cli.New()
@@ -360,7 +374,9 @@ func (r *ChartResourcerWithActions) executeGetChartDetail(repoName, chartName st
 	// Extract dependencies
 	var deps []interface{}
 	if ch.Metadata != nil && len(ch.Metadata.Dependencies) > 0 {
-		if len(ch.Metadata.Dependencies) > 256 { return resource.Value{}, fmt.Errorf("chart dependencies exceed finite action limit of 256") }
+		if len(ch.Metadata.Dependencies) > 256 {
+			return resource.Value{}, fmt.Errorf("chart dependencies exceed finite action limit of 256")
+		}
 		deps = make([]interface{}, 0, len(ch.Metadata.Dependencies))
 		for _, d := range ch.Metadata.Dependencies {
 			entry := map[string]interface{}{
@@ -384,7 +400,9 @@ func (r *ChartResourcerWithActions) executeGetChartDetail(repoName, chartName st
 	}
 
 	versionData, err := nativeObject(versionsResult.Map["data"])
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	return resource.ValueFromNative(map[string]interface{}{
 		"success": true,
 		"data": map[string]interface{}{
@@ -396,5 +414,3 @@ func (r *ChartResourcerWithActions) executeGetChartDetail(repoName, chartName st
 		},
 	})
 }
-
-

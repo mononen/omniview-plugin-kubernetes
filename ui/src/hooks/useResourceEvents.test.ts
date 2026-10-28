@@ -30,4 +30,16 @@ describe('native resource event matching', () => {
     expect(read).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: false }));
     expect(result.current.events).toEqual([]);
   });
+
+  it('keeps every matching event in the bounded page and exposes source navigation', () => {
+    const pageControls = { pagination: { pageNumber: 2 }, nextCursor: 'source-next', membershipStale: true };
+    read.mockReturnValue({ isLoading: false, pageControls, bodies: Array.from({ length: 150 }, (_, index) => ({
+      involvedObject: { kind: 'Pod', name: 'same', namespace: 'team' }, message: `event-${index}`,
+    })) });
+    const { result } = renderHook(() => useResourceEvents({
+      pluginID: 'kubernetes', connectionID: 'selected', nativeKind: 'Pod', resourceName: 'same', namespace: 'team',
+    }));
+    expect(result.current.events).toHaveLength(150);
+    expect(result.current.pageControls).toBe(pageControls);
+  });
 });

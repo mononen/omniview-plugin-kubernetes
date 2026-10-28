@@ -69,7 +69,7 @@ export const DeploymentSidebar: React.FC<Props> = ({ ctx }) => {
         <WorkloadPortsCard
           podSpec={dep.spec.template.spec}
           resourceKey="k8s:apps/deployments"
-          resourceData={dep}
+          resource={ctx.resource}
           resourceID={ctx.resource?.reference.address.id || ''}
           connectionID={ctx.resource?.route.connection || ''}
         />

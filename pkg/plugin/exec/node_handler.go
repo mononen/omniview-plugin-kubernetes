@@ -11,8 +11,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/omniviewdev/plugin-sdk/pkg/v1/exec"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
+	"github.com/omniviewdev/plugin-sdk/pkg/v1/exec"
 )
 
 const (
@@ -48,7 +48,9 @@ func nodeHandlerWithProvider(
 	}
 
 	nodeName, _, err := nativeExecTarget(ctx, opts, "k8s:/nodes", false)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	// Create a unique debug pod name.
 	debugPodName := fmt.Sprintf("omniview-node-debug-%s-%d", nodeName, time.Now().Unix())

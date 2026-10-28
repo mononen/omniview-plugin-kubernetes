@@ -1,9 +1,9 @@
 package helm
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
- "bytes"
 	"fmt"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
@@ -17,18 +17,13 @@ import (
 
 // ReleaseResourcer supplies native release reads, actions, and editor schemas.
 type ReleaseResourcer struct {
-	log         *zap.SugaredLogger
-	helmService *HelmService
+	log *zap.SugaredLogger
 }
 
-// Compile-time checks.
-
-
 // NewReleaseResourcer creates a new ReleaseResourcer.
-func NewReleaseResourcer(logger *zap.SugaredLogger, svc *HelmService) *ReleaseResourcer {
+func NewReleaseResourcer(logger *zap.SugaredLogger) *ReleaseResourcer {
 	return &ReleaseResourcer{
-		log:         logger.Named("HelmReleaseResourcer"),
-		helmService: svc,
+		log: logger.Named("HelmReleaseResourcer"),
 	}
 }
 
@@ -42,8 +37,8 @@ func (r *ReleaseResourcer) getConfig(
 	if conn == nil || client == nil || client.RESTConfig == nil {
 		return nil, fmt.Errorf("no connection in context")
 	}
-	
-	return r.helmService.GetActionConfig(conn.ID, client.RESTConfig, namespace)
+
+	return newActionConfig(ctx, client.RESTConfig, client.HTTPClient, namespace)
 }
 
 // releaseToMap converts a Helm release to a map for the SDK.
@@ -64,7 +59,6 @@ func releaseToMap(rel *release.Release) map[string]interface{} {
 	return result
 }
 
-
 // ================================= ACTIONS ================================= //
 
 func (r *ReleaseResourcer) GetActions(
@@ -83,18 +77,18 @@ func (r *ReleaseResourcer) GetActions(
 
 	installParams := &resource.Schema{
 		Properties: map[string]resource.SchemaProperty{
-			"chart":     {Type: resource.SchemaString, Description: "Chart reference (e.g. repo/chart)"},
-			"values":    {Type: resource.SchemaObject, Description: "Override values"},
-			"version":   {Type: resource.SchemaString, Description: "Chart version constraint"},
+			"chart":   {Type: resource.SchemaString, Description: "Chart reference (e.g. repo/chart)"},
+			"values":  {Type: resource.SchemaObject, Description: "Override values"},
+			"version": {Type: resource.SchemaString, Description: "Chart version constraint"},
 		},
 		Required: []string{"chart"},
 	}
 
 	dryRunInstallParams := &resource.Schema{
 		Properties: map[string]resource.SchemaProperty{
-			"chart":     {Type: resource.SchemaString, Description: "Chart reference (e.g. repo/chart)"},
-			"values":    {Type: resource.SchemaObject, Description: "Override values"},
-			"version":   {Type: resource.SchemaString, Description: "Chart version constraint"},
+			"chart":   {Type: resource.SchemaString, Description: "Chart reference (e.g. repo/chart)"},
+			"values":  {Type: resource.SchemaObject, Description: "Override values"},
+			"version": {Type: resource.SchemaString, Description: "Chart version constraint"},
 		},
 		Required: []string{"chart"},
 	}
@@ -287,33 +281,41 @@ func (r *ReleaseResourcer) GetEditorSchemas(
 	totalBytes := 0
 	for _, item := range metadata.Items {
 		version, err := latestReleaseVersion(ctx, client, item.Namespace, item.Labels["name"])
-		if err != nil { return nil, err }
-		if fmt.Sprint(version) != item.Labels["version"] { continue }
+		if err != nil {
+			return nil, err
+		}
+		if fmt.Sprint(version) != item.Labels["version"] {
+			continue
+		}
 		cfg, err := r.getConfig(ctx, client, item.Namespace)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		get := action.NewGet(cfg)
 		get.Version = version
 		rel, err := get.Run(item.Labels["name"])
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		if rel.Chart == nil || rel.Chart.Metadata == nil {
 			continue
 		}
-		for _, f := range rel.Chart.Raw {
-			if f.Name == "values.schema.json" {
-				schema, size, err := helmEditorSchema(
-					f.Data,
-					fmt.Sprintf("helm://%s/%s/%s/values-schema", connID, rel.Chart.Metadata.Name, rel.Chart.Metadata.Version),
-					fmt.Sprintf("**/helm:releases/%s.yaml", rel.Name),
-				)
-				if err != nil { return nil, err }
-				if size > resource.MaxDocumentBytes-totalBytes {
-					return nil, resource.NewError("RESOURCE_LIMIT", "Helm editor schemas exceed presentation budget")
-				}
-				totalBytes += size
-				schemas = append(schemas, schema)
-				break
-			}
+		if len(rel.Chart.Schema) == 0 {
+			continue
 		}
+		schema, size, err := helmEditorSchema(
+			rel.Chart.Schema,
+			fmt.Sprintf("helm://%s/%s/%s/values-schema", connID, rel.Chart.Metadata.Name, rel.Chart.Metadata.Version),
+			fmt.Sprintf("**/helm:releases/%s.yaml", rel.Name),
+		)
+		if err != nil {
+			return nil, err
+		}
+		if size > resource.MaxDocumentBytes-totalBytes {
+			return nil, resource.NewError("RESOURCE_LIMIT", "Helm editor schemas exceed presentation budget")
+		}
+		totalBytes += size
+		schemas = append(schemas, schema)
 	}
 
 	return schemas, nil
@@ -326,7 +328,9 @@ func (r *ReleaseResourcer) executeUpgrade(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	chartRef, _ := params["chart"].(string)
 	values, _ := params["values"].(map[string]interface{})
 	reuseValues, _ := params["reuse_values"].(bool)
@@ -370,7 +374,9 @@ func (r *ReleaseResourcer) executeRollback(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	revisionF, _ := params["revision"].(int64)
 	revision := int(revisionF)
 
@@ -392,7 +398,9 @@ func (r *ReleaseResourcer) executeGetValues(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	getValues := action.NewGetValues(cfg)
 	allValues, _ := params["all"].(bool)
 	getValues.AllValues = allValues
@@ -415,7 +423,9 @@ func (r *ReleaseResourcer) executeGetManifest(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	get := action.NewGet(cfg)
 
 	// Support fetching a specific revision's manifest.
@@ -498,7 +508,9 @@ func (r *ReleaseResourcer) executeGetHistory(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	history := action.NewHistory(cfg)
 	history.Max = 256
 	maxF, ok := params["max"].(int64)
@@ -529,7 +541,9 @@ func (r *ReleaseResourcer) executeInstall(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	chartRef, _ := params["chart"].(string)
 	releaseName := input.Reference.Address.ID
 	namespace := namespaceOf(input.Reference)
@@ -584,7 +598,9 @@ func (r *ReleaseResourcer) executeDryRunInstall(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	chartRef, _ := params["chart"].(string)
 	releaseName := input.Reference.Address.ID
 	namespace := namespaceOf(input.Reference)
@@ -645,7 +661,9 @@ func (r *ReleaseResourcer) executeDryRunUpgrade(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	chartRef, _ := params["chart"].(string)
 	values, _ := params["values"].(map[string]interface{})
 	reuseValues, _ := params["reuse_values"].(bool)
@@ -693,7 +711,9 @@ func (r *ReleaseResourcer) executeDiffRevisions(
 	input resource.ActionRequest,
 ) (resource.Value, error) {
 	params, err := actionParams(input)
-	if err != nil { return resource.Value{}, err }
+	if err != nil {
+		return resource.Value{}, err
+	}
 	rev1F, _ := params["revision1"].(int64)
 	rev2F, _ := params["revision2"].(int64)
 	rev1 := int(rev1F)
@@ -746,13 +766,13 @@ func (r *ReleaseResourcer) executeTest(
 			events = append(events, string(e))
 		}
 		hooks = append(hooks, map[string]interface{}{
-			"name":    hook.Name,
-			"kind":    hook.Kind,
-			"events":  events,
+			"name":   hook.Name,
+			"kind":   hook.Kind,
+			"events": events,
 			"lastRun": map[string]interface{}{
-				"started_at": hook.LastRun.StartedAt.Time,
+				"started_at":   hook.LastRun.StartedAt.Time,
 				"completed_at": hook.LastRun.CompletedAt.Time,
-				"phase": string(hook.LastRun.Phase),
+				"phase":        string(hook.LastRun.Phase),
 			},
 		})
 	}
@@ -766,4 +786,8 @@ func (r *ReleaseResourcer) executeTest(
 	})
 }
 
-func decodeNativeJSON(data []byte, out any) error { d:=json.NewDecoder(bytes.NewReader(data)); d.UseNumber(); return d.Decode(out) }
+func decodeNativeJSON(data []byte, out any) error {
+	d := json.NewDecoder(bytes.NewReader(data))
+	d.UseNumber()
+	return d.Decode(out)
+}

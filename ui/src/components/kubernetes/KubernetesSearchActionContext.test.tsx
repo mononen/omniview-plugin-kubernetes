@@ -48,7 +48,9 @@ describe('global Kubernetes action context', () => {
     await act(async () => { await Promise.resolve(); });
     await execution;
     expect(mocks.get).toHaveBeenCalledTimes(1);
-    expect(mocks.deps.createLogSession).toHaveBeenCalledWith(expect.objectContaining({ target: 'main', resourceData: data }));
+    expect(mocks.deps.createLogSession).toHaveBeenCalledWith(expect.objectContaining({
+      target: 'main', resourceData: jsonToValue(data), reference: scope.reference, route: scope.route,
+    }));
     mocks.deps.closeDrawer.mockClear();
     mocks.deps.createLogSession.mockRejectedValueOnce(new Error('Failed to create log session'));
     await expect(executeSearchAction(logs.value.action, context())).rejects.toThrow('Failed to create log session');

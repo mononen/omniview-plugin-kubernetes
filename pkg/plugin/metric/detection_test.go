@@ -61,7 +61,7 @@ func TestDetector_ConfiguredServiceFound(t *testing.T) {
 
 	d := NewPrometheusDetector(DetectorOpts{})
 
-	result := d.Detect("conn-1", checker, "prometheus-server", "monitoring", 9090)
+	result := d.Detect(context.Background(), "conn-1", checker, "prometheus-server", "monitoring", 9090)
 	require.True(t, result.Found, "expected Prometheus to be detected")
 	assert.Equal(t, "prometheus-server", result.Service)
 	assert.Equal(t, "monitoring", result.Namespace)
@@ -76,7 +76,7 @@ func TestDetector_FallbackToWellKnownService(t *testing.T) {
 	d := NewPrometheusDetector(DetectorOpts{})
 
 	// Empty configured service/namespace triggers auto-discovery scan.
-	result := d.Detect("conn-1", checker, "", "", 9090)
+	result := d.Detect(context.Background(), "conn-1", checker, "", "", 9090)
 	require.True(t, result.Found, "expected Prometheus to be detected via well-known scan")
 	assert.Equal(t, "prometheus-operated", result.Service)
 	assert.Equal(t, "observability", result.Namespace)
@@ -91,7 +91,7 @@ func TestDetector_ExplicitConfigNotFoundNoFallback(t *testing.T) {
 
 	// When explicit config is given (both service and namespace non-empty),
 	// only that exact combination is checked. No fallback to well-known scan.
-	result := d.Detect("conn-1", checker, "my-custom-prom", "my-ns", 9090)
+	result := d.Detect(context.Background(), "conn-1", checker, "my-custom-prom", "my-ns", 9090)
 	assert.False(t, result.Found, "explicit config miss should NOT fall back to well-known scan")
 }
 
@@ -100,7 +100,7 @@ func TestDetector_NoPrometheusFound(t *testing.T) {
 
 	d := NewPrometheusDetector(DetectorOpts{})
 
-	result := d.Detect("conn-1", checker, "", "", 9090)
+	result := d.Detect(context.Background(), "conn-1", checker, "", "", 9090)
 	assert.False(t, result.Found, "expected Prometheus NOT to be detected in empty cluster")
 }
 
@@ -113,11 +113,11 @@ func TestDetector_CachesPositiveResult(t *testing.T) {
 	})
 
 	// First call - scans.
-	d.Detect("conn-1", checker, "prometheus-server", "monitoring", 9090)
+	d.Detect(context.Background(), "conn-1", checker, "prometheus-server", "monitoring", 9090)
 	callsAfterFirst := checker.callCount()
 
 	// Second call - should use cache (no additional API calls).
-	d.Detect("conn-1", checker, "prometheus-server", "monitoring", 9090)
+	d.Detect(context.Background(), "conn-1", checker, "prometheus-server", "monitoring", 9090)
 	assert.Equal(t, callsAfterFirst, checker.callCount(), "expected cached result, but checker was called again")
 }
 
@@ -128,11 +128,11 @@ func TestDetector_CachesNegativeResult(t *testing.T) {
 		NegativeTTL: 1 * time.Minute,
 	})
 
-	d.Detect("conn-1", checker, "", "", 9090)
+	d.Detect(context.Background(), "conn-1", checker, "", "", 9090)
 	callsAfterFirst := checker.callCount()
 
 	// Should use cached negative.
-	d.Detect("conn-1", checker, "", "", 9090)
+	d.Detect(context.Background(), "conn-1", checker, "", "", 9090)
 	assert.Equal(t, callsAfterFirst, checker.callCount(), "expected cached negative result")
 }
 
@@ -152,7 +152,7 @@ func TestDetector_NegativeCacheExpires(t *testing.T) {
 	})
 
 	// First scan - negative.
-	result := d.Detect("conn-1", checker, "", "", 9090)
+	result := d.Detect(context.Background(), "conn-1", checker, "", "", 9090)
 	assert.False(t, result.Found)
 	callsAfterFirst := checker.callCount()
 
@@ -165,7 +165,7 @@ func TestDetector_NegativeCacheExpires(t *testing.T) {
 	checker.addService("monitoring", "prometheus-server")
 
 	// Re-detect - cache expired, should re-scan and find it.
-	result = d.Detect("conn-1", checker, "", "", 9090)
+	result = d.Detect(context.Background(), "conn-1", checker, "", "", 9090)
 	assert.True(t, result.Found, "expected to find Prometheus after cache expiry")
 	assert.Greater(t, checker.callCount(), callsAfterFirst, "expected fresh scan after cache expiry")
 }
@@ -187,7 +187,7 @@ func TestDetector_PositiveCacheExpires(t *testing.T) {
 	})
 
 	// Detect - found.
-	d.Detect("conn-1", checker, "prometheus-server", "monitoring", 9090)
+	d.Detect(context.Background(), "conn-1", checker, "prometheus-server", "monitoring", 9090)
 	callsAfterFirst := checker.callCount()
 
 	// Advance past positive TTL.
@@ -199,7 +199,7 @@ func TestDetector_PositiveCacheExpires(t *testing.T) {
 	checker.removeService("monitoring", "prometheus-server")
 
 	// Re-detect - cache expired, should re-scan.
-	result := d.Detect("conn-1", checker, "prometheus-server", "monitoring", 9090)
+	result := d.Detect(context.Background(), "conn-1", checker, "prometheus-server", "monitoring", 9090)
 	assert.False(t, result.Found, "expected NOT found after Prometheus was removed and cache expired")
 	assert.Greater(t, checker.callCount(), callsAfterFirst, "expected fresh scan after positive cache expiry")
 }
@@ -210,12 +210,12 @@ func TestDetector_DifferentConnectionsIndependent(t *testing.T) {
 
 	d := NewPrometheusDetector(DetectorOpts{})
 
-	r1 := d.Detect("conn-1", checker, "prometheus-server", "monitoring", 9090)
+	r1 := d.Detect(context.Background(), "conn-1", checker, "prometheus-server", "monitoring", 9090)
 	assert.True(t, r1.Found, "conn-1 should find Prometheus")
 
 	// conn-2 uses a different checker (simulating a different cluster).
 	emptyChecker := newFakeServiceChecker()
-	r2 := d.Detect("conn-2", emptyChecker, "prometheus-server", "monitoring", 9090)
+	r2 := d.Detect(context.Background(), "conn-2", emptyChecker, "prometheus-server", "monitoring", 9090)
 	assert.False(t, r2.Found, "conn-2 should NOT find Prometheus")
 
 	assert.Equal(t, 2, d.CacheLen())
@@ -227,7 +227,7 @@ func TestDetector_InvalidateConnection(t *testing.T) {
 
 	d := NewPrometheusDetector(DetectorOpts{})
 
-	d.Detect("conn-1", checker, "prometheus-server", "monitoring", 9090)
+	d.Detect(context.Background(), "conn-1", checker, "prometheus-server", "monitoring", 9090)
 	assert.Equal(t, 1, d.CacheLen())
 
 	d.InvalidateConnection("conn-1")
@@ -243,7 +243,7 @@ func TestDetector_DefaultPortWhenZero(t *testing.T) {
 
 	d := NewPrometheusDetector(DetectorOpts{})
 
-	result := d.Detect("conn-1", checker, "prometheus-server", "monitoring", 0)
+	result := d.Detect(context.Background(), "conn-1", checker, "prometheus-server", "monitoring", 0)
 	require.True(t, result.Found)
 	assert.Equal(t, 9090, result.Port, "should default to 9090 when configured port is 0")
 }
@@ -256,7 +256,7 @@ func TestDetector_EmptyConfiguredServiceSkipsFirstCheck(t *testing.T) {
 
 	// Empty configured service/namespace should skip the configured check
 	// and fall through to well-known scan.
-	result := d.Detect("conn-1", checker, "", "", 9090)
+	result := d.Detect(context.Background(), "conn-1", checker, "", "", 9090)
 	require.True(t, result.Found, "expected to find via well-known scan")
 	assert.Equal(t, "prometheus", result.Service)
 }
@@ -268,7 +268,7 @@ func TestDetector_KubePrometheusStackVariant(t *testing.T) {
 	d := NewPrometheusDetector(DetectorOpts{})
 
 	// No explicit config - auto-discover the kube-prometheus-stack variant.
-	result := d.Detect("conn-1", checker, "", "", 9090)
+	result := d.Detect(context.Background(), "conn-1", checker, "", "", 9090)
 	require.True(t, result.Found, "expected to find kube-prometheus-stack variant")
 	assert.Equal(t, "kube-prometheus-stack-prometheus", result.Service)
 	assert.Equal(t, "kube-prometheus-stack", result.Namespace)
@@ -285,7 +285,7 @@ func TestDetector_ConcurrentDetection(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			result := d.Detect("conn-1", checker, "prometheus-server", "monitoring", 9090)
+			result := d.Detect(context.Background(), "conn-1", checker, "prometheus-server", "monitoring", 9090)
 			assert.True(t, result.Found, "expected found in concurrent detect")
 		}()
 	}
@@ -299,8 +299,8 @@ func TestDetector_DifferentConfigsGetDifferentCacheEntries(t *testing.T) {
 
 	d := NewPrometheusDetector(DetectorOpts{})
 
-	r1 := d.Detect("conn-1", checker, "prom-a", "monitoring", 9090)
-	r2 := d.Detect("conn-1", checker, "prom-b", "observability", 9090)
+	r1 := d.Detect(context.Background(), "conn-1", checker, "prom-a", "monitoring", 9090)
+	r2 := d.Detect(context.Background(), "conn-1", checker, "prom-b", "observability", 9090)
 
 	assert.True(t, r1.Found)
 	assert.True(t, r2.Found)
@@ -316,7 +316,7 @@ func TestDetector_NegativePortDefaultsTo9090(t *testing.T) {
 
 	d := NewPrometheusDetector(DetectorOpts{})
 
-	result := d.Detect("conn-1", checker, "prometheus-server", "monitoring", -1)
+	result := d.Detect(context.Background(), "conn-1", checker, "prometheus-server", "monitoring", -1)
 	require.True(t, result.Found)
 	assert.Equal(t, 9090, result.Port, "negative port should default to 9090")
 }
@@ -356,7 +356,7 @@ func TestDetector_HotInstallPrometheus(t *testing.T) {
 	})
 
 	// Step 1: Prometheus not installed.
-	r := d.Detect("conn-1", checker, "", "", 9090)
+	r := d.Detect(context.Background(), "conn-1", checker, "", "", 9090)
 	assert.False(t, r.Found, "expected not found initially")
 
 	// Step 2: User installs Prometheus.
@@ -367,7 +367,7 @@ func TestDetector_HotInstallPrometheus(t *testing.T) {
 	now = now.Add(30 * time.Second) // only 30s of 1min TTL elapsed
 	mu.Unlock()
 
-	r = d.Detect("conn-1", checker, "", "", 9090)
+	r = d.Detect(context.Background(), "conn-1", checker, "", "", 9090)
 	assert.False(t, r.Found, "expected cached negative result within TTL")
 
 	// Step 4: After negative TTL expires, re-scan finds Prometheus.
@@ -375,7 +375,7 @@ func TestDetector_HotInstallPrometheus(t *testing.T) {
 	now = now.Add(45 * time.Second) // total 75s > 1min TTL
 	mu.Unlock()
 
-	r = d.Detect("conn-1", checker, "", "", 9090)
+	r = d.Detect(context.Background(), "conn-1", checker, "", "", 9090)
 	assert.True(t, r.Found, "expected to find Prometheus after negative cache expired")
 	assert.Equal(t, "prometheus-server", r.Service)
 	assert.Equal(t, "monitoring", r.Namespace)
@@ -386,12 +386,12 @@ func TestDetector_WellKnownScanOrder(t *testing.T) {
 	// match based on the namespace-then-service iteration order.
 	checker := newFakeServiceChecker()
 	// Add services in two namespaces
-	checker.addService("monitoring", "prometheus-server")     // should be found first
+	checker.addService("monitoring", "prometheus-server")    // should be found first
 	checker.addService("kube-system", "prometheus-operated") // should NOT be returned
 
 	d := NewPrometheusDetector(DetectorOpts{})
 
-	result := d.Detect("conn-1", checker, "", "", 9090)
+	result := d.Detect(context.Background(), "conn-1", checker, "", "", 9090)
 	require.True(t, result.Found)
 	// "monitoring" comes before "kube-system" in knownPrometheusNamespaces,
 	// and "prometheus-server" comes first in knownPrometheusServices.
@@ -413,7 +413,7 @@ func TestDetector_GetCached(t *testing.T) {
 	assert.False(t, ok, "expected no cached result before detection")
 
 	// After detection, cache should have the result.
-	d.Detect("conn-1", checker, "prometheus-server", "monitoring", 9090)
+	d.Detect(context.Background(), "conn-1", checker, "prometheus-server", "monitoring", 9090)
 	cached, ok := d.GetCached(cacheKey)
 	require.True(t, ok, "expected cached result after detection")
 	assert.True(t, cached.Found)

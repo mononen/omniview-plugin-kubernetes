@@ -67,11 +67,11 @@ func TestRelationshipTable_ClusterScopedTargets(t *testing.T) {
 	table := RelationshipTable()
 
 	clusterScoped := map[string]bool{
-		"k8s:/nodes":               true,
-		"k8s:/persistentvolumes":   true,
-		"k8s:storage.k8s.io/storageclasses":    true,
-		"k8s:rbac.authorization.k8s.io/clusterroles":        true,
-		"k8s:networking.k8s.io/ingressclasses": true,
+		"k8s:/nodes":                                 true,
+		"k8s:/persistentvolumes":                     true,
+		"k8s:storage.k8s.io/storageclasses":          true,
+		"k8s:rbac.authorization.k8s.io/clusterroles": true,
+		"k8s:networking.k8s.io/ingressclasses":       true,
 	}
 
 	for sourceKey, rels := range table {
@@ -111,8 +111,8 @@ func TestRelationshipTable_PodSelectorsUseFullLabelSelector(t *testing.T) {
 	table := RelationshipTable()
 
 	for key, path := range map[string]string{
-		"k8s:networking.k8s.io/networkpolicies":   "spec.podSelector",
-		"k8s:policy/poddisruptionbudgets": "spec.selector",
+		"k8s:networking.k8s.io/networkpolicies": "spec.podSelector",
+		"k8s:policy/poddisruptionbudgets":       "spec.selector",
 	} {
 		rels := table[key]
 		if len(rels) != 1 || rels[0].Extractor == nil {
@@ -131,7 +131,9 @@ func TestRelationshipTable_PodSelectorsUseFullLabelSelector(t *testing.T) {
 func TestRelationshipNamespaceScopeExtractors(t *testing.T) {
 	for source, descriptors := range RelationshipTable() {
 		for _, descriptor := range descriptors {
-			if descriptor.Extractor == nil { continue }
+			if descriptor.Extractor == nil {
+				continue
+			}
 			if descriptor.TargetScope != nil {
 				if len(descriptor.ScopeExtractors) != 0 {
 					t.Errorf("%s: cluster target must not extract namespace", source)

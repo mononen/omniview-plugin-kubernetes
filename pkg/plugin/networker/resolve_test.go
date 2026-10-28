@@ -22,7 +22,7 @@ func TestExtractPodSelector_Service(t *testing.T) {
 			},
 		},
 	}
-	sel, err := extractPodSelector("k8s:/services", data)
+	sel, err := extractPodSelector("k8s:/services", taggedFixture(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestExtractPodSelector_ReplicationController(t *testing.T) {
 			},
 		},
 	}
-	sel, err := extractPodSelector("k8s:/replicationcontrollers", data)
+	sel, err := extractPodSelector("k8s:/replicationcontrollers", taggedFixture(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestExtractPodSelector_Deployment(t *testing.T) {
 			},
 		},
 	}
-	sel, err := extractPodSelector("k8s:apps/deployments", data)
+	sel, err := extractPodSelector("k8s:apps/deployments", taggedFixture(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestExtractPodSelector_AllMatchLabelsTypes(t *testing.T) {
 				},
 			},
 		}
-		sel, err := extractPodSelector(key, data)
+		sel, err := extractPodSelector(key, taggedFixture(data))
 		if err != nil {
 			t.Fatalf("%s: %v", key, err)
 		}
@@ -93,36 +93,36 @@ func TestExtractPodSelector_AllMatchLabelsTypes(t *testing.T) {
 }
 
 func TestExtractPodSelector_UnsupportedType(t *testing.T) {
-	_, err := extractPodSelector("k8s:/configmaps", map[string]any{
+	_, err := extractPodSelector("k8s:/configmaps", taggedFixture(map[string]any{
 		"spec": map[string]any{},
-	})
+	}))
 	if err == nil {
 		t.Fatal("expected error for unsupported type")
 	}
 }
 
 func TestExtractPodSelector_NoSpec(t *testing.T) {
-	_, err := extractPodSelector("k8s:/services", map[string]any{})
+	_, err := extractPodSelector("k8s:/services", taggedFixture(map[string]any{}))
 	if err == nil {
 		t.Fatal("expected error for missing spec")
 	}
 }
 
 func TestExtractPodSelector_NoSelector(t *testing.T) {
-	_, err := extractPodSelector("k8s:/services", map[string]any{
+	_, err := extractPodSelector("k8s:/services", taggedFixture(map[string]any{
 		"spec": map[string]any{},
-	})
+	}))
 	if err == nil {
 		t.Fatal("expected error for missing selector")
 	}
 }
 
 func TestExtractPodSelector_NoMatchLabels(t *testing.T) {
-	_, err := extractPodSelector("k8s:apps/deployments", map[string]any{
+	_, err := extractPodSelector("k8s:apps/deployments", taggedFixture(map[string]any{
 		"spec": map[string]any{
 			"selector": map[string]any{},
 		},
-	})
+	}))
 	if err == nil {
 		t.Fatal("expected error for missing matchLabels")
 	}
@@ -263,11 +263,11 @@ func TestResolveBackingPod_FallsBackToNotReady(t *testing.T) {
 func TestResolveServiceTargetPort_MapsToTargetPort(t *testing.T) {
 	ports := []any{
 		map[string]any{
-			"port":       float64(80),
-			"targetPort": float64(8080),
+			"port":       int(80),
+			"targetPort": int(8080),
 		},
 	}
-	got := resolveServiceTargetPort(ports, 80)
+	got := resolveServiceTargetPort(fixtureValue(ports).List, 80)
 	if got != 8080 {
 		t.Fatalf("got %d, want 8080", got)
 	}
@@ -276,11 +276,11 @@ func TestResolveServiceTargetPort_MapsToTargetPort(t *testing.T) {
 func TestResolveServiceTargetPort_NoMatchReturnsOriginal(t *testing.T) {
 	ports := []any{
 		map[string]any{
-			"port":       float64(443),
-			"targetPort": float64(8443),
+			"port":       int(443),
+			"targetPort": int(8443),
 		},
 	}
-	got := resolveServiceTargetPort(ports, 80)
+	got := resolveServiceTargetPort(fixtureValue(ports).List, 80)
 	if got != 80 {
 		t.Fatalf("got %d, want 80", got)
 	}
@@ -289,10 +289,10 @@ func TestResolveServiceTargetPort_NoMatchReturnsOriginal(t *testing.T) {
 func TestResolveServiceTargetPort_MissingTargetPortReturnsSamePort(t *testing.T) {
 	ports := []any{
 		map[string]any{
-			"port": float64(80),
+			"port": int(80),
 		},
 	}
-	got := resolveServiceTargetPort(ports, 80)
+	got := resolveServiceTargetPort(fixtureValue(ports).List, 80)
 	if got != 80 {
 		t.Fatalf("got %d, want 80", got)
 	}
@@ -301,11 +301,11 @@ func TestResolveServiceTargetPort_MissingTargetPortReturnsSamePort(t *testing.T)
 func TestResolveServiceTargetPort_NamedTargetPortReturnsSamePort(t *testing.T) {
 	ports := []any{
 		map[string]any{
-			"port":       float64(80),
+			"port":       int(80),
 			"targetPort": "http",
 		},
 	}
-	got := resolveServiceTargetPort(ports, 80)
+	got := resolveServiceTargetPort(fixtureValue(ports).List, 80)
 	if got != 80 {
 		t.Fatalf("got %d, want 80 (named port can't be resolved)", got)
 	}
@@ -314,24 +314,24 @@ func TestResolveServiceTargetPort_NamedTargetPortReturnsSamePort(t *testing.T) {
 func TestResolveServiceTargetPort_MultiplePortEntries(t *testing.T) {
 	ports := []any{
 		map[string]any{
-			"port":       float64(80),
-			"targetPort": float64(8080),
+			"port":       int(80),
+			"targetPort": int(8080),
 		},
 		map[string]any{
-			"port":       float64(443),
-			"targetPort": float64(8443),
+			"port":       int(443),
+			"targetPort": int(8443),
 		},
 	}
-	if got := resolveServiceTargetPort(ports, 443); got != 8443 {
+	if got := resolveServiceTargetPort(fixtureValue(ports).List, 443); got != 8443 {
 		t.Fatalf("got %d, want 8443", got)
 	}
-	if got := resolveServiceTargetPort(ports, 80); got != 8080 {
+	if got := resolveServiceTargetPort(fixtureValue(ports).List, 80); got != 8080 {
 		t.Fatalf("got %d, want 8080", got)
 	}
 }
 
 func TestResolveServiceTargetPort_EmptyPorts(t *testing.T) {
-	got := resolveServiceTargetPort(nil, 80)
+	got := resolveServiceTargetPort(fixtureValue(nil).List, 80)
 	if got != 80 {
 		t.Fatalf("got %d, want 80", got)
 	}
@@ -340,11 +340,11 @@ func TestResolveServiceTargetPort_EmptyPorts(t *testing.T) {
 func TestResolveServiceTargetPort_IntTargetPort(t *testing.T) {
 	ports := []any{
 		map[string]any{
-			"port":       float64(80),
+			"port":       int(80),
 			"targetPort": int(9090),
 		},
 	}
-	got := resolveServiceTargetPort(ports, 80)
+	got := resolveServiceTargetPort(fixtureValue(ports).List, 80)
 	if got != 9090 {
 		t.Fatalf("got %d, want 9090", got)
 	}
@@ -385,7 +385,7 @@ func TestToStringMap_FiltersNonStrings(t *testing.T) {
 		"count":   42,
 		"flag":    true,
 	}
-	got := toStringMap(m)
+	got := toStringMap(fixtureValue(m).Map)
 	if len(got) != 2 {
 		t.Fatalf("got %d entries, want 2", len(got))
 	}

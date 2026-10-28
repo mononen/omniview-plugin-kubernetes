@@ -201,7 +201,11 @@ func TestMakeRefRequiresAdmittedTargetBinding(t *testing.T) {
 	request := relationshipRequest(source, "k8s:/configmaps")
 	allowed := []string{"other"}
 	request.Targets[0].Scope = resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeOneOf, Values: &allowed}}
-	for _, test := range []struct { name string; request resource.RelationshipResolutionRequest; code string }{
+	for _, test := range []struct {
+		name    string
+		request resource.RelationshipResolutionRequest
+		code    string
+	}{
 		{"missing", relationshipRequest(source), "UNSUPPORTED"},
 		{"outside scope", request, "UNSUPPORTED"},
 		{"ambiguous", resource.RelationshipResolutionRequest{Source: source, Targets: []resource.ReadTarget{

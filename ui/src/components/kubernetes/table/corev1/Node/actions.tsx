@@ -92,7 +92,9 @@ export const drawerActions: Array<DrawerComponentAction<Node>> = [
         icon: 'LuTerminal',
         opts: {
           resource_plugin: 'kubernetes',
-          resource_data: ctx.data,
+          resource_data: ctx.resource!.record!.record.body,
+          reference: ctx.resource!.reference,
+          route: ctx.resource!.route,
           resource_key: resourceKey,
           params: {
             ...(nodeShellConfig?.image ? { node_shell_image: nodeShellConfig.image } : {}),

@@ -16,6 +16,7 @@ import {
   LuActivity,
   LuRotateCcw,
 } from 'react-icons/lu';
+import { metricQueryParams } from '../../../../utils/metricParams';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -289,23 +290,7 @@ const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
     return [...ids];
   }, [charts]);
 
-  // Build resourceData with optional Prometheus config override
-  const resourceData = useMemo(() => {
-    if (
-      !metricConfig?.prometheusService &&
-      !metricConfig?.prometheusNamespace &&
-      !metricConfig?.prometheusPort
-    ) {
-      return {};
-    }
-    return {
-      __metric_config__: {
-        service: metricConfig.prometheusService || '',
-        namespace: metricConfig.prometheusNamespace || '',
-        port: metricConfig.prometheusPort || 0,
-      },
-    };
-  }, [metricConfig]);
+  const params = useMemo(() => metricQueryParams(metricConfig), [metricConfig]);
 
   // Time-series query (shape=1)
   const {
@@ -318,7 +303,7 @@ const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
     resourceKey: 'cluster::metrics',
     resourceID: '',
     resourceNamespace: namespace,
-    resourceData,
+    params,
     shape: 1,
     timeRange: {
       start: timeRange.from,
@@ -336,7 +321,7 @@ const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
     resourceKey: 'cluster::metrics',
     resourceID: '',
     resourceNamespace: namespace,
-    resourceData,
+    params,
     shape: 0,
     metricIDs: annotationMetricIDs,
     refreshInterval: 30000,

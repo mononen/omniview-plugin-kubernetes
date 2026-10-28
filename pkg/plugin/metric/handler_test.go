@@ -11,9 +11,9 @@ import (
 	sdkmetric "github.com/omniviewdev/plugin-sdk/pkg/v1/metric"
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1 "k8s.io/api/core/v1"
 )
 
 var errTest = fmt.Errorf("test error")
@@ -295,7 +295,7 @@ func TestExtractNodeCapacity(t *testing.T) {
 				},
 			},
 		}
-		assert.InDelta(t, 8000.0, extractNodeCapacity(data, "cpu"), 0.001)
+		assert.InDelta(t, 8000.0, extractNodeCapacity(metricValue(t, data), "cpu"), 0.001)
 	})
 
 	t.Run("cpu from float64", func(t *testing.T) {
@@ -306,7 +306,7 @@ func TestExtractNodeCapacity(t *testing.T) {
 				},
 			},
 		}
-		assert.InDelta(t, 4000.0, extractNodeCapacity(data, "cpu"), 0.001)
+		assert.InDelta(t, 4000.0, extractNodeCapacity(metricValue(t, data), "cpu"), 0.001)
 	})
 
 	t.Run("memory from string Gi", func(t *testing.T) {
@@ -317,7 +317,7 @@ func TestExtractNodeCapacity(t *testing.T) {
 				},
 			},
 		}
-		assert.InDelta(t, 32*1024*1024*1024, extractNodeCapacity(data, "memory"), 0.001)
+		assert.InDelta(t, 32*1024*1024*1024, extractNodeCapacity(metricValue(t, data), "memory"), 0.001)
 	})
 
 	t.Run("memory from float64", func(t *testing.T) {
@@ -328,18 +328,18 @@ func TestExtractNodeCapacity(t *testing.T) {
 				},
 			},
 		}
-		assert.InDelta(t, 1073741824.0, extractNodeCapacity(data, "memory"), 0.001)
+		assert.InDelta(t, 1073741824.0, extractNodeCapacity(metricValue(t, data), "memory"), 0.001)
 	})
 
 	t.Run("missing status", func(t *testing.T) {
-		assert.Equal(t, 0.0, extractNodeCapacity(map[string]interface{}{}, "cpu"))
+		assert.Equal(t, 0.0, extractNodeCapacity(metricValue(t, map[string]interface{}{}), "cpu"))
 	})
 
 	t.Run("missing capacity", func(t *testing.T) {
 		data := map[string]interface{}{
 			"status": map[string]interface{}{},
 		}
-		assert.Equal(t, 0.0, extractNodeCapacity(data, "cpu"))
+		assert.Equal(t, 0.0, extractNodeCapacity(metricValue(t, data), "cpu"))
 	})
 
 	t.Run("missing resource key", func(t *testing.T) {
@@ -348,14 +348,14 @@ func TestExtractNodeCapacity(t *testing.T) {
 				"capacity": map[string]interface{}{},
 			},
 		}
-		assert.Equal(t, 0.0, extractNodeCapacity(data, "cpu"))
+		assert.Equal(t, 0.0, extractNodeCapacity(metricValue(t, data), "cpu"))
 	})
 
 	t.Run("wrong type for status", func(t *testing.T) {
 		data := map[string]interface{}{
 			"status": "not a map",
 		}
-		assert.Equal(t, 0.0, extractNodeCapacity(data, "cpu"))
+		assert.Equal(t, 0.0, extractNodeCapacity(metricValue(t, data), "cpu"))
 	})
 
 	t.Run("wrong type for value", func(t *testing.T) {
@@ -366,7 +366,7 @@ func TestExtractNodeCapacity(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, 0.0, extractNodeCapacity(data, "cpu"))
+		assert.Equal(t, 0.0, extractNodeCapacity(metricValue(t, data), "cpu"))
 	})
 }
 
@@ -501,7 +501,7 @@ func TestBuildNodeMetricResponse_AllMetrics(t *testing.T) {
 		},
 	}
 
-	resp := buildNodeMetricResponse(nm, nil, resourceData) // nil = want all
+	resp := buildNodeMetricResponse(nm, nil, metricValue(t, resourceData)) // nil = want all
 	require.True(t, resp.Success)
 
 	byID := make(map[string]*sdkmetric.MetricResult)
@@ -532,7 +532,7 @@ func TestBuildNodeMetricResponse_NilResourceData(t *testing.T) {
 	}
 
 	// nil resourceData means no capacity metrics.
-	resp := buildNodeMetricResponse(nm, nil, nil)
+	resp := buildNodeMetricResponse(nm, nil, metricValue(t, nil))
 	require.True(t, resp.Success)
 
 	// Should only have usage metrics, no capacity.
@@ -550,7 +550,7 @@ func TestBuildNodeMetricResponse_FilteredMetricIDs(t *testing.T) {
 		},
 	}
 
-	resp := buildNodeMetricResponse(nm, []string{"memory_usage"}, nil)
+	resp := buildNodeMetricResponse(nm, []string{"memory_usage"}, metricValue(t, nil))
 	require.True(t, resp.Success)
 	require.Len(t, resp.Results, 1)
 	assert.Equal(t, "memory_usage", resp.Results[0].CurrentValue.MetricID)

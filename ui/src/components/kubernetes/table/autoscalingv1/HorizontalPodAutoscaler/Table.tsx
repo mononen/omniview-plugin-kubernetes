@@ -10,7 +10,7 @@ import { useParams } from 'react-router-dom';
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
-import ResourceLinkCell from '../../corev1/Pod/cells/ResourceLinkCell';
+import ResourceLinkChip from '../../../../shared/ResourceLinkChip';
 import ConditionsCell from '../../shared/cells/ConditionsCell';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 
@@ -34,15 +34,14 @@ const HorizontalPodAutoscalerTable: React.FC = () => {
               `${row.spec?.scaleTargetRef.kind}/${row.spec?.scaleTargetRef.name}`,
             cell: ({ row }) => {
               const target = row.original.spec?.scaleTargetRef;
-              return target ? (
-                <ResourceLinkCell
-                  connectionId={id}
-                  resourceId={target.name}
-                  resourceKey={`${target.apiVersion}::${target.kind}`}
+              return target?.apiVersion && target.kind && target.name ? (
+                <ResourceLinkChip
+                  connectionID={id}
+                  ownerReference={{ apiVersion: target.apiVersion, kind: target.kind, name: target.name, uid: '' }}
                   resourceName={target.kind}
                   namespace={row.original.metadata?.namespace}
                 />
-              ) : null;
+              ) : target?.name ?? null;
             },
             size: 200,
           },

@@ -27,6 +27,9 @@ export const PodSidebar: React.FC<Props> = ({ ctx }) => {
     resourceKey: 'k8s:/pods',
     resourceID,
     resourceNamespace: pod?.metadata?.namespace,
+    resourceData: ctx.resource?.record?.record.body,
+    reference: ctx.resource?.reference,
+    route: ctx.resource?.route,
     metricIDs: [
       'cpu_usage',
       'memory_usage', // metrics-server
@@ -81,6 +84,7 @@ export const PodSidebar: React.FC<Props> = ({ ctx }) => {
         resourceID={resourceID}
         connectionID={connectionID}
         obj={pod}
+        resource={ctx.resource}
         podCpuUsage={podCpuUsage}
         podMemoryUsage={podMemoryUsage}
       />

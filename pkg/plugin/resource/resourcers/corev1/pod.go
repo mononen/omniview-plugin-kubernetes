@@ -42,15 +42,15 @@ var PodDef = types.ResourceDefinition{
 			Accessors: "$.metadata.ownerReferences[0]",
 			Width:     150,
 			ResourceLink: &types.ResourceLink{
-				IDAccessor: "name",
+				IDAccessor:   "name",
 				TypeAccessor: "kind",
 				TypeMap: map[string]string{
-					"ReplicaSet": "k8s:apps/replicasets",
+					"ReplicaSet":            "k8s:apps/replicasets",
 					"ReplicationController": "k8s:/replicationcontrollers",
-					"StatefulSet": "k8s:apps/statefulsets",
-					"DaemonSet": "k8s:apps/daemonsets",
-					"Job": "k8s:batch/jobs",
-					"CronJob": "k8s:batch/cronjobs",
+					"StatefulSet":           "k8s:apps/statefulsets",
+					"DaemonSet":             "k8s:apps/daemonsets",
+					"Job":                   "k8s:batch/jobs",
+					"CronJob":               "k8s:batch/cronjobs",
 				},
 				ScopeAccessors: []types.ScopeExtractor{{Dimension: "namespace", FieldPath: "$.metadata.namespace"}},
 			},
@@ -61,9 +61,9 @@ var PodDef = types.ResourceDefinition{
 			Accessors: "spec.nodeName",
 			Width:     200,
 			ResourceLink: &types.ResourceLink{
-				IDAccessor: ".",
+				IDAccessor:     ".",
 				ScopeAccessors: []types.ScopeExtractor{},
-				Type: "k8s:/nodes",
+				Type:           "k8s:/nodes",
 			},
 		},
 		{

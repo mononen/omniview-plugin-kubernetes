@@ -16,13 +16,11 @@ import (
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
 	sdkutils "github.com/omniviewdev/plugin-sdk/pkg/utils"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
-
 
 type kubeConnectionProvider struct {
 	logger *zap.SugaredLogger
@@ -41,26 +39,21 @@ func (p *kubeConnectionProvider) CreateClient(ctx context.Context) (*clients.Cli
 	}
 
 	return &clients.ClientSet{
-		Clientset:              bundle.Clientset,
-		KubeClient:             bundle.Clientset,
-		DiscoveryClient:        bundle.Discovery,
-		DynamicClient:          bundle.Dynamic,
-		DynamicInformerFactory: bundle.InformerFactory,
-		RESTConfig:             bundle.RestConfig,
+		Clientset:       bundle.Clientset,
+		KubeClient:      bundle.Clientset,
+		DiscoveryClient: bundle.Discovery,
+		DynamicClient:   bundle.Dynamic,
+		RESTConfig:      bundle.RestConfig,
+		HTTPClient:      bundle.HTTPClient,
 	}, nil
 }
 
-// DestroyClient shuts down all informer factories (main + per-namespace).
+// DestroyClient stops and evicts every leased native informer source.
 func (p *kubeConnectionProvider) DestroyClient(_ context.Context, client *clients.ClientSet) error {
 	if client == nil {
 		return nil
 	}
-	// Signal the main factory to stop first, then shut down all factories.
-	client.StopFactory()
-	client.ShutdownNamespaceFactories()
-	if client.DynamicInformerFactory != nil {
-		client.DynamicInformerFactory.Shutdown()
-	}
+	client.ShutdownInformers()
 	return nil
 }
 
@@ -119,12 +112,12 @@ func (p *kubeConnectionProvider) CheckConnection(ctx context.Context, conn *type
 			Error:      "DiscoveryClient is nil",
 		}, nil
 	}
-	if client.DynamicInformerFactory == nil {
+	if client.DynamicClient == nil {
 		return types.ConnectionStatus{
 			Connection: conn,
 			Status:     types.ConnectionStatusError,
-			Details:    "DynamicInformerFactory is not initialized",
-			Error:      "DynamicInformerFactory is nil",
+			Details:    "DynamicClient is not initialized",
+			Error:      "DynamicClient is nil",
 		}, nil
 	}
 
@@ -136,7 +129,9 @@ func (p *kubeConnectionProvider) CheckConnection(ctx context.Context, conn *type
 	groups := &metav1.APIGroupList{}
 	err := client.DiscoveryClient.RESTClient().Get().AbsPath("/apis").Do(ctx).Into(groups)
 	if err != nil {
-		if ctx.Err() != nil { return result, ctx.Err() }
+		if ctx.Err() != nil {
+			return result, ctx.Err()
+		}
 		switch {
 		case k8serrors.IsUnauthorized(err):
 			result.Status = types.ConnectionStatusUnauthorized
@@ -179,7 +174,9 @@ func (p *kubeConnectionProvider) CheckConnection(ctx context.Context, conn *type
 	}
 
 	enrichConnectionData(ctx, conn, client, groups)
-	if err := ctx.Err(); err != nil { return result, err }
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
 
 	result.Status = types.ConnectionStatusConnected
 	result.Details = "Connection is valid"
@@ -196,7 +193,9 @@ func (p *kubeConnectionProvider) GetNamespaces(ctx context.Context, client *clie
 	continuation, bytes := "", 2
 	for {
 		page, err := client.KubeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{Limit: resource.MaxPageRecords, Continue: continuation})
-		if err != nil { return nil, fmt.Errorf("failed to list namespaces: %w", err) }
+		if err != nil {
+			return nil, fmt.Errorf("failed to list namespaces: %w", err)
+		}
 		for _, namespace := range page.Items {
 			bytes += len(namespace.Name) + 3
 			if len(namespaces) >= resource.MaxValueNodes || bytes > resource.MaxDocumentBytes {
@@ -205,7 +204,9 @@ func (p *kubeConnectionProvider) GetNamespaces(ctx context.Context, client *clie
 			namespaces = append(namespaces, namespace.Name)
 		}
 		continuation = page.Continue
-		if continuation == "" { return namespaces, ctx.Err() }
+		if continuation == "" {
+			return namespaces, ctx.Err()
+		}
 	}
 }
 
@@ -353,23 +354,16 @@ func (p *kubeConnectionProvider) RefreshClient(ctx context.Context, client *clie
 		return fmt.Errorf("failed to refresh client: %w", err)
 	}
 
-	// Stop and shut down old informer factories before replacing clients.
-	client.StopFactory()
-	client.ShutdownNamespaceFactories()
-	if client.DynamicInformerFactory != nil {
-		client.DynamicInformerFactory.Shutdown()
-	}
+	// Stop old native sources before replacing clients.
+	client.ShutdownInformers()
 
 	client.Clientset = fresh.Clientset
 	client.KubeClient = fresh.Clientset
 	client.DiscoveryClient = fresh.Discovery
 	client.DynamicClient = fresh.Dynamic
 	client.RESTConfig = fresh.RestConfig
-	client.DynamicInformerFactory = dynamicinformer.NewDynamicSharedInformerFactory(
-		fresh.Dynamic,
-		clients.DefaultResyncPeriod,
-	)
-	client.ResetFactoryLifecycle()
+	client.HTTPClient = fresh.HTTPClient
+	client.ResetInformerLifecycle()
 	return nil
 }
 
@@ -386,12 +380,18 @@ func (p *kubeConnectionProvider) ResolveScope(ctx context.Context, client *clien
 		return resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeAny}}, nil
 	case "explicit":
 		values := extractStringSlice(session.Connection.Data, "watchPartitions")
-		if values == nil { values = []string{} }
+		if values == nil {
+			values = []string{}
+		}
 		return resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeOneOf, Values: &values}}, nil
 	case "auto":
 		values, err := p.discoverAccessibleNamespaces(ctx, client)
-		if err != nil { return nil, err }
-		if values == nil { values = []string{} }
+		if err != nil {
+			return nil, err
+		}
+		if values == nil {
+			values = []string{}
+		}
 		return resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeOneOf, Values: &values}}, nil
 	default:
 		return nil, resource.NewError("INVALID_REQUEST", "Unknown Kubernetes namespace scope mode")
@@ -401,7 +401,9 @@ func (p *kubeConnectionProvider) ResolveScope(ctx context.Context, client *clien
 // discoverAccessibleNamespaces lists namespaces the current user can access.
 func (p *kubeConnectionProvider) discoverAccessibleNamespaces(ctx context.Context, client *clients.ClientSet) ([]string, error) {
 	namespaces, err := p.GetNamespaces(ctx, client)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	sort.Strings(namespaces)
 	return namespaces, nil
 }
@@ -430,7 +432,6 @@ func extractStringSlice(data map[string]any, key string) []string {
 	}
 }
 
-
 // loadConnectionsFromPaths loads connections from a set of kubeconfig paths (no session needed).
 func (p *kubeConnectionProvider) loadConnectionsFromPaths(kubeconfigs []string) ([]types.Connection, error) {
 	connections := make([]types.Connection, 0, len(kubeconfigs)*EstimatedContexts)
@@ -447,4 +448,3 @@ func (p *kubeConnectionProvider) loadConnectionsFromPaths(kubeconfigs []string) 
 	})
 	return connections, nil
 }
-

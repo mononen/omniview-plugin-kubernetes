@@ -15,6 +15,8 @@ import { LuRefreshCw, LuLink, LuShieldCheck, LuShieldOff } from 'react-icons/lu'
 import NamedAvatar from '../../shared/NamedAvatar';
 
 import styles from './RepoSidebar.module.css';
+import { useSourcePageNavigation } from '../../../hooks/useSourcePageNavigation';
+import { SourcePageControls } from '../../shared/SourcePageControls';
 
 const metaRowStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 3fr' };
 const metaValueStyle: React.CSSProperties = { fontWeight: 400 };
@@ -107,8 +109,7 @@ const ChartIcon: React.FC<{ icon?: string; name: string }> = ({ icon, name }) =>
 
 /**
  * Renders a sidebar for a Helm Repository resource.
- * Uses the Chart resource list (cached by React Query) filtered by repository
- * instead of making a separate action call each time.
+ * Resolves repository as a query dimension before acquiring one bounded chart page.
  */
 export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
   const connectionID = ctx.resource?.route.connection ?? '';
@@ -118,14 +119,20 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
   const { executeAction, isExecuting } = useExecuteAction({ pluginID: 'kubernetes' });
   const target = useResolvedResourceTarget({
     pluginID: 'kubernetes', route: { connection: connectionID }, type: 'helm:charts',
-    scope: [{ dimension: 'domain', match: 'oneOf', values: ['helm-client'] }],
+    scope: [
+      { dimension: 'domain', match: 'oneOf', values: ['helm-client'] },
+      { dimension: 'repository', match: 'oneOf', values: [repoName] },
+    ],
+    enabled: !!connectionID && !!repoName,
   });
-  const { resources: chartsQuery } = useResources({
+  const navigation = useSourcePageNavigation(JSON.stringify([connectionID, repoName, target.data]));
+  const { resources: chartsQuery, acquired, refreshAcquiredPage } = useResources({
     pluginID: 'kubernetes', live: false,
     request: target.data ? {
-      targetId: target.data.targetId, request: { target: target.data.target, pageSize: 256 },
+      targetId: target.data.targetId, request: { target: target.data.target, pageSize: 256, cursor: navigation.cursor },
     } : undefined,
   });
+  const pagination = acquired ? navigation.forAcquiredPage(acquired.request.request.cursor) : navigation;
 
   const { showResourceSidebar } = useRightDrawer();
 
@@ -136,20 +143,19 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
   const data = ctx.data;
 
   const chartRecords = new WeakMap<ChartListEntry, HostRecord>();
-  const allCharts = (chartsQuery.data?.records ?? []).map((record) => {
+  const allCharts = (acquired?.page.records ?? []).map((record) => {
     const chart = valueToJSON(record.record.body) as ChartListEntry;
     chartRecords.set(chart, record);
     return chart;
   });
-  const repoCharts = allCharts.filter((c) => c.repository === repoName);
 
   const filteredCharts = chartFilter
-    ? repoCharts.filter((c) => {
+    ? allCharts.filter((c) => {
         const name = (c.name ?? '').toLowerCase();
         const desc = (c.description ?? '').toLowerCase();
         return name.includes(chartFilter.toLowerCase()) || desc.includes(chartFilter.toLowerCase());
       })
-    : repoCharts;
+    : allCharts;
 
   return (
     <Stack direction="column" style={rootStyle}>
@@ -223,16 +229,17 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
       <Stack direction="column" spacing={2} style={chartsSectionStyle}>
         <Stack direction="row" justify="between" align="center" style={chartsHeaderStyle}>
           <Text weight="semibold" size="sm">
-            Charts in this repository ({repoCharts.length})
+            Charts in this repository · {allCharts.length} on this page
           </Text>
         </Stack>
+        <SourcePageControls pagination={pagination} nextCursor={acquired?.page.sourcePage.nextCursor} loading={target.isLoading || chartsQuery.isFetching} error={target.error ?? chartsQuery.error} retry={target.data ? () => { void chartsQuery.refetch(); } : undefined} refresh={target.data ? refreshAcquiredPage : undefined} label="Charts" />
 
         {/* Search */}
         <Input.Control
           value={chartFilter}
           onChange={(e) => setChartFilter(e.target.value)}
-          placeholder="Filter charts..."
-          aria-label="Filter charts"
+          placeholder="Filter this chart page..."
+          aria-label="Filter this chart page"
           size="sm"
           style={fullWidthStyle}
           autoComplete="off"
@@ -277,10 +284,10 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
           {chartsQuery.isSuccess && filteredCharts.length === 0 && (
             <Text as="p" size="sm" tone="muted" style={noChartsStyle}>
               {chartFilter
-                ? 'No charts match the filter'
+                ? 'No charts match the filter on this page.'
                 : data.type === 'oci'
                   ? 'OCI registries do not provide a chart index. Reference charts directly by their OCI URL.'
-                  : 'No charts found. Try refreshing the repository.'}
+                  : 'No charts on this page. Try refreshing the repository.'}
             </Text>
           )}
           {chartsQuery.isLoading && (

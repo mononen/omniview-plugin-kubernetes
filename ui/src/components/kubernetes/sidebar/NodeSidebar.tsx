@@ -29,6 +29,9 @@ export const NodeSidebar: React.FC<Props> = ({ ctx }) => {
     connectionID,
     resourceKey: 'k8s:/nodes',
     resourceID,
+    resourceData: ctx.resource?.record?.record.body,
+    reference: ctx.resource?.reference,
+    route: ctx.resource?.route,
     metricIDs: [
       'cpu_usage',
       'cpu_capacity',

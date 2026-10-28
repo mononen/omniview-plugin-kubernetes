@@ -129,10 +129,16 @@ func descriptorByTarget(descriptors []resource.RelationshipDescriptor) map[strin
 // Source authority never establishes authority for another resource Type.
 func makeRef(request resource.RelationshipResolutionRequest, targetType, id, namespace string, uid ...string) (resource.RelationshipTarget, error) {
 	scope := []resource.ScopeEntry{}
-	if namespace != "" { scope = append(scope, resource.ScopeEntry{Dimension: "namespace", Value: namespace}) }
+	if namespace != "" {
+		scope = append(scope, resource.ScopeEntry{Dimension: "namespace", Value: namespace})
+	}
 	binding, err := resource.MatchRelationshipTarget(request, request.Source.Route, request.Source.Reference.Address.Provider, targetType, scope)
-	if err != nil { return resource.RelationshipTarget{}, err }
-	if id == "" { return resource.RelationshipTarget{}, resource.NewError("INVALID_REQUEST", "The native relationship target has no name") }
+	if err != nil {
+		return resource.RelationshipTarget{}, err
+	}
+	if id == "" {
+		return resource.RelationshipTarget{}, resource.NewError("INVALID_REQUEST", "The native relationship target has no name")
+	}
 	ref := resource.ResourceReference{Address: resource.ResourceAddress{
 		Provider: binding.Provider, Authority: binding.Authority,
 		Type: binding.Type, ID: id, Scope: scope,

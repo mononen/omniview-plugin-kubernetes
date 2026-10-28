@@ -11,8 +11,9 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
 
-	"github.com/omniviewdev/plugin-sdk/pkg/v1/logs"
+	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
+	"github.com/omniviewdev/plugin-sdk/pkg/v1/logs"
 
 	"github.com/omniview/kubernetes/pkg/utils"
 	"github.com/omniview/kubernetes/pkg/utils/kubeauth"
@@ -21,14 +22,17 @@ import (
 // DeploymentSourceResolver resolves a Deployment to its pod containers.
 func DeploymentSourceResolver(
 	ctx *types.PluginContext,
-	resourceData map[string]interface{},
+	resourceData *resourcev2.Value,
 	opts logs.SourceResolverOptions,
 ) (*logs.SourceResolverResult, error) {
 	clients, err := utils.KubeClientsFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	name, namespace := extractNameAndNamespace(resourceData)
+	name, namespace, err := utils.NativeResourceTarget(ctx, resourceData, opts.Reference, opts.Route, "k8s:apps/deployments", true)
+	if err != nil {
+		return nil, err
+	}
 
 	deployment, err := clients.Clientset.AppsV1().Deployments(namespace).Get(
 		ctx.Context, name, metav1.GetOptions{},
@@ -48,14 +52,17 @@ func DeploymentSourceResolver(
 // StatefulSetSourceResolver resolves a StatefulSet to its pod containers.
 func StatefulSetSourceResolver(
 	ctx *types.PluginContext,
-	resourceData map[string]interface{},
+	resourceData *resourcev2.Value,
 	opts logs.SourceResolverOptions,
 ) (*logs.SourceResolverResult, error) {
 	clients, err := utils.KubeClientsFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	name, namespace := extractNameAndNamespace(resourceData)
+	name, namespace, err := utils.NativeResourceTarget(ctx, resourceData, opts.Reference, opts.Route, "k8s:apps/statefulsets", true)
+	if err != nil {
+		return nil, err
+	}
 
 	sts, err := clients.Clientset.AppsV1().StatefulSets(namespace).Get(
 		ctx.Context, name, metav1.GetOptions{},
@@ -75,14 +82,17 @@ func StatefulSetSourceResolver(
 // DaemonSetSourceResolver resolves a DaemonSet to its pod containers.
 func DaemonSetSourceResolver(
 	ctx *types.PluginContext,
-	resourceData map[string]interface{},
+	resourceData *resourcev2.Value,
 	opts logs.SourceResolverOptions,
 ) (*logs.SourceResolverResult, error) {
 	clients, err := utils.KubeClientsFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	name, namespace := extractNameAndNamespace(resourceData)
+	name, namespace, err := utils.NativeResourceTarget(ctx, resourceData, opts.Reference, opts.Route, "k8s:apps/daemonsets", true)
+	if err != nil {
+		return nil, err
+	}
 
 	ds, err := clients.Clientset.AppsV1().DaemonSets(namespace).Get(
 		ctx.Context, name, metav1.GetOptions{},
@@ -102,14 +112,17 @@ func DaemonSetSourceResolver(
 // ReplicaSetSourceResolver resolves a ReplicaSet to its pod containers.
 func ReplicaSetSourceResolver(
 	ctx *types.PluginContext,
-	resourceData map[string]interface{},
+	resourceData *resourcev2.Value,
 	opts logs.SourceResolverOptions,
 ) (*logs.SourceResolverResult, error) {
 	clients, err := utils.KubeClientsFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	name, namespace := extractNameAndNamespace(resourceData)
+	name, namespace, err := utils.NativeResourceTarget(ctx, resourceData, opts.Reference, opts.Route, "k8s:apps/replicasets", true)
+	if err != nil {
+		return nil, err
+	}
 
 	rs, err := clients.Clientset.AppsV1().ReplicaSets(namespace).Get(
 		ctx.Context, name, metav1.GetOptions{},
@@ -129,14 +142,17 @@ func ReplicaSetSourceResolver(
 // JobSourceResolver resolves a Job to its pod containers.
 func JobSourceResolver(
 	ctx *types.PluginContext,
-	resourceData map[string]interface{},
+	resourceData *resourcev2.Value,
 	opts logs.SourceResolverOptions,
 ) (*logs.SourceResolverResult, error) {
 	clients, err := utils.KubeClientsFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	name, namespace := extractNameAndNamespace(resourceData)
+	name, namespace, err := utils.NativeResourceTarget(ctx, resourceData, opts.Reference, opts.Route, "k8s:batch/jobs", true)
+	if err != nil {
+		return nil, err
+	}
 
 	job, err := clients.Clientset.BatchV1().Jobs(namespace).Get(
 		ctx.Context, name, metav1.GetOptions{},
@@ -156,14 +172,17 @@ func JobSourceResolver(
 // CronJobSourceResolver resolves a CronJob to its active job pods.
 func CronJobSourceResolver(
 	ctx *types.PluginContext,
-	resourceData map[string]interface{},
+	resourceData *resourcev2.Value,
 	opts logs.SourceResolverOptions,
 ) (*logs.SourceResolverResult, error) {
 	clients, err := utils.KubeClientsFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	name, namespace := extractNameAndNamespace(resourceData)
+	name, namespace, err := utils.NativeResourceTarget(ctx, resourceData, opts.Reference, opts.Route, "k8s:batch/cronjobs", true)
+	if err != nil {
+		return nil, err
+	}
 
 	cronjob, err := clients.Clientset.BatchV1().CronJobs(namespace).Get(
 		ctx.Context, name, metav1.GetOptions{},

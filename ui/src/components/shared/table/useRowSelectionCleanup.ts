@@ -9,10 +9,12 @@ import { useEffect, useMemo } from 'react';
 export function useRowSelectionCleanup(
   rowKeys: readonly string[],
   setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>,
+  enabled = true,
 ) {
   const validRowIds = useMemo(() => new Set(rowKeys), [rowKeys]);
 
   useEffect(() => {
+    if (!enabled) return;
     setRowSelection((prev) => {
       const keys = Object.keys(prev);
       if (keys.length === 0) return prev;
@@ -28,5 +30,5 @@ export function useRowSelectionCleanup(
       }
       return changed ? pruned : prev;
     });
-  }, [validRowIds, setRowSelection]);
+  }, [validRowIds, setRowSelection, enabled]);
 }
