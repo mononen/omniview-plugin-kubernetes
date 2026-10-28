@@ -14,6 +14,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 
+	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/v1/exec"
 	"github.com/omniviewdev/plugin-sdk/pkg/sdk"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
@@ -71,19 +72,8 @@ func podHandlerWithProvider(
 		return err
 	}
 
-	// get the namespace and pod off the data obj
-	metadata, ok := opts.ResourceData["metadata"].(map[string]interface{})
-	if !ok {
-		return errors.New("metadata is required")
-	}
-	pod, ok := metadata["name"].(string)
-	if !ok {
-		return errors.New("pod is required")
-	}
-	namespace, ok := metadata["namespace"].(string)
-	if !ok {
-		return errors.New("namespace is required")
-	}
+	pod, namespace, err := nativeExecTarget(ctx, opts, "k8s:/pods", true)
+	if err != nil { return err }
 	container, ok := opts.Params["container"]
 	if !ok {
 		container = ""
@@ -101,6 +91,72 @@ func podHandlerWithProvider(
 		stopCh,
 		resize,
 	)
+}
+
+// nativeExecTarget consumes tagged observations and an optional canonical target.
+// Native exec authorization remains the selected client's Kubernetes credentials;
+// neither body metadata nor reference/route strings grant access or trigger Get.
+func nativeExecTarget(ctx *types.PluginContext, opts exec.SessionOptions, resourceType string, namespaced bool) (name, namespace string, err error) {
+	if opts.ResourcePlugin != "" && opts.ResourcePlugin != "kubernetes" {
+		return "", "", resourcev2.NewError("INVALID_REQUEST", "exec resource belongs to another provider")
+	}
+	if opts.ResourceKey != "" && opts.ResourceKey != resourceType {
+		return "", "", resourcev2.NewError("INVALID_REQUEST", "exec resource type does not match its native handler")
+	}
+	if opts.Route != nil && (opts.Route.Connection == "" || ctx == nil || ctx.Connection == nil || opts.Route.Connection != ctx.Connection.ID) {
+		return "", "", resourcev2.NewError("INVALID_REQUEST", "exec route does not match the selected connection")
+	}
+	var metadata map[string]resourcev2.Value
+	if opts.ResourceData != nil {
+		if opts.ResourceData.Kind != "map" { return "", "", resourcev2.NewError("INVALID_REQUEST", "resource data must be a document") }
+		if value, present := opts.ResourceData.Map["metadata"]; present {
+			if value.Kind != "map" { return "", "", resourcev2.NewError("INVALID_REQUEST", "metadata is required") }
+			metadata = value.Map
+		}
+	}
+	if opts.Reference != nil {
+		reference := opts.Reference
+		if err := resourcev2.ValidateAddress(reference.Address); err != nil { return "", "", err }
+		if opts.Route == nil { return "", "", resourcev2.NewError("INVALID_REQUEST", "a canonical exec reference requires an explicit route") }
+		if reference.Address.Provider != "kubernetes" || reference.Address.Type != resourceType {
+			return "", "", resourcev2.NewError("INVALID_REQUEST", "exec reference does not match its native handler")
+		}
+		name = reference.Address.ID
+		if namespaced {
+			if len(reference.Address.Scope) != 1 || reference.Address.Scope[0].Dimension != "namespace" || reference.Address.Scope[0].Value == "" {
+				return "", "", resourcev2.NewError("INVALID_REQUEST", "namespace is required")
+			}
+			namespace = reference.Address.Scope[0].Value
+		} else if len(reference.Address.Scope) != 0 {
+			return "", "", resourcev2.NewError("INVALID_REQUEST", "node exec requires cluster scope")
+		}
+		if observed, present := metadata["name"]; present && (observed.Kind != "string" || observed.String != name) {
+			return "", "", resourcev2.NewError("INVALID_REQUEST", "resource metadata name does not match the exec reference")
+		}
+		if observed, present := metadata["namespace"]; present && (observed.Kind != "string" || observed.String != namespace) {
+			return "", "", resourcev2.NewError("INVALID_REQUEST", "resource metadata namespace does not match the exec reference")
+		}
+		if reference.Incarnation != nil {
+			if *reference.Incarnation == "" { return "", "", resourcev2.NewError("INVALID_REQUEST", "exec incarnation must be absent or nonempty") }
+			if observed, present := metadata["uid"]; present && (observed.Kind != "string" || observed.String != *reference.Incarnation) {
+				return "", "", resourcev2.NewError("RESET_REQUIRED", "resource metadata incarnation does not match the exec reference")
+			}
+		}
+		return name, namespace, nil
+	}
+	if metadata == nil { return "", "", resourcev2.NewError("INVALID_REQUEST", "metadata is required") }
+	nativeName, present := metadata["name"]
+	if !present || nativeName.Kind != "string" || nativeName.String == "" {
+		if namespaced { return "", "", resourcev2.NewError("INVALID_REQUEST", "pod is required") }
+		return "", "", resourcev2.NewError("INVALID_REQUEST", "node name is required")
+	}
+	name = nativeName.String
+	if namespaced {
+		value, present := metadata["namespace"]
+		if !present || value.Kind != "string" || value.String == "" { return "", "", resourcev2.NewError("INVALID_REQUEST", "namespace is required") }
+		namespace = value.String
+	}
+	return name, namespace, nil
 }
 
 type sizeQueue chan remotecommand.TerminalSize

@@ -41,6 +41,8 @@ Tables and navigation use canonical references, routes, target membership, and h
 
 Relationship resolution receives one canonical source Get and explicit host-admitted target bindings. Native links use the matching target Type, scope, route, and authority; source authority never substitutes for another Type. Missing or out-of-scope bindings fail explicitly, and overlapping bindings reject admission. Native acquisition failures remain errors rather than complete empty relationships. Resolvers follow observed references and native ownership, not an all-Type inventory scan.
 
+Resource-scoped terminals carry tagged Values rather than float-oriented generated resource maps. Pod and Node handlers use a supplied canonical reference and explicit matching route for native selectors, check any supplied observation for mismatches, and preserve container/command target-builder behavior. Neither body data nor a reference grants authorization, and terminal setup adds no resource Get permission requirement.
+
 The old mandatory CRUD/Find registration generator and public resource DTO stack are retired. The owned kind/history audit fixture below is unchanged. Helm release enumeration is bounded through native Secret/ConfigMap storage; other Helm storage drivers are not advertised as bounded enumeration sources.
 
 ## Local audit evidence fixture

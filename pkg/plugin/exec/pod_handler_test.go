@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/omniview/kubernetes/pkg/utils/kubeauth"
+	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/v1/exec"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
 )
@@ -28,6 +29,14 @@ func testPluginContext() *types.PluginContext {
 			Data: map[string]any{"kubeconfig": "/fake/path"},
 		},
 	}
+}
+
+func execResourceData(t testing.TB, native map[string]interface{}) *resourcev2.Value {
+	t.Helper()
+	if native == nil { return nil }
+	value, err := resourcev2.ValueFromNative(native)
+	require.NoError(t, err)
+	return &value
 }
 
 func TestPodHandler_MetadataValidation(t *testing.T) {
@@ -86,7 +95,7 @@ func TestPodHandler_MetadataValidation(t *testing.T) {
 			}
 
 			opts := exec.SessionOptions{
-				ResourceData: tt.resourceData,
+				ResourceData: execResourceData(t, tt.resourceData),
 				Params:       tt.params,
 			}
 
@@ -95,7 +104,7 @@ func TestPodHandler_MetadataValidation(t *testing.T) {
 				testPluginContext(), opts, nil, nil, nil,
 			)
 			require.Error(t, err)
-			assert.Equal(t, tt.wantErr, err.Error())
+			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
 }
@@ -108,12 +117,12 @@ func TestPodHandler_ContainerDefaultsEmpty(t *testing.T) {
 	// This test validates that the container extraction path works
 	// by passing valid metadata but letting ExecCmd fail on nil clientset.
 	opts := exec.SessionOptions{
-		ResourceData: map[string]interface{}{
+		ResourceData: execResourceData(t, map[string]interface{}{
 			"metadata": map[string]interface{}{
 				"name":      "my-pod",
 				"namespace": "default",
 			},
-		},
+		}),
 		Params: map[string]string{},
 	}
 
@@ -129,12 +138,12 @@ func TestPodHandler_ContainerDefaultsEmpty(t *testing.T) {
 
 func TestPodHandler_ContainerFromParams(t *testing.T) {
 	opts := exec.SessionOptions{
-		ResourceData: map[string]interface{}{
+		ResourceData: execResourceData(t, map[string]interface{}{
 			"metadata": map[string]interface{}{
 				"name":      "my-pod",
 				"namespace": "default",
 			},
-		},
+		}),
 		Params: map[string]string{
 			"container": "sidecar",
 		},
@@ -149,4 +158,81 @@ func TestPodHandler_ContainerFromParams(t *testing.T) {
 	assert.Panics(t, func() {
 		_ = podHandlerWithProvider(provider, testPluginContext(), opts, nil, nil, nil)
 	})
+}
+
+func TestNativeExecTargetConsumesReferenceWithoutResourceGet(t *testing.T) {
+	opts := exec.SessionOptions{
+		ResourcePlugin: "kubernetes", ResourceKey: "k8s:/pods",
+		Reference: &resourcev2.ResourceReference{Address: resourcev2.ResourceAddress{
+			Provider: "kubernetes", Authority: "host-issued-authority", Type: "k8s:/pods",
+			Scope: []resourcev2.ScopeEntry{{Dimension: "namespace", Value: "selected"}}, ID: "native-pod",
+		}},
+		Route: &resourcev2.AccessRoute{Connection: "test"},
+	}
+	name, namespace, err := nativeExecTarget(testPluginContext(), opts, "k8s:/pods", true)
+	require.NoError(t, err)
+	assert.Equal(t, "native-pod", name)
+	assert.Equal(t, "selected", namespace)
+	assert.Nil(t, opts.ResourceData)
+	assert.Nil(t, opts.Reference.Incarnation)
+}
+
+func TestNativeExecTargetRejectsMismatchedObservedIdentity(t *testing.T) {
+	for _, test := range []struct { name string; mutate func(*exec.SessionOptions); code string }{
+		{"wrong route", func(options *exec.SessionOptions) { options.Route.Connection = "other" }, "INVALID_REQUEST"},
+		{"missing route", func(options *exec.SessionOptions) { options.Route = nil }, "INVALID_REQUEST"},
+		{"wrong provider", func(options *exec.SessionOptions) { options.Reference.Address.Provider = "other" }, "INVALID_REQUEST"},
+		{"wrong type", func(options *exec.SessionOptions) { options.Reference.Address.Type = "k8s:/nodes" }, "INVALID_REQUEST"},
+		{"duplicate namespace", func(options *exec.SessionOptions) { options.Reference.Address.Scope = append(options.Reference.Address.Scope, options.Reference.Address.Scope[0]) }, "INVALID_REQUEST"},
+		{"observed name", func(options *exec.SessionOptions) { options.ResourceData.Map["metadata"].Map["name"] = resourcev2.Value{Kind: "string", String: "different"} }, "INVALID_REQUEST"},
+		{"observed namespace", func(options *exec.SessionOptions) { options.ResourceData.Map["metadata"].Map["namespace"] = resourcev2.Value{Kind: "string", String: "other"} }, "INVALID_REQUEST"},
+		{"observed incarnation", func(options *exec.SessionOptions) { expected := "new-uid"; options.Reference.Incarnation = &expected }, "RESET_REQUIRED"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			options := exec.SessionOptions{
+				ResourcePlugin: "kubernetes", ResourceKey: "k8s:/pods",
+				Reference: &resourcev2.ResourceReference{Address: resourcev2.ResourceAddress{
+					Provider: "kubernetes", Authority: "host-issued-authority", Type: "k8s:/pods",
+					Scope: []resourcev2.ScopeEntry{{Dimension: "namespace", Value: "selected"}}, ID: "native-pod",
+				}},
+				Route: &resourcev2.AccessRoute{Connection: "test"},
+				ResourceData: execResourceData(t, map[string]interface{}{"metadata": map[string]interface{}{
+					"name": "native-pod", "namespace": "selected", "uid": "observed-uid",
+				}}),
+			}
+			test.mutate(&options)
+			_, _, err := nativeExecTarget(testPluginContext(), options, "k8s:/pods", true)
+			assert.Equal(t, test.code, resourcev2.ErrorCode(err))
+		})
+	}
+}
+
+func TestNativeExecTargetPreservesTaggedNumericBody(t *testing.T) {
+	body := execResourceData(t, map[string]interface{}{
+		"metadata": map[string]interface{}{"name": "native-pod", "namespace": "selected"},
+		"spec": map[string]interface{}{"exact": int64(9223372036854775807)},
+	})
+	name, namespace, err := nativeExecTarget(testPluginContext(), exec.SessionOptions{ResourceData: body}, "k8s:/pods", true)
+	require.NoError(t, err)
+	assert.Equal(t, "native-pod", name)
+	assert.Equal(t, "selected", namespace)
+	assert.Equal(t, "9223372036854775807", body.Map["spec"].Map["exact"].Int)
+}
+
+func TestNativeExecTargetNodeReferenceUsesClusterScope(t *testing.T) {
+	options := exec.SessionOptions{
+		ResourcePlugin: "kubernetes", ResourceKey: "k8s:/nodes",
+		Reference: &resourcev2.ResourceReference{Address: resourcev2.ResourceAddress{
+			Provider: "kubernetes", Authority: "host-issued-authority", Type: "k8s:/nodes",
+			Scope: []resourcev2.ScopeEntry{}, ID: "native-node",
+		}},
+		Route: &resourcev2.AccessRoute{Connection: "test"},
+	}
+	name, namespace, err := nativeExecTarget(testPluginContext(), options, "k8s:/nodes", false)
+	require.NoError(t, err)
+	assert.Equal(t, "native-node", name)
+	assert.Empty(t, namespace)
+	options.Reference.Address.Scope = []resourcev2.ScopeEntry{{Dimension: "namespace", Value: "not-cluster-scope"}}
+	_, _, err = nativeExecTarget(testPluginContext(), options, "k8s:/nodes", false)
+	assert.Equal(t, "INVALID_REQUEST", resourcev2.ErrorCode(err))
 }

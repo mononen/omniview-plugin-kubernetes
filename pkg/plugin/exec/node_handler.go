@@ -2,7 +2,6 @@ package exec
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -48,15 +47,8 @@ func nodeHandlerWithProvider(
 		return err
 	}
 
-	// Extract node name from the resource data.
-	metadata, ok := opts.ResourceData["metadata"].(map[string]interface{})
-	if !ok {
-		return errors.New("metadata is required")
-	}
-	nodeName, ok := metadata["name"].(string)
-	if !ok {
-		return errors.New("node name is required")
-	}
+	nodeName, _, err := nativeExecTarget(ctx, opts, "k8s:/nodes", false)
+	if err != nil { return err }
 
 	// Create a unique debug pod name.
 	debugPodName := fmt.Sprintf("omniview-node-debug-%s-%d", nodeName, time.Now().Unix())

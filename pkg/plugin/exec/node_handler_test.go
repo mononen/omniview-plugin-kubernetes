@@ -257,11 +257,11 @@ func TestNodeHandler_MissingMetadata(t *testing.T) {
 	}
 
 	opts := exec.SessionOptions{
-		ResourceData: map[string]interface{}{},
+		ResourceData: execResourceData(t, map[string]interface{}{}),
 	}
 	err := nodeHandlerWithProvider(provider, testPluginContext(), opts, nil, nil, nil)
 	require.Error(t, err)
-	assert.Equal(t, "metadata is required", err.Error())
+	assert.ErrorContains(t, err, "metadata is required")
 }
 
 func TestNodeHandler_MissingNodeName(t *testing.T) {
@@ -270,13 +270,13 @@ func TestNodeHandler_MissingNodeName(t *testing.T) {
 	}
 
 	opts := exec.SessionOptions{
-		ResourceData: map[string]interface{}{
+		ResourceData: execResourceData(t, map[string]interface{}{
 			"metadata": map[string]interface{}{},
-		},
+		}),
 	}
 	err := nodeHandlerWithProvider(provider, testPluginContext(), opts, nil, nil, nil)
 	require.Error(t, err)
-	assert.Equal(t, "node name is required", err.Error())
+	assert.ErrorContains(t, err, "node name is required")
 }
 
 func TestNodeHandler_CustomImage(t *testing.T) {
