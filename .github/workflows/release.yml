@@ -27,6 +27,10 @@ permissions:
 
 env:
   PLATFORMS: darwin_arm64 darwin_amd64 linux_amd64 linux_arm64 windows_amd64
+  # Plugin ID `kubernetes` belongs to the official `omniview` publisher. This
+  # fork publishes the same code as its own plugin; hack/package.sh stamps the
+  # ID into the binary, the UI bundle and the packaged plugin.yaml.
+  PLUGIN_ID: kubernetes-mononen
 
 jobs:
   build:
@@ -84,16 +88,6 @@ jobs:
           name: plugin-archives
           path: dist
 
-      # Plugin ID `kubernetes` belongs to the official `omniview` publisher, and
-      # the marketplace does not check ownership on submit, so publishing it
-      # from here would add versions to the official plugin. Blocked until this
-      # fork publishes under its own plugin ID (ticket omn-4e2f).
-      - name: Refuse to publish the official plugin ID
-        if: ${{ !inputs.dry-run }}
-        run: |
-          echo "::error::Plugin ID 'kubernetes' belongs to the omniview publisher; this fork needs its own plugin ID before it can publish (ticket omn-4e2f)"
-          exit 1
-
       - name: Check marketplace
         env:
           OMNIVIEW_API_URL: ${{ vars.OMNIVIEW_API_URL }}
@@ -129,7 +123,7 @@ jobs:
           api-key: ${{ secrets.OMNIVIEW_API_KEY }}
           api-url: ${{ vars.OMNIVIEW_API_URL }}
           publisher-slug: mononen
-          plugin-id: kubernetes
+          plugin-id: ${{ env.PLUGIN_ID }}
           version: ${{ needs.build.outputs.version }}
           artifact-path: dist/
           architectures: ${{ needs.build.outputs.platforms }}
