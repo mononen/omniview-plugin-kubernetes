@@ -3,6 +3,11 @@ package resourcers
 import (
 	"context"
 	"testing"
+	"errors"
+
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
+	"k8s.io/apimachinery/pkg/runtime"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +39,8 @@ func TestNodeResourcer_ResolveRelationships(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 	resourcer := NewNodeResourcer(logger, WithRelationships(RelationshipTable()["k8s:/nodes"]))
 
-	rels, err := resourcer.ResolveRelationships(context.Background(), cs, workloadGetRequest("node-1", ""))
+	request := relationshipRequest(workloadGetRequest("node-1", ""), "k8s:/pods")
+	rels, err := resourcer.ResolveRelationships(context.Background(), cs, request)
 	require.NoError(t, err)
 	require.Len(t, rels, 1)
 
@@ -44,13 +50,26 @@ func TestNodeResourcer_ResolveRelationships(t *testing.T) {
 	assert.GreaterOrEqual(t, len(rels[0].Targets), 2)
 	for _, target := range rels[0].Targets {
 		assert.Equal(t, "kubernetes", target.Reference.Address.Provider)
-		assert.Equal(t, "test-cluster", target.Reference.Address.Authority)
+		assert.Equal(t, request.Targets[0].Authority, target.Reference.Address.Authority)
+		assert.NotEqual(t, request.Source.Reference.Address.Authority, target.Reference.Address.Authority)
 		assert.Equal(t, "k8s:/pods", target.Reference.Address.Type)
 		assert.Equal(t, "test-connection", target.Route.Connection)
 		assert.Nil(t, target.Reference.Incarnation)
 		require.Len(t, target.Reference.Address.Scope, 1)
 		assert.Equal(t, "namespace", target.Reference.Address.Scope[0].Dimension)
 	}
+
+	request.Targets = nil
+	rels, err = resourcer.ResolveRelationships(context.Background(), cs, request)
+	assert.Empty(t, rels)
+	assert.Equal(t, "UNSUPPORTED", resource.ErrorCode(err))
+
+	fakeClient.PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("pod list denied")
+	})
+	rels, err = resourcer.ResolveRelationships(context.Background(), cs, request)
+	assert.Empty(t, rels)
+	require.ErrorContains(t, err, "pod list denied")
 }
 
 func TestNodeResourcer_ResolveRelationships_NoPods(t *testing.T) {
@@ -60,7 +79,7 @@ func TestNodeResourcer_ResolveRelationships_NoPods(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 	resourcer := NewNodeResourcer(logger, WithRelationships(RelationshipTable()["k8s:/nodes"]))
 
-	rels, err := resourcer.ResolveRelationships(context.Background(), cs, workloadGetRequest("node-1", ""))
+	rels, err := resourcer.ResolveRelationships(context.Background(), cs, relationshipRequest(workloadGetRequest("node-1", ""), "k8s:/pods"))
 	require.NoError(t, err)
 	assert.Empty(t, rels)
 }

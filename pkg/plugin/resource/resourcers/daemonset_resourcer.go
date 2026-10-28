@@ -38,10 +38,11 @@ func NewDaemonSetResourcer(logger *zap.SugaredLogger, opts ...Option) *DaemonSet
 func (d *DaemonSetResourcer) ResolveRelationships(
 	ctx context.Context,
 	client *clients.ClientSet,
-	request resource.GetRequest,
+	request resource.RelationshipResolutionRequest,
 ) ([]resource.ResolvedRelationship, error) {
-	id := request.Reference.Address.ID
-	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
+	source := request.Source
+	id := source.Reference.Address.ID
+	namespace, err := nativeRequestNamespace(source.Reference.Address.Scope)
 	if err != nil { return nil, err }
 	ds, err := client.KubeClient.AppsV1().DaemonSets(namespace).Get(ctx, id, metav1.GetOptions{})
 	if err != nil { return nil, fmt.Errorf("failed to get daemonset %s: %w", id, err) }
@@ -51,10 +52,13 @@ func (d *DaemonSetResourcer) ResolveRelationships(
 
 	// Pod relationships via ownerRef.
 	pods, err := listPodsByOwner(ctx, client, namespace, "DaemonSet", id, string(ds.UID))
-	if err == nil && len(pods) > 0 {
+	if err != nil { return nil, err }
+	if len(pods) > 0 {
 		targets := make([]resource.RelationshipTarget, 0, len(pods))
 		for _, pod := range pods {
-			targets = append(targets, makeRef(request, "k8s:/pods", pod.Name, namespace, string(pod.UID)))
+			target, err := makeRef(request, "k8s:/pods", pod.Name, namespace, string(pod.UID))
+			if err != nil { return nil, err }
+			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
 			Descriptor: byTarget["k8s:/pods"],
@@ -66,7 +70,9 @@ func (d *DaemonSetResourcer) ResolveRelationships(
 	if cms := extractVolumeConfigMaps(ds.Spec.Template.Spec); len(cms) > 0 {
 		targets := make([]resource.RelationshipTarget, 0, len(cms))
 		for _, name := range cms {
-			targets = append(targets, makeRef(request, "k8s:/configmaps", name, namespace))
+			target, err := makeRef(request, "k8s:/configmaps", name, namespace)
+			if err != nil { return nil, err }
+			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
 			Descriptor: byTarget["k8s:/configmaps"],
@@ -78,7 +84,9 @@ func (d *DaemonSetResourcer) ResolveRelationships(
 	if secrets := extractVolumeSecrets(ds.Spec.Template.Spec); len(secrets) > 0 {
 		targets := make([]resource.RelationshipTarget, 0, len(secrets))
 		for _, name := range secrets {
-			targets = append(targets, makeRef(request, "k8s:/secrets", name, namespace))
+			target, err := makeRef(request, "k8s:/secrets", name, namespace)
+			if err != nil { return nil, err }
+			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
 			Descriptor: byTarget["k8s:/secrets"],

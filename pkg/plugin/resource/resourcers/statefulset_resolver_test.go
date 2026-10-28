@@ -3,6 +3,10 @@ package resourcers
 import (
 	"context"
 	"testing"
+	"errors"
+
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -87,7 +91,8 @@ func TestStatefulSetResourcer_ResolveRelationships(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 	resourcer := NewStatefulSetResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/statefulsets"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, workloadGetRequest("my-sts", "default"))
+	request := relationshipRequest(workloadGetRequest("my-sts", "default"), "k8s:/pods", "k8s:/persistentvolumeclaims", "k8s:/configmaps")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, request)
 	require.NoError(t, err)
 	require.Len(t, rels, 3) // Pod, PVC, ConfigMap
 
@@ -95,6 +100,8 @@ func TestStatefulSetResourcer_ResolveRelationships(t *testing.T) {
 	assert.Equal(t, "k8s:/pods", rels[0].Descriptor.TargetType)
 	require.Len(t, rels[0].Targets, 1)
 	assert.Equal(t, "my-sts-0", rels[0].Targets[0].Reference.Address.ID)
+	assert.Equal(t, request.Targets[0].Authority, rels[0].Targets[0].Reference.Address.Authority)
+	assert.NotEqual(t, request.Source.Reference.Address.Authority, rels[0].Targets[0].Reference.Address.Authority)
 
 	// PVC — names follow <template>-<sts>-<ordinal> pattern
 	assert.Equal(t, "k8s:/persistentvolumeclaims", rels[1].Descriptor.TargetType)
@@ -106,6 +113,18 @@ func TestStatefulSetResourcer_ResolveRelationships(t *testing.T) {
 	assert.Equal(t, "k8s:/configmaps", rels[2].Descriptor.TargetType)
 	require.Len(t, rels[2].Targets, 1)
 	assert.Equal(t, "db-config", rels[2].Targets[0].Reference.Address.ID)
+
+	request.Targets = nil
+	rels, err = resourcer.ResolveRelationships(ctx, cs, request)
+	assert.Empty(t, rels)
+	assert.Equal(t, "UNSUPPORTED", resource.ErrorCode(err))
+
+	fakeKube.PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("pod list denied")
+	})
+	rels, err = resourcer.ResolveRelationships(ctx, cs, request)
+	assert.Empty(t, rels)
+	require.ErrorContains(t, err, "pod list denied")
 }
 
 func TestStatefulSetResourcer_ResolveRelationships_Empty(t *testing.T) {
@@ -154,7 +173,7 @@ func TestStatefulSetResourcer_ResolveRelationships_Empty(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 	resourcer := NewStatefulSetResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/statefulsets"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, workloadGetRequest("bare-sts", "default"))
+	rels, err := resourcer.ResolveRelationships(ctx, cs, relationshipRequest(workloadGetRequest("bare-sts", "default"), "k8s:/pods"))
 	require.NoError(t, err)
 	assert.Empty(t, rels)
 }

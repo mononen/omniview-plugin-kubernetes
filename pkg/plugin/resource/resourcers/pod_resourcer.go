@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
@@ -37,11 +38,11 @@ func NewPodResourcer(logger *zap.SugaredLogger, opts ...Option) *PodResourcer {
 func (p *PodResourcer) ResolveRelationships(
 	ctx context.Context,
 	client *clients.ClientSet,
-	request resource.GetRequest,
+	request resource.RelationshipResolutionRequest,
 ) ([]resource.ResolvedRelationship, error) {
-	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
+	namespace, err := nativeRequestNamespace(request.Source.Reference.Address.Scope)
 	if err != nil { return nil, err }
-	id := request.Reference.Address.ID
+	id := request.Source.Reference.Address.ID
 	pod, err := client.KubeClient.CoreV1().Pods(namespace).Get(ctx, id, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pod %s: %w", id, err)
@@ -50,24 +51,39 @@ func (p *PodResourcer) ResolveRelationships(
 	var rels []resource.ResolvedRelationship
 	byTarget := descriptorByTarget(p.DeclareRelationships())
 	for _, owner := range pod.OwnerReferences {
+		if owner.Name == "" {
+			return nil, resource.NewError("INVALID_REQUEST", "pod owner reference requires a name")
+		}
+		gv, err := schema.ParseGroupVersion(owner.APIVersion)
+		if err != nil || gv.Version == "" {
+			return nil, resource.NewError("UNSUPPORTED", "pod owner reference has an unsupported API version")
+		}
 		targetType := ""
-		switch owner.APIVersion + "/" + owner.Kind {
-		case "apps/v1/ReplicaSet": targetType = "k8s:apps/replicasets"
-		case "apps/v1/DaemonSet": targetType = "k8s:apps/daemonsets"
-		case "apps/v1/StatefulSet": targetType = "k8s:apps/statefulsets"
-		case "batch/v1/Job": targetType = "k8s:batch/jobs"
+		switch gv.Group + "/" + owner.Kind {
+		case "apps/ReplicaSet": targetType = "k8s:apps/replicasets"
+		case "apps/DaemonSet": targetType = "k8s:apps/daemonsets"
+		case "apps/StatefulSet": targetType = "k8s:apps/statefulsets"
+		case "batch/Job": targetType = "k8s:batch/jobs"
+		default:
+			return nil, resource.NewError("UNSUPPORTED", "pod owner reference target is unsupported")
 		}
-		if descriptor, ok := byTarget[targetType]; ok && owner.Name != "" {
-			rels = append(rels, resource.ResolvedRelationship{Descriptor: descriptor,
-				Targets: []resource.RelationshipTarget{makeRef(request, targetType, owner.Name, namespace, string(owner.UID))}})
+		descriptor, ok := byTarget[targetType]
+		if !ok {
+			return nil, resource.NewError("UNSUPPORTED", "pod owner relationship descriptor is unavailable")
 		}
+		target, err := makeRef(request, targetType, owner.Name, namespace, string(owner.UID))
+		if err != nil { return nil, err }
+		rels = append(rels, resource.ResolvedRelationship{Descriptor: descriptor,
+			Targets: []resource.RelationshipTarget{target}})
 	}
 
 	// Node relationship.
 	if pod.Spec.NodeName != "" {
+		target, err := makeRef(request, "k8s:/nodes", pod.Spec.NodeName, "")
+		if err != nil { return nil, err }
 		rels = append(rels, resource.ResolvedRelationship{
 			Descriptor: byTarget["k8s:/nodes"],
-			Targets:    []resource.RelationshipTarget{makeRef(request, "k8s:/nodes", pod.Spec.NodeName, "")},
+			Targets:    []resource.RelationshipTarget{target},
 		})
 	}
 
@@ -75,7 +91,9 @@ func (p *PodResourcer) ResolveRelationships(
 	if pvcs := extractVolumePVCs(pod.Spec); len(pvcs) > 0 {
 		targets := make([]resource.RelationshipTarget, 0, len(pvcs))
 		for _, name := range pvcs {
-			targets = append(targets, makeRef(request, "k8s:/persistentvolumeclaims", name, namespace))
+			target, err := makeRef(request, "k8s:/persistentvolumeclaims", name, namespace)
+			if err != nil { return nil, err }
+			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
 			Descriptor: byTarget["k8s:/persistentvolumeclaims"],
@@ -87,7 +105,9 @@ func (p *PodResourcer) ResolveRelationships(
 	if cms := extractVolumeConfigMaps(pod.Spec); len(cms) > 0 {
 		targets := make([]resource.RelationshipTarget, 0, len(cms))
 		for _, name := range cms {
-			targets = append(targets, makeRef(request, "k8s:/configmaps", name, namespace))
+			target, err := makeRef(request, "k8s:/configmaps", name, namespace)
+			if err != nil { return nil, err }
+			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
 			Descriptor: byTarget["k8s:/configmaps"],
@@ -99,7 +119,9 @@ func (p *PodResourcer) ResolveRelationships(
 	if secrets := extractVolumeSecrets(pod.Spec); len(secrets) > 0 {
 		targets := make([]resource.RelationshipTarget, 0, len(secrets))
 		for _, name := range secrets {
-			targets = append(targets, makeRef(request, "k8s:/secrets", name, namespace))
+			target, err := makeRef(request, "k8s:/secrets", name, namespace)
+			if err != nil { return nil, err }
+			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
 			Descriptor: byTarget["k8s:/secrets"],
@@ -109,9 +131,11 @@ func (p *PodResourcer) ResolveRelationships(
 
 	// ServiceAccount relationship.
 	if pod.Spec.ServiceAccountName != "" {
+		target, err := makeRef(request, "k8s:/serviceaccounts", pod.Spec.ServiceAccountName, namespace)
+		if err != nil { return nil, err }
 		rels = append(rels, resource.ResolvedRelationship{
 			Descriptor: byTarget["k8s:/serviceaccounts"],
-			Targets:    []resource.RelationshipTarget{makeRef(request, "k8s:/serviceaccounts", pod.Spec.ServiceAccountName, namespace)},
+			Targets:    []resource.RelationshipTarget{target},
 		})
 	}
 

@@ -44,10 +44,11 @@ func NewNodeResourcer(logger *zap.SugaredLogger, opts ...Option) *NodeResourcer 
 func (n *NodeResourcer) ResolveRelationships(
 	ctx context.Context,
 	client *clients.ClientSet,
-	request resource.GetRequest,
+	request resource.RelationshipResolutionRequest,
 ) ([]resource.ResolvedRelationship, error) {
-	id := request.Reference.Address.ID
-	if _, err := nativeRequestNamespace(request.Reference.Address.Scope); err != nil { return nil, err }
+	source := request.Source
+	id := source.Reference.Address.ID
+	if _, err := nativeRequestNamespace(source.Reference.Address.Scope); err != nil { return nil, err }
 	podList, err := client.KubeClient.CoreV1().Pods("").List(ctx, metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": id}).String(),
 	})
@@ -61,7 +62,9 @@ func (n *NodeResourcer) ResolveRelationships(
 
 	targets := make([]resource.RelationshipTarget, 0, len(podList.Items))
 	for _, pod := range podList.Items {
-		targets = append(targets, makeRef(request, "k8s:/pods", pod.Name, pod.Namespace, string(pod.UID)))
+		target, err := makeRef(request, "k8s:/pods", pod.Name, pod.Namespace, string(pod.UID))
+		if err != nil { return nil, err }
+		targets = append(targets, target)
 	}
 
 	byTarget := descriptorByTarget(n.DeclareRelationships())

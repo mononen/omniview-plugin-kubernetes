@@ -182,11 +182,16 @@ func (p *kubernetesProvider) GetRelationships(ctx context.Context, route resourc
 	return relationships, err
 }
 
-func (p *kubernetesProvider) ResolveRelationships(ctx context.Context, request resourcev2.GetRequest) (relationships []resourcev2.ResolvedRelationship, err error) {
-	if _, err := p.Get(ctx, request); err != nil { return nil, err }
-	helper, ok := p.helpers[request.Reference.Address.Type].(nativeRelationshipResolver)
+func (p *kubernetesProvider) ResolveRelationships(ctx context.Context, request resourcev2.RelationshipResolutionRequest) (relationships []resourcev2.ResolvedRelationship, err error) {
+	if err := resourcev2.ValidateRelationshipResolutionRequest(request); err != nil { return nil, err }
+	if _, err := p.Get(ctx, request.Source); err != nil { return nil, err }
+	helper, ok := p.helpers[request.Source.Reference.Address.Type].(nativeRelationshipResolver)
 	if !ok { return nil, resourcev2.NewError("UNSUPPORTED", "Resource type does not resolve native relationships") }
-	err = p.WithClient(ctx, request.Route, func(ctx context.Context, client *clients.ClientSet) error { relationships, err = helper.ResolveRelationships(ctx, client, request); return err })
+	err = p.WithClient(ctx, request.Source.Route, func(ctx context.Context, client *clients.ClientSet) error {
+		relationships, err = helper.ResolveRelationships(ctx, client, request)
+		if err != nil { return err }
+		return resourcev2.ValidateRelationshipResolutionResult(request, relationships)
+	})
 	return relationships, err
 }
 
@@ -208,7 +213,7 @@ func (p *kubernetesProvider) GetResourceEvents(ctx context.Context, request reso
 
 type nativeStreamingActionHelper interface { StreamAction(context.Context, *clients.ClientSet, resourcev2.ActionRequest, chan<- resourcev2.ActionEvent) error }
 type nativeRelationshipDeclarer interface { DeclareRelationships() []resourcev2.RelationshipDescriptor }
-type nativeRelationshipResolver interface { ResolveRelationships(context.Context, *clients.ClientSet, resourcev2.GetRequest) ([]resourcev2.ResolvedRelationship, error) }
+type nativeRelationshipResolver interface { ResolveRelationships(context.Context, *clients.ClientSet, resourcev2.RelationshipResolutionRequest) ([]resourcev2.ResolvedRelationship, error) }
 type nativeHealthAssessor interface { AssessHealth(context.Context, *clients.ClientSet, resourcev2.GetRequest, resourcev2.Value) (*resourcev2.ResourceHealth, error) }
 type nativeEventRetriever interface { GetEvents(context.Context, *clients.ClientSet, resourcev2.GetRequest, uint32) ([]resourcev2.ResourceEvent, error) }
 

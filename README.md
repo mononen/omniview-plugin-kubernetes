@@ -39,6 +39,8 @@ OpenAPI documents are read once per group/version, bounded to 16 MiB, and shared
 
 Tables and navigation use canonical references, routes, target membership, and host keys. Exact integer Values stay `bigint` in UI adapters and YAML editing. Mutation and action requests retain known UID and revision guards. Native connection discovery, explicit overrides, and disabled routes remain separate; host persistence owns desired profiles, not provider-side kubeconfig edits.
 
+Relationship resolution receives one canonical source Get and explicit host-admitted target bindings. Native links use the matching target Type, scope, route, and authority; source authority never substitutes for another Type. Missing or out-of-scope bindings fail explicitly, and overlapping bindings reject admission. Native acquisition failures remain errors rather than complete empty relationships. Resolvers follow observed references and native ownership, not an all-Type inventory scan.
+
 The old mandatory CRUD/Find registration generator and public resource DTO stack are retired. The owned kind/history audit fixture below is unchanged. Helm release enumeration is bounded through native Secret/ConfigMap storage; other Helm storage drivers are not advertised as bounded enumeration sources.
 
 ## Local audit evidence fixture

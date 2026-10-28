@@ -77,3 +77,20 @@ func testWatchTarget() resource.ReadTarget {
 func testWatchRepresentation() resource.Representation {
 	return resource.Representation{ID: "native", Revision: "test-schema-revision", Schema: resource.SchemaBinding{State: "absent", Validation: "none", Unvalidated: []string{}}}
 }
+
+func relationshipRequest(source resource.GetRequest, targetTypes ...string) resource.RelationshipResolutionRequest {
+	request := resource.RelationshipResolutionRequest{Source: source, Targets: []resource.ReadTarget{}}
+	for _, targetType := range targetTypes {
+		scope := resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeAny}}
+		switch targetType {
+		case "k8s:/nodes", "k8s:/namespaces", "k8s:/persistentvolumes", "k8s:rbac.authorization.k8s.io/clusterroles", "k8s:rbac.authorization.k8s.io/clusterrolebindings":
+			scope = resource.QueryScope{}
+		}
+		request.Targets = append(request.Targets, resource.ReadTarget{
+			Route: source.Route, Provider: source.Reference.Address.Provider,
+			Authority: "fixture-host-target-authority:" + targetType,
+			Type: targetType, Scope: scope, Representation: "native",
+		})
+	}
+	return request
+}

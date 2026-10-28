@@ -125,20 +125,21 @@ func descriptorByTarget(descriptors []resource.RelationshipDescriptor) map[strin
 	return m
 }
 
-// makeRef inherits source authority and access route without inventing identity.
-func makeRef(source resource.GetRequest, targetType, id, namespace string, uid ...string) resource.RelationshipTarget {
+// makeRef resolves a native link only through a matching host-admitted target.
+// Source authority never establishes authority for another resource Type.
+func makeRef(request resource.RelationshipResolutionRequest, targetType, id, namespace string, uid ...string) (resource.RelationshipTarget, error) {
 	scope := []resource.ScopeEntry{}
-	if namespace != "" {
-		scope = append(scope, resource.ScopeEntry{Dimension: "namespace", Value: namespace})
-	}
+	if namespace != "" { scope = append(scope, resource.ScopeEntry{Dimension: "namespace", Value: namespace}) }
+	binding, err := resource.MatchRelationshipTarget(request, request.Source.Route, request.Source.Reference.Address.Provider, targetType, scope)
+	if err != nil { return resource.RelationshipTarget{}, err }
+	if id == "" { return resource.RelationshipTarget{}, resource.NewError("INVALID_REQUEST", "The native relationship target has no name") }
 	ref := resource.ResourceReference{Address: resource.ResourceAddress{
-		Provider: source.Reference.Address.Provider,
-		Authority: source.Reference.Address.Authority,
-		Type: targetType, ID: id, Scope: scope,
+		Provider: binding.Provider, Authority: binding.Authority,
+		Type: binding.Type, ID: id, Scope: scope,
 	}}
 	if len(uid) > 0 && uid[0] != "" {
 		incarnation := uid[0]
 		ref.Incarnation = &incarnation
 	}
-	return resource.RelationshipTarget{Reference: ref, Route: source.Route, DisplayName: id}
+	return resource.RelationshipTarget{Reference: ref, Route: binding.Route, DisplayName: id}, nil
 }

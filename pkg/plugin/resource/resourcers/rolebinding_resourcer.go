@@ -43,11 +43,11 @@ var roleRefKindToResourceKey = map[string]string{
 func (r *RoleBindingResourcer) ResolveRelationships(
 	ctx context.Context,
 	client *clients.ClientSet,
-	request resource.GetRequest,
+	request resource.RelationshipResolutionRequest,
 ) ([]resource.ResolvedRelationship, error) {
-	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
+	namespace, err := nativeRequestNamespace(request.Source.Reference.Address.Scope)
 	if err != nil { return nil, err }
-	id := request.Reference.Address.ID
+	id := request.Source.Reference.Address.ID
 	rb, err := client.KubeClient.RbacV1().RoleBindings(namespace).Get(ctx, id, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get RoleBinding %s: %w", id, err)
@@ -57,16 +57,17 @@ func (r *RoleBindingResourcer) ResolveRelationships(
 	refName := rb.RoleRef.Name
 
 	resourceKey, ok := roleRefKindToResourceKey[refKind]
-	if !ok || refName == "" {
-		r.log.Debugw("skipping RoleBinding relationship: unmapped roleRef.kind or empty name",
-			"id", id, "namespace", namespace, "roleRef.kind", refKind, "roleRef.name", refName)
-		return nil, nil
+	if refName == "" {
+		return nil, resource.NewError("INVALID_REQUEST", "RoleBinding roleRef requires a name")
+	}
+	if !ok || rb.RoleRef.APIGroup != "rbac.authorization.k8s.io" {
+		return nil, resource.NewError("UNSUPPORTED", "RoleBinding roleRef target is unsupported")
 	}
 
 	byTarget := descriptorByTarget(r.DeclareRelationships())
 	desc, ok := byTarget[resourceKey]
 	if !ok {
-		return nil, fmt.Errorf("missing relationship descriptor for %s (roleRef.kind=%s); ensure WithRelationships(RelationshipTable()[\"k8s:rbac.authorization.k8s.io/rolebindings\"]) is provided", resourceKey, refKind)
+		return nil, resource.NewError("UNSUPPORTED", "RoleBinding relationship descriptor is unavailable")
 	}
 
 	// For ClusterRole targets, the ref is cluster-scoped so namespace is empty.
@@ -75,11 +76,14 @@ func (r *RoleBindingResourcer) ResolveRelationships(
 		targetNamespace = ""
 	}
 
+	target, err := makeRef(request, resourceKey, refName, targetNamespace)
+	if err != nil { return nil, err }
+
 	return []resource.ResolvedRelationship{
 		{
 			Descriptor: desc,
 			Targets: []resource.RelationshipTarget{
-				makeRef(request, resourceKey, refName, targetNamespace),
+				target,
 			},
 		},
 	}, nil

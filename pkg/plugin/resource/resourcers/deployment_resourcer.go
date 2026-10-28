@@ -38,10 +38,11 @@ func NewDeploymentResourcer(logger *zap.SugaredLogger, opts ...Option) *Deployme
 func (d *DeploymentResourcer) ResolveRelationships(
 	ctx context.Context,
 	client *clients.ClientSet,
-	request resource.GetRequest,
+	request resource.RelationshipResolutionRequest,
 ) ([]resource.ResolvedRelationship, error) {
-	id := request.Reference.Address.ID
-	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
+	source := request.Source
+	id := source.Reference.Address.ID
+	namespace, err := nativeRequestNamespace(source.Reference.Address.Scope)
 	if err != nil { return nil, err }
 	dep, err := client.KubeClient.AppsV1().Deployments(namespace).Get(ctx, id, metav1.GetOptions{})
 	if err != nil { return nil, fmt.Errorf("failed to get deployment %s: %w", id, err) }
@@ -52,17 +53,20 @@ func (d *DeploymentResourcer) ResolveRelationships(
 	// ReplicaSet relationships via label selector.
 	if dep.Spec.Selector != nil {
 		selector, err := metav1.LabelSelectorAsSelector(dep.Spec.Selector)
-		if err == nil {
+		if err != nil { return nil, err }
 			rsList, err := client.KubeClient.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{
 				LabelSelector: selector.String(),
 			})
-			if err == nil && len(rsList.Items) > 0 {
+			if err != nil { return nil, fmt.Errorf("failed to list replicasets for deployment %s: %w", id, err) }
+			if len(rsList.Items) > 0 {
 				targets := make([]resource.RelationshipTarget, 0, len(rsList.Items))
 				for _, rs := range rsList.Items {
 					// Only include ReplicaSets owned by this Deployment.
 					for _, ref := range rs.OwnerReferences {
-						if ref.Kind == "Deployment" && ref.Name == id {
-							targets = append(targets, makeRef(request, "k8s:apps/replicasets", rs.Name, namespace, string(rs.UID)))
+						if ref.Kind == "Deployment" && ref.Name == id && dep.UID != "" && ref.UID == dep.UID {
+							target, err := makeRef(request, "k8s:apps/replicasets", rs.Name, namespace, string(rs.UID))
+							if err != nil { return nil, err }
+							targets = append(targets, target)
 							break
 						}
 					}
@@ -74,14 +78,15 @@ func (d *DeploymentResourcer) ResolveRelationships(
 					})
 				}
 			}
-		}
 	}
 
 	// ConfigMap relationships from volumes.
 	if cms := extractVolumeConfigMaps(dep.Spec.Template.Spec); len(cms) > 0 {
 		targets := make([]resource.RelationshipTarget, 0, len(cms))
 		for _, name := range cms {
-			targets = append(targets, makeRef(request, "k8s:/configmaps", name, namespace))
+			target, err := makeRef(request, "k8s:/configmaps", name, namespace)
+			if err != nil { return nil, err }
+			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
 			Descriptor: byTarget["k8s:/configmaps"],
@@ -93,7 +98,9 @@ func (d *DeploymentResourcer) ResolveRelationships(
 	if secrets := extractVolumeSecrets(dep.Spec.Template.Spec); len(secrets) > 0 {
 		targets := make([]resource.RelationshipTarget, 0, len(secrets))
 		for _, name := range secrets {
-			targets = append(targets, makeRef(request, "k8s:/secrets", name, namespace))
+			target, err := makeRef(request, "k8s:/secrets", name, namespace)
+			if err != nil { return nil, err }
+			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
 			Descriptor: byTarget["k8s:/secrets"],
