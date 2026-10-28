@@ -1,6 +1,8 @@
 import { type ColumnDef, type VisibilityState } from '@tanstack/react-table';
 import React from 'react';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 type Props = {
   pluginID?: string;
   resourceKey: string;
@@ -25,7 +27,7 @@ const fromColumnDefs = (defs: Array<ColumnDef<Record<string, unknown>>>): Visibi
  * Sets a specific column visibility from the local storage state
  * using saved defaults and the column def's default visibility.
  */
-const useColumnVisibility = ({ pluginID = 'kubernetes', resourceKey, columnDefs }: Props) => {
+const useColumnVisibility = ({ pluginID = PLUGIN_ID, resourceKey, columnDefs }: Props) => {
   const initialColumnVisibility = React.useMemo(() => fromColumnDefs(columnDefs), [columnDefs]);
   const state = React.useState<VisibilityState>(initialColumnVisibility);
 

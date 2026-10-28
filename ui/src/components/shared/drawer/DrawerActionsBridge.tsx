@@ -9,12 +9,13 @@ import {
 } from '@omniviewdev/runtime';
 import React from 'react';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 import { useClusterPreferences } from '../../../hooks/useClusterPreferences';
 import ScaleModal from '../../kubernetes/actions/ScaleModal';
 
 import { type DrawerActionDeps, registerDrawerActionDeps, registryKey, type ScaleTarget } from './actionDeps';
 
-const PLUGIN_ID = 'kubernetes';
 
 /** Mounts the hook-backed handlers that drawer actions use; see `actionDeps.ts`. */
 type BridgeProps = {

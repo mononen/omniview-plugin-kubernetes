@@ -1,6 +1,7 @@
 import { Text } from '@omniviewdev/base-ui';
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import type { metric } from '@omniviewdev/runtime/models';
+
 import { MetricsPanel } from '../../../components/shared/charts';
 import type {
   TimeSeriesDef,
@@ -19,6 +20,8 @@ import {
   LuTriangleAlert,
 } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
+
+import { PLUGIN_ID } from '@/pluginId';
 
 import { useClusterPreferences } from '../../../hooks/useClusterPreferences';
 
@@ -252,7 +255,7 @@ const ClusterDashboardMetricsPage: React.FC = () => {
     to: new Date(),
   }));
 
-  const { connectionOverrides } = useClusterPreferences('kubernetes');
+  const { connectionOverrides } = useClusterPreferences(PLUGIN_ID);
   const metricConfig = connectionOverrides[id]?.metricConfig;
 
   const resourceData = useMemo(() => {
@@ -298,7 +301,7 @@ const ClusterDashboardMetricsPage: React.FC = () => {
     providers,
     isLoading,
   } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID: id,
     resourceKey: 'cluster::metrics',
     resourceID: '',
@@ -315,7 +318,7 @@ const ClusterDashboardMetricsPage: React.FC = () => {
 
   // Instant data for annotations
   const { data: instantData } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID: id,
     resourceKey: 'cluster::metrics',
     resourceID: '',

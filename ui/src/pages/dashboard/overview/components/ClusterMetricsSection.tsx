@@ -1,5 +1,7 @@
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import type { metric } from '@omniviewdev/runtime/models';
+import { PLUGIN_ID } from '@/pluginId';
+
 import { MetricsPanel } from '../../../../components/shared/charts';
 import type {
   TimeSeriesDef,
@@ -313,7 +315,7 @@ const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
     providers,
     isLoading,
   } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceKey: 'cluster::metrics',
     resourceID: '',
@@ -331,7 +333,7 @@ const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
 
   // Instant query for annotation values (capacity lines)
   const { data: instantData } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceKey: 'cluster::metrics',
     resourceID: '',

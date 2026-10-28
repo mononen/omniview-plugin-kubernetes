@@ -6,6 +6,7 @@ import { LuTag, LuStickyNote } from 'react-icons/lu';
 
 import { type KubernetesResourceObject } from '../../../types/resource';
 import { useStoredState } from '@/hooks/useStoredState';
+import { PLUGIN_ID } from '@/pluginId';
 
 type Args = {
   connectionID: string;
@@ -31,7 +32,7 @@ export const useDynamicResourceColumns = <T extends KubernetesResourceObject>({
   );
 
   const { resources } = useResources({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceKey,
     idAccessor: 'metadata.uid',

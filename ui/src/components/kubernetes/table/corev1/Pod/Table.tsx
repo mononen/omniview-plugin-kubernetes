@@ -8,6 +8,8 @@ import React from 'react';
 import { LuContainer } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 import { usePodMetricsBatch } from '../../../../../hooks/usePodMetricsBatch';
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -95,7 +97,7 @@ const PodTable: React.FC = () => {
               if (!ownerKey) {
                 return (
                   <ResourceLinkCell
-                    pluginID="kubernetes"
+                    pluginID={PLUGIN_ID}
                     connectionId={id}
                     resourceId={refs[0].name}
                     resourceKey={`${refs[0].apiVersion?.replace('/', '::')}::${ownerKind}`}
@@ -106,7 +108,7 @@ const PodTable: React.FC = () => {
               }
               return (
                 <ResourceLinkCell
-                  pluginID="kubernetes"
+                  pluginID={PLUGIN_ID}
                   connectionId={id}
                   resourceId={refs[0].name}
                   resourceKey={ownerKey}
@@ -125,7 +127,7 @@ const PodTable: React.FC = () => {
             size: 150,
             cell: ({ getValue }) => (
               <ResourceLinkCell
-                pluginID="kubernetes"
+                pluginID={PLUGIN_ID}
                 connectionId={id}
                 resourceId={getValue() as string}
                 resourceKey="core::v1::Node"
@@ -172,7 +174,7 @@ const PodTable: React.FC = () => {
             size: 120,
             cell: ({ getValue, row }) => (
               <ResourceLinkCell
-                pluginID="kubernetes"
+                pluginID={PLUGIN_ID}
                 connectionId={id}
                 resourceId={getValue() as string}
                 resourceKey={'core::v1::ServiceAccount'}

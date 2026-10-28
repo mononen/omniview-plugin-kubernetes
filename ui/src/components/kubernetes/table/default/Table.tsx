@@ -4,6 +4,8 @@ import React from 'react';
 import { LuContainer } from 'react-icons/lu';
 import { useParams } from 'react-router-dom';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 import { KubernetesResourceObject } from '../../../../types/resource';
 import { createStandardViews } from '../../../shared/sidebar/createDrawerViews';
 import GenericResourceSidebar from '../../../shared/sidebar/GenericResourceSidebar';
@@ -29,9 +31,9 @@ const DefaultTable: React.FC = () => {
   const SidebarComponent = React.useMemo(
     () =>
       sidebarEP?.provide({
-        pluginId: 'kubernetes',
+        pluginId: PLUGIN_ID,
         resourceKey: key,
-        getCacheKey: () => JSON.stringify({ pluginId: 'kubernetes', resourceKey: key }),
+        getCacheKey: () => JSON.stringify({ pluginId: PLUGIN_ID, resourceKey: key }),
       })[0] ?? GenericResourceSidebar,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [sidebarEP, sidebarEP?.version, key],
