@@ -24,7 +24,7 @@ export const ResourceQuotaSidebar: React.FC<Props> = ({ ctx }) => {
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
-      <ObjectMetaSection data={rq.metadata} connectionID={ctx.resource?.connectionID} />
+      <ObjectMetaSection data={rq.metadata} connectionID={ctx.resource?.route.connection} />
 
       <QuotaUsageTable hard={hard} used={used} />
 

@@ -10,7 +10,7 @@ import ResourceTable from '../../../../shared/table/ResourceTable';
 import { CopyableCell } from '../../shared/cells/CopyableCell';
 import { withClusterResourceColumns } from '../../shared/columns';
 
-const resourceKey = 'scheduling::v1::PriorityClass';
+const resourceKey = 'k8s:scheduling.k8s.io/priorityclasses';
 
 const PriorityClassTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -62,7 +62,7 @@ const PriorityClassTable: React.FC = () => {
           title: 'Editor',
           icon: <LuCode />,
           component: (ctx) => (
-            <BaseEditorPage data={ctx.data || {}} resourceKey={ctx.resource?.key} />
+            <BaseEditorPage data={ctx.data || {}} resourceKey={ctx.resource?.reference.address.type} />
           ),
         },
       ],
@@ -76,7 +76,6 @@ const PriorityClassTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

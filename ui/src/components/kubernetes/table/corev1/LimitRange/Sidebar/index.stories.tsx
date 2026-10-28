@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { LimitRange } from 'kubernetes-types/core/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="core::v1::LimitRange"
+        type="k8s:/limitranges"
         icon="LuGauge"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: {
-      data: data as unknown as LimitRange,
-      resource: { connectionID: 'ctx-1', id: 'default-limits', key: 'core::v1::LimitRange' },
-    },
+    ctx: { data: data as unknown as LimitRange, resource: fixtureResource('k8s:/limitranges', data as unknown as LimitRange, 'ctx-1', 'default-limits') },
   },
   decorators: withDrawer(data.metadata.name),
 };

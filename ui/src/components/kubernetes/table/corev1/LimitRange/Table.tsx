@@ -14,7 +14,7 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import LimitRangeSidebar from './Sidebar';
 
-const resourceKey = 'core::v1::LimitRange';
+const resourceKey = 'k8s:/limitranges';
 
 const LimitRangeTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -107,7 +107,6 @@ const LimitRangeTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

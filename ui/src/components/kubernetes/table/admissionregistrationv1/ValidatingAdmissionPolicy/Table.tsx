@@ -11,7 +11,7 @@ import { withClusterResourceColumns } from '../../shared/columns';
 
 import ValidatingAdmissionPolicySidebar from './Sidebar';
 
-const resourceKey = 'admissionregistration::v1::ValidatingAdmissionPolicy';
+const resourceKey = 'k8s:admissionregistration.k8s.io/validatingadmissionpolicies';
 
 const ValidatingAdmissionPolicyTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -62,7 +62,6 @@ const ValidatingAdmissionPolicyTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

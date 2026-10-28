@@ -15,7 +15,7 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 
 const scrollRowStyle = { gap: 2 } as const;
 
-const resourceKey = 'core::v1::Secret';
+const resourceKey = 'k8s:/secrets';
 
 const SecretTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -84,7 +84,6 @@ const SecretTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

@@ -1,10 +1,10 @@
-import { type DrawerComponentAction, type DrawerContext, type DrawerComponentActionListItem } from '@omniviewdev/runtime';
+import { jsonToValue, type DrawerComponentAction, type DrawerContext, type DrawerComponentActionListItem } from '@omniviewdev/runtime'
 import type { Deployment } from 'kubernetes-types/apps/v1';
 import { LuLogs, LuPause, LuPlay, LuRefreshCw, LuScaling, LuTrash } from 'react-icons/lu';
 
 import { drawerActionDeps } from '../../../../shared/drawer/actionDeps';
 
-const resourceKey = 'apps::v1::Deployment';
+const resourceKey = 'k8s:apps/deployments';
 
 /** Drawer header and row menu actions for Deployments. Handlers come from `drawerActionDeps`. */
 export const drawerActions: Array<DrawerComponentAction<Deployment>> = [
@@ -28,12 +28,7 @@ export const drawerActions: Array<DrawerComponentAction<Deployment>> = [
         confirmLabel: 'Restart',
         cancelLabel: 'Cancel',
         onConfirm: async () => {
-          await drawerActionDeps(ctx).startStreamAction({
-            actionID: 'restart',
-            id: ctx.data?.metadata?.name as string,
-            namespace: ctx.data?.metadata?.namespace as string,
-            label: `Restart ${ctx.data?.metadata?.name}`,
-          });
+          await drawerActionDeps(ctx).startStreamAction({ request: { route: ctx.resource!.route, reference: ctx.resource!.reference, action: 'restart', input: { kind: 'map', value: {} } }, label: `Restart ${ctx.data?.metadata?.name}` });
           drawerActionDeps(ctx).closeDrawer();
         },
       });
@@ -43,11 +38,9 @@ export const drawerActions: Array<DrawerComponentAction<Deployment>> = [
     title: 'Scale',
     icon: <LuScaling />,
     action: (ctx) => {
-      drawerActionDeps(ctx).openScale({
-        name: ctx.data?.metadata?.name as string,
-        namespace: ctx.data?.metadata?.namespace as string,
-        replicas: ctx.data?.spec?.replicas ?? 1,
-      });
+      drawerActionDeps(ctx).openScale({ resource: ctx.resource!, name: ctx.data?.metadata?.name as string,
+      namespace: ctx.data?.metadata?.namespace as string,
+      replicas: ctx.data?.spec?.replicas ?? 1, });
     },
   },
   {
@@ -65,11 +58,7 @@ export const drawerActions: Array<DrawerComponentAction<Deployment>> = [
         confirmLabel: 'Pause',
         cancelLabel: 'Cancel',
         onConfirm: async () => {
-          await drawerActionDeps(ctx).executeAction({
-            actionID: 'pause',
-            id: ctx.data?.metadata?.name as string,
-            namespace: ctx.data?.metadata?.namespace as string,
-          });
+          await drawerActionDeps(ctx).executeAction({ route: ctx.resource!.route, reference: ctx.resource!.reference, action: 'pause', input: { kind: 'map', value: {} } });
           drawerActionDeps(ctx).closeDrawer();
         },
       });
@@ -90,11 +79,7 @@ export const drawerActions: Array<DrawerComponentAction<Deployment>> = [
         confirmLabel: 'Resume',
         cancelLabel: 'Cancel',
         onConfirm: async () => {
-          await drawerActionDeps(ctx).executeAction({
-            actionID: 'resume',
-            id: ctx.data?.metadata?.name as string,
-            namespace: ctx.data?.metadata?.namespace as string,
-          });
+          await drawerActionDeps(ctx).executeAction({ route: ctx.resource!.route, reference: ctx.resource!.reference, action: 'resume', input: { kind: 'map', value: {} } });
           drawerActionDeps(ctx).closeDrawer();
         },
       });
@@ -120,15 +105,7 @@ export const drawerActions: Array<DrawerComponentAction<Deployment>> = [
         confirmLabel: 'Delete',
         cancelLabel: 'Cancel',
         onConfirm: async () => {
-          await drawerActionDeps(ctx).remove({
-            opts: {
-              connectionID: ctx.resource?.connectionID ?? '',
-              resourceKey,
-              resourceID: ctx.data?.metadata?.name as string,
-              namespace: ctx.data?.metadata?.namespace as string,
-            },
-            input: {},
-          });
+          await drawerActionDeps(ctx).mutate({ route: ctx.resource!.route, reference: ctx.resource!.reference, operation: 'delete', input: { kind: 'map', value: {} } });
           drawerActionDeps(ctx).closeDrawer();
         },
       });
@@ -147,7 +124,7 @@ export const drawerActions: Array<DrawerComponentAction<Deployment>> = [
         title: 'All Containers',
         action: () => {
           return drawerActionDeps(ctx).createLogSession({
-            connectionID: ctx.resource?.connectionID ?? '',
+            connectionID: ctx.resource?.route.connection ?? '',
             resourceKey,
             resourceID: ctx.data?.metadata?.name as string,
             resourceData: ctx.data as Record<string, never>,
@@ -164,7 +141,7 @@ export const drawerActions: Array<DrawerComponentAction<Deployment>> = [
           title: container.name,
           action: () => {
             return drawerActionDeps(ctx).createLogSession({
-              connectionID: ctx.resource?.connectionID ?? '',
+              connectionID: ctx.resource?.route.connection ?? '',
               resourceKey,
               resourceID: ctx.data?.metadata?.name as string,
               resourceData: ctx.data as Record<string, never>,
@@ -185,17 +162,6 @@ export const drawerActions: Array<DrawerComponentAction<Deployment>> = [
 /** Saves the Editor view's changes. */
 export const editorSubmit = (ctx: DrawerContext<Deployment>, value: Record<string, unknown>) => {
   const deps = drawerActionDeps(ctx);
-  void deps
-    .update({
-      opts: {
-        connectionID: ctx.resource?.connectionID ?? '',
-        resourceKey,
-        resourceID: ctx.data?.metadata?.name as string,
-        namespace: ctx.data?.metadata?.namespace as string,
-      },
-      input: {
-        input: value,
-      },
-    })
+  void deps.mutate({ route: ctx.resource!.route, reference: ctx.resource!.reference, operation: 'update', input: jsonToValue(value), expectedRevision: ctx.resource?.record?.record.sourceRevision })
     .then(() => deps.closeDrawer());
 };

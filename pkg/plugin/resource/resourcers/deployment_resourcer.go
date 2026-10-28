@@ -2,13 +2,11 @@ package resourcers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,14 +20,6 @@ type DeploymentResourcer struct {
 	*KubernetesResourcerBase[MetaAccessor]
 	log *zap.SugaredLogger
 }
-
-// Compile-time interface checks.
-var (
-	_ resource.Resourcer[clients.ClientSet]            = (*DeploymentResourcer)(nil)
-	_ resource.ActionResourcer[clients.ClientSet]      = (*DeploymentResourcer)(nil)
-	_ resource.RelationshipDeclarer                    = (*DeploymentResourcer)(nil)
-	_ resource.RelationshipResolver[clients.ClientSet] = (*DeploymentResourcer)(nil)
-)
 
 // NewDeploymentResourcer creates a DeploymentResourcer for apps::v1::Deployment.
 func NewDeploymentResourcer(logger *zap.SugaredLogger, opts ...Option) *DeploymentResourcer {
@@ -48,19 +38,13 @@ func NewDeploymentResourcer(logger *zap.SugaredLogger, opts ...Option) *Deployme
 func (d *DeploymentResourcer) ResolveRelationships(
 	ctx context.Context,
 	client *clients.ClientSet,
-	meta resource.ResourceMeta,
-	id string,
-	namespace string,
+	request resource.GetRequest,
 ) ([]resource.ResolvedRelationship, error) {
-	result, err := d.Get(ctx, client, meta, resource.GetInput{ID: id, Namespace: namespace})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get deployment %s: %w", id, err)
-	}
-
-	var dep appsv1.Deployment
-	if err := json.Unmarshal(result.Result, &dep); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal deployment: %w", err)
-	}
+	id := request.Reference.Address.ID
+	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
+	if err != nil { return nil, err }
+	dep, err := client.KubeClient.AppsV1().Deployments(namespace).Get(ctx, id, metav1.GetOptions{})
+	if err != nil { return nil, fmt.Errorf("failed to get deployment %s: %w", id, err) }
 
 	var rels []resource.ResolvedRelationship
 	byTarget := descriptorByTarget(d.DeclareRelationships())
@@ -73,19 +57,19 @@ func (d *DeploymentResourcer) ResolveRelationships(
 				LabelSelector: selector.String(),
 			})
 			if err == nil && len(rsList.Items) > 0 {
-				targets := make([]resource.ResourceRef, 0, len(rsList.Items))
+				targets := make([]resource.RelationshipTarget, 0, len(rsList.Items))
 				for _, rs := range rsList.Items {
 					// Only include ReplicaSets owned by this Deployment.
 					for _, ref := range rs.OwnerReferences {
 						if ref.Kind == "Deployment" && ref.Name == id {
-							targets = append(targets, makeRef("apps::v1::ReplicaSet", rs.Name, namespace))
+							targets = append(targets, makeRef(request, "k8s:apps/replicasets", rs.Name, namespace, string(rs.UID)))
 							break
 						}
 					}
 				}
 				if len(targets) > 0 {
 					rels = append(rels, resource.ResolvedRelationship{
-						Descriptor: byTarget["apps::v1::ReplicaSet"],
+						Descriptor: byTarget["k8s:apps/replicasets"],
 						Targets:    targets,
 					})
 				}
@@ -95,24 +79,24 @@ func (d *DeploymentResourcer) ResolveRelationships(
 
 	// ConfigMap relationships from volumes.
 	if cms := extractVolumeConfigMaps(dep.Spec.Template.Spec); len(cms) > 0 {
-		targets := make([]resource.ResourceRef, 0, len(cms))
+		targets := make([]resource.RelationshipTarget, 0, len(cms))
 		for _, name := range cms {
-			targets = append(targets, makeRef("core::v1::ConfigMap", name, namespace))
+			targets = append(targets, makeRef(request, "k8s:/configmaps", name, namespace))
 		}
 		rels = append(rels, resource.ResolvedRelationship{
-			Descriptor: byTarget["core::v1::ConfigMap"],
+			Descriptor: byTarget["k8s:/configmaps"],
 			Targets:    targets,
 		})
 	}
 
 	// Secret relationships from volumes.
 	if secrets := extractVolumeSecrets(dep.Spec.Template.Spec); len(secrets) > 0 {
-		targets := make([]resource.ResourceRef, 0, len(secrets))
+		targets := make([]resource.RelationshipTarget, 0, len(secrets))
 		for _, name := range secrets {
-			targets = append(targets, makeRef("core::v1::Secret", name, namespace))
+			targets = append(targets, makeRef(request, "k8s:/secrets", name, namespace))
 		}
 		rels = append(rels, resource.ResolvedRelationship{
-			Descriptor: byTarget["core::v1::Secret"],
+			Descriptor: byTarget["k8s:/secrets"],
 			Targets:    targets,
 		})
 	}
@@ -125,7 +109,6 @@ func (d *DeploymentResourcer) ResolveRelationships(
 func (d *DeploymentResourcer) GetActions(
 	_ context.Context,
 	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
 ) ([]resource.ActionDescriptor, error) {
 	return []resource.ActionDescriptor{
 		{
@@ -170,11 +153,9 @@ func (d *DeploymentResourcer) GetActions(
 func (d *DeploymentResourcer) ExecuteAction(
 	ctx context.Context,
 	client *clients.ClientSet,
-	_ resource.ResourceMeta,
-	actionID string,
-	input resource.ActionInput,
-) (*resource.ActionResult, error) {
-	switch actionID {
+	input resource.ActionRequest,
+) (resource.Value, error) {
+	switch input.Action {
 	case "restart":
 		return d.executeRestart(ctx, client, input)
 	case "scale":
@@ -184,19 +165,17 @@ func (d *DeploymentResourcer) ExecuteAction(
 	case "resume":
 		return d.executePauseResume(ctx, client, input, false)
 	default:
-		return nil, fmt.Errorf("unknown action: %s", actionID)
+		return resource.Value{}, fmt.Errorf("unknown action: %s", input.Action)
 	}
 }
 
 func (d *DeploymentResourcer) StreamAction(
 	ctx context.Context,
 	client *clients.ClientSet,
-	_ resource.ResourceMeta,
-	actionID string,
-	input resource.ActionInput,
+	input resource.ActionRequest,
 	stream chan<- resource.ActionEvent,
 ) error {
-	switch actionID {
+	switch input.Action {
 	case "restart":
 		return d.streamRestart(ctx, client, input, stream)
 	default:
@@ -210,58 +189,66 @@ func (d *DeploymentResourcer) StreamAction(
 func (d *DeploymentResourcer) executeRestart(
 	ctx context.Context,
 	client *clients.ClientSet,
-	input resource.ActionInput,
-) (*resource.ActionResult, error) {
+	input resource.ActionRequest,
+) (resource.Value, error) {
+	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
+	if scopeErr != nil { return resource.Value{}, scopeErr }
 	patch := fmt.Sprintf(
 		`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`,
 		time.Now().Format(time.RFC3339),
 	)
-	_, err := client.KubeClient.AppsV1().Deployments(input.Namespace).Patch(
-		ctx, input.ID, k8stypes.StrategicMergePatchType,
-		[]byte(patch), metav1.PatchOptions{},
+	_, err := client.KubeClient.AppsV1().Deployments(namespace).Patch(
+		ctx, input.Reference.Address.ID, k8stypes.StrategicMergePatchType,
+		nativeActionPatch(input, patch), metav1.PatchOptions{},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to restart deployment %s: %w", input.ID, err)
+		return resource.Value{}, fmt.Errorf("failed to restart deployment %s: %w", input.Reference.Address.ID, err)
 	}
 
-	return &resource.ActionResult{
-		Success: true,
-		Message: fmt.Sprintf("Rollout restart initiated for deployment %s", input.ID),
-	}, nil
+	return resource.ValueFromNative(map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Rollout restart initiated for deployment %s", input.Reference.Address.ID),
+	})
 }
 
 // streamRestart patches the annotation then watches for rollout completion.
 func (d *DeploymentResourcer) streamRestart(
 	ctx context.Context,
 	client *clients.ClientSet,
-	input resource.ActionInput,
+	input resource.ActionRequest,
 	stream chan<- resource.ActionEvent,
 ) error {
-	defer close(stream)
+	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
+	if scopeErr != nil { return scopeErr }
 
 	// Patch to trigger restart.
 	patch := fmt.Sprintf(
 		`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`,
 		time.Now().Format(time.RFC3339),
 	)
-	_, err := client.KubeClient.AppsV1().Deployments(input.Namespace).Patch(
-		ctx, input.ID, k8stypes.StrategicMergePatchType,
-		[]byte(patch), metav1.PatchOptions{},
+	_, err := client.KubeClient.AppsV1().Deployments(namespace).Patch(
+		ctx, input.Reference.Address.ID, k8stypes.StrategicMergePatchType,
+		nativeActionPatch(input, patch), metav1.PatchOptions{},
 	)
 	if err != nil {
 		return err
 	}
 
 	// Watch the deployment for rollout completion.
-	watcher, err := client.KubeClient.AppsV1().Deployments(input.Namespace).Watch(
+	watcher, err := client.KubeClient.AppsV1().Deployments(namespace).Watch(
 		ctx, metav1.ListOptions{
-			FieldSelector: fmt.Sprintf("metadata.name=%s", input.ID),
+			FieldSelector: fmt.Sprintf("metadata.name=%s", input.Reference.Address.ID),
 		},
 	)
 	if err != nil {
 		return err
 	}
 	defer watcher.Stop()
+	if input.Reference.Incarnation != nil {
+		current, err := client.KubeClient.AppsV1().Deployments(namespace).Get(ctx, input.Reference.Address.ID, metav1.GetOptions{})
+		if err != nil { return err }
+		if err := nativeActionObjectMatches(input, current); err != nil { return err }
+	}
 	select {
 	case stream <- resource.ActionEvent{Type: "ready"}:
 	case <-ctx.Done():
@@ -281,6 +268,9 @@ func (d *DeploymentResourcer) streamRestart(
 			if !ok {
 				return fmt.Errorf("watch channel closed")
 			}
+			if object, ok := event.Object.(metav1.Object); ok {
+				if err := nativeActionObjectMatches(input, object); err != nil { return err }
+			}
 			if event.Type != watch.Modified {
 				continue
 			}
@@ -294,13 +284,15 @@ func (d *DeploymentResourcer) streamRestart(
 				desired = *dep.Spec.Replicas
 			}
 
-			select {
-			case stream <- resource.ActionEvent{Type: "progress", Data: map[string]interface{}{
+			progress, err := nativeActionEventValue(map[string]interface{}{
 				"ready":   dep.Status.AvailableReplicas,
 				"desired": desired,
 				"updated": dep.Status.UpdatedReplicas,
 				"message": fmt.Sprintf("%d/%d replicas ready", dep.Status.AvailableReplicas, desired),
-			}}:
+			})
+			if err != nil { return err }
+			select {
+			case stream <- resource.ActionEvent{Type: "progress", Data: progress}:
 			case <-ctx.Done():
 				return ctx.Err()
 			}
@@ -308,10 +300,12 @@ func (d *DeploymentResourcer) streamRestart(
 			if dep.Status.UpdatedReplicas == desired &&
 				dep.Status.AvailableReplicas == desired &&
 				dep.Status.Replicas == desired {
+				complete, err := nativeActionEventValue(map[string]interface{}{
+					"message": fmt.Sprintf("Deployment %s successfully restarted", input.Reference.Address.ID),
+				})
+				if err != nil { return err }
 				select {
-				case stream <- resource.ActionEvent{Type: "complete", Data: map[string]interface{}{
-					"message": fmt.Sprintf("Deployment %s successfully restarted", input.ID),
-				}}:
+				case stream <- resource.ActionEvent{Type: "complete", Data: complete}:
 				case <-ctx.Done():
 					return ctx.Err()
 				}
@@ -325,58 +319,58 @@ func (d *DeploymentResourcer) streamRestart(
 func (d *DeploymentResourcer) executeScale(
 	ctx context.Context,
 	client *clients.ClientSet,
-	input resource.ActionInput,
-) (*resource.ActionResult, error) {
-	replicas, ok := input.Params["replicas"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("replicas parameter is required and must be a number")
-	}
-	if replicas != math.Trunc(replicas) || replicas < 0 || replicas > math.MaxInt32 {
-		return nil, fmt.Errorf("replicas must be a non-negative whole number")
-	}
-
+	input resource.ActionRequest,
+) (resource.Value, error) {
+	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
+	if scopeErr != nil { return resource.Value{}, scopeErr }
+	params, paramsErr := nativeActionParams(input.Input)
+	if paramsErr != nil { return resource.Value{}, paramsErr }
+	replicas, parseErr := nativeActionInteger(params["replicas"], 0, 2147483647)
+	if parseErr != nil { return resource.Value{}, fmt.Errorf("replicas: %w", parseErr) }
 	replicaCount := int32(replicas)
 	patch := fmt.Sprintf(`{"spec":{"replicas":%d}}`, replicaCount)
-	_, err := client.KubeClient.AppsV1().Deployments(input.Namespace).Patch(
-		ctx, input.ID, k8stypes.StrategicMergePatchType,
-		[]byte(patch), metav1.PatchOptions{},
+	_, err := client.KubeClient.AppsV1().Deployments(namespace).Patch(
+		ctx, input.Reference.Address.ID, k8stypes.StrategicMergePatchType,
+		nativeActionPatch(input, patch), metav1.PatchOptions{},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to scale deployment %s: %w", input.ID, err)
+		return resource.Value{}, fmt.Errorf("failed to scale deployment %s: %w", input.Reference.Address.ID, err)
 	}
 
-	return &resource.ActionResult{
-		Success: true,
-		Message: fmt.Sprintf("Deployment %s scaled to %d replicas", input.ID, replicaCount),
-	}, nil
+	return resource.ValueFromNative(map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Deployment %s scaled to %d replicas", input.Reference.Address.ID, replicaCount),
+	})
 }
 
 // executePauseResume patches spec.paused on the deployment.
 func (d *DeploymentResourcer) executePauseResume(
 	ctx context.Context,
 	client *clients.ClientSet,
-	input resource.ActionInput,
+	input resource.ActionRequest,
 	paused bool,
-) (*resource.ActionResult, error) {
+) (resource.Value, error) {
+	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
+	if scopeErr != nil { return resource.Value{}, scopeErr }
 	patch := fmt.Sprintf(`{"spec":{"paused":%t}}`, paused)
-	_, err := client.KubeClient.AppsV1().Deployments(input.Namespace).Patch(
-		ctx, input.ID, k8stypes.StrategicMergePatchType,
-		[]byte(patch), metav1.PatchOptions{},
+	_, err := client.KubeClient.AppsV1().Deployments(namespace).Patch(
+		ctx, input.Reference.Address.ID, k8stypes.StrategicMergePatchType,
+		nativeActionPatch(input, patch), metav1.PatchOptions{},
 	)
 	if err != nil {
 		verb := "pause"
 		if !paused {
 			verb = "resume"
 		}
-		return nil, fmt.Errorf("failed to %s deployment %s: %w", verb, input.ID, err)
+		return resource.Value{}, fmt.Errorf("failed to %s deployment %s: %w", verb, input.Reference.Address.ID, err)
 	}
 
 	verb := "paused"
 	if !paused {
 		verb = "resumed"
 	}
-	return &resource.ActionResult{
-		Success: true,
-		Message: fmt.Sprintf("Deployment %s rollout %s", input.ID, verb),
-	}, nil
+	return resource.ValueFromNative(map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Deployment %s rollout %s", input.Reference.Address.ID, verb),
+	})
 }

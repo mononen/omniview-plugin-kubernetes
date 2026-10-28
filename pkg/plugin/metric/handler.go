@@ -59,22 +59,22 @@ func compositeQuery(
 	if wantAll || hasProm {
 		if req.Shape == sdkmetric.ShapeTimeseries {
 			switch req.ResourceKey {
-			case "core::v1::Pod":
+			case "k8s:/pods":
 				promResp, promErr = promClient.queryPodPrometheusTimeseries(qctx, req)
-			case "core::v1::Node":
+			case "k8s:/nodes":
 				promResp, promErr = promClient.queryNodePrometheusTimeseries(qctx, req)
 			case "cluster::metrics":
 				promResp, promErr = promClient.queryClusterPrometheusTimeseries(qctx, req)
 			}
 		} else {
 			switch req.ResourceKey {
-			case "core::v1::Pod":
+			case "k8s:/pods":
 				if req.ResourceID == "" {
 					promResp, promErr = promClient.queryAllPodPrometheus(qctx, req)
 				} else {
 					promResp, promErr = promClient.queryPodPrometheus(qctx, req)
 				}
-			case "core::v1::Node":
+			case "k8s:/nodes":
 				promResp, promErr = promClient.queryNodePrometheus(qctx, req)
 			}
 		}
@@ -119,9 +119,9 @@ func mergeResponses(
 // queryMetricsServer handles metric queries using the Kubernetes metrics-server API.
 func queryMetricsServer(qctx *sdkmetric.QueryContext, req sdkmetric.QueryRequest) (*sdkmetric.QueryResponse, error) {
 	switch req.ResourceKey {
-	case "core::v1::Pod":
+	case "k8s:/pods":
 		return queryPodMetrics(qctx, req)
-	case "core::v1::Node":
+	case "k8s:/nodes":
 		return queryNodeMetrics(qctx, req)
 	default:
 		return &sdkmetric.QueryResponse{

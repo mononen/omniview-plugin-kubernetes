@@ -16,7 +16,7 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import CSIDriverSidebar from './Sidebar';
 
-const resourceKey = 'storage::v1::CSIDriver';
+const resourceKey = 'k8s:storage.k8s.io/csidrivers';
 
 const CSIDriverTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -127,7 +127,6 @@ Note: Audience in each TokenRequest should be different and at most one token is
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );

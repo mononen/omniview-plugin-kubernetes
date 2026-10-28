@@ -2,10 +2,10 @@ import { IconButton, Menu } from '@omniviewdev/base-ui';
 import {
   type DrawerComponentAction,
   type DrawerContext,
+  type HostRecord,
   useConfirmationModal,
 } from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
-import { type resource } from '@omniviewdev/runtime/models';
 import { ObjectMeta } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuEllipsis, LuTrash } from 'react-icons/lu';
@@ -69,15 +69,17 @@ type Props = {
  * Build a DrawerContext from the table cell props so drawer actions
  * can be invoked with the correct row data.
  */
-function buildDrawerContext(props: Props): DrawerContext {
-  const meta = (props.data as { metadata?: ObjectMeta })?.metadata;
+function buildDrawerContext(props: Props, record: HostRecord): DrawerContext {
   return {
     data: props.data,
     resource: {
-      id: meta?.name ?? props.resourceID,
-      name: meta?.name ?? props.resourceID,
-      key: props.resourceKey,
-      connectionID: props.connectionID,
+      reference: record.record.reference,
+      route: record.route,
+      representation: record.record.representation.id,
+      targetId: record.targetId,
+      key: record.key,
+      record,
+      name: record.record.reference.address.id,
       pluginID: 'kubernetes',
     },
   };
@@ -160,7 +162,9 @@ function actionsToMenuItems(
 }
 
 const ActionsCell: React.FC<Props> = ({ connectionID, resourceKey, resourceID, data, namespace }) => {
-  const drawer = useTableDrawer();
+  const tableContext = useTableDrawer();
+  const drawer = tableContext?.drawer;
+  const record = tableContext?.recordsByBody.get(data as object);
   const { show } = useConfirmationModal();
 
   const propsObj = React.useMemo<Props>(
@@ -169,11 +173,12 @@ const ActionsCell: React.FC<Props> = ({ connectionID, resourceKey, resourceID, d
   );
 
   const ctx = React.useMemo(
-    () => buildDrawerContext(propsObj),
-    [propsObj],
+    () => record ? buildDrawerContext(propsObj, record) : undefined,
+    [propsObj, record],
   );
 
   const items = React.useMemo<ContextMenuItem[]>(() => {
+    if (!ctx) return [];
     const drawerActions = drawer?.actions;
     if (drawerActions && drawerActions.length > 0) {
       return actionsToMenuItems(drawerActions, ctx);
@@ -215,7 +220,7 @@ const ActionsCell: React.FC<Props> = ({ connectionID, resourceKey, resourceID, d
  */
 function buildFallbackDelete(
   props: Props,
-  _ctx: DrawerContext,
+  ctx: DrawerContext,
   show: ReturnType<typeof useConfirmationModal>['show'],
 ): ContextMenuItem {
   const meta = (props.data as { metadata?: ObjectMeta })?.metadata;
@@ -233,12 +238,12 @@ function buildFallbackDelete(
         confirmLabel: 'Delete',
         cancelLabel: 'Cancel',
         onConfirm: async () => {
-          await ResourceClient.Delete('kubernetes', props.connectionID, props.resourceKey, {
-            id: resourceName,
-            namespace: props.namespace,
-            input: {},
-            params: {},
-          } as unknown as resource.DeleteInput);
+          await ResourceClient.Mutate('kubernetes', {
+            reference: ctx.resource!.reference,
+            route: ctx.resource!.route,
+            operation: 'delete',
+            input: { kind: 'map', value: {} },
+          });
         },
       });
     },

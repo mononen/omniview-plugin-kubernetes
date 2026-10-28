@@ -9,9 +9,9 @@ import (
 func Register(plugin *sdk.Plugin) {
 	logs.RegisterPlugin(plugin, logs.PluginOpts{
 		Handlers: map[string]logs.Handler{
-			"core::v1::Pod": {
+			"k8s:/pods": {
 				Plugin:        "kubernetes",
-				Resource:      "core::v1::Pod",
+				Resource:      "k8s:/pods",
 				Handler:       PodLogHandler,
 				SourceBuilder: PodSourceBuilder,
 				TargetBuilder: logs.ActionTargetBuilder{
@@ -26,12 +26,12 @@ func Register(plugin *sdk.Plugin) {
 			},
 		},
 		SourceResolvers: map[string]logs.SourceResolver{
-			"apps::v1::Deployment":  DeploymentSourceResolver,
-			"apps::v1::StatefulSet": StatefulSetSourceResolver,
-			"apps::v1::DaemonSet":   DaemonSetSourceResolver,
-			"apps::v1::ReplicaSet":  ReplicaSetSourceResolver,
-			"batch::v1::Job":        JobSourceResolver,
-			"batch::v1::CronJob":    CronJobSourceResolver,
+			"k8s:apps/deployments":  DeploymentSourceResolver,
+			"k8s:apps/statefulsets": StatefulSetSourceResolver,
+			"k8s:apps/daemonsets":   DaemonSetSourceResolver,
+			"k8s:apps/replicasets":  ReplicaSetSourceResolver,
+			"k8s:batch/jobs":        JobSourceResolver,
+			"k8s:batch/cronjobs":    CronJobSourceResolver,
 		},
 	})
 }

@@ -16,7 +16,7 @@ import ConfigMapSidebar from './Sidebar';
 
 const scrollRowStyle = { gap: 2 } as const;
 
-const resourceKey = 'core::v1::ConfigMap';
+const resourceKey = 'k8s:/configmaps';
 
 const ConfigMapTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -79,7 +79,6 @@ const ConfigMapTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

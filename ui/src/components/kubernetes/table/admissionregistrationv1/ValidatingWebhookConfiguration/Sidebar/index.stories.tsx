@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ValidatingWebhookConfiguration } from 'kubernetes-types/admissionregistration/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="admissionregistration::v1::ValidatingWebhookConfiguration"
+        type="k8s:admissionregistration.k8s.io/validatingwebhookconfigurations"
         icon="LuShieldCheck"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: {
-      data: data as unknown as ValidatingWebhookConfiguration,
-      resource: { connectionID: 'ctx-1', id: 'pod-policy-validator', key: 'admissionregistration::v1::ValidatingWebhookConfiguration' },
-    },
+    ctx: { data: data as unknown as ValidatingWebhookConfiguration, resource: fixtureResource('k8s:admissionregistration.k8s.io/validatingwebhookconfigurations', data as unknown as ValidatingWebhookConfiguration, 'ctx-1', 'pod-policy-validator') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -64,10 +62,7 @@ const minimalData: ValidatingWebhookConfiguration = {
 
 export const Minimal: Story = {
   args: {
-    ctx: {
-      data: minimalData,
-      resource: { connectionID: 'ctx-1', id: 'minimal-validator', key: 'admissionregistration::v1::ValidatingWebhookConfiguration' },
-    },
+    ctx: { data: minimalData, resource: fixtureResource('k8s:admissionregistration.k8s.io/validatingwebhookconfigurations', minimalData, 'ctx-1', 'minimal-validator') },
   },
   decorators: withDrawer('minimal-validator'),
 };

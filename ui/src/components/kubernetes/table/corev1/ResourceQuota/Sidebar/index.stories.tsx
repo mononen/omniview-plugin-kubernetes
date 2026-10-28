@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ResourceQuota } from 'kubernetes-types/core/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="core::v1::ResourceQuota"
+        type="k8s:/resourcequotas"
         icon="LuGauge"
         title={title}
         open
@@ -36,10 +37,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: {
-      data: data as unknown as ResourceQuota,
-      resource: { connectionID: 'ctx-1', id: 'compute-quota', key: 'core::v1::ResourceQuota' },
-    },
+    ctx: { data: data as unknown as ResourceQuota, resource: fixtureResource('k8s:/resourcequotas', data as unknown as ResourceQuota, 'ctx-1', 'compute-quota') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -57,10 +55,7 @@ const fullUsageData: ResourceQuota = {
 
 export const FullUsage: Story = {
   args: {
-    ctx: {
-      data: fullUsageData,
-      resource: { connectionID: 'ctx-1', id: 'full-quota', key: 'core::v1::ResourceQuota' },
-    },
+    ctx: { data: fullUsageData, resource: fixtureResource('k8s:/resourcequotas', fullUsageData, 'ctx-1', 'full-quota') },
   },
   decorators: withDrawer('full-quota'),
 };

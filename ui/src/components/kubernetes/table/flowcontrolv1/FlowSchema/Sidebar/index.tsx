@@ -26,7 +26,7 @@ export const FlowSchemaSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) return null;
 
   const fs = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
   const spec = fs.spec;
   const conditions = (fs.status?.conditions || []) as Condition[];
   const plcRef = spec?.priorityLevelConfiguration;
@@ -80,7 +80,7 @@ export const FlowSchemaSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={fs.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={fs.metadata} connectionID={ctx.resource?.route.connection} />
 
         <SidebarSection
           title="Configuration"
@@ -97,7 +97,7 @@ export const FlowSchemaSidebar: React.FC<Props> = ({ ctx }) => {
                   <ResourceLinkChip
                     connectionID={connectionID}
                     resourceID={plcRef.name}
-                    resourceKey="flowcontrol::v1::PriorityLevelConfiguration"
+                    resourceKey="k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations"
                     resourceName={plcRef.name}
                   />
                 }

@@ -1,11 +1,13 @@
 import { Button, Dialog, Input, Stack, Text } from '@omniviewdev/base-ui';
-import { useExecuteAction } from '@omniviewdev/runtime';
+import { jsonToValue, useExecuteAction } from '@omniviewdev/runtime';
+import { ResourceClient } from '@omniviewdev/runtime/api';
 import React from 'react';
 import { SiHelm } from 'react-icons/si';
 
 import SimpleSelect from '../../connections/SimpleSelect';
 import CodeEditor from '../../shared/CodeEditor';
 import NamespaceSelect from '../../shared/NamespaceSelect';
+import { helmActionData, helmValues } from '../values';
 
 const dialogStyle: React.CSSProperties = { width: '90%', maxWidth: 900, maxHeight: '90vh' };
 const fieldLabelStyle: React.CSSProperties = { fontWeight: 500 };
@@ -66,21 +68,25 @@ const InstallChartDialog: React.FC<Props> = ({
   );
   const [dryRunManifest, setDryRunManifest] = React.useState<string | null>(null);
 
-  const { executeAction: executeChartAction, isExecuting: isChartExecuting } = useExecuteAction({
-    pluginID: 'kubernetes',
-    connectionID,
-    resourceKey: 'helm::v1::Chart',
-  });
+  const { executeAction, isExecuting } = useExecuteAction({ pluginID: 'kubernetes' });
+  const executeChartAction = async (action: string, input = jsonToValue({})) => {
+    const resolved = await ResourceClient.ResolveReference('kubernetes', {
+      route: { connection: connectionID }, type: 'helm:charts', id: chartID,
+      scope: [{ dimension: 'domain', value: 'helm-client' }],
+    });
+    return executeAction({ route: resolved.route, reference: resolved.reference, action, input });
+  };
+  const executeReleaseAction = async (action: string) => {
+    const resolved = await ResourceClient.ResolveReference('kubernetes', {
+      route: { connection: connectionID }, type: 'helm:releases', id: releaseName,
+      scope: [{ dimension: 'namespace', value: namespace }],
+    });
+    return executeAction({
+      route: resolved.route, reference: resolved.reference, action,
+      input: jsonToValue({ chart: chartID, version, values: helmValues(values) }),
+    });
+  };
 
-  const { executeAction: executeReleaseAction, isExecuting: isReleaseExecuting } = useExecuteAction(
-    {
-      pluginID: 'kubernetes',
-      connectionID,
-      resourceKey: 'helm::v1::Release',
-    },
-  );
-
-  const isExecuting = isChartExecuting || isReleaseExecuting;
 
   // Load default values and versions on open
   React.useEffect(() => {
@@ -92,24 +98,17 @@ const InstallChartDialog: React.FC<Props> = ({
     }
 
     // Load default values
-    void executeChartAction({
-      actionID: 'get-values',
-      id: chartID,
-      params: initialVersion ? { version: initialVersion } : undefined,
-    })
+    void executeChartAction('get-values', jsonToValue(initialVersion ? { version: initialVersion } : {}))
       .then((result) => {
-        const valuesData = result?.data as ChartValuesData | undefined;
+        const valuesData = helmActionData(result) as ChartValuesData | undefined;
         setValues(valuesData?.values ?? '');
       })
       .catch(() => {});
 
     // Load versions
-    void executeChartAction({
-      actionID: 'get-versions',
-      id: chartID,
-    })
+    void executeChartAction('get-versions')
       .then((result) => {
-        const versionsData = result?.data as ChartVersionsData | undefined;
+        const versionsData = helmActionData(result) as ChartVersionsData | undefined;
         const versionList = versionsData?.versions ?? [];
         setVersions(versionList);
         if (versionList.length > 0 && !version && !initialVersion) {
@@ -126,18 +125,8 @@ const InstallChartDialog: React.FC<Props> = ({
 
   const handleDryRun = async () => {
     try {
-      const result = await executeReleaseAction({
-        actionID: 'dry-run-install',
-        id: '',
-        namespace,
-        params: {
-          chart: chartID,
-          name: releaseName,
-          namespace,
-          version,
-        },
-      });
-      const dryRunData = result?.data as DryRunInstallData | undefined;
+      const result = await executeReleaseAction('dry-run-install');
+      const dryRunData = helmActionData(result) as DryRunInstallData | undefined;
       setDryRunManifest(dryRunData?.manifest ?? 'No manifest generated');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Dry run failed';
@@ -147,20 +136,10 @@ const InstallChartDialog: React.FC<Props> = ({
 
   const handleInstall = async () => {
     try {
-      await executeReleaseAction({
-        actionID: 'install',
-        id: '',
-        namespace,
-        params: {
-          chart: chartID,
-          name: releaseName,
-          namespace,
-          version,
-        },
-      });
+      await executeReleaseAction('install');
       onClose();
-    } catch {
-      // Error handling is done by the runtime
+    } catch (error: unknown) {
+      setDryRunManifest(`Error: ${error instanceof Error ? error.message : 'Install failed'}`);
     }
   };
 

@@ -6,7 +6,7 @@ import { useParams } from 'react-router-dom';
 import ResourceTable from '../../../../shared/table/ResourceTable';
 import { withClusterResourceColumns } from '../../shared/columns';
 
-const resourceKey = 'storage::v1::CSIStorageCapacity';
+const resourceKey = 'k8s:storage.k8s.io/csistoragecapacities';
 
 const CSIStorageCapacityTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -21,7 +21,6 @@ const CSIStorageCapacityTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
     />
   );
 };

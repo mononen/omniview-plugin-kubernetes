@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { EndpointSlice } from 'kubernetes-types/discovery/v1';
 
@@ -18,17 +19,14 @@ type Story = StoryObj<typeof meta>;
 
 export const Primary: Story = {
   args: {
-    ctx: {
-      data: data as unknown as EndpointSlice,
-      resource: { connectionID: 'ctx-1', id: 'backend-api-xk9mz', key: 'discovery.k8s.io::v1::EndpointSlice' },
-    },
+    ctx: { data: data as unknown as EndpointSlice, resource: fixtureResource('k8s:discovery.k8s.io/endpointslices', data as unknown as EndpointSlice, 'ctx-1', 'backend-api-xk9mz') },
   },
 };
 
 Primary.decorators = [
   (Story, c) => (
     <ResourceDrawerContainer
-      type="discovery.k8s.io::v1::EndpointSlice"
+      type="k8s:discovery.k8s.io/endpointslices"
       icon="LuTableProperties"
       title={c.args.ctx.data?.metadata?.name ?? ''}
       open

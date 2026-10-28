@@ -19,9 +19,27 @@
 
 Browse, inspect, edit, and manage Kubernetes clusters without leaving Omniview. The Kubernetes plugin provides real-time resource tables, an integrated terminal, log streaming, port forwarding, Helm chart management, cluster metrics, and full YAML editing — all from a single, unified interface.
 
-Resource icons come from the upstream [Kubernetes Icons Set](https://github.com/kubernetes/community/tree/aeee117fa02e25b68298999d699fb45bdc91acb7/icons), bundled under Apache-2.0. Source attribution and license live in `ui/src/icons/kubernetes/NOTICE` and `LICENSE`. The plugin registers one `ResourceIconSetV1` at `omniview/resource/icons`; both sidebar layouts and the host search palette reuse it. Kubernetes API versions share artwork within the same native API group and kind; unknown resources use the host fallback. Custom API groups cannot impersonate native kinds.
+Resource icons come from the upstream [Kubernetes Icons Set](https://github.com/kubernetes/community/tree/aeee117fa02e25b68298999d699fb45bdc91acb7/icons), bundled under Apache-2.0. Source attribution and license live in `ui/src/icons/kubernetes/NOTICE` and `LICENSE`. The plugin registers one `ResourceIconSetV1` at `omniview/resource/icons`; both sidebar layouts and the host search palette reuse it. Icons use exact native logical Types, independent of served API version. Unknown resources and custom groups use the host fallback.
 
 Native artwork is adapted to monochrome resource glyphs without blue badges and uses inherited `currentColor` in every theme. Trusted bundled SVG geometry is imported inline, so sidebar and search icons need no image requests or cross-origin asset URLs. Sanitized assets contain no scripts, embedded HTML, external references, or style URLs; regression tests enforce the geometry and attribute allowlists. Modification details remain in `NOTICE`.
+
+## Resource v2 boundary
+
+The resource provider uses one `resourcev2` domain and transport. Catalog operations are qualified by an explicit connection, Type, and declared scope. Native discovery advertises only supported verbs; Get, bounded enumeration, mutations, actions, and advisory updates remain independent. Native query filtering is not advertised.
+
+Native Types use `k8s:<actual-api-group>/<resource>`. The core API group stays empty (`k8s:/pods`), so a custom group named `core` remains distinct (`k8s:core/pods`). Helm uses `helm:releases`, `helm:repositories`, and `helm:charts`; the Polaris audit uses `audit:polaris`. Synthetic Types cannot collide with native API groups. Native preferred served versions belong to representation and schema bindings, not logical identity. IDs are native object names; namespace is an adapter-declared scope dimension. UID is an optional incarnation, and resourceVersion is an opaque observation or mutation precondition.
+
+Only the host issues authority and row keys. A readable kube-system namespace UID supplies a nonauthoritative `kubernetes.namespace-uid.v1` hint with **connection-local** continuity on native resource Types and cluster-backed Helm releases. Local Helm repositories/charts have no cluster hint and remain isolated and unknown. Hints are Type-qualified, never catalog-wide; endpoints and credentials never establish backing identity.
+
+Finite reads use native client-go operations and source-only continuation tokens. Enumeration keeps unknown totals unknown. The implementation-candidate `omniview.resource-wire-policy.v1` separates 16 MiB resource documents, 32 MiB aggregate frames, and at most 256 records from the host's smaller predicate/projection limits. Resource-only HTTP clients bound decompressed finite responses and each native watch frame before client-go materialization, while independent logs, exec, and metrics streams retain their native lifetimes.
+
+Existing informer updates remain explicitly **bestEffort**. Cache readiness does not prove an atomic snapshot, replay, gap-free delivery, or P05 source continuity. Cancellation retires handlers; connection teardown owns shared informer factories and client destruction.
+
+OpenAPI documents are read once per group/version, bounded to 16 MiB, and shared by document reference plus exact local root. Available, absent, and unavailable schemas remain distinct; raw OpenAPI transport does not claim P07 normalization or full validation. Creation can use a schema-derived template or a complete pasted native manifest.
+
+Tables and navigation use canonical references, routes, target membership, and host keys. Exact integer Values stay `bigint` in UI adapters and YAML editing. Mutation and action requests retain known UID and revision guards. Native connection discovery, explicit overrides, and disabled routes remain separate; host persistence owns desired profiles, not provider-side kubeconfig edits.
+
+The old mandatory CRUD/Find registration generator and public resource DTO stack are retired. The owned kind/history audit fixture below is unchanged. Helm release enumeration is bounded through native Secret/ConfigMap storage; other Helm storage drivers are not advertised as bounded enumeration sources.
 
 ## Local audit evidence fixture
 

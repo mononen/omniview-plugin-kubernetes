@@ -32,7 +32,7 @@ export const DeploymentSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={dep.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={dep.metadata} connectionID={ctx.resource?.route.connection} />
 
         <WorkloadStatusSection
           title="Status"
@@ -68,16 +68,16 @@ export const DeploymentSidebar: React.FC<Props> = ({ ctx }) => {
       {dep.spec?.template?.spec && (
         <WorkloadPortsCard
           podSpec={dep.spec.template.spec}
-          resourceKey="apps::v1::Deployment"
+          resourceKey="k8s:apps/deployments"
           resourceData={dep}
-          resourceID={ctx.resource?.id || ''}
-          connectionID={ctx.resource?.connectionID || ''}
+          resourceID={ctx.resource?.reference.address.id || ''}
+          connectionID={ctx.resource?.route.connection || ''}
         />
       )}
 
       <PodContainersSectionFromPodSpec
-        resourceID={ctx.resource?.id || ''}
-        connectionID={ctx.resource?.connectionID || ''}
+        resourceID={ctx.resource?.reference.address.id || ''}
+        connectionID={ctx.resource?.route.connection || ''}
         spec={dep.spec?.template?.spec}
       />
     </Stack>

@@ -15,7 +15,7 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import EndpointsSidebar from './Sidebar';
 
-const resourceKey = 'core::v1::Endpoints';
+const resourceKey = 'k8s:/endpoints';
 
 const EndpointsTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -84,7 +84,6 @@ const EndpointsTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
       createEnabled={false}
     />

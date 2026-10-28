@@ -8,7 +8,7 @@ const artwork = import.meta.glob('./kubernetes/*.svg', { eager: true, query: '?r
 
 afterEach(cleanup);
 describe('Kubernetes resource icon set', () => {
-  it('renders distinct inline artwork while preserving API-version and group aliases', () => {
+  it('renders distinct artwork for explicit version-independent native Types', () => {
     const markup = (key: string) => {
       const Icon = icons.resolve(key)!;
       const view = render(<Icon />);
@@ -16,16 +16,15 @@ describe('Kubernetes resource icon set', () => {
       view.unmount();
       return body;
     };
-    const deployment = markup('apps::v1::Deployment');
-    expect(markup('apps::v1beta1::Deployment')).toBe(deployment);
-    expect(markup('core::v1::Pod')).not.toBe(deployment);
-    expect(markup('rbac.authorization.k8s.io::v1::Role')).toBe(markup('rbac::v1beta1::Role'));
-    expect(markup('networking.k8s.io::v1::Ingress')).toBe(markup('networking::v1beta1::Ingress'));
-    expect(markup('storage.k8s.io::v1::StorageClass')).toBe(markup('storage::v1::StorageClass'));
+    const deployment = markup('k8s:apps/deployments');
+    expect(markup('k8s:/pods')).not.toBe(deployment);
+    expect(markup('k8s:rbac.authorization.k8s.io/roles')).not.toBe(deployment);
+    expect(markup('k8s:networking.k8s.io/ingresses')).not.toBe(deployment);
+    expect(markup('k8s:storage.k8s.io/storageclasses')).not.toBe(deployment);
   });
 
   it('inherits theme color without image requests and preserves icon sizing and accessibility', () => {
-    const Icon = icons.resolve('core::v1::Pod')!;
+    const Icon = icons.resolve('k8s:/pods')!;
     const { container } = render(<span style={{ color: 'rebeccapurple' }}><Icon size={20} className="native" aria-hidden={false} /></span>);
     const svg = container.querySelector('svg')!;
     expect(container.querySelector('img')).toBeNull();
@@ -71,7 +70,7 @@ describe('Kubernetes resource icon set', () => {
   });
 
   it('leaves unknown and custom resources to the host fallback', () => {
-    for (const key of ['example.io::v1::Pod', 'example.k8s.io::v1::Pod', 'core::v1::ReplicationController', 'core::v1::Unknown', 'Pod']) {
+    for (const key of ['k8s:example.io/pods', 'k8s:example.k8s.io/pods', 'k8s:core/pods', 'helm:pods', 'k8s:/replicationcontrollers', 'k8s:/unknown', 'Pod']) {
       expect(icons.resolve(key)).toBeUndefined();
     }
   });

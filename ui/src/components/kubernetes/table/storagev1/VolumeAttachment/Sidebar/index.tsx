@@ -19,7 +19,7 @@ export const VolumeAttachmentSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) return null;
 
   const va = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
   const spec = va.spec;
   const status = va.status;
   const attachmentMetadata = status?.attachmentMetadata as Record<string, string> | undefined;
@@ -27,7 +27,7 @@ export const VolumeAttachmentSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={va.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={va.metadata} connectionID={ctx.resource?.route.connection} />
 
         <SidebarSection
           title="Status"
@@ -52,7 +52,7 @@ export const VolumeAttachmentSidebar: React.FC<Props> = ({ ctx }) => {
                   <ResourceLinkChip
                     connectionID={connectionID}
                     resourceID={spec.source.persistentVolumeName}
-                    resourceKey="core::v1::PersistentVolume"
+                    resourceKey="k8s:/persistentvolumes"
                     resourceName={spec.source.persistentVolumeName}
                   />
                 }
@@ -65,7 +65,7 @@ export const VolumeAttachmentSidebar: React.FC<Props> = ({ ctx }) => {
                   <ResourceLinkChip
                     connectionID={connectionID}
                     resourceID={spec.nodeName}
-                    resourceKey="core::v1::Node"
+                    resourceKey="k8s:/nodes"
                     resourceName={spec.nodeName}
                   />
                 }

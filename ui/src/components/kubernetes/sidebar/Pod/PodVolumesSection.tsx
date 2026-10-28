@@ -34,7 +34,7 @@ function getVolumeInfo(
             connectionID && name ? (
               <ResourceLinkChip
                 connectionID={connectionID}
-                resourceKey="core::v1::ConfigMap"
+                resourceKey="k8s:/configmaps"
                 resourceID={name}
                 resourceName="ConfigMap"
                 namespace={namespace}
@@ -68,7 +68,7 @@ function getVolumeInfo(
             connectionID && name ? (
               <ResourceLinkChip
                 connectionID={connectionID}
-                resourceKey="core::v1::Secret"
+                resourceKey="k8s:/secrets"
                 resourceID={name}
                 resourceName="Secret"
                 namespace={namespace}
@@ -102,7 +102,7 @@ function getVolumeInfo(
             connectionID && claimName ? (
               <ResourceLinkChip
                 connectionID={connectionID}
-                resourceKey="core::v1::PersistentVolumeClaim"
+                resourceKey="k8s:/persistentvolumeclaims"
                 resourceID={claimName}
                 resourceName="PVC"
                 namespace={namespace}

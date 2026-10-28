@@ -14,7 +14,7 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import RuntimeClassSidebar from './Sidebar';
 
-const resourceKey = 'node::v1::RuntimeClass';
+const resourceKey = 'k8s:node.k8s.io/runtimeclasses';
 
 const RuntimeClassTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -100,7 +100,6 @@ const RuntimeClassTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

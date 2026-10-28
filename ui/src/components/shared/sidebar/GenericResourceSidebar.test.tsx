@@ -46,7 +46,7 @@ import GenericResourceSidebar from './GenericResourceSidebar';
 function makeCtx(data?: Record<string, unknown>) {
   return {
     data,
-    resource: { connectionID: 'conn-1', id: 'test', key: 'core::v1::ConfigMap', pluginID: 'kubernetes' },
+    resource: { connectionID: 'conn-1', id: 'test', key: 'k8s:/configmaps', pluginID: 'kubernetes' },
   };
 }
 

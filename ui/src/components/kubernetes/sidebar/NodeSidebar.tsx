@@ -20,14 +20,14 @@ interface Props {
 
 export const NodeSidebar: React.FC<Props> = ({ ctx }) => {
   const node = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
-  const resourceID = ctx.resource?.id || '';
+  const connectionID = ctx.resource?.route.connection || '';
+  const resourceID = ctx.resource?.reference.address.id || '';
 
   // Fetch live CPU/memory metrics for this node.
   const { data: metricsData } = useResourceMetrics({
     pluginID: 'kubernetes',
     connectionID,
-    resourceKey: 'core::v1::Node',
+    resourceKey: 'k8s:/nodes',
     resourceID,
     metricIDs: [
       'cpu_usage',

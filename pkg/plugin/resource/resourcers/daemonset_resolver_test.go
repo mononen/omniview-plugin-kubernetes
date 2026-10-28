@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -21,13 +20,6 @@ import (
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 )
 
-func dsMeta() resource.ResourceMeta {
-	return resource.ResourceMeta{
-		Group:   "apps",
-		Version: "v1",
-		Kind:    "DaemonSet",
-	}
-}
 
 func TestDaemonSetResourcer_ResolveRelationships(t *testing.T) {
 	ds := &appsv1.DaemonSet{
@@ -100,25 +92,25 @@ func TestDaemonSetResourcer_ResolveRelationships(t *testing.T) {
 	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
-	resourcer := NewDaemonSetResourcer(logger, WithRelationships(RelationshipTable()["apps::v1::DaemonSet"]))
+	resourcer := NewDaemonSetResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/daemonsets"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, dsMeta(), "my-ds", "kube-system")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, workloadGetRequest("my-ds", "kube-system"))
 	require.NoError(t, err)
 	require.Len(t, rels, 3) // Pods, ConfigMap, Secret
 
 	// Pods
-	assert.Equal(t, "core::v1::Pod", rels[0].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/pods", rels[0].Descriptor.TargetType)
 	require.Len(t, rels[0].Targets, 2)
 
 	// ConfigMap
-	assert.Equal(t, "core::v1::ConfigMap", rels[1].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/configmaps", rels[1].Descriptor.TargetType)
 	require.Len(t, rels[1].Targets, 1)
-	assert.Equal(t, "agent-config", rels[1].Targets[0].ID)
+	assert.Equal(t, "agent-config", rels[1].Targets[0].Reference.Address.ID)
 
 	// Secret
-	assert.Equal(t, "core::v1::Secret", rels[2].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/secrets", rels[2].Descriptor.TargetType)
 	require.Len(t, rels[2].Targets, 1)
-	assert.Equal(t, "agent-certs", rels[2].Targets[0].ID)
+	assert.Equal(t, "agent-certs", rels[2].Targets[0].Reference.Address.ID)
 }
 
 func TestDaemonSetResourcer_ResolveRelationships_NoPods(t *testing.T) {
@@ -163,9 +155,9 @@ func TestDaemonSetResourcer_ResolveRelationships_NoPods(t *testing.T) {
 	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
-	resourcer := NewDaemonSetResourcer(logger, WithRelationships(RelationshipTable()["apps::v1::DaemonSet"]))
+	resourcer := NewDaemonSetResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/daemonsets"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, dsMeta(), "empty-ds", "default")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, workloadGetRequest("empty-ds", "default"))
 	require.NoError(t, err)
 	assert.Empty(t, rels)
 }

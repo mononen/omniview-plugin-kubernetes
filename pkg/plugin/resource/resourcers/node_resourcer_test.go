@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -97,7 +97,7 @@ func withMirrorAnnotation(pod *corev1.Pod) {
 
 func TestNodeResourcer_GetActions(t *testing.T) {
 	r := newTestNodeResourcer()
-	actions, err := r.GetActions(context.Background(), nil, resource.ResourceMeta{})
+	actions, err := r.GetActions(context.Background(), nil)
 	require.NoError(t, err)
 	require.Len(t, actions, 6)
 
@@ -126,14 +126,12 @@ func TestNodeResourcer_Cordon(t *testing.T) {
 	cs := newNodeClientSet(node)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "cordon", resource.ActionInput{
-		ID: "worker-1",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("cordon", "worker-1", "", nil))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "cordoned")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "cordoned")
 
 	// Verify the node is now unschedulable.
 	updated, err := cs.KubeClient.CoreV1().Nodes().Get(context.Background(), "worker-1", metav1.GetOptions{})
@@ -146,13 +144,11 @@ func TestNodeResourcer_Cordon_AlreadyCordoned(t *testing.T) {
 	cs := newNodeClientSet(node)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "cordon", resource.ActionInput{
-		ID: "worker-1",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("cordon", "worker-1", "", nil))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
 
 	// Still unschedulable.
 	updated, err := cs.KubeClient.CoreV1().Nodes().Get(context.Background(), "worker-1", metav1.GetOptions{})
@@ -164,12 +160,10 @@ func TestNodeResourcer_Cordon_NotFound(t *testing.T) {
 	cs := newNodeClientSet() // no nodes
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "cordon", resource.ActionInput{
-		ID: "nonexistent",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("cordon", "nonexistent", "", nil))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "failed to patch node")
 }
 
@@ -180,14 +174,12 @@ func TestNodeResourcer_Uncordon(t *testing.T) {
 	cs := newNodeClientSet(node)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "uncordon", resource.ActionInput{
-		ID: "worker-1",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("uncordon", "worker-1", "", nil))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "uncordoned")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "uncordoned")
 
 	// Verify the node is now schedulable.
 	updated, err := cs.KubeClient.CoreV1().Nodes().Get(context.Background(), "worker-1", metav1.GetOptions{})
@@ -204,16 +196,13 @@ func TestNodeResourcer_Drain_EvictsPods(t *testing.T) {
 	cs := newNodeClientSet(node, pod1, pod2)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "drain", resource.ActionInput{
-		ID: "drain-node",
-		Params: map[string]interface{}{
-			"gracePeriodSeconds": float64(30),
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("drain", "drain-node", "", map[string]interface{}{
+			"gracePeriodSeconds": int64(30),
 			"ignoreDaemonSets":   true,
-		},
-	})
+		}))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	require.Equal(t, "map", result.Kind)
 	// Note: fake clientset doesn't support eviction subresource, so evictions will fail.
 	// The drain action should still succeed (with errors reported in data).
 	// The node should be cordoned regardless.
@@ -228,17 +217,14 @@ func TestNodeResourcer_Drain_SkipsDaemonSetPods(t *testing.T) {
 	cs := newNodeClientSet(node, dsPod)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "drain", resource.ActionInput{
-		ID: "drain-node",
-		Params: map[string]interface{}{
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("drain", "drain-node", "", map[string]interface{}{
 			"ignoreDaemonSets": true,
-		},
-	})
+		}))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "0 pods evicted")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "0 pods evicted")
 }
 
 func TestNodeResourcer_Drain_SkipsMirrorPods(t *testing.T) {
@@ -247,14 +233,12 @@ func TestNodeResourcer_Drain_SkipsMirrorPods(t *testing.T) {
 	cs := newNodeClientSet(node, mirrorPod)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "drain", resource.ActionInput{
-		ID: "drain-node",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("drain", "drain-node", "", nil))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "0 pods evicted")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "0 pods evicted")
 }
 
 func TestNodeResourcer_Drain_SkipsSucceededPods(t *testing.T) {
@@ -264,26 +248,22 @@ func TestNodeResourcer_Drain_SkipsSucceededPods(t *testing.T) {
 	cs := newNodeClientSet(node, donePod)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "drain", resource.ActionInput{
-		ID: "drain-node",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("drain", "drain-node", "", nil))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "0 pods evicted")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "0 pods evicted")
 }
 
 func TestNodeResourcer_Drain_NotFound(t *testing.T) {
 	cs := newNodeClientSet() // no nodes
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "drain", resource.ActionInput{
-		ID: "nonexistent",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("drain", "nonexistent", "", nil))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "failed to cordon node")
 }
 
@@ -294,19 +274,16 @@ func TestNodeResourcer_AddTaint(t *testing.T) {
 	cs := newNodeClientSet(node)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "add-taint", resource.ActionInput{
-		ID: "taint-node",
-		Params: map[string]interface{}{
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("add-taint", "taint-node", "", map[string]interface{}{
 			"key":    "dedicated",
 			"value":  "gpu",
 			"effect": "NoSchedule",
-		},
-	})
+		}))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "added")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "added")
 
 	// Verify taint was applied.
 	updated, err := cs.KubeClient.CoreV1().Nodes().Get(context.Background(), "taint-node", metav1.GetOptions{})
@@ -323,19 +300,16 @@ func TestNodeResourcer_AddTaint_Duplicate(t *testing.T) {
 	cs := newNodeClientSet(node)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "add-taint", resource.ActionInput{
-		ID: "taint-node",
-		Params: map[string]interface{}{
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("add-taint", "taint-node", "", map[string]interface{}{
 			"key":    "dedicated",
 			"value":  "gpu",
 			"effect": "NoSchedule",
-		},
-	})
+		}))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "already exists")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "already exists")
 
 	// Taint count unchanged.
 	updated, err := cs.KubeClient.CoreV1().Nodes().Get(context.Background(), "taint-node", metav1.GetOptions{})
@@ -348,15 +322,12 @@ func TestNodeResourcer_AddTaint_MissingKey(t *testing.T) {
 	cs := newNodeClientSet(node)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "add-taint", resource.ActionInput{
-		ID: "taint-node",
-		Params: map[string]interface{}{
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("add-taint", "taint-node", "", map[string]interface{}{
 			"effect": "NoSchedule",
-		},
-	})
+		}))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "taint key is required")
 }
 
@@ -365,15 +336,12 @@ func TestNodeResourcer_AddTaint_MissingEffect(t *testing.T) {
 	cs := newNodeClientSet(node)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "add-taint", resource.ActionInput{
-		ID: "taint-node",
-		Params: map[string]interface{}{
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("add-taint", "taint-node", "", map[string]interface{}{
 			"key": "dedicated",
-		},
-	})
+		}))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "taint effect is required")
 }
 
@@ -381,16 +349,13 @@ func TestNodeResourcer_AddTaint_NodeNotFound(t *testing.T) {
 	cs := newNodeClientSet()
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "add-taint", resource.ActionInput{
-		ID: "nonexistent",
-		Params: map[string]interface{}{
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("add-taint", "nonexistent", "", map[string]interface{}{
 			"key":    "foo",
 			"effect": "NoSchedule",
-		},
-	})
+		}))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "failed to get node")
 }
 
@@ -403,18 +368,15 @@ func TestNodeResourcer_RemoveTaint(t *testing.T) {
 	cs := newNodeClientSet(node)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "remove-taint", resource.ActionInput{
-		ID: "taint-node",
-		Params: map[string]interface{}{
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("remove-taint", "taint-node", "", map[string]interface{}{
 			"key":    "dedicated",
 			"effect": "NoSchedule",
-		},
-	})
+		}))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "removed")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "removed")
 
 	// Verify only the matching taint was removed.
 	updated, err := cs.KubeClient.CoreV1().Nodes().Get(context.Background(), "taint-node", metav1.GetOptions{})
@@ -430,17 +392,14 @@ func TestNodeResourcer_RemoveTaint_ByKeyOnly(t *testing.T) {
 	cs := newNodeClientSet(node)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "remove-taint", resource.ActionInput{
-		ID: "taint-node",
-		Params: map[string]interface{}{
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("remove-taint", "taint-node", "", map[string]interface{}{
 			"key": "foo",
 			// no effect — removes all taints with this key
-		},
-	})
+		}))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
 
 	updated, err := cs.KubeClient.CoreV1().Nodes().Get(context.Background(), "taint-node", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -452,18 +411,15 @@ func TestNodeResourcer_RemoveTaint_NotFound(t *testing.T) {
 	cs := newNodeClientSet(node)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "remove-taint", resource.ActionInput{
-		ID: "taint-node",
-		Params: map[string]interface{}{
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("remove-taint", "taint-node", "", map[string]interface{}{
 			"key":    "nonexistent",
 			"effect": "NoSchedule",
-		},
-	})
+		}))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "not found")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "not found")
 }
 
 func TestNodeResourcer_RemoveTaint_MissingKey(t *testing.T) {
@@ -471,13 +427,10 @@ func TestNodeResourcer_RemoveTaint_MissingKey(t *testing.T) {
 	cs := newNodeClientSet(node)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "remove-taint", resource.ActionInput{
-		ID:     "taint-node",
-		Params: map[string]interface{}{},
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("remove-taint", "taint-node", "", map[string]interface{}{}))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "taint key is required")
 }
 
@@ -493,34 +446,30 @@ func TestNodeResourcer_GetConditions(t *testing.T) {
 	cs := newNodeClientSet(node)
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "get-conditions", resource.ActionInput{
-		ID: "cond-node",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("get-conditions", "cond-node", "", nil))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
 
-	conditions, ok := result.Data["conditions"].([]interface{})
-	require.True(t, ok)
+	require.Equal(t, "list", result.Map["data"].Map["conditions"].Kind)
+	conditions := result.Map["data"].Map["conditions"].List
 	assert.Len(t, conditions, 3)
 
-	first := conditions[0].(map[string]interface{})
-	assert.Equal(t, "Ready", first["type"])
-	assert.Equal(t, "True", first["status"])
-	assert.Equal(t, "KubeletReady", first["reason"])
+	first := conditions[0].Map
+	assert.Equal(t, "Ready", first["type"].String)
+	assert.Equal(t, "True", first["status"].String)
+	assert.Equal(t, "KubeletReady", first["reason"].String)
 }
 
 func TestNodeResourcer_GetConditions_NodeNotFound(t *testing.T) {
 	cs := newNodeClientSet()
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "get-conditions", resource.ActionInput{
-		ID: "ghost",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("get-conditions", "ghost", "", nil))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "failed to get node")
 }
 
@@ -530,10 +479,10 @@ func TestNodeResourcer_UnknownAction(t *testing.T) {
 	cs := newNodeClientSet()
 	r := newTestNodeResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "invalid", resource.ActionInput{})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("invalid", "", "", nil))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "unknown action")
 }
 
@@ -542,7 +491,7 @@ func TestNodeResourcer_UnknownAction(t *testing.T) {
 func TestNodeResourcer_StreamAction_NotSupported(t *testing.T) {
 	r := newTestNodeResourcer()
 
-	err := r.StreamAction(context.Background(), nil, resource.ResourceMeta{}, "cordon", resource.ActionInput{}, nil)
+	err := r.StreamAction(context.Background(), nil, workloadActionRequest("cordon", "", "", nil), nil)
 
 	require.Error(t, err)
 	var operationError *resource.ResourceOperationError
@@ -600,4 +549,61 @@ func TestWaitForPodRunning_PodNotFound_TimesOut(t *testing.T) {
 
 	err := WaitForPodRunning(ctx, cs, "default", "missing-pod", 2*time.Second)
 	require.Error(t, err)
+}
+func workloadGetRequest(id, namespace string) resource.GetRequest {
+ scope := []resource.ScopeEntry{}
+ if namespace != "" { scope = append(scope, resource.ScopeEntry{Dimension: "namespace", Value: namespace}) }
+ return resource.GetRequest{Route: resource.AccessRoute{Connection: "test-connection"}, Reference: resource.ResourceReference{Address: resource.ResourceAddress{Provider: "kubernetes", Authority: "test-cluster", Type: "native-workload", Scope: scope, ID: id}}}
+}
+
+func workloadActionRequest(action, id, namespace string, params map[string]interface{}) resource.ActionRequest {
+ input, err := resource.ValueFromNative(params)
+ if err != nil { panic(err) }
+ request := workloadGetRequest(id, namespace)
+ return resource.ActionRequest{Route: request.Route, Reference: request.Reference, Action: action, Input: input}
+}
+
+func TestNativeActionIntegerExactRange(t *testing.T) {
+ for _, value := range []resource.Value{{Kind: "int64", Int: "9223372036854775807"}, {Kind: "uint64", Uint: "9223372036854775807"}} {
+  native, err := resource.NativeFromValue(value)
+  require.NoError(t, err)
+  actual, err := nativeActionInteger(native, 0, 9223372036854775807)
+  require.NoError(t, err)
+  assert.Equal(t, int64(9223372036854775807), actual)
+ }
+ for _, value := range []any{uint64(9223372036854775808), float64(9223372036854775808), -int64(1), 1.5} {
+  _, err := nativeActionInteger(value, 0, 9223372036854775807)
+  require.Error(t, err)
+ }
+}
+
+func TestNativeActionIncarnationGuards(t *testing.T) {
+	request := workloadActionRequest("cordon", "worker", "", nil)
+	uid := "original-uid"
+	request.Reference.Incarnation = &uid
+	assert.JSONEq(t, `{"metadata":{"uid":"original-uid"},"spec":{"unschedulable":true}}`,
+		string(nativeActionPatch(request, `{"spec":{"unschedulable":true}}`)))
+	node := testNode("worker")
+	node.UID = "replacement-uid"
+	require.Error(t, nativeActionObjectMatches(request, node))
+	node.UID = "original-uid"
+	require.NoError(t, nativeActionObjectMatches(request, node))
+	request.Reference.Incarnation = nil
+	require.NoError(t, nativeActionObjectMatches(request, node))
+	pod := testPodOnNode("pod", "default", "worker")
+	pod.UID = "pod-uid"
+	preconditions := nativePodUIDPreconditions(pod)
+	require.NotNil(t, preconditions)
+	require.NotNil(t, preconditions.UID)
+	assert.Equal(t, pod.UID, *preconditions.UID)
+}
+
+func TestNativeActionEventValue(t *testing.T) {
+	value, err := nativeActionEventValue(map[string]any{"ready": int32(3)})
+	require.NoError(t, err)
+	require.NotNil(t, value)
+	assert.Equal(t, "3", value.Map["ready"].Int)
+	value, err = nativeActionEventValue(make(chan int))
+	require.Error(t, err)
+	assert.Nil(t, value)
 }

@@ -1,473 +1,96 @@
 package resourcers
 
 import (
-	"context"
-	"encoding/json"
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+ "testing"
+ resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
+ "github.com/stretchr/testify/assert"
+ "github.com/stretchr/testify/require"
+ "go.uber.org/zap"
+ "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func newBaseResourcer() *KubernetesResourcerBase[MetaAccessor] {
-	logger := zap.NewNop().Sugar()
-	return NewKubernetesResourcerBase[MetaAccessor](logger, testGVR)
+ return NewKubernetesResourcerBase[MetaAccessor](zap.NewNop().Sugar(), testGVR)
 }
 
-// ===================== Get =====================
-
-func TestBase_Get_UnsyncedInformer_Namespaced(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds(), newTestPod("nginx", "default"))
-	r := newBaseResourcer()
-
-	result, err := r.Get(context.Background(), cs, resource.ResourceMeta{}, resource.GetInput{
-		ID:        "nginx",
-		Namespace: "default",
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-
-	var resultMap map[string]interface{}
-	require.NoError(t, json.Unmarshal(result.Result, &resultMap))
-	assert.Equal(t, "nginx", resultMap["metadata"].(map[string]interface{})["name"])
-}
-
-func TestBase_Get_UnsyncedInformer_ClusterScoped(t *testing.T) {
-	node := newTestPod("node-1", "")
-	cs := newFakeClientSet(defaultGVRListKinds(), node)
-	r := newBaseResourcer()
-
-	result, err := r.Get(context.Background(), cs, resource.ResourceMeta{}, resource.GetInput{
-		ID:        "node-1",
-		Namespace: "",
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-
-	var resultMap map[string]interface{}
-	require.NoError(t, json.Unmarshal(result.Result, &resultMap))
-	assert.Equal(t, "node-1", resultMap["metadata"].(map[string]interface{})["name"])
-}
-
-func TestBase_Get_SyncedInformer_Namespaced(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	cs := newSyncedClientSet(ctx, testGVR, defaultGVRListKinds(), newTestPod("redis", "staging"))
-	r := newBaseResourcer()
-
-	result, err := r.Get(context.Background(), cs, resource.ResourceMeta{}, resource.GetInput{
-		ID:        "redis",
-		Namespace: "staging",
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-
-	var resultMap map[string]interface{}
-	require.NoError(t, json.Unmarshal(result.Result, &resultMap))
-	assert.Equal(t, "redis", resultMap["metadata"].(map[string]interface{})["name"])
-}
-
-func TestBase_Get_SyncedInformer_ClusterScoped(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	cs := newSyncedClientSet(ctx, testGVR, defaultGVRListKinds(), newTestPod("global-pod", ""))
-	r := newBaseResourcer()
-
-	result, err := r.Get(context.Background(), cs, resource.ResourceMeta{}, resource.GetInput{
-		ID:        "global-pod",
-		Namespace: "",
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-
-	var resultMap map[string]interface{}
-	require.NoError(t, json.Unmarshal(result.Result, &resultMap))
-	assert.Equal(t, "global-pod", resultMap["metadata"].(map[string]interface{})["name"])
-}
-
-func TestBase_Get_NotFound(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds()) // no objects
-	r := newBaseResourcer()
-
-	result, err := r.Get(context.Background(), cs, resource.ResourceMeta{}, resource.GetInput{
-		ID:        "nonexistent",
-		Namespace: "default",
-	})
-
-	require.Error(t, err)
-	assert.Nil(t, result)
-}
-
-// ===================== List =====================
-
-func TestBase_List_Empty(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	cs := newSyncedClientSet(ctx, testGVR, defaultGVRListKinds()) // no objects
-	r := newBaseResourcer()
-
-	result, err := r.List(context.Background(), cs, resource.ResourceMeta{}, resource.ListInput{})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Empty(t, result.Result)
-}
-
-func TestBase_List_MultipleResources(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	cs := newSyncedClientSet(ctx, testGVR, defaultGVRListKinds(),
-		newTestPod("pod-a", "default"),
-		newTestPod("pod-b", "default"),
-		newTestPod("pod-c", "kube-system"),
-	)
-	r := newBaseResourcer()
-
-	result, err := r.List(context.Background(), cs, resource.ResourceMeta{}, resource.ListInput{})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Len(t, result.Result, 3)
-
-	// Collect names from results
-	names := make(map[string]bool)
-	for _, item := range result.Result {
-		var m map[string]interface{}
-		require.NoError(t, json.Unmarshal(item, &m))
-		meta := m["metadata"].(map[string]interface{})
-		names[meta["name"].(string)] = true
-	}
-	assert.True(t, names["pod-a"])
-	assert.True(t, names["pod-b"])
-	assert.True(t, names["pod-c"])
-}
-
-// ===================== Find =====================
-
-func TestBase_Find_ReturnsAll(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	cs := newSyncedClientSet(ctx, testGVR, defaultGVRListKinds(),
-		newTestPod("find-1", "default"),
-		newTestPod("find-2", "default"),
-	)
-	r := newBaseResourcer()
-
-	result, err := r.Find(context.Background(), cs, resource.ResourceMeta{}, resource.FindInput{})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Len(t, result.Result, 2)
-}
-
-// ===================== Create =====================
-
-func TestBase_Create_Success(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds())
-	r := newBaseResourcer()
-
-	inputData, err := json.Marshal(map[string]interface{}{
-		"apiVersion": "v1",
-		"kind":       "Pod",
-		"metadata": map[string]interface{}{
-			"name":      "new-pod",
-			"namespace": "default",
-		},
-	})
-	require.NoError(t, err)
-
-	input := resource.CreateInput{
-		Namespace: "default",
-		Input:     json.RawMessage(inputData),
-	}
-
-	result, err := r.Create(context.Background(), cs, resource.ResourceMeta{}, input)
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	var resultMap map[string]interface{}
-	require.NoError(t, json.Unmarshal(result.Result, &resultMap))
-	assert.Equal(t, "new-pod", resultMap["metadata"].(map[string]interface{})["name"])
-}
-
-func TestBase_Create_AlreadyExists(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds(), newTestPod("existing", "default"))
-	r := newBaseResourcer()
-
-	inputData, err := json.Marshal(map[string]interface{}{
-		"apiVersion": "v1",
-		"kind":       "Pod",
-		"metadata": map[string]interface{}{
-			"name":      "existing",
-			"namespace": "default",
-		},
-	})
-	require.NoError(t, err)
-
-	input := resource.CreateInput{
-		Namespace: "default",
-		Input:     json.RawMessage(inputData),
-	}
-
-	result, err := r.Create(context.Background(), cs, resource.ResourceMeta{}, input)
-
-	require.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "already exists")
-}
-
-// ===================== Update =====================
-
-func TestBase_Update_Success(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds(), newTestPod("update-me", "default"))
-	r := newBaseResourcer()
-
-	inputData, err := json.Marshal(map[string]interface{}{
-		"apiVersion": "v1",
-		"kind":       "Pod",
-		"metadata": map[string]interface{}{
-			"name":      "update-me",
-			"namespace": "default",
-			"labels":    map[string]interface{}{"updated": "true"},
-		},
-	})
-	require.NoError(t, err)
-
-	input := resource.UpdateInput{
-		ID:        "update-me",
-		Namespace: "default",
-		Input:     json.RawMessage(inputData),
-	}
-
-	result, err := r.Update(context.Background(), cs, resource.ResourceMeta{}, input)
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	var resultMap map[string]interface{}
-	require.NoError(t, json.Unmarshal(result.Result, &resultMap))
-	meta := resultMap["metadata"].(map[string]interface{})
-	assert.Equal(t, "update-me", meta["name"])
-	labels := meta["labels"].(map[string]interface{})
-	assert.Equal(t, "true", labels["updated"])
-}
-
-func TestBase_Update_NotFound(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds()) // no objects
-	r := newBaseResourcer()
-
-	inputData, err := json.Marshal(map[string]interface{}{
-		"apiVersion": "v1",
-		"kind":       "Pod",
-		"metadata":   map[string]interface{}{"name": "ghost", "namespace": "default"},
-	})
-	require.NoError(t, err)
-
-	input := resource.UpdateInput{
-		ID:        "ghost",
-		Namespace: "default",
-		Input:     json.RawMessage(inputData),
-	}
-
-	result, err := r.Update(context.Background(), cs, resource.ResourceMeta{}, input)
-
-	require.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "not found")
-}
-
-// ===================== Delete =====================
-
-func TestBase_Delete_Success(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds(), newTestPod("doomed", "default"))
-	r := newBaseResourcer()
-
-	input := resource.DeleteInput{
-		ID:        "doomed",
-		Namespace: "default",
-	}
-
-	result, err := r.Delete(context.Background(), cs, resource.ResourceMeta{}, input)
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	var resultMap map[string]interface{}
-	require.NoError(t, json.Unmarshal(result.Result, &resultMap))
-	meta := resultMap["metadata"].(map[string]interface{})
-	assert.Equal(t, "doomed", meta["name"])
-
-	// Verify it's actually gone -- a second Get should fail
-	_, err = r.Get(context.Background(), cs, resource.ResourceMeta{}, resource.GetInput{
-		ID:        "doomed",
-		Namespace: "default",
-	})
-	require.Error(t, err)
-}
-
-func TestBase_Delete_NotFound(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds()) // no objects
-	r := newBaseResourcer()
-
-	input := resource.DeleteInput{
-		ID:        "phantom",
-		Namespace: "default",
-	}
-
-	result, err := r.Delete(context.Background(), cs, resource.ResourceMeta{}, input)
-
-	require.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "not found")
-}
-
-// ===================== Success field =====================
-
-func TestBase_Create_SetsSuccessTrue(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds())
-	r := newBaseResourcer()
-
-	inputData, err := json.Marshal(map[string]interface{}{
-		"apiVersion": "v1", "kind": "Pod",
-		"metadata": map[string]interface{}{"name": "test", "namespace": "default"},
-	})
-	require.NoError(t, err)
-
-	result, err := r.Create(context.Background(), cs, resource.ResourceMeta{}, resource.CreateInput{
-		Namespace: "default",
-		Input:     json.RawMessage(inputData),
-	})
-
-	require.NoError(t, err)
-	assert.True(t, result.Success)
-}
-
-func TestBase_Update_SetsSuccessTrue(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds(), newTestPod("target", "default"))
-	r := newBaseResourcer()
-
-	inputData, err := json.Marshal(map[string]interface{}{
-		"apiVersion": "v1", "kind": "Pod",
-		"metadata": map[string]interface{}{"name": "target", "namespace": "default"},
-	})
-	require.NoError(t, err)
-
-	result, err := r.Update(context.Background(), cs, resource.ResourceMeta{}, resource.UpdateInput{
-		ID: "target", Namespace: "default",
-		Input: json.RawMessage(inputData),
-	})
-
-	require.NoError(t, err)
-	assert.True(t, result.Success)
-}
-
-func TestBase_Delete_SetsSuccessTrue(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds(), newTestPod("target", "default"))
-	r := newBaseResourcer()
-
-	result, err := r.Delete(context.Background(), cs, resource.ResourceMeta{}, resource.DeleteInput{
-		ID: "target", Namespace: "default",
-	})
-
-	require.NoError(t, err)
-	assert.True(t, result.Success)
-}
-
-// ===================== Unsynced informer fallback =====================
-
-func TestBase_List_UnsyncedInformer(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds(),
-		newTestPod("pod-a", "default"),
-		newTestPod("pod-b", "default"),
-	)
-	r := newBaseResourcer()
-
-	result, err := r.List(context.Background(), cs, resource.ResourceMeta{}, resource.ListInput{})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Len(t, result.Result, 2)
-}
-
-func TestBase_Find_UnsyncedInformer(t *testing.T) {
-	cs := newFakeClientSet(defaultGVRListKinds(),
-		newTestPod("find-a", "default"),
-	)
-	r := newBaseResourcer()
-
-	result, err := r.Find(context.Background(), cs, resource.ResourceMeta{}, resource.FindInput{})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Len(t, result.Result, 1)
-}
-
-// ===================== extractMetadata =====================
-
+// Finite CRUD lives in native_read/native_mutation tests, not the optional base.
 func TestExtractMetadata(t *testing.T) {
-	obj := &unstructured.Unstructured{Object: map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"uid":               "abc-123",
-			"creationTimestamp": "2026-01-15T10:30:00Z",
-			"labels": map[string]interface{}{
-				"app": "web",
-				"env": "prod",
-			},
-		},
-	}}
-
-	meta := extractMetadata(obj)
-
-	if meta.UID != "abc-123" {
-		t.Errorf("expected UID abc-123, got %q", meta.UID)
-	}
-	if meta.Labels["app"] != "web" || meta.Labels["env"] != "prod" {
-		t.Errorf("unexpected labels: %v", meta.Labels)
-	}
-	if meta.CreatedAt == nil {
-		t.Fatal("expected non-nil CreatedAt")
-	}
-	if meta.CreatedAt.Year() != 2026 {
-		t.Errorf("expected year 2026, got %d", meta.CreatedAt.Year())
-	}
+ obj := &unstructured.Unstructured{Object: map[string]interface{}{"metadata": map[string]interface{}{
+  "uid": "abc-123", "creationTimestamp": "2026-01-15T10:30:00Z", "labels": map[string]interface{}{"app": "web", "env": "prod"},
+ }}}
+ meta := extractMetadata(obj)
+ assert.Equal(t, "web", meta.Labels["app"])
+ assert.Equal(t, "prod", meta.Labels["env"])
+ require.NotNil(t, meta.CreatedAt)
+ assert.Equal(t, 2026, meta.CreatedAt.Year())
+}
+func TestExtractMetadata_NoTimestamp(t *testing.T) {
+ obj := &unstructured.Unstructured{Object: map[string]interface{}{"metadata": map[string]interface{}{"uid": "xyz-456"}}}
+ assert.Nil(t, extractMetadata(obj).CreatedAt)
+}
+func TestNativeRequestNamespace(t *testing.T) {
+ for _, tt := range []struct{name string; scope []resource.ScopeEntry; namespace string; invalid bool}{
+  {name: "cluster"},
+  {name: "namespace", scope: []resource.ScopeEntry{{Dimension: "namespace", Value: "team-a"}}, namespace: "team-a"},
+  {name: "unknown", scope: []resource.ScopeEntry{{Dimension: "region", Value: "team-a"}}, invalid: true},
+  {name: "empty", scope: []resource.ScopeEntry{{Dimension: "namespace"}}, invalid: true},
+  {name: "duplicate", scope: []resource.ScopeEntry{{Dimension: "namespace", Value: "a"},{Dimension: "namespace", Value: "b"}}, invalid: true},
+ } {
+  t.Run(tt.name,func(t *testing.T){ namespace,err:=nativeRequestNamespace(tt.scope);if tt.invalid {require.Error(t,err)} else {require.NoError(t,err);assert.Equal(t,tt.namespace,namespace)} })
+ }
+}
+func TestWatchRecordPreservesCanonicalIdentity(t *testing.T) {
+ target:=testWatchTarget()
+ target.Type="opaque/type::not-a-gvk"
+ obj:=newTestPod("native-name","team-a")
+ obj.SetUID("native-uid")
+ obj.SetResourceVersion("opaque/revision")
+ record,err:=watchRecord(target,testWatchRepresentation(),obj)
+ require.NoError(t,err)
+ assert.Equal(t,target.Provider,record.Reference.Address.Provider)
+ assert.Equal(t,target.Authority,record.Reference.Address.Authority)
+ assert.Equal(t,target.Type,record.Reference.Address.Type)
+ assert.Equal(t,"native-name",record.Reference.Address.ID)
+ assert.Equal(t,[]resource.ScopeEntry{{Dimension:"namespace",Value:"team-a"}},record.Reference.Address.Scope)
+ require.NotNil(t,record.Reference.Incarnation)
+ assert.Equal(t,"native-uid",*record.Reference.Incarnation)
+ require.NotNil(t,record.SourceRevision)
+ assert.Equal(t,"opaque/revision",*record.SourceRevision)
+ assert.Equal(t,testWatchRepresentation(),record.Representation)
+ assert.Equal(t,"map",record.Body.Kind)
+}
+func TestWatchRecordAbsentIncarnationAndRevision(t *testing.T) {
+ record,err:=watchRecord(testWatchTarget(),testWatchRepresentation(),newTestPod("cluster-name",""))
+ require.NoError(t,err)
+ assert.Empty(t,record.Reference.Address.Scope)
+ assert.Nil(t,record.Reference.Incarnation)
+ assert.Nil(t,record.SourceRevision)
 }
 
-func TestExtractMetadata_NoTimestamp(t *testing.T) {
-	obj := &unstructured.Unstructured{Object: map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"uid": "xyz-456",
-		},
-	}}
-
-	meta := extractMetadata(obj)
-
-	if meta.UID != "xyz-456" {
-		t.Errorf("expected UID xyz-456, got %q", meta.UID)
-	}
-	if meta.CreatedAt != nil {
-		t.Errorf("expected nil CreatedAt, got %v", meta.CreatedAt)
+func TestPresentationRetainsNativeColumnsAndTypedLinks(t *testing.T) {
+	pod := ResourceDefs["k8s:/pods"]
+	columns := make(map[string]resource.ColumnDefinition, len(pod.ColumnDefs))
+	for _, column := range pod.ColumnDefs { columns[column.ID] = column }
+	assert.Equal(t, "SUM", columns["restarts"].Formatter)
+	assert.Equal(t, "$.status.containerStatuses[*].restartCount", columns["restarts"].Accessors)
+	assert.Equal(t, "FIRST", columns["phase"].AccessorPriority)
+	assert.Equal(t, "AGE", columns["age"].Formatter)
+	owner := columns["controlledBy"].ResourceLink
+	require.NotNil(t, owner)
+	assert.Equal(t, "kind", owner.TypeAccessor)
+	assert.Equal(t, "k8s:apps/replicasets", owner.TypeMap["ReplicaSet"])
+	assert.Empty(t, owner.Type)
+	assert.Equal(t, []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "$.metadata.namespace"}}, owner.ScopeAccessors)
+	node := columns["node"].ResourceLink
+	require.NotNil(t, node)
+	assert.Equal(t, "k8s:/nodes", node.Type)
+	assert.Empty(t, node.ScopeAccessors)
+	claimDef := ResourceDefs["k8s:/persistentvolumes"]
+	for _, column := range claimDef.ColumnDefs {
+		if column.ID == "claimRef" {
+			require.NotNil(t, column.ResourceLink)
+			assert.Equal(t, "k8s:/persistentvolumeclaims", column.ResourceLink.Type)
+			assert.Equal(t, []resource.ScopeExtractor{{Dimension: "namespace", FieldPath: "namespace"}}, column.ResourceLink.ScopeAccessors)
+		}
 	}
 }

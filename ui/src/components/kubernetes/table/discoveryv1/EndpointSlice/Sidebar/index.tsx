@@ -20,12 +20,12 @@ export const EndpointSliceSidebar: React.FC<Props> = ({ ctx }) => {
   }
 
   const slice = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={slice.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={slice.metadata} connectionID={ctx.resource?.route.connection} />
         <EndpointSliceInfoSection slice={slice} />
       </Stack>
 

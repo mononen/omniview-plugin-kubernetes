@@ -560,7 +560,7 @@ func TestBuildNodeMetricResponse_FilteredMetricIDs(t *testing.T) {
 
 func TestQueryMetricsServer_UnsupportedResourceKey(t *testing.T) {
 	qctx := &sdkmetric.QueryContext{}
-	req := sdkmetric.QueryRequest{ResourceKey: "batch::v1::Job"}
+	req := sdkmetric.QueryRequest{ResourceKey: "k8s:batch/jobs"}
 
 	resp, err := queryMetricsServer(qctx, req)
 	require.NoError(t, err)

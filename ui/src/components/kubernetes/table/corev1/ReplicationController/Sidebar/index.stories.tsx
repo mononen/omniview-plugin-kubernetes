@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ReplicationController } from 'kubernetes-types/core/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="core::v1::ReplicationController"
+        type="k8s:/replicationcontrollers"
         icon="LuCopy"
         title={title}
         open
@@ -36,10 +37,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: {
-      data: data as unknown as ReplicationController,
-      resource: { connectionID: 'ctx-1', id: 'web-rc', key: 'core::v1::ReplicationController' },
-    },
+    ctx: { data: data as unknown as ReplicationController, resource: fixtureResource('k8s:/replicationcontrollers', data as unknown as ReplicationController, 'ctx-1', 'web-rc') },
   },
   decorators: withDrawer(data.metadata.name),
 };

@@ -18,16 +18,16 @@ import { drawerActions } from './actions';
 import ReplicaSetSidebar from './Sidebar';
 
 const ownerRefKeyMap: Record<string, string> = {
-  ReplicaSet: 'apps::v1::ReplicaSet',
-  ReplicationController: 'core::v1::ReplicationController',
-  StatefulSet: 'apps::v1::StatefulSet',
-  DaemonSet: 'apps::v1::DaemonSet',
-  Job: 'batch::v1::Job',
-  CronJob: 'batch::v1::CronJob',
-  Node: 'core::v1::Node',
+  ReplicaSet: 'k8s:apps/replicasets',
+  ReplicationController: 'k8s:/replicationcontrollers',
+  StatefulSet: 'k8s:apps/statefulsets',
+  DaemonSet: 'k8s:apps/daemonsets',
+  Job: 'k8s:batch/jobs',
+  CronJob: 'k8s:batch/cronjobs',
+  Node: 'k8s:/nodes',
 };
 
-const resourceKey = 'apps::v1::ReplicaSet';
+const resourceKey = 'k8s:apps/replicasets';
 
 const ReplicaSetTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -124,7 +124,6 @@ const ReplicaSetTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
       toolbarFilters={[
         { columnId: 'namespace', placeholder: 'All Namespaces', accessor: (r: ReplicaSet) => r?.metadata?.namespace },

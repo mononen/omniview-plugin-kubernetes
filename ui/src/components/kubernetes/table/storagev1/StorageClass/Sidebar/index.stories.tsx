@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { StorageClass } from 'kubernetes-types/storage/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="storage::v1::StorageClass"
+        type="k8s:storage.k8s.io/storageclasses"
         icon="LuDatabase"
         title={title}
         open
@@ -34,10 +35,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: {
-      data: data as unknown as StorageClass,
-      resource: { connectionID: 'ctx-1', id: 'gp3-encrypted', key: 'storage::v1::StorageClass' },
-    },
+    ctx: { data: data as unknown as StorageClass, resource: fixtureResource('k8s:storage.k8s.io/storageclasses', data as unknown as StorageClass, 'ctx-1', 'gp3-encrypted') },
   },
   decorators: withDrawer(data.metadata.name),
 };

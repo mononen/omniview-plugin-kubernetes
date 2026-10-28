@@ -17,7 +17,7 @@ import { inclusionFilter } from '../../shared/filters';
 import { drawerActions } from './actions';
 import ServiceSidebar from './Sidebar';
 
-const resourceKey = 'core::v1::Service';
+const resourceKey = 'k8s:/services';
 
 const ServiceTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -132,7 +132,6 @@ const ServiceTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
       toolbarFilters={[
         { columnId: 'type', placeholder: 'All Types', accessor: (r: Service) => r?.spec?.type ?? 'ClusterIP' },

@@ -3,10 +3,8 @@ import React from 'react';
 import { LuPlus } from 'react-icons/lu';
 
 // project-imports
-import { parseResourceKey } from '../../../../utils/resourceKey';
 import CodeEditor from '../../../shared/CodeEditor';
 
-import { getTemplate } from './templates';
 
 const dialogStyle = { width: '90%', maxWidth: 1000, maxHeight: '90vh' } as const;
 const contentStyle = {
@@ -29,7 +27,9 @@ interface Props {
   open: boolean;
   onClose: () => void;
   resourceKey: string;
-  onCreate: (yaml: string, namespace: string) => Promise<void>;
+  resourceName: string;
+  template: string;
+  onCreate: (yaml: string) => Promise<void>;
   isCreating?: boolean;
 }
 
@@ -37,20 +37,21 @@ const CreateResourceModal: React.FC<Props> = ({
   open,
   onClose,
   resourceKey,
+  resourceName,
+  template,
   onCreate,
   isCreating,
 }) => {
-  const { kind } = parseResourceKey(resourceKey);
   const [value, setValue] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
 
   // Reset template each time modal opens
   React.useEffect(() => {
     if (open) {
-      setValue(getTemplate(resourceKey));
+      setValue(template);
       setError(null);
     }
-  }, [open, resourceKey]);
+  }, [open, resourceKey, template]);
 
   const handleSubmit = async () => {
     setError(null);
@@ -60,28 +61,27 @@ const CreateResourceModal: React.FC<Props> = ({
     try {
       // Dynamic import to keep bundle lean — yaml is already installed
       const { parse } = await import('yaml');
-      parsed = parse(value) as Record<string, unknown>;
+      parsed = parse(value, { intAsBigInt: true }) as Record<string, unknown>;
     } catch (err: unknown) {
       setError(`YAML syntax error: ${err instanceof Error ? err.message : 'Invalid YAML'}`);
       return;
     }
 
-    if (!parsed || typeof parsed !== 'object') {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       setError('YAML must be a valid Kubernetes resource object');
       return;
     }
 
     // Validate required fields
     const metadata = parsed.metadata as Record<string, unknown> | undefined;
-    if (!metadata?.name) {
+    if (typeof metadata?.name !== 'string' || !metadata.name) {
       setError('metadata.name is required');
       return;
     }
 
-    const namespace = (metadata.namespace as string | undefined) ?? '';
 
     try {
-      await onCreate(value, namespace);
+      await onCreate(value);
       onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create resource');
@@ -91,13 +91,13 @@ const CreateResourceModal: React.FC<Props> = ({
   return (
     <Dialog open={open} onClose={onClose} size="xl" style={dialogStyle}>
       <Dialog.Close aria-label="Close" />
-      <Dialog.Title icon={<LuPlus size={16} />}>Create {kind}</Dialog.Title>
+      <Dialog.Title icon={<LuPlus size={16} />}>Create {resourceName}</Dialog.Title>
 
       {/* Content — editor */}
       <div style={contentStyle}>
         <div style={editorWrapperStyle}>
           <CodeEditor
-            filename={`${kind}.yaml`}
+            filename="create.yaml"
             language="yaml"
             value={value}
             onChange={(v) => setValue(v)}

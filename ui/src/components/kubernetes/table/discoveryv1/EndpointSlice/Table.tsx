@@ -17,7 +17,7 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import EndpointSliceSidebar from './Sidebar';
 
-const resourceKey = 'discovery::v1::EndpointSlice';
+const resourceKey = 'k8s:discovery.k8s.io/endpointslices';
 
 const EndpointSliceTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -79,7 +79,7 @@ const EndpointSliceTable: React.FC = () => {
                 <ResourceLinkCell
                   connectionId={id}
                   resourceId={name}
-                  resourceKey="core::v1::Service"
+                  resourceKey="k8s:/services"
                   resourceName={name}
                   namespace={row.original.metadata?.namespace}
                 />
@@ -108,7 +108,6 @@ const EndpointSliceTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

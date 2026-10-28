@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { Role } from 'kubernetes-types/rbac/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="rbac::v1::Role"
+        type="k8s:rbac.authorization.k8s.io/roles"
         icon="LuShieldCheck"
         title={title}
         open
@@ -34,10 +35,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: {
-      data: data as unknown as Role,
-      resource: { connectionID: 'ctx-1', id: 'pod-manager', key: 'rbac::v1::Role' },
-    },
+    ctx: { data: data as unknown as Role, resource: fixtureResource('k8s:rbac.authorization.k8s.io/roles', data as unknown as Role, 'ctx-1', 'pod-manager') },
   },
   decorators: withDrawer(data.metadata.name),
 };

@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { FlowSchema } from 'kubernetes-types/flowcontrol/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="flowcontrol::v1::FlowSchema"
+        type="k8s:flowcontrol.apiserver.k8s.io/flowschemas"
         icon="LuGitBranch"
         title={title}
         open
@@ -34,10 +35,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: {
-      data: data as unknown as FlowSchema,
-      resource: { connectionID: 'ctx-1', id: 'system-leader-election', key: 'flowcontrol::v1::FlowSchema' },
-    },
+    ctx: { data: data as unknown as FlowSchema, resource: fixtureResource('k8s:flowcontrol.apiserver.k8s.io/flowschemas', data as unknown as FlowSchema, 'ctx-1', 'system-leader-election') },
   },
   decorators: withDrawer(data.metadata.name),
 };

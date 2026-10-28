@@ -2,15 +2,13 @@ package helm
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
@@ -18,12 +16,11 @@ import (
 	"helm.sh/helm/v3/pkg/repo"
 )
 
-// RepoResourcer implements Resourcer[clients.ClientSet] for helm::v1::Repository.
+// RepoResourcer supplies native Helm repository operations.
 type RepoResourcer struct {
 	log *zap.SugaredLogger
 }
 
-var _ resource.Resourcer[clients.ClientSet] = (*RepoResourcer)(nil)
 
 // NewRepoResourcer creates a new RepoResourcer.
 func NewRepoResourcer(logger *zap.SugaredLogger) *RepoResourcer {
@@ -39,6 +36,10 @@ func repoFile() string {
 
 func loadRepoFile() (*repo.File, error) {
 	path := repoFile()
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) { return repo.NewFile(), nil }
+	if err != nil { return nil, err }
+	if info.Size() > 16<<20 { return nil, fmt.Errorf("Helm repositories exceed 16 MiB") }
 	f, err := repo.LoadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -67,189 +68,6 @@ func repoEntryToMap(entry *repo.Entry) map[string]interface{} {
 	}
 }
 
-func (r *RepoResourcer) Get(
-	_ context.Context,
-	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	input resource.GetInput,
-) (*resource.GetResult, error) {
-	f, err := loadRepoFile()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, entry := range f.Repositories {
-		if entry.Name == input.ID {
-			data, err := marshalMap(repoEntryToMap(entry))
-			if err != nil {
-				return nil, err
-			}
-			return &resource.GetResult{Result: data, Success: true}, nil
-		}
-	}
-
-	return nil, fmt.Errorf("repository %s not found", input.ID)
-}
-
-func (r *RepoResourcer) List(
-	_ context.Context,
-	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	_ resource.ListInput,
-) (*resource.ListResult, error) {
-	f, err := loadRepoFile()
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]json.RawMessage, 0, len(f.Repositories))
-	for _, entry := range f.Repositories {
-		data, err := marshalMap(repoEntryToMap(entry))
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal repo entry %s: %w", entry.Name, err)
-		}
-		result = append(result, data)
-	}
-
-	return &resource.ListResult{Result: result, Success: true}, nil
-}
-
-func (r *RepoResourcer) Find(
-	ctx context.Context,
-	client *clients.ClientSet,
-	meta resource.ResourceMeta,
-	input resource.FindInput,
-) (*resource.FindResult, error) {
-	listResult, err := r.List(ctx, client, meta, resource.ListInput{})
-	if err != nil {
-		return nil, err
-	}
-	return &resource.FindResult{
-		Result:  listResult.Result,
-		Success: listResult.Success,
-	}, nil
-}
-
-func (r *RepoResourcer) Create(
-	_ context.Context,
-	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	input resource.CreateInput,
-) (*resource.CreateResult, error) {
-	// Unmarshal input from json.RawMessage.
-	var inputMap map[string]interface{}
-	if err := json.Unmarshal(input.Input, &inputMap); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal create input: %w", err)
-	}
-
-	name, _ := inputMap["name"].(string)
-	url, _ := inputMap["url"].(string)
-
-	if name == "" || url == "" {
-		return nil, fmt.Errorf("name and url are required")
-	}
-
-	f, err := loadRepoFile()
-	if err != nil {
-		return nil, err
-	}
-
-	if f.Has(name) {
-		return nil, fmt.Errorf("repository %s already exists", name)
-	}
-
-	// Read optional auth fields.
-	username, _ := inputMap["username"].(string)
-	password, _ := inputMap["password"].(string)
-	certFile, _ := inputMap["certFile"].(string)
-	keyFile, _ := inputMap["keyFile"].(string)
-	caFile, _ := inputMap["caFile"].(string)
-	insecureSkipTLS, _ := inputMap["insecureSkipTLS"].(bool)
-
-	entry := &repo.Entry{
-		Name:                  name,
-		URL:                   url,
-		Username:              username,
-		Password:              password,
-		CertFile:              certFile,
-		KeyFile:               keyFile,
-		CAFile:                caFile,
-		InsecureSkipTLSverify: insecureSkipTLS,
-	}
-
-	if registry.IsOCI(url) {
-		// OCI registries don't have index.yaml — validate by connecting.
-		if err := validateOCIRegistry(url, username, password, certFile, keyFile, caFile, insecureSkipTLS, false); err != nil {
-			return nil, err
-		}
-	} else {
-		// Download the index to validate the repo.
-		settings := cli.New()
-		chartRepo, err := repo.NewChartRepository(entry, getter.All(settings))
-		if err != nil {
-			return nil, fmt.Errorf("failed to create chart repository: %w", err)
-		}
-		chartRepo.CachePath = settings.RepositoryCache
-
-		if _, err := chartRepo.DownloadIndexFile(); err != nil {
-			return nil, fmt.Errorf("failed to download index for %s: %w", url, err)
-		}
-	}
-
-	f.Update(entry)
-	if err := f.WriteFile(repoFile(), 0644); err != nil {
-		return nil, fmt.Errorf("failed to write repo file: %w", err)
-	}
-
-	data, err := marshalMap(repoEntryToMap(entry))
-	if err != nil {
-		return nil, err
-	}
-	return &resource.CreateResult{Result: data, Success: true}, nil
-}
-
-func (r *RepoResourcer) Update(
-	_ context.Context,
-	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	_ resource.UpdateInput,
-) (*resource.UpdateResult, error) {
-	return nil, fmt.Errorf("use the 'refresh' action to update a repository")
-}
-
-func (r *RepoResourcer) Delete(
-	_ context.Context,
-	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	input resource.DeleteInput,
-) (*resource.DeleteResult, error) {
-	f, err := loadRepoFile()
-	if err != nil {
-		return nil, err
-	}
-
-	if !f.Remove(input.ID) {
-		return nil, fmt.Errorf("repository %s not found", input.ID)
-	}
-
-	if err := f.WriteFile(repoFile(), 0644); err != nil {
-		return nil, fmt.Errorf("failed to write repo file: %w", err)
-	}
-
-	// Also remove cached index.
-	settings := cli.New()
-	indexPath := filepath.Join(settings.RepositoryCache, input.ID+"-index.yaml")
-	_ = os.Remove(indexPath)
-
-	data, err := marshalMap(map[string]interface{}{"name": input.ID})
-	if err != nil {
-		return nil, err
-	}
-	return &resource.DeleteResult{Result: data, Success: true}, nil
-}
-
-var _ resource.ActionResourcer[clients.ClientSet] = (*RepoResourcerWithActions)(nil)
-
 // RepoResourcerWithActions combines RepoResourcer with action support.
 type RepoResourcerWithActions struct {
 	RepoResourcer
@@ -264,7 +82,6 @@ func NewRepoResourcerWithActions(logger *zap.SugaredLogger) *RepoResourcerWithAc
 func (r *RepoResourcerWithActions) GetActions(
 	_ context.Context,
 	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
 ) ([]resource.ActionDescriptor, error) {
 	return []resource.ActionDescriptor{
 		{
@@ -289,7 +106,6 @@ func (r *RepoResourcerWithActions) GetActions(
 			Scope:       resource.ActionScopeType,
 			ParamsSchema: &resource.Schema{
 				Properties: map[string]resource.SchemaProperty{
-					"name":            {Type: resource.SchemaString, Description: "Repository name"},
 					"url":             {Type: resource.SchemaString, Description: "Repository URL"},
 					"username":        {Type: resource.SchemaString, Description: "Auth username"},
 					"password":        {Type: resource.SchemaString, Description: "Auth password"},
@@ -299,20 +115,18 @@ func (r *RepoResourcerWithActions) GetActions(
 					"insecureSkipTLS": {Type: resource.SchemaBoolean, Default: false, Description: "Skip TLS verification"},
 					"plainHTTP":       {Type: resource.SchemaBoolean, Default: false, Description: "Use plain HTTP for OCI registries"},
 				},
-				Required: []string{"name", "url"},
+				Required: []string{"url"},
 			},
 		},
 	}, nil
 }
 
-func (r *RepoResourcerWithActions) ExecuteAction(
+func (r *RepoResourcerWithActions) Action(
 	_ context.Context,
 	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	actionID string,
-	input resource.ActionInput,
-) (*resource.ActionResult, error) {
-	switch actionID {
+	input resource.ActionRequest,
+) (resource.Value, error) {
+	switch input.Action {
 	case "refresh":
 		return r.executeRefresh(input)
 	case "list-charts":
@@ -320,25 +134,25 @@ func (r *RepoResourcerWithActions) ExecuteAction(
 	case "add":
 		return r.executeAdd(input)
 	default:
-		return nil, fmt.Errorf("unknown action: %s", actionID)
+		return resource.Value{}, fmt.Errorf("unknown action: %s", input.Action)
 	}
 }
 
-func (r *RepoResourcerWithActions) executeRefresh(input resource.ActionInput) (*resource.ActionResult, error) {
+func (r *RepoResourcerWithActions) executeRefresh(input resource.ActionRequest) (resource.Value, error) {
 	f, err := loadRepoFile()
 	if err != nil {
-		return nil, err
+		return resource.Value{}, err
 	}
 
 	var entry *repo.Entry
 	for _, e := range f.Repositories {
-		if e.Name == input.ID {
+		if e.Name == input.Reference.Address.ID {
 			entry = e
 			break
 		}
 	}
 	if entry == nil {
-		return nil, fmt.Errorf("repository %s not found", input.ID)
+		return resource.Value{}, fmt.Errorf("repository %s not found", input.Reference.Address.ID)
 	}
 
 	// OCI registries don't have a downloadable index file — validate connectivity.
@@ -348,53 +162,54 @@ func (r *RepoResourcerWithActions) executeRefresh(input resource.ActionInput) (*
 			entry.CertFile, entry.KeyFile, entry.CAFile,
 			entry.InsecureSkipTLSverify, false,
 		); err != nil {
-			return nil, fmt.Errorf("OCI registry validation failed: %w", err)
+			return resource.Value{}, fmt.Errorf("OCI registry validation failed: %w", err)
 		}
-		return &resource.ActionResult{
-			Success: true,
-			Data: map[string]interface{}{
+		return resource.ValueFromNative(map[string]interface{}{
+			"success": true,
+			"data": map[string]interface{}{
 				"refreshedAt": time.Now().Format(time.RFC3339),
 				"type":        "oci",
 			},
-			Message: fmt.Sprintf("OCI repository %s validated", entry.Name),
-		}, nil
+			"message": fmt.Sprintf("OCI repository %s validated", entry.Name),
+		})
 	}
 
 	settings := cli.New()
 	chartRepo, err := repo.NewChartRepository(entry, getter.All(settings))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create chart repository: %w", err)
+		return resource.Value{}, fmt.Errorf("failed to create chart repository: %w", err)
 	}
 	chartRepo.CachePath = settings.RepositoryCache
 
 	indexPath, err := chartRepo.DownloadIndexFile()
 	if err != nil {
-		return nil, fmt.Errorf("failed to refresh %s: %w", entry.Name, err)
+		return resource.Value{}, fmt.Errorf("failed to refresh %s: %w", entry.Name, err)
 	}
 
-	return &resource.ActionResult{
-		Success: true,
-		Data: map[string]interface{}{
+	return resource.ValueFromNative(map[string]interface{}{
+		"success": true,
+		"data": map[string]interface{}{
 			"indexPath":   indexPath,
 			"refreshedAt": time.Now().Format(time.RFC3339),
 		},
-		Message: fmt.Sprintf("Repository %s refreshed", entry.Name),
-	}, nil
+		"message": fmt.Sprintf("Repository %s refreshed", entry.Name),
+	})
 }
 
-func (r *RepoResourcerWithActions) executeListCharts(input resource.ActionInput) (*resource.ActionResult, error) {
-	repoName := input.ID
+func (r *RepoResourcerWithActions) executeListCharts(input resource.ActionRequest) (resource.Value, error) {
+	repoName := input.Reference.Address.ID
 
 	indexes, err := loadAllIndexes()
 	if err != nil {
-		return nil, err
+		return resource.Value{}, err
 	}
 
 	idx, ok := indexes[repoName]
 	if !ok {
-		return nil, fmt.Errorf("repository %s index not found in local cache", repoName)
+		return resource.Value{}, fmt.Errorf("repository %s index not found in local cache", repoName)
 	}
 
+	if len(idx.Entries) > 256 { return resource.Value{}, fmt.Errorf("repository chart action exceeds 256 entries; use chart enumeration") }
 	charts := make([]interface{}, 0, len(idx.Entries))
 	for _, versions := range idx.Entries {
 		if len(versions) == 0 {
@@ -403,40 +218,42 @@ func (r *RepoResourcerWithActions) executeListCharts(input resource.ActionInput)
 		charts = append(charts, chartVersionToMap(repoName, versions[0]))
 	}
 
-	return &resource.ActionResult{
-		Success: true,
-		Data: map[string]interface{}{
+	return resource.ValueFromNative(map[string]interface{}{
+		"success": true,
+		"data": map[string]interface{}{
 			"charts": charts,
 		},
-		Message: fmt.Sprintf("Found %d charts in %s", len(charts), repoName),
-	}, nil
+		"message": fmt.Sprintf("Found %d charts in %s", len(charts), repoName),
+	})
 }
 
-func (r *RepoResourcerWithActions) executeAdd(input resource.ActionInput) (*resource.ActionResult, error) {
-	name, _ := input.Params["name"].(string)
-	url, _ := input.Params["url"].(string)
+func (r *RepoResourcerWithActions) executeAdd(input resource.ActionRequest) (resource.Value, error) {
+	params, err := actionParams(input)
+	if err != nil { return resource.Value{}, err }
+	name := input.Reference.Address.ID
+	url, _ := params["url"].(string)
 
 	if name == "" || url == "" {
-		return nil, fmt.Errorf("name and url are required")
+		return resource.Value{}, fmt.Errorf("name and url are required")
 	}
 
 	f, err := loadRepoFile()
 	if err != nil {
-		return nil, err
+		return resource.Value{}, err
 	}
 
 	if f.Has(name) {
-		return nil, fmt.Errorf("repository %s already exists", name)
+		return resource.Value{}, fmt.Errorf("repository %s already exists", name)
 	}
 
 	// Read optional auth fields.
-	username, _ := input.Params["username"].(string)
-	password, _ := input.Params["password"].(string)
-	certFile, _ := input.Params["certFile"].(string)
-	keyFile, _ := input.Params["keyFile"].(string)
-	caFile, _ := input.Params["caFile"].(string)
-	insecureSkipTLS, _ := input.Params["insecureSkipTLS"].(bool)
-	plainHTTP, _ := input.Params["plainHTTP"].(bool)
+	username, _ := params["username"].(string)
+	password, _ := params["password"].(string)
+	certFile, _ := params["certFile"].(string)
+	keyFile, _ := params["keyFile"].(string)
+	caFile, _ := params["caFile"].(string)
+	insecureSkipTLS, _ := params["insecureSkipTLS"].(bool)
+	plainHTTP, _ := params["plainHTTP"].(bool)
 
 	entry := &repo.Entry{
 		Name:                  name,
@@ -452,32 +269,32 @@ func (r *RepoResourcerWithActions) executeAdd(input resource.ActionInput) (*reso
 	if registry.IsOCI(url) {
 		// OCI registries don't have index.yaml -- validate by connecting.
 		if err := validateOCIRegistry(url, username, password, certFile, keyFile, caFile, insecureSkipTLS, plainHTTP); err != nil {
-			return nil, err
+			return resource.Value{}, err
 		}
 	} else {
 		// Traditional HTTP(S) repository -- validate by downloading the index.
 		settings := cli.New()
 		chartRepo, err := repo.NewChartRepository(entry, getter.All(settings))
 		if err != nil {
-			return nil, fmt.Errorf("failed to create chart repository: %w", err)
+			return resource.Value{}, fmt.Errorf("failed to create chart repository: %w", err)
 		}
 		chartRepo.CachePath = settings.RepositoryCache
 
 		if _, err := chartRepo.DownloadIndexFile(); err != nil {
-			return nil, fmt.Errorf("failed to download index for %s: %w", url, err)
+			return resource.Value{}, fmt.Errorf("failed to download index for %s: %w", url, err)
 		}
 	}
 
 	f.Update(entry)
 	if err := f.WriteFile(repoFile(), 0644); err != nil {
-		return nil, fmt.Errorf("failed to write repo file: %w", err)
+		return resource.Value{}, fmt.Errorf("failed to write repo file: %w", err)
 	}
 
-	return &resource.ActionResult{
-		Success: true,
-		Data:    repoEntryToMap(entry),
-		Message: fmt.Sprintf("Repository %s added successfully", name),
-	}, nil
+	return resource.ValueFromNative(map[string]interface{}{
+		"success": true,
+		"data":    repoEntryToMap(entry),
+		"message": fmt.Sprintf("Repository %s added successfully", name),
+	})
 }
 
 // validateOCIRegistry validates an OCI registry by attempting to log in (if
@@ -536,13 +353,4 @@ func validateOCIRegistry(
 	return nil
 }
 
-func (r *RepoResourcerWithActions) StreamAction(
-	_ context.Context,
-	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	_ string,
-	_ resource.ActionInput,
-	_ chan<- resource.ActionEvent,
-) error {
-	return &resource.ResourceOperationError{Code: "UNSUPPORTED", Title: "Unsupported operation", Message: "Streaming actions are not supported for this resource."}
-}
+

@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ServiceAccount } from 'kubernetes-types/core/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="core::v1::ServiceAccount"
+        type="k8s:/serviceaccounts"
         icon="LuUser"
         title={title}
         open
@@ -36,10 +37,7 @@ function withDrawer(title: string) {
 
 export const WithSecrets: Story = {
   args: {
-    ctx: {
-      data: data as unknown as ServiceAccount,
-      resource: { connectionID: 'ctx-1', id: 'my-app', key: 'core::v1::ServiceAccount' },
-    },
+    ctx: { data: data as unknown as ServiceAccount, resource: fixtureResource('k8s:/serviceaccounts', data as unknown as ServiceAccount, 'ctx-1', 'my-app') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -56,10 +54,7 @@ const minimalData: ServiceAccount = {
 
 export const Minimal: Story = {
   args: {
-    ctx: {
-      data: minimalData,
-      resource: { connectionID: 'ctx-1', id: 'minimal-sa', key: 'core::v1::ServiceAccount' },
-    },
+    ctx: { data: minimalData, resource: fixtureResource('k8s:/serviceaccounts', minimalData, 'ctx-1', 'minimal-sa') },
   },
   decorators: withDrawer('minimal-sa'),
 };

@@ -2,6 +2,8 @@ package resourcers
 
 import (
 	"context"
+	"testing"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -59,4 +61,19 @@ func defaultGVRListKinds() map[schema.GroupVersionResource]string {
 	return map[schema.GroupVersionResource]string{
 		testGVR: "PodList",
 	}
+}
+
+func mustTestValue(t testing.TB, data []byte) resource.Value {
+	t.Helper()
+	value, err := resource.JSONToValue(data)
+	if err != nil { t.Fatalf("invalid native test body: %v", err) }
+	return value
+}
+
+func testWatchTarget() resource.ReadTarget {
+	return resource.ReadTarget{Route: resource.AccessRoute{Connection: "test-route"}, Provider: "kubernetes", Authority: "host-issued-test-authority", Type: "opaque-pod-type", Representation: "native", Scope: resource.QueryScope{}}
+}
+
+func testWatchRepresentation() resource.Representation {
+	return resource.Representation{ID: "native", Revision: "test-schema-revision", Schema: resource.SchemaBinding{State: "absent", Validation: "none", Unvalidated: []string{}}}
 }

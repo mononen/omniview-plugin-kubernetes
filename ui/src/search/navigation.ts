@@ -1,6 +1,4 @@
 import type { NavMenuItem, NavSection } from '../types/navigation';
-import { toResourceKey } from '../utils/resourceKey';
-import { plural } from '../utils/language';
 
 export type SearchDestination = {
   id: string;
@@ -18,13 +16,11 @@ export function searchDestinations(sections: readonly NavSection[]): SearchDesti
       const disabled = parentDisabled || Boolean(item.disabled);
       const children = item.children ?? [];
       if (!children.length || ('selectable' in item && item.selectable === true)) {
-        const key = /^[^/_]+_[^/_]+_[^/]+$/.test(item.id) ? toResourceKey(item.id) : undefined;
         result.push({
           id: item.id,
-          label: key ? plural(item.label) : item.label,
+          label: item.label,
           category,
           disabled,
-          ...(key ? { resourceKey: key } : {}),
         });
       }
       if (children.length) walk(children, item.label, disabled);
@@ -36,7 +32,8 @@ export function searchDestinations(sections: readonly NavSection[]): SearchDesti
 
 export function destinationPath(connectionID: string, id: string, search?: string): string {
   const root = `/cluster/${encodeURIComponent(connectionID)}/resources`;
-  const suffix = id === '__dashboard__' ? '' : `/${id.split('/').map(encodeURIComponent).join('/')}`;
+  const suffix = id === '__dashboard__' ? '' : id.startsWith('page/')
+    ? `/${id.split('/').map(encodeURIComponent).join('/')}` : `/${encodeURIComponent(decodeURIComponent(id))}`;
   return `${root}${suffix}${search === undefined ? '' : `?${new URLSearchParams({ search })}`}`;
 }
 

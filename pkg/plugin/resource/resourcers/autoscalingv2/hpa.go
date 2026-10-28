@@ -1,30 +1,27 @@
 //nolint:gochecknoglobals,gomnd // column definitions are global
 package autoscalingv2
 
-import "github.com/omniviewdev/plugin-sdk/pkg/resource/types"
+import types "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 
-var HPACols = []types.ColumnDef{
+var HPACols = []types.ColumnDefinition{
 	{
 		ID:        "targetRef",
 		Header:    "Target Ref",
 		Accessors: "$.spec.scaleTargetRef",
 		Width:     200,
 		ResourceLink: &types.ResourceLink{
-			IDAccessor:  "name",
-			KeyAccessor: "kind",
-			Namespaced:  true,
-			KeyMap: map[string]string{
-				"ReplicaSet":            "apps::v1::ReplicaSet",
-				"ReplicationController": "core::v1::ReplicationController",
-				"Deployment":            "apps::v1::Deployment",
-				"StatefulSet":           "apps::v1::StatefulSet",
-				"DaemonSet":             "apps::v1::DaemonSet",
-				"Job":                   "batch::v1::Job",
-				"CronJob":               "batch::v1::CronJob",
+			IDAccessor: "name",
+			TypeAccessor: "kind",
+			TypeMap: map[string]string{
+				"ReplicaSet": "k8s:apps/replicasets",
+				"ReplicationController": "k8s:/replicationcontrollers",
+				"Deployment": "k8s:apps/deployments",
+				"StatefulSet": "k8s:apps/statefulsets",
+				"DaemonSet": "k8s:apps/daemonsets",
+				"Job": "k8s:batch/jobs",
+				"CronJob": "k8s:batch/cronjobs",
 			},
-			DetailExtractors: map[string]string{
-				"Name": "name",
-			},
+			ScopeAccessors: []types.ScopeExtractor{{Dimension: "namespace", FieldPath: "$.metadata.namespace"}},
 			DisplayID: true,
 		},
 	},
@@ -57,6 +54,6 @@ var HPACols = []types.ColumnDef{
 		Header:    "Last Scale",
 		Accessors: "status.lastScaleTime",
 		Width:     120,
-		Formatter: types.CellValueFormatterAge,
+		Formatter: "AGE",
 	},
 }

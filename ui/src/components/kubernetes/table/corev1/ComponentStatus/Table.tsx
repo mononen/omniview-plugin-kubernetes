@@ -11,7 +11,7 @@ import { withClusterResourceColumns } from '../../shared/columns';
 
 import ComponentStatusSidebar from './Sidebar';
 
-const resourceKey = 'core::v1::ComponentStatus';
+const resourceKey = 'k8s:/componentstatuses';
 
 const ComponentStatusTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -36,7 +36,6 @@ const ComponentStatusTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
       createEnabled={false}
     />

@@ -6,6 +6,7 @@ import {
   useResourceMutations,
   useRightDrawer,
   useStreamAction,
+  jsonToValue,
 } from '@omniviewdev/runtime';
 import React from 'react';
 
@@ -24,11 +25,11 @@ type BridgeProps = {
 
 export const useDrawerActionExecution = ({ connectionID, resourceKey }: BridgeProps) => {
   const { show } = useConfirmationModal();
-  const { remove, update } = useResourceMutations({ pluginID: PLUGIN_ID });
+  const { mutate } = useResourceMutations({ pluginID: PLUGIN_ID });
   const { createLogSession } = useLogs({ pluginID: PLUGIN_ID });
   const { createSession } = useExec({ pluginID: PLUGIN_ID });
-  const { executeAction, isExecuting } = useExecuteAction({ pluginID: PLUGIN_ID, connectionID, resourceKey });
-  const { startStreamAction } = useStreamAction({ pluginID: PLUGIN_ID, connectionID, resourceKey });
+  const { executeAction, isExecuting } = useExecuteAction({ pluginID: PLUGIN_ID });
+  const { startStreamAction } = useStreamAction({ pluginID: PLUGIN_ID });
   const { closeDrawer } = useRightDrawer();
   const { connectionOverrides } = useClusterPreferences(PLUGIN_ID);
   const nodeShellConfig = connectionOverrides[connectionID]?.nodeShellConfig;
@@ -38,8 +39,7 @@ export const useDrawerActionExecution = ({ connectionID, resourceKey }: BridgePr
   const deps = React.useMemo<DrawerActionDeps>(
     () => ({
       show,
-      remove,
-      update,
+      mutate,
       createLogSession,
       createExecSession: createSession,
       executeAction,
@@ -48,7 +48,7 @@ export const useDrawerActionExecution = ({ connectionID, resourceKey }: BridgePr
       openScale: setScaleTarget,
       nodeShellConfig,
     }),
-    [show, remove, update, createLogSession, createSession, executeAction, startStreamAction, closeDrawer, nodeShellConfig],
+    [show, mutate, createLogSession, createSession, executeAction, startStreamAction, closeDrawer, nodeShellConfig],
   );
 
 
@@ -58,16 +58,16 @@ export const useDrawerActionExecution = ({ connectionID, resourceKey }: BridgePr
       onClose={() => setScaleTarget(null)}
       onConfirm={(replicas) => {
         void executeAction({
-          actionID: 'scale',
-          id: scaleTarget.name,
-          namespace: scaleTarget.namespace,
-          params: { replicas },
+          action: 'scale',
+          reference: scaleTarget.resource.reference,
+          route: scaleTarget.resource.route,
+          input: jsonToValue({ replicas }),
         }).then(() => {
           setScaleTarget(null);
           closeDrawer();
         });
       }}
-      resourceType={resourceKey.split('::').pop() ?? resourceKey}
+      resourceType={resourceKey}
       resourceName={scaleTarget.name}
       currentReplicas={scaleTarget.replicas}
       isExecuting={isExecuting}

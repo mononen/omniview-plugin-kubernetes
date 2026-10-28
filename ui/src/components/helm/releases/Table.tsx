@@ -10,13 +10,13 @@ import ResourceTable from '../../shared/table/ResourceTable';
 
 import ReleaseSidebar from './ReleaseSidebar';
 
-const resourceKey = 'helm::v1::Release';
+const resourceKey = 'helm:releases';
 
 /** Shape of a Helm release row as rendered in the table. */
 interface HelmRelease {
   name?: string;
   namespace?: string;
-  version?: number;
+  version?: bigint;
   info?: {
     status?: string;
     last_deployed?: string;
@@ -76,6 +76,7 @@ const HelmReleaseTable: React.FC = () => {
         id: 'revision',
         header: 'Revision',
         accessorKey: 'version',
+        cell: ({ getValue }) => String(getValue() ?? ''),
         size: 80,
       },
       {
@@ -111,7 +112,6 @@ const HelmReleaseTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="name"
       drawer={drawer}
       createEnabled={false}
     />

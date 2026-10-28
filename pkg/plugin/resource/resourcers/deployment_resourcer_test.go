@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -64,7 +64,7 @@ func corev1PodTemplateSpec(name string) corev1.PodTemplateSpec {
 
 func TestDeploymentResourcer_GetActions(t *testing.T) {
 	r := newTestDeploymentResourcer()
-	actions, err := r.GetActions(context.Background(), nil, resource.ResourceMeta{})
+	actions, err := r.GetActions(context.Background(), nil)
 	require.NoError(t, err)
 	require.Len(t, actions, 4)
 
@@ -93,14 +93,11 @@ func TestDeploymentResourcer_Restart(t *testing.T) {
 	cs := newAppsDeploymentClientSet(dep)
 	r := newTestDeploymentResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "restart", resource.ActionInput{
-		ID:        "nginx",
-		Namespace: "default",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("restart", "nginx", "default", nil))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
 
 	// Verify the restart annotation was set.
 	updated, err := cs.KubeClient.AppsV1().Deployments("default").Get(context.Background(), "nginx", metav1.GetOptions{})
@@ -113,13 +110,10 @@ func TestDeploymentResourcer_Restart_NotFound(t *testing.T) {
 	cs := newAppsDeploymentClientSet()
 	r := newTestDeploymentResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "restart", resource.ActionInput{
-		ID:        "nonexistent",
-		Namespace: "default",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("restart", "nonexistent", "default", nil))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "failed to restart deployment")
 }
 
@@ -130,16 +124,12 @@ func TestDeploymentResourcer_Scale(t *testing.T) {
 	cs := newAppsDeploymentClientSet(dep)
 	r := newTestDeploymentResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "scale", resource.ActionInput{
-		ID:        "nginx",
-		Namespace: "default",
-		Params:    map[string]interface{}{"replicas": float64(5)},
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("scale", "nginx", "default", map[string]interface{}{"replicas": float64(5)}))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "scaled to 5")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "scaled to 5")
 
 	updated, err := cs.KubeClient.AppsV1().Deployments("default").Get(context.Background(), "nginx", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -151,15 +141,11 @@ func TestDeploymentResourcer_Scale_ToZero(t *testing.T) {
 	cs := newAppsDeploymentClientSet(dep)
 	r := newTestDeploymentResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "scale", resource.ActionInput{
-		ID:        "nginx",
-		Namespace: "default",
-		Params:    map[string]interface{}{"replicas": float64(0)},
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("scale", "nginx", "default", map[string]interface{}{"replicas": float64(0)}))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
 
 	updated, err := cs.KubeClient.AppsV1().Deployments("default").Get(context.Background(), "nginx", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -171,29 +157,21 @@ func TestDeploymentResourcer_Scale_MissingParam(t *testing.T) {
 	cs := newAppsDeploymentClientSet(dep)
 	r := newTestDeploymentResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "scale", resource.ActionInput{
-		ID:        "nginx",
-		Namespace: "default",
-		Params:    map[string]interface{}{},
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("scale", "nginx", "default", map[string]interface{}{}))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "replicas parameter is required")
+	assert.Equal(t, resource.Value{}, result)
+	assert.Contains(t, err.Error(), "replicas:")
 }
 
 func TestDeploymentResourcer_Scale_NotFound(t *testing.T) {
 	cs := newAppsDeploymentClientSet()
 	r := newTestDeploymentResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "scale", resource.ActionInput{
-		ID:        "nonexistent",
-		Namespace: "default",
-		Params:    map[string]interface{}{"replicas": float64(5)},
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("scale", "nonexistent", "default", map[string]interface{}{"replicas": float64(5)}))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "failed to scale deployment")
 }
 
@@ -204,15 +182,12 @@ func TestDeploymentResourcer_Pause(t *testing.T) {
 	cs := newAppsDeploymentClientSet(dep)
 	r := newTestDeploymentResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "pause", resource.ActionInput{
-		ID:        "nginx",
-		Namespace: "default",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("pause", "nginx", "default", nil))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "paused")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "paused")
 
 	updated, err := cs.KubeClient.AppsV1().Deployments("default").Get(context.Background(), "nginx", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -223,13 +198,10 @@ func TestDeploymentResourcer_Pause_NotFound(t *testing.T) {
 	cs := newAppsDeploymentClientSet()
 	r := newTestDeploymentResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "pause", resource.ActionInput{
-		ID:        "nonexistent",
-		Namespace: "default",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("pause", "nonexistent", "default", nil))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "failed to pause deployment")
 }
 
@@ -240,28 +212,22 @@ func TestDeploymentResourcer_Resume(t *testing.T) {
 	cs := newAppsDeploymentClientSet(dep)
 	r := newTestDeploymentResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "resume", resource.ActionInput{
-		ID:        "nginx",
-		Namespace: "default",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("resume", "nginx", "default", nil))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "resumed")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "resumed")
 }
 
 func TestDeploymentResourcer_Resume_NotFound(t *testing.T) {
 	cs := newAppsDeploymentClientSet()
 	r := newTestDeploymentResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "resume", resource.ActionInput{
-		ID:        "nonexistent",
-		Namespace: "default",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("resume", "nonexistent", "default", nil))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "failed to resume deployment")
 }
 
@@ -271,10 +237,10 @@ func TestDeploymentResourcer_UnknownAction(t *testing.T) {
 	cs := newAppsDeploymentClientSet()
 	r := newTestDeploymentResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "foo", resource.ActionInput{})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("foo", "", "", nil))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "unknown action: foo")
 }
 
@@ -284,7 +250,7 @@ func TestDeploymentResourcer_StreamAction_UnsupportedAction(t *testing.T) {
 	r := newTestDeploymentResourcer()
 	stream := make(chan resource.ActionEvent, 10)
 
-	err := r.StreamAction(context.Background(), nil, resource.ResourceMeta{}, "scale", resource.ActionInput{}, stream)
+	err := r.StreamAction(context.Background(), nil, workloadActionRequest("scale", "", "", nil), stream)
 
 	require.Error(t, err)
 	var operationError *resource.ResourceOperationError
@@ -297,15 +263,13 @@ func TestDeploymentResourcer_StreamAction_Restart_NotFound(t *testing.T) {
 	r := newTestDeploymentResourcer()
 	stream := make(chan resource.ActionEvent, 10)
 
-	err := r.StreamAction(context.Background(), cs, resource.ResourceMeta{}, "restart", resource.ActionInput{
-		ID:        "nonexistent",
-		Namespace: "default",
-	}, stream)
+	err := r.StreamAction(context.Background(), cs, workloadActionRequest("restart", "nonexistent", "default", nil), stream)
 
 	require.Error(t, err)
 
 	// Failed native establishment emits neither readiness nor public progress.
 	var events []resource.ActionEvent
+	close(stream)
 	for ev := range stream {
 		events = append(events, ev)
 	}

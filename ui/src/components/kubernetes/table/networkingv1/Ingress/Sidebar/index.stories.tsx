@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import ResourceDrawerContainer from '../../../../../../stories/containers/SidebarContainer';
@@ -19,7 +20,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="networking::v1::Ingress"
+        type="k8s:networking.k8s.io/ingresses"
         icon="LuGlobe"
         title={title}
         open
@@ -33,10 +34,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: {
-      data: data as Record<string, unknown>,
-      resource: { connectionID: 'ctx-1', id: 'web-ingress', key: 'networking::v1::Ingress', pluginID: 'kubernetes' },
-    },
+    ctx: { data: data as Record<string, unknown>, resource: fixtureResource('k8s:networking.k8s.io/ingresses', data as Record<string, unknown>, 'ctx-1', 'web-ingress') },
   },
   decorators: withDrawer(data.metadata.name),
 };

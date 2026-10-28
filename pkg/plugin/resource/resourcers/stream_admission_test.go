@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,7 +21,7 @@ func TestRestartReadyRequiresNativePatchAndWatchAcceptance(t *testing.T) {
 	cases := []struct {
 		name   string
 		object runtime.Object
-		stream func(context.Context, *clients.ClientSet, resource.ResourceMeta, string, resource.ActionInput, chan<- resource.ActionEvent) error
+		stream func(context.Context, *clients.ClientSet, resource.ActionRequest, chan<- resource.ActionEvent) error
 	}{
 		{"deployments", &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "target", Namespace: "default"}}, newTestDeploymentResourcer().StreamAction},
 		{"daemonsets", &appsv1.DaemonSet{ObjectMeta: metav1.ObjectMeta{Name: "target", Namespace: "default"}}, newTestDaemonSetResourcer().StreamAction},
@@ -43,7 +43,7 @@ func TestRestartReadyRequiresNativePatchAndWatchAcceptance(t *testing.T) {
 				events := make(chan resource.ActionEvent, 16)
 				done := make(chan error, 1)
 				go func() {
-					done <- tc.stream(ctx, &clients.ClientSet{KubeClient: client}, resource.ResourceMeta{}, "restart", resource.ActionInput{ID: "target", Namespace: "default"}, events)
+					done <- tc.stream(ctx, &clients.ClientSet{KubeClient: client}, workloadActionRequest("restart", "target", "default", nil), events)
 				}()
 				if denied {
 					select {
@@ -54,6 +54,7 @@ func TestRestartReadyRequiresNativePatchAndWatchAcceptance(t *testing.T) {
 					case <-time.After(time.Second):
 						t.Fatal("denied establishment did not finish")
 					}
+					close(events)
 					for event := range events {
 						t.Fatalf("denied establishment emitted public event: %+v", event)
 					}
@@ -76,6 +77,12 @@ func TestRestartReadyRequiresNativePatchAndWatchAcceptance(t *testing.T) {
 				case <-time.After(time.Second):
 					t.Fatal("accepted native stream did not cancel")
 				}
+				if !watcher.IsStopped() {
+					t.Fatal("native watch remained open after cancellation")
+				}
+				// The SDK caller owns channel closure after the provider returns.
+				events <- resource.ActionEvent{Type: "caller-owned"}
+				close(events)
 			})
 		}
 	}

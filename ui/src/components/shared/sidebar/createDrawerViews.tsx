@@ -54,11 +54,11 @@ export function createStandardViews<T = KubernetesResourceObject>(opts: {
         ? (ctx) => (
             <BaseEditorPage
               data={ctx.data as KubernetesResourceObject}
-              resourceKey={ctx.resource?.key}
+              resourceKey={ctx.resource?.reference.address.type}
               onSubmit={(val) => onEditorSubmit(ctx, val)}
             />
           )
-        : (ctx) => <BaseEditorPage data={ctx.data as KubernetesResourceObject} resourceKey={ctx.resource?.key} />,
+        : (ctx) => <BaseEditorPage data={ctx.data as KubernetesResourceObject} resourceKey={ctx.resource?.reference.address.type} />,
     },
   ];
 
@@ -69,7 +69,7 @@ export function createStandardViews<T = KubernetesResourceObject>(opts: {
     component: (ctx) => (
       <>
         {ctx.resource && (
-          <DrawerActionsBridge connectionID={ctx.resource.connectionID} resourceKey={ctx.resource.key} />
+          <DrawerActionsBridge connectionID={ctx.resource.route.connection} resourceKey={ctx.resource.reference.address.type} />
         )}
         {view.component(ctx)}
       </>

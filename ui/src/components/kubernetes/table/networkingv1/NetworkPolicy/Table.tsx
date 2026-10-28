@@ -15,7 +15,7 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import NetworkPolicySidebar from './Sidebar';
 
-const resourceKey = 'networking::v1::NetworkPolicy';
+const resourceKey = 'k8s:networking.k8s.io/networkpolicies';
 
 const NetworkPolicyTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -91,7 +91,6 @@ const NetworkPolicyTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

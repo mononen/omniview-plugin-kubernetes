@@ -1,5 +1,5 @@
 import { DataTable, Progress, Skeleton } from '@omniviewdev/base-ui';
-import { useResources, useRightDrawer, usePluginRouter, DrawerComponent } from '@omniviewdev/runtime';
+import { useResources, useResourceType, useResolvedResourceTarget, useRightDrawer, usePluginRouter, DrawerComponent } from '@omniviewdev/runtime';
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -13,7 +13,6 @@ import {
   type Row,
   type RowSelectionState,
 } from '@tanstack/react-table';
-import get from 'lodash.get';
 import React, { useMemo, useState } from 'react';
 
 const SKELETON_ROWS = Array.from({ length: 8 }, (_, i) => `skel-${i}`);
@@ -28,7 +27,6 @@ const ROW_HEIGHT = 30;
 const NON_DRAWER_COLUMNS = new Set(['select', 'menu']);
 
 import type { KubernetesResourceObject } from '../../../../types/resource';
-import { plural } from '../../../../utils/language';
 import { useDynamicResourceColumns } from '../../../tables/ColumnFilter/useDynamicResourceColumns';
 
 import DrawerActionsBridge from '../../drawer/DrawerActionsBridge';
@@ -42,6 +40,7 @@ import { useStoredState } from '@/hooks/useStoredState';
 import ResourceTableErrorState from './ResourceTableErrorState';
 import styles from './ResourceTable.module.css';
 import ResourceTableToolbar from './ResourceTableToolbar';
+import { decodeResourceTableRows } from './rows';
 
 export type ToolbarFilterDef = {
   /** TanStack column ID this filter targets. */
@@ -58,7 +57,6 @@ export type Props<T = any> = {
   connectionID: string;
   resourceKey: string;
   columns: Array<ColumnDef<T> & ColumnMeta>;
-  idAccessor: string;
   drawer?: DrawerComponent;
   /** Hide the namespace selector (for non-namespaced resources like Helm Charts) */
   hideNamespaceSelector?: boolean;
@@ -89,8 +87,6 @@ const visibilityFromColumnDefs = <T,>(defs: Array<ColumnDef<T>>): VisibilityStat
   return visibility;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Empty array used as fallback for resources.data?.result which is any[]
-const defaultData: any[] = [];
 
 const ResourceTableContainer: React.FC<Props> = ({
   connectionID,
@@ -136,25 +132,33 @@ const ResourceTableContainer: React.FC<Props> = ({
   /** Column / label / annotation picker */
   const [filterOpen, setFilterOpen] = React.useState(false);
 
-  const { resources, isSyncing } = useResources({
+  const { resourceType } = useResourceType({
     pluginID: 'kubernetes',
-    connectionID,
-    resourceKey,
-    idAccessor: 'metadata.uid',
+    route: { connection: connectionID },
+    type: resourceKey,
   });
-
-  // Prune stale entries from rowSelection when resources are deleted (e.g. during
-  // rolling updates). Orphaned UIDs in rowSelection cause the header "select all"
-  // checkbox and per-row checkboxes to desync from the actual row highlight state.
-  useRowSelectionCleanup(
-    resources.data?.result || defaultData,
-    'metadata.uid',
-    setRowSelection,
+  const target = useResolvedResourceTarget({
+    pluginID: 'kubernetes',
+    route: { connection: connectionID },
+    type: resourceKey,
+  });
+  const { resources, isSyncing, watchError } = useResources({
+    pluginID: 'kubernetes',
+    request: target.data ? {
+      targetId: target.data.targetId,
+      request: { target: target.data.target, pageSize: 256 },
+    } : undefined,
+    live: resourceType.data?.capabilities.some((capability) => capability.operation === 'update') ?? false,
+  });
+  const { rows, recordsByBody, rowKeys } = useMemo(
+    () => decodeResourceTableRows(resources.data?.records ?? []),
+    [resources.data],
   );
+  useRowSelectionCleanup(rowKeys, setRowSelection);
 
-  const showSyncingIndicator = isSyncing && (resources.data?.result?.length ?? 0) > 0;
+  const showSyncingIndicator = isSyncing && rows.length > 0;
   const { labels, setLabels, annotations, setAnnotations, columnDefs } = useDynamicResourceColumns({
-    connectionID,
+    rows,
     resourceKey,
   });
 
@@ -213,7 +217,7 @@ const ResourceTableContainer: React.FC<Props> = ({
   );
 
   const table = useReactTable({
-    data: resources.data?.result || defaultData,
+    data: rows,
     columns: allColumns,
     columnResizeMode: 'onChange',
     onSortingChange: setSorting,
@@ -224,7 +228,7 @@ const ResourceTableContainer: React.FC<Props> = ({
     getFilteredRowModel: getFilteredRowModel(),
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
-    getRowId: (row) => get(row, 'metadata.uid') as string,
+    getRowId: (row) => recordsByBody.get(row)!.key,
     defaultColumn: {
       minSize: 40,
       maxSize: 800,
@@ -255,43 +259,47 @@ const ResourceTableContainer: React.FC<Props> = ({
       if (columnId && NON_DRAWER_COLUMNS.has(columnId)) {
         return;
       }
+      const record = recordsByBody.get(row.original)!;
       openDrawer(drawer, {
         data: row.original,
         resource: {
-          id: row.id,
-          name: row.original?.metadata?.name ?? row.id,
-          key: resourceKey,
-          connectionID,
+          reference: record.record.reference,
+          route: record.route,
+          representation: record.record.representation.id,
+          targetId: record.targetId,
+          key: record.key,
+          record,
+          name: row.original?.metadata?.name ?? record.record.reference.address.id,
           pluginID: 'kubernetes',
         },
       });
     },
-    [drawer, connectionID, openDrawer, resourceKey],
+    [drawer, openDrawer, recordsByBody],
   );
 
   const placeHolderText = () => {
-    const keyparts = resourceKey.split('::');
-    const resource = plural(keyparts[keyparts.length - 1]);
+    const resource = resourceType.data?.displayName ?? resourceKey;
 
-    const count = resources.data?.result?.length;
+    const count = rows.length;
 
     return `Search ${count ? `${count} ` : ''}${resource}...`;
   };
 
-  if (resources.isError) {
+  if (target.isError || resources.isError) {
     return (
       <ResourceTableErrorState
-        error={resources.error}
+        error={target.error ?? resources.error}
         resourceKey={resourceKey}
       />
     );
   }
 
   return (
-    <TableDrawerContext.Provider value={drawer}>
+    <TableDrawerContext.Provider value={{ drawer, recordsByBody }}>
       {/* Row menu actions run outside the drawer, so the table mounts their handlers too */}
       {drawer && <DrawerActionsBridge connectionID={connectionID} resourceKey={resourceKey} />}
       <div className={styles.outer}>
+        {watchError && <div role="status">Live updates unavailable. Showing the last acquired resources.</div>}
         <DataTable.Root
           table={table}
           features={TABLE_FEATURES}
@@ -316,7 +324,7 @@ const ResourceTableContainer: React.FC<Props> = ({
             hideNamespaceSelector={hideNamespaceSelector}
             sharedNamespaces={sharedNamespaces}
             setSharedNamespaces={setSharedNamespaces}
-            data={resources.data?.result || defaultData}
+            data={rows}
             extraFilterValues={extraFilterValues}
             setExtraFilterValues={setExtraFilterValues}
             hasResizedColumns={hasResizedColumns}
@@ -335,7 +343,7 @@ const ResourceTableContainer: React.FC<Props> = ({
             aria-labelledby={'table-title'}
           >
             <DataTable.Header />
-            {resources.isLoading ? (
+            {target.isLoading || resourceType.isLoading || resources.isLoading ? (
               <tbody style={{ display: 'grid' }}>
                 {SKELETON_ROWS.map((rowKey) => (
                   <tr key={rowKey} className={styles.skeletonRow}>

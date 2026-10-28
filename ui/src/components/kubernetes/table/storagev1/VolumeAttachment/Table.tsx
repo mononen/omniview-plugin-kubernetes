@@ -15,7 +15,7 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import VolumeAttachmentSidebar from './Sidebar';
 
-const resourceKey = 'storage::v1::VolumeAttachment';
+const resourceKey = 'k8s:storage.k8s.io/volumeattachments';
 
 const VolumeAttachmentTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -81,7 +81,6 @@ const VolumeAttachmentTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );

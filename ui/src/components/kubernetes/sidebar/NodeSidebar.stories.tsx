@@ -30,7 +30,7 @@ Primary.decorators = [
       // @ts-expect-error - arbitrary json
       title={c.args.ctx.data.metadata.name}
       icon="LuServer"
-      type="core::v1::Node"
+      type="k8s:/nodes"
       open
       onClose={() => {}}
     >

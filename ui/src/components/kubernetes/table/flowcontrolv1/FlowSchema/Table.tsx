@@ -17,7 +17,7 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import FlowSchemaSidebar from './Sidebar';
 
-const resourceKey = 'flowcontrol::v1beta3::FlowSchema';
+const resourceKey = 'k8s:flowcontrol.apiserver.k8s.io/flowschemas';
 
 const FlowSchemaTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -93,7 +93,6 @@ const FlowSchemaTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

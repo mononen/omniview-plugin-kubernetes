@@ -22,7 +22,7 @@ func TestExtractPodSelector_Service(t *testing.T) {
 			},
 		},
 	}
-	sel, err := extractPodSelector("core::v1::Service", data)
+	sel, err := extractPodSelector("k8s:/services", data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestExtractPodSelector_ReplicationController(t *testing.T) {
 			},
 		},
 	}
-	sel, err := extractPodSelector("core::v1::ReplicationController", data)
+	sel, err := extractPodSelector("k8s:/replicationcontrollers", data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestExtractPodSelector_Deployment(t *testing.T) {
 			},
 		},
 	}
-	sel, err := extractPodSelector("apps::v1::Deployment", data)
+	sel, err := extractPodSelector("k8s:apps/deployments", data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,10 +70,10 @@ func TestExtractPodSelector_Deployment(t *testing.T) {
 
 func TestExtractPodSelector_AllMatchLabelsTypes(t *testing.T) {
 	for _, key := range []string{
-		"apps::v1::ReplicaSet",
-		"apps::v1::StatefulSet",
-		"apps::v1::DaemonSet",
-		"batch::v1::Job",
+		"k8s:apps/replicasets",
+		"k8s:apps/statefulsets",
+		"k8s:apps/daemonsets",
+		"k8s:batch/jobs",
 	} {
 		data := map[string]any{
 			"spec": map[string]any{
@@ -93,7 +93,7 @@ func TestExtractPodSelector_AllMatchLabelsTypes(t *testing.T) {
 }
 
 func TestExtractPodSelector_UnsupportedType(t *testing.T) {
-	_, err := extractPodSelector("core::v1::ConfigMap", map[string]any{
+	_, err := extractPodSelector("k8s:/configmaps", map[string]any{
 		"spec": map[string]any{},
 	})
 	if err == nil {
@@ -102,14 +102,14 @@ func TestExtractPodSelector_UnsupportedType(t *testing.T) {
 }
 
 func TestExtractPodSelector_NoSpec(t *testing.T) {
-	_, err := extractPodSelector("core::v1::Service", map[string]any{})
+	_, err := extractPodSelector("k8s:/services", map[string]any{})
 	if err == nil {
 		t.Fatal("expected error for missing spec")
 	}
 }
 
 func TestExtractPodSelector_NoSelector(t *testing.T) {
-	_, err := extractPodSelector("core::v1::Service", map[string]any{
+	_, err := extractPodSelector("k8s:/services", map[string]any{
 		"spec": map[string]any{},
 	})
 	if err == nil {
@@ -118,7 +118,7 @@ func TestExtractPodSelector_NoSelector(t *testing.T) {
 }
 
 func TestExtractPodSelector_NoMatchLabels(t *testing.T) {
-	_, err := extractPodSelector("apps::v1::Deployment", map[string]any{
+	_, err := extractPodSelector("k8s:apps/deployments", map[string]any{
 		"spec": map[string]any{
 			"selector": map[string]any{},
 		},

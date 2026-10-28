@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { RuntimeClass } from 'kubernetes-types/node/v1';
 
@@ -18,17 +19,14 @@ type Story = StoryObj<typeof meta>;
 
 export const Primary: Story = {
   args: {
-    ctx: {
-      data: data as unknown as RuntimeClass,
-      resource: { connectionID: 'ctx-1', id: 'gvisor', key: 'node.k8s.io::v1::RuntimeClass' },
-    },
+    ctx: { data: data as unknown as RuntimeClass, resource: fixtureResource('k8s:node.k8s.io/runtimeclasses', data as unknown as RuntimeClass, 'ctx-1', 'gvisor') },
   },
 };
 
 Primary.decorators = [
   (Story, c) => (
     <ResourceDrawerContainer
-      type="node.k8s.io::v1::RuntimeClass"
+      type="k8s:node.k8s.io/runtimeclasses"
       icon="LuContainer"
       title={c.args.ctx.data?.metadata?.name ?? ''}
       open

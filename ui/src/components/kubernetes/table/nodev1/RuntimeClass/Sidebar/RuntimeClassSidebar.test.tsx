@@ -1,4 +1,5 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { DrawerContext } from '@omniviewdev/runtime';
 import { render, screen } from '@testing-library/react';
 import type { RuntimeClass, Scheduling } from 'kubernetes-types/node/v1';
@@ -71,7 +72,7 @@ function makeRuntimeClass(overrides: Partial<RuntimeClass> = {}): RuntimeClass {
 function makeDrawerCtx(data: RuntimeClass | undefined): DrawerContext<RuntimeClass> {
   return {
     data,
-    resource: { connectionID: 'conn-1', id: 'gvisor' },
+    resource: fixtureResource('k8s:node.k8s.io/runtimeclasses', data, 'conn-1', data?.metadata?.name ?? 'fixture-object'),
   } as DrawerContext<RuntimeClass>;
 }
 

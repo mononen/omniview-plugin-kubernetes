@@ -34,7 +34,7 @@ function makeOperation(overrides: Partial<Operation> = {}): Operation {
   return {
     id: 'op-1',
     label: 'Restart',
-    resourceKey: 'apps::v1::Deployment',
+    resourceKey: 'k8s:apps/deployments',
     resourceName: 'nginx',
     namespace: 'default',
     connectionID: 'cluster-1',

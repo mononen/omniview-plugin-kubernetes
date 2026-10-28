@@ -178,7 +178,7 @@ const PodConfigSection: React.FC<Props> = ({ pod, connectionID }) => {
               connectionID ? (
                 <ResourceLinkChip
                   connectionID={connectionID}
-                  resourceKey="core::v1::ServiceAccount"
+                  resourceKey="k8s:/serviceaccounts"
                   resourceID={spec.serviceAccountName || 'default'}
                   resourceName={spec.serviceAccountName || 'default'}
                   namespace={pod.metadata?.namespace}

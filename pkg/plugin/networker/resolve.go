@@ -23,18 +23,18 @@ func extractPodSelector(resourceKey string, resourceData map[string]any) (map[st
 	}
 
 	switch resourceKey {
-	case "core::v1::Service", "core::v1::ReplicationController":
+	case "k8s:/services", "k8s:/replicationcontrollers":
 		raw, ok := spec["selector"].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("resource %q has no spec.selector", resourceKey)
 		}
 		return toStringMap(raw), nil
 
-	case "apps::v1::Deployment",
-		"apps::v1::ReplicaSet",
-		"apps::v1::StatefulSet",
-		"apps::v1::DaemonSet",
-		"batch::v1::Job":
+	case "k8s:apps/deployments",
+		"k8s:apps/replicasets",
+		"k8s:apps/statefulsets",
+		"k8s:apps/daemonsets",
+		"k8s:batch/jobs":
 		sel, ok := spec["selector"].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("resource %q has no spec.selector", resourceKey)

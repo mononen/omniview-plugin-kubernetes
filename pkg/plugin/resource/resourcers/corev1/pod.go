@@ -1,18 +1,15 @@
 //nolint:gochecknoglobals,gomnd // column definitions are global
 package corev1
 
-import "github.com/omniviewdev/plugin-sdk/pkg/resource/types"
+import types "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 
 var PodDef = types.ResourceDefinition{
-	IDAccessor:        "metadata.name",
-	NamespaceAccessor: "metadata.namespace",
-	MemoizerAccessor:  "metadata.uid,metadata.resourceVersion",
-	ColumnDefs: []types.ColumnDef{
+	ColumnDefs: []types.ColumnDefinition{
 		{
 			ID:        "name",
 			Header:    "Name",
 			Accessors: "metadata.name",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 		},
 		{
 			ID:        "namespace",
@@ -31,7 +28,7 @@ var PodDef = types.ResourceDefinition{
 			ID:        "restarts",
 			Header:    "Restarts",
 			Accessors: "$.status.containerStatuses[*].restartCount",
-			Formatter: types.CellValueFormatterSum,
+			Formatter: "SUM",
 			ColorMap: map[string]string{
 				"0": "neutral",
 				"1": "warning",
@@ -45,20 +42,17 @@ var PodDef = types.ResourceDefinition{
 			Accessors: "$.metadata.ownerReferences[0]",
 			Width:     150,
 			ResourceLink: &types.ResourceLink{
-				IDAccessor:  "name",
-				KeyAccessor: "kind",
-				Namespaced:  true,
-				KeyMap: map[string]string{
-					"ReplicaSet":            "apps::v1::ReplicaSet",
-					"ReplicationController": "core::v1::ReplicationController",
-					"StatefulSet":           "apps::v1::StatefulSet",
-					"DaemonSet":             "apps::v1::DaemonSet",
-					"Job":                   "batch::v1::Job",
-					"CronJob":               "batch::v1::CronJob",
+				IDAccessor: "name",
+				TypeAccessor: "kind",
+				TypeMap: map[string]string{
+					"ReplicaSet": "k8s:apps/replicasets",
+					"ReplicationController": "k8s:/replicationcontrollers",
+					"StatefulSet": "k8s:apps/statefulsets",
+					"DaemonSet": "k8s:apps/daemonsets",
+					"Job": "k8s:batch/jobs",
+					"CronJob": "k8s:batch/cronjobs",
 				},
-				DetailExtractors: map[string]string{
-					"Name": "name",
-				},
+				ScopeAccessors: []types.ScopeExtractor{{Dimension: "namespace", FieldPath: "$.metadata.namespace"}},
 			},
 		},
 		{
@@ -68,8 +62,8 @@ var PodDef = types.ResourceDefinition{
 			Width:     200,
 			ResourceLink: &types.ResourceLink{
 				IDAccessor: ".",
-				Namespaced: false,
-				Key:        "core::v1::Node",
+				ScopeAccessors: []types.ScopeExtractor{},
+				Type: "k8s:/nodes",
 			},
 		},
 		{
@@ -136,7 +130,7 @@ var PodDef = types.ResourceDefinition{
 			ID:               "phase",
 			Header:           "Phase",
 			Accessors:        "metadata.deletionTimestamp,status.phase",
-			AccessorPriority: types.CellAccessorPriorityFirst,
+			AccessorPriority: "FIRST",
 			Width:            100,
 			ValueMap: map[string]string{
 				"^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z": "Terminating",
@@ -154,9 +148,9 @@ var PodDef = types.ResourceDefinition{
 			ID:        "age",
 			Header:    "Age",
 			Accessors: "metadata.creationTimestamp",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     100,
-			Formatter: types.CellValueFormatterAge,
+			Formatter: "AGE",
 		},
 	},
 }

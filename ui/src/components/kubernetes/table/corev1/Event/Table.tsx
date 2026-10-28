@@ -7,7 +7,7 @@ import ResourceTable from '../../../../shared/table/ResourceTable';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 import { inclusionFilter } from '../../shared/filters';
 
-const resourceKey = 'core::v1::Event';
+const resourceKey = 'k8s:/events';
 
 const EventTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -34,7 +34,6 @@ const EventTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       createEnabled={false}
       toolbarFilters={[
         { columnId: 'type', placeholder: 'All Types', accessor: (r: Event) => r?.type || undefined },

@@ -1,5 +1,5 @@
 import { Button, Card, Chip, Separator, Stack, Tabs, Text } from '@omniviewdev/base-ui';
-import { DrawerContext, useExecuteAction } from '@omniviewdev/runtime';
+import { DrawerContext, jsonToValue, useExecuteAction } from '@omniviewdev/runtime';
 import React from 'react';
 import {
   LuDownload,
@@ -17,6 +17,7 @@ import ChartReadmeTab from './ChartReadmeTab';
 import ChartValuesTab from './ChartValuesTab';
 import ChartVersionsTab from './ChartVersionsTab';
 import type { HelmChart, ChartVersion, VersionsActionData, ReadmeActionData, ValuesActionData } from './types';
+import { helmActionData } from '../../values';
 
 /** Union of possible cached tab data entries. */
 type TabDataEntry = ReadmeActionData | ValuesActionData | null;
@@ -90,8 +91,9 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
   const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const tabDataRef = React.useRef<Record<string, TabDataEntry>>({});
 
-  const connectionID = ctx.resource?.connectionID ?? '';
-  const chartID = ctx.data?.id ?? ctx.resource?.id ?? '';
+  const connectionID = ctx.resource?.route.connection ?? '';
+  const chartID = ctx.resource?.reference.address.id ?? '';
+  const resourceKey = ctx.resource?.key ?? '';
 
   // Reset per-chart state when the chart changes (sidebar may stay mounted)
   React.useEffect(() => {
@@ -101,24 +103,22 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
     setCopied(false);
     setTabData({});
     tabDataRef.current = {};
-  }, [chartID]);
+  }, [resourceKey]);
 
-  const { executeAction, isExecuting } = useExecuteAction({
-    pluginID: 'kubernetes',
-    connectionID,
-    resourceKey: 'helm::v1::Chart',
-  });
+  const { executeAction, isExecuting } = useExecuteAction({ pluginID: 'kubernetes' });
+  const resource = ctx.resource;
+  const runAction = React.useCallback((action: string, input = jsonToValue({})) => {
+    if (!resource) return Promise.reject(new Error('Chart reference is unavailable'));
+    return executeAction({ route: resource.route, reference: resource.reference, action, input });
+  }, [executeAction, resource]);
 
   // Load versions on mount
   React.useEffect(() => {
     if (!chartID || !connectionID) return;
     setVersionsLoading(true);
-    void executeAction({
-      actionID: 'get-versions',
-      id: chartID,
-    })
+    void runAction('get-versions')
       .then((result) => {
-        const versionsData = result?.data as VersionsActionData | undefined;
+        const versionsData = helmActionData(result) as VersionsActionData | undefined;
         const versionList = versionsData?.versions ?? [];
         setVersions(versionList);
         if (versionList.length > 0) {
@@ -130,22 +130,17 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
         console.error('[ChartSidebar] Failed to fetch versions', { chartID, connectionID }, err);
         setVersionsLoading(false);
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- executeAction excluded: its reference may change but should not retrigger version fetching
-  }, [chartID, connectionID]);
+  }, [resourceKey, runAction]);
 
   // Fetch tab-specific data lazily, cache by action+version
   const fetchTabData = React.useCallback(
     async (actionID: string) => {
-      const cacheKey = `${chartID}::${actionID}::${selectedVersion}`;
+      const cacheKey = `${resourceKey}::${actionID}::${selectedVersion}`;
       if (tabDataRef.current[cacheKey]) return;
       try {
-        const result = await executeAction({
-          actionID,
-          id: chartID,
-          params: selectedVersion ? { version: selectedVersion } : undefined,
-        });
+        const result = await runAction(actionID, jsonToValue(selectedVersion ? { version: selectedVersion } : {}));
         setTabData((prev) => {
-          const next = { ...prev, [cacheKey]: result?.data as TabDataEntry };
+          const next = { ...prev, [cacheKey]: helmActionData(result) as TabDataEntry };
           tabDataRef.current = next;
           return next;
         });
@@ -158,7 +153,7 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
         });
       }
     },
-    [executeAction, chartID, selectedVersion],
+    [runAction, resourceKey, selectedVersion],
   );
 
   // Fetch data when tab changes
@@ -192,7 +187,7 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
   }, []);
 
   const handleCopyValues = React.useCallback(() => {
-    const cacheKey = `${chartID}::get-values::${selectedVersion}`;
+    const cacheKey = `${resourceKey}::get-values::${selectedVersion}`;
     const entry = tabData[cacheKey] as ValuesActionData | null | undefined;
     const valuesData = entry?.values;
     if (valuesData) {
@@ -206,7 +201,7 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
         console.error('[ChartSidebar] Failed to copy values to clipboard', err);
       });
     }
-  }, [tabData, selectedVersion, chartID]);
+  }, [tabData, selectedVersion, resourceKey]);
 
   if (!ctx.data) {
     return null;
@@ -233,8 +228,8 @@ export const ChartSidebar: React.FC<Props> = ({ ctx }) => {
     label: v.appVersion ? `${v.version} (App: ${v.appVersion})` : v.version,
   }));
 
-  const readmeCacheKey = `${chartID}::get-readme::${selectedVersion}`;
-  const valuesCacheKey = `${chartID}::get-values::${selectedVersion}`;
+  const readmeCacheKey = `${resourceKey}::get-readme::${selectedVersion}`;
+  const valuesCacheKey = `${resourceKey}::get-values::${selectedVersion}`;
   const readmeEntry = tabData[readmeCacheKey] as ReadmeActionData | null | undefined;
   const valuesEntry = tabData[valuesCacheKey] as ValuesActionData | null | undefined;
   const readmeContent = readmeEntry?.readme;

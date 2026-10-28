@@ -280,7 +280,7 @@ function ForwardConfigPopover({ anchorEl, port, onClose, onConfirm }: ForwardCon
 export interface WorkloadPortsCardProps {
   /** The pod template spec containing containers with ports. */
   podSpec: PodSpec;
-  /** Resource key for the port-forward call (e.g. 'apps::v1::Deployment'). */
+  /** Native logical Type for the port-forward call (e.g. 'k8s:apps/deployments'). */
   resourceKey: string;
   /** Full resource data object passed to the port-forward call. */
   resourceData: unknown;

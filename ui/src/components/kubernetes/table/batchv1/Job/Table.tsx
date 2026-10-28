@@ -19,10 +19,10 @@ import { ownerRefFilter } from '../../shared/filters';
 import { drawerActions } from './actions';
 import JobSidebar from './Sidebar';
 
-const resourceKey = 'batch::v1::Job';
+const resourceKey = 'k8s:batch/jobs';
 
 const ownerRefKeyMap: Record<string, string> = {
-  CronJob: 'batch::v1::CronJob',
+  CronJob: 'k8s:batch/cronjobs',
 };
 
 const JobTable: React.FC = () => {
@@ -216,7 +216,6 @@ This field is beta-level. It can be used when the \`JobPodFailurePolicy\` featur
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
       toolbarFilters={[
         { columnId: 'controlledBy', placeholder: 'All Controllers', accessor: (r: Job) => r?.metadata?.ownerReferences?.[0]?.name },

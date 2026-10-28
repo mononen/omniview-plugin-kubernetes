@@ -1,11 +1,9 @@
 package resource
 
-import sdkresource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+import sdkresource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 
-// kubeErrorClassifier adapts the classifyResourceError function to satisfy the
-// v1 SDK's ErrorClassifier interface. It can be set on ResourcePluginConfig so
-// the gRPC server converts raw Kubernetes API errors into structured
-// ResourceOperationError values before returning them to the host.
+// kubeErrorClassifier preserves native Kubernetes error classification across
+// the resource v2 transport. The host owns public-safe error presentation.
 type kubeErrorClassifier struct{}
 
 // Compile-time interface check.

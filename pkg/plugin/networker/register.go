@@ -24,14 +24,14 @@ import (
 func Register(plugin *sdk.Plugin) {
 	wf := &WorkloadResourceForwarder{}
 	portForwarders := map[string]networker.ResourceForwarder{
-		"core::v1::Pod":                   &PodResourceForwarder{},
-		"core::v1::Service":               wf,
-		"core::v1::ReplicationController": wf,
-		"apps::v1::Deployment":            wf,
-		"apps::v1::ReplicaSet":            wf,
-		"apps::v1::StatefulSet":           wf,
-		"apps::v1::DaemonSet":             wf,
-		"batch::v1::Job":                  wf,
+		"k8s:/pods":                   &PodResourceForwarder{},
+		"k8s:/services":               wf,
+		"k8s:/replicationcontrollers": wf,
+		"k8s:apps/deployments":         wf,
+		"k8s:apps/replicasets":         wf,
+		"k8s:apps/statefulsets":        wf,
+		"k8s:apps/daemonsets":          wf,
+		"k8s:batch/jobs":               wf,
 	}
 
 	// Register the capabilities
@@ -224,7 +224,7 @@ func (f *WorkloadResourceForwarder) ForwardResource(
 
 	// For Services, resolve the target port through spec.ports[].targetPort.
 	remotePort := opts.Options.RemotePort
-	if resourceKey == "core::v1::Service" {
+	if resourceKey == "k8s:/services" {
 		if spec, ok := opts.Resource.ResourceData["spec"].(map[string]any); ok {
 			if ports, ok := spec["ports"].([]any); ok {
 				resolved := resolveServiceTargetPort(ports, remotePort)

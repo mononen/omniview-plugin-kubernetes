@@ -27,9 +27,8 @@ export const BaseEditorPage: React.FC<Props> = ({ data, kind, resourceKey, onSub
   const filename = kind
     ? `${kind}/${data?.metadata?.uid}/spec.yaml`
     : `${data?.metadata?.uid}/spec.yaml`;
-  // Use the resource key to construct a path that matches the schema fileMatch pattern
-  // e.g. "file:///core::v1::Pod/spec.yaml" matches fileMatch "**/core::v1::Pod/*.yaml"
-  const editorPath = resourceKey ? `file:///${resourceKey}/spec.yaml` : undefined;
+  // Keep the opaque Type in one URI segment for the provider's schema binding.
+  const editorPath = resourceKey ? `file:///${encodeURIComponent(resourceKey)}/draft.yaml` : undefined;
 
   const onChange = (value: string) => {
     if (!changed) {
@@ -40,7 +39,7 @@ export const BaseEditorPage: React.FC<Props> = ({ data, kind, resourceKey, onSub
 
   const handleSubmit = () => {
     if (onSubmit) {
-      const val = parse(value) as Record<string, unknown>;
+      const val = parse(value, { intAsBigInt: true }) as Record<string, unknown>;
       onSubmit(val);
     }
   };

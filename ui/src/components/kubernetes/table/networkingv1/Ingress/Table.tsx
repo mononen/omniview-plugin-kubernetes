@@ -21,7 +21,7 @@ const scrollRowStyle = { gap: 2 } as const;
 
 import { drawerActions } from './actions';
 
-const resourceKey = 'networking::v1::Ingress';
+const resourceKey = 'k8s:networking.k8s.io/ingresses';
 
 const IngressTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -98,7 +98,7 @@ const IngressTable: React.FC = () => {
                       key={v}
                       connectionId={id}
                       resourceId={v}
-                      resourceKey={'core::v1::Secret'}
+                      resourceKey={'k8s:/secrets'}
                       resourceName={v}
                     />
                   ))}
@@ -127,7 +127,6 @@ const IngressTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
       toolbarFilters={[
         {

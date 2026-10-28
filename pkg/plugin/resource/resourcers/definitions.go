@@ -6,27 +6,27 @@ import (
 	"github.com/omniview/kubernetes/pkg/plugin/resource/resourcers/autoscalingv2"
 	"github.com/omniview/kubernetes/pkg/plugin/resource/resourcers/corev1"
 
-	"github.com/omniviewdev/plugin-sdk/pkg/resource/types"
+	types "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
-func GenerateResourceDef(columndefs []types.ColumnDef, namespaced bool) types.ResourceDefinition {
-	cols := make([]types.ColumnDef, 0, len(columndefs)+3)
+func GenerateResourceDef(columndefs []types.ColumnDefinition, namespaced bool) types.ResourceDefinition {
+	cols := make([]types.ColumnDefinition, 0, len(columndefs)+3)
 	cols = append(cols,
-		types.ColumnDef{
+		types.ColumnDefinition{
 			ID:        "name",
 			Header:    "Name",
 			Accessors: "metadata.name",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 		},
 	)
 
 	if namespaced {
 		cols = append(cols,
-			types.ColumnDef{
+			types.ColumnDefinition{
 				ID:        "namespace",
 				Header:    "Namespace",
 				Accessors: "metadata.namespace",
-				Alignment: types.CellAlignmentLeft,
+				Alignment: "LEFT",
 				Width:     150,
 			},
 		)
@@ -35,87 +35,79 @@ func GenerateResourceDef(columndefs []types.ColumnDef, namespaced bool) types.Re
 	cols = append(cols, columndefs...)
 	cols = append(
 		cols,
-		types.ColumnDef{
+		types.ColumnDefinition{
 			ID:        "age",
 			Header:    "Age",
 			Accessors: "metadata.creationTimestamp",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     120,
-			Formatter: types.CellValueFormatterAge,
+			Formatter: "AGE",
 		},
 	)
 
 	def := types.ResourceDefinition{
-		IDAccessor:       "metadata.name",
-		MemoizerAccessor: "metadata.uid,metadata.resourceVersion",
 		ColumnDefs:       cols,
 	}
 
-	if namespaced {
-		def.NamespaceAccessor = "metadata.namespace"
-	}
 
 	return def
 }
 
 var DefaultResourceDef = types.ResourceDefinition{
-	IDAccessor:        "metadata.name",
-	NamespaceAccessor: "metadata.namespace",
-	MemoizerAccessor:  "metadata.uid,metadata.resourceVersion",
-	ColumnDefs: []types.ColumnDef{
+	ColumnDefs: []types.ColumnDefinition{
 		{
 			ID:        "name",
 			Header:    "Name",
 			Accessors: "metadata.name",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 		},
 		{
 			ID:        "namespace",
 			Header:    "Namespace",
 			Accessors: "metadata.namespace",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     150,
 		},
 		{
 			ID:        "age",
 			Header:    "Age",
 			Accessors: "metadata.creationTimestamp",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     80,
-			Formatter: types.CellValueFormatterAge,
+			Formatter: "AGE",
 		},
 	},
 }
 
 var ResourceDefs = map[string]types.ResourceDefinition{
-	"apps::v1::Deployment": GenerateResourceDef(
+	"k8s:apps/deployments": GenerateResourceDef(
 		appsv1.DeploymentCols,
 		true,
 	),
-	"apps::v1::StatefulSet": GenerateResourceDef(
+	"k8s:apps/statefulsets": GenerateResourceDef(
 		appsv1.StatefulSetCols,
 		true,
 	),
-	"apps::v1::ReplicaSet": GenerateResourceDef(
+	"k8s:apps/replicasets": GenerateResourceDef(
 		appsv1.ReplicaSetCols,
 		true,
 	),
-	"apps::v1::DaemonSet": GenerateResourceDef(
+	"k8s:apps/daemonsets": GenerateResourceDef(
 		appsv1.DaemonSetCols,
 		true,
 	),
-	"apps::v1::ControllerRevision": GenerateResourceDef(
+	"k8s:apps/controllerrevisions": GenerateResourceDef(
 		appsv1.ControllerRevisionCols,
 		true,
 	),
-	"core::v1::Node":                  corev1.NodeDef,
-	"core::v1::Pod":                   corev1.PodDef,
-	"core::v1::Service":               corev1.ServiceDef,
-	"core::v1::PersistentVolumeClaim": corev1.PVCDef,
-	"core::v1::PersistentVolume":      corev1.PVDef,
-	"core::v1::Namespace":             corev1.NamespaceDef,
-	"core::v1::ComponentStatus":       corev1.ComponentStatusDef,
-	"autoscaling::v2::HorizontalPodAutoscaler": GenerateResourceDef(
+	"k8s:/nodes":                  corev1.NodeDef,
+	"k8s:/pods":                   corev1.PodDef,
+	"k8s:/services":               corev1.ServiceDef,
+	"k8s:/persistentvolumeclaims": corev1.PVCDef,
+	"k8s:/persistentvolumes":      corev1.PVDef,
+	"k8s:/namespaces":             corev1.NamespaceDef,
+	"k8s:/componentstatuses":       corev1.ComponentStatusDef,
+	"k8s:autoscaling/horizontalpodautoscalers": GenerateResourceDef(
 		autoscalingv2.HPACols,
 		true,
 	),

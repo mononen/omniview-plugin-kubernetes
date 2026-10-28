@@ -24,16 +24,16 @@ import MetricUsageCell, { PodMetricsContext } from './cells/MetricUsageCell';
 import ResourceLinkCell from './cells/ResourceLinkCell';
 
 
-const resourceKey = 'core::v1::Pod';
+const resourceKey = 'k8s:/pods';
 
 const ownerRefKeyMap: Record<string, string> = {
-  ReplicaSet: 'apps::v1::ReplicaSet',
-  ReplicationController: 'core::v1::ReplicationController',
-  StatefulSet: 'apps::v1::StatefulSet',
-  DaemonSet: 'apps::v1::DaemonSet',
-  Job: 'batch::v1::Job',
-  CronJob: 'batch::v1::CronJob',
-  Node: 'core::v1::Node',
+  ReplicaSet: 'k8s:apps/replicasets',
+  ReplicationController: 'k8s:/replicationcontrollers',
+  StatefulSet: 'k8s:apps/statefulsets',
+  DaemonSet: 'k8s:apps/daemonsets',
+  Job: 'k8s:batch/jobs',
+  CronJob: 'k8s:batch/cronjobs',
+  Node: 'k8s:/nodes',
 };
 
 const PodTable: React.FC = () => {
@@ -128,7 +128,7 @@ const PodTable: React.FC = () => {
                 pluginID="kubernetes"
                 connectionId={id}
                 resourceId={getValue() as string}
-                resourceKey="core::v1::Node"
+                resourceKey="k8s:/nodes"
                 resourceName={getValue() as string}
               />
             ),
@@ -175,7 +175,7 @@ const PodTable: React.FC = () => {
                 pluginID="kubernetes"
                 connectionId={id}
                 resourceId={getValue() as string}
-                resourceKey={'core::v1::ServiceAccount'}
+                resourceKey={'k8s:/serviceaccounts'}
                 resourceName={getValue() as string}
                 namespace={row.original.metadata?.namespace}
               />
@@ -288,7 +288,6 @@ const PodTable: React.FC = () => {
         columns={columns}
         connectionID={id}
         resourceKey={resourceKey}
-        idAccessor="metadata.uid"
         drawer={drawer}
         toolbarFilters={[
           { columnId: 'node', placeholder: 'All Nodes', accessor: (r: Pod) => r?.spec?.nodeName },

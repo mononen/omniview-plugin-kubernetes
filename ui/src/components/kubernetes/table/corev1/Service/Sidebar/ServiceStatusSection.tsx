@@ -145,7 +145,7 @@ const ServiceStatusSection: React.FC<Props> = ({ service, connectionID }) => {
             value={
               <ResourceLinkChip
                 connectionID={connectionID}
-                resourceKey="core::v1::Endpoints"
+                resourceKey="k8s:/endpoints"
                 resourceID={svcName}
                 resourceName={svcName}
                 namespace={svcNamespace}

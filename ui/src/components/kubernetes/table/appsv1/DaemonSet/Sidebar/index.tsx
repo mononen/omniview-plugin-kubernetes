@@ -31,7 +31,7 @@ export const DaemonSetSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={ds.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={ds.metadata} connectionID={ctx.resource?.route.connection} />
 
         <WorkloadStatusSection
           title="Status"
@@ -66,16 +66,16 @@ export const DaemonSetSidebar: React.FC<Props> = ({ ctx }) => {
       {ds.spec?.template?.spec && (
         <WorkloadPortsCard
           podSpec={ds.spec.template.spec}
-          resourceKey="apps::v1::DaemonSet"
+          resourceKey="k8s:apps/daemonsets"
           resourceData={ds}
-          resourceID={ctx.resource?.id || ''}
-          connectionID={ctx.resource?.connectionID || ''}
+          resourceID={ctx.resource?.reference.address.id || ''}
+          connectionID={ctx.resource?.route.connection || ''}
         />
       )}
 
       <PodContainersSectionFromPodSpec
-        resourceID={ctx.resource?.id || ''}
-        connectionID={ctx.resource?.connectionID || ''}
+        resourceID={ctx.resource?.reference.address.id || ''}
+        connectionID={ctx.resource?.route.connection || ''}
         spec={ds.spec?.template?.spec}
       />
     </Stack>

@@ -29,7 +29,7 @@ Primary.decorators = [
   (Story, c) => (
     <ResourceDrawerContainer
       icon="LuNetworking"
-      type="networking::v1::Ingress"
+      type="k8s:networking.k8s.io/ingresses"
       // @ts-expect-error - arbitrary json
       title={c.args.ctx.data.metadata.name}
       open

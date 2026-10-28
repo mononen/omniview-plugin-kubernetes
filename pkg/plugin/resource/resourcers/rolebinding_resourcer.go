@@ -2,11 +2,11 @@ package resourcers
 
 import (
 	"context"
-	"encoding/json"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"fmt"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"go.uber.org/zap"
 	rbacv1 "k8s.io/api/rbac/v1"
 )
@@ -18,14 +18,8 @@ type RoleBindingResourcer struct {
 	log *zap.SugaredLogger
 }
 
-// Compile-time interface checks.
-var (
-	_ resource.Resourcer[clients.ClientSet]            = (*RoleBindingResourcer)(nil)
-	_ resource.RelationshipDeclarer                     = (*RoleBindingResourcer)(nil)
-	_ resource.RelationshipResolver[clients.ClientSet]  = (*RoleBindingResourcer)(nil)
-)
 
-// NewRoleBindingResourcer creates a RoleBindingResourcer for rbac::v1::RoleBinding.
+// NewRoleBindingResourcer creates a RoleBindingResourcer for k8s:rbac.authorization.k8s.io/rolebindings.
 func NewRoleBindingResourcer(logger *zap.SugaredLogger, opts ...Option) *RoleBindingResourcer {
 	base := NewKubernetesResourcerBase[MetaAccessor](
 		logger,
@@ -40,8 +34,8 @@ func NewRoleBindingResourcer(logger *zap.SugaredLogger, opts ...Option) *RoleBin
 
 // roleRefKindToResourceKey maps roleRef.kind to the internal resource key.
 var roleRefKindToResourceKey = map[string]string{
-	"Role":        "rbac::v1::Role",
-	"ClusterRole": "rbac::v1::ClusterRole",
+	"Role":        "k8s:rbac.authorization.k8s.io/roles",
+	"ClusterRole": "k8s:rbac.authorization.k8s.io/clusterroles",
 }
 
 // ResolveRelationships resolves runtime relationship instances for a RoleBinding.
@@ -49,18 +43,14 @@ var roleRefKindToResourceKey = map[string]string{
 func (r *RoleBindingResourcer) ResolveRelationships(
 	ctx context.Context,
 	client *clients.ClientSet,
-	meta resource.ResourceMeta,
-	id string,
-	namespace string,
+	request resource.GetRequest,
 ) ([]resource.ResolvedRelationship, error) {
-	result, err := r.Get(ctx, client, meta, resource.GetInput{ID: id, Namespace: namespace})
+	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
+	if err != nil { return nil, err }
+	id := request.Reference.Address.ID
+	rb, err := client.KubeClient.RbacV1().RoleBindings(namespace).Get(ctx, id, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get RoleBinding %s: %w", id, err)
-	}
-
-	var rb rbacv1.RoleBinding
-	if err := json.Unmarshal(result.Result, &rb); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal RoleBinding: %w", err)
 	}
 
 	refKind := rb.RoleRef.Kind
@@ -76,7 +66,7 @@ func (r *RoleBindingResourcer) ResolveRelationships(
 	byTarget := descriptorByTarget(r.DeclareRelationships())
 	desc, ok := byTarget[resourceKey]
 	if !ok {
-		return nil, fmt.Errorf("missing relationship descriptor for %s (roleRef.kind=%s); ensure WithRelationships(RelationshipTable()[\"rbac::v1::RoleBinding\"]) is provided", resourceKey, refKind)
+		return nil, fmt.Errorf("missing relationship descriptor for %s (roleRef.kind=%s); ensure WithRelationships(RelationshipTable()[\"k8s:rbac.authorization.k8s.io/rolebindings\"]) is provided", resourceKey, refKind)
 	}
 
 	// For ClusterRole targets, the ref is cluster-scoped so namespace is empty.
@@ -88,8 +78,8 @@ func (r *RoleBindingResourcer) ResolveRelationships(
 	return []resource.ResolvedRelationship{
 		{
 			Descriptor: desc,
-			Targets: []resource.ResourceRef{
-				makeRef(resourceKey, refName, targetNamespace),
+			Targets: []resource.RelationshipTarget{
+				makeRef(request, resourceKey, refName, targetNamespace),
 			},
 		},
 	}, nil

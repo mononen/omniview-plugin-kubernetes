@@ -16,15 +16,15 @@ interface Props {
 
 export const PodSidebar: React.FC<Props> = ({ ctx }) => {
   const pod = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
-  const resourceID = ctx.resource?.id || '';
+  const connectionID = ctx.resource?.route.connection || '';
+  const resourceID = ctx.resource?.reference.address.id || '';
 
   // Fetch live CPU/memory metrics for this pod.
   // Request both metrics-server and Prometheus IDs — whichever is available responds.
   const { data: metricsData } = useResourceMetrics({
     pluginID: 'kubernetes',
     connectionID,
-    resourceKey: 'core::v1::Pod',
+    resourceKey: 'k8s:/pods',
     resourceID,
     resourceNamespace: pod?.metadata?.namespace,
     metricIDs: [

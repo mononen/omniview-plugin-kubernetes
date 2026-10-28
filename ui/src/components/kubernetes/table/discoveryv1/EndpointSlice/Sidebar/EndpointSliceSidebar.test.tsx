@@ -1,4 +1,5 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { DrawerContext } from '@omniviewdev/runtime';
 import { render, screen } from '@testing-library/react';
 import type { EndpointSlice, Endpoint } from 'kubernetes-types/discovery/v1';
@@ -86,7 +87,7 @@ function makeSlice(overrides: Partial<EndpointSlice> = {}): EndpointSlice {
 function makeDrawerCtx(data: EndpointSlice | undefined): DrawerContext<EndpointSlice> {
   return {
     data,
-    resource: { connectionID: 'conn-1', id: 'my-svc-abc' },
+    resource: fixtureResource('k8s:discovery.k8s.io/endpointslices', data, 'conn-1', data?.metadata?.name ?? 'fixture-object'),
   } as DrawerContext<EndpointSlice>;
 }
 

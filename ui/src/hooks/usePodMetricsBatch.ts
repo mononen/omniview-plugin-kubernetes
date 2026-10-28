@@ -33,7 +33,7 @@ export function usePodMetricsBatch(opts: {
 }): { metricsMap: PodMetricsMap; isLoading: boolean } {
   const { connectionID, namespace = '', refreshInterval = 30_000, enabled = true } = opts;
 
-  const resourceKey = 'core::v1::Pod';
+  const resourceKey = 'k8s:/pods';
 
   const query = useQuery<PodMetricsMap>({
     queryKey: ['metric', 'pod-batch', connectionID, namespace],

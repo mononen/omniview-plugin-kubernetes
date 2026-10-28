@@ -18,19 +18,19 @@ export const RoleBindingSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) return null;
 
   const rb = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
   const namespace = rb.metadata?.namespace;
   const roleRef = rb.roleRef;
   const subjects = rb.subjects;
 
   const roleKey = roleRef?.kind === 'ClusterRole'
-    ? 'rbac::v1::ClusterRole'
-    : 'rbac::v1::Role';
+    ? 'k8s:rbac.authorization.k8s.io/clusterroles'
+    : 'k8s:rbac.authorization.k8s.io/roles';
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={rb.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={rb.metadata} connectionID={ctx.resource?.route.connection} />
 
         {roleRef && (
           <SidebarSection title="Role Reference">
@@ -61,7 +61,7 @@ export const RoleBindingSidebar: React.FC<Props> = ({ ctx }) => {
                         connectionID={connectionID}
                         namespace={subj.namespace}
                         resourceID={subj.name || ''}
-                        resourceKey="core::v1::ServiceAccount"
+                        resourceKey="k8s:/serviceaccounts"
                         resourceName={subj.name}
                       />
                     ) : (

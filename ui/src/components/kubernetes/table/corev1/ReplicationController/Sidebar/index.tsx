@@ -26,7 +26,7 @@ export const ReplicationControllerSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={rc.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={rc.metadata} connectionID={ctx.resource?.route.connection} />
 
         <WorkloadStatusSection
           title="Status"
@@ -46,10 +46,10 @@ export const ReplicationControllerSidebar: React.FC<Props> = ({ ctx }) => {
       {rc.spec?.template?.spec && (
         <WorkloadPortsCard
           podSpec={rc.spec.template.spec}
-          resourceKey="core::v1::ReplicationController"
+          resourceKey="k8s:/replicationcontrollers"
           resourceData={rc}
-          resourceID={ctx.resource?.id || ''}
-          connectionID={ctx.resource?.connectionID || ''}
+          resourceID={ctx.resource?.reference.address.id || ''}
+          connectionID={ctx.resource?.route.connection || ''}
         />
       )}
     </Stack>

@@ -2,13 +2,11 @@ package resourcers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,14 +20,6 @@ type StatefulSetResourcer struct {
 	*KubernetesResourcerBase[MetaAccessor]
 	log *zap.SugaredLogger
 }
-
-// Compile-time interface checks.
-var (
-	_ resource.Resourcer[clients.ClientSet]            = (*StatefulSetResourcer)(nil)
-	_ resource.ActionResourcer[clients.ClientSet]      = (*StatefulSetResourcer)(nil)
-	_ resource.RelationshipDeclarer                    = (*StatefulSetResourcer)(nil)
-	_ resource.RelationshipResolver[clients.ClientSet] = (*StatefulSetResourcer)(nil)
-)
 
 // NewStatefulSetResourcer creates a StatefulSetResourcer for apps::v1::StatefulSet.
 func NewStatefulSetResourcer(logger *zap.SugaredLogger, opts ...Option) *StatefulSetResourcer {
@@ -48,19 +38,13 @@ func NewStatefulSetResourcer(logger *zap.SugaredLogger, opts ...Option) *Statefu
 func (s *StatefulSetResourcer) ResolveRelationships(
 	ctx context.Context,
 	client *clients.ClientSet,
-	meta resource.ResourceMeta,
-	id string,
-	namespace string,
+	request resource.GetRequest,
 ) ([]resource.ResolvedRelationship, error) {
-	result, err := s.Get(ctx, client, meta, resource.GetInput{ID: id, Namespace: namespace})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get statefulset %s: %w", id, err)
-	}
-
-	var sts appsv1.StatefulSet
-	if err := json.Unmarshal(result.Result, &sts); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal statefulset: %w", err)
-	}
+	id := request.Reference.Address.ID
+	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
+	if err != nil { return nil, err }
+	sts, err := client.KubeClient.AppsV1().StatefulSets(namespace).Get(ctx, id, metav1.GetOptions{})
+	if err != nil { return nil, fmt.Errorf("failed to get statefulset %s: %w", id, err) }
 
 	var rels []resource.ResolvedRelationship
 	byTarget := descriptorByTarget(s.DeclareRelationships())
@@ -68,12 +52,12 @@ func (s *StatefulSetResourcer) ResolveRelationships(
 	// Pod relationships via ownerRef.
 	pods, err := listPodsByOwner(ctx, client, namespace, "StatefulSet", id, string(sts.UID))
 	if err == nil && len(pods) > 0 {
-		targets := make([]resource.ResourceRef, 0, len(pods))
+		targets := make([]resource.RelationshipTarget, 0, len(pods))
 		for _, pod := range pods {
-			targets = append(targets, makeRef("core::v1::Pod", pod.Name, namespace))
+			targets = append(targets, makeRef(request, "k8s:/pods", pod.Name, namespace, string(pod.UID)))
 		}
 		rels = append(rels, resource.ResolvedRelationship{
-			Descriptor: byTarget["core::v1::Pod"],
+			Descriptor: byTarget["k8s:/pods"],
 			Targets:    targets,
 		})
 	}
@@ -85,16 +69,16 @@ func (s *StatefulSetResourcer) ResolveRelationships(
 		if sts.Spec.Replicas != nil {
 			replicas = *sts.Spec.Replicas
 		}
-		var targets []resource.ResourceRef
+		var targets []resource.RelationshipTarget
 		for _, vct := range sts.Spec.VolumeClaimTemplates {
 			for i := int32(0); i < replicas; i++ {
 				pvcName := fmt.Sprintf("%s-%s-%d", vct.Name, id, i)
-				targets = append(targets, makeRef("core::v1::PersistentVolumeClaim", pvcName, namespace))
+				targets = append(targets, makeRef(request, "k8s:/persistentvolumeclaims", pvcName, namespace))
 			}
 		}
 		if len(targets) > 0 {
 			rels = append(rels, resource.ResolvedRelationship{
-				Descriptor: byTarget["core::v1::PersistentVolumeClaim"],
+				Descriptor: byTarget["k8s:/persistentvolumeclaims"],
 				Targets:    targets,
 			})
 		}
@@ -102,24 +86,24 @@ func (s *StatefulSetResourcer) ResolveRelationships(
 
 	// ConfigMap relationships from volumes.
 	if cms := extractVolumeConfigMaps(sts.Spec.Template.Spec); len(cms) > 0 {
-		targets := make([]resource.ResourceRef, 0, len(cms))
+		targets := make([]resource.RelationshipTarget, 0, len(cms))
 		for _, name := range cms {
-			targets = append(targets, makeRef("core::v1::ConfigMap", name, namespace))
+			targets = append(targets, makeRef(request, "k8s:/configmaps", name, namespace))
 		}
 		rels = append(rels, resource.ResolvedRelationship{
-			Descriptor: byTarget["core::v1::ConfigMap"],
+			Descriptor: byTarget["k8s:/configmaps"],
 			Targets:    targets,
 		})
 	}
 
 	// Secret relationships from volumes.
 	if secrets := extractVolumeSecrets(sts.Spec.Template.Spec); len(secrets) > 0 {
-		targets := make([]resource.ResourceRef, 0, len(secrets))
+		targets := make([]resource.RelationshipTarget, 0, len(secrets))
 		for _, name := range secrets {
-			targets = append(targets, makeRef("core::v1::Secret", name, namespace))
+			targets = append(targets, makeRef(request, "k8s:/secrets", name, namespace))
 		}
 		rels = append(rels, resource.ResolvedRelationship{
-			Descriptor: byTarget["core::v1::Secret"],
+			Descriptor: byTarget["k8s:/secrets"],
 			Targets:    targets,
 		})
 	}
@@ -132,7 +116,6 @@ func (s *StatefulSetResourcer) ResolveRelationships(
 func (s *StatefulSetResourcer) GetActions(
 	_ context.Context,
 	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
 ) ([]resource.ActionDescriptor, error) {
 	return []resource.ActionDescriptor{
 		{
@@ -163,29 +146,25 @@ func (s *StatefulSetResourcer) GetActions(
 func (s *StatefulSetResourcer) ExecuteAction(
 	ctx context.Context,
 	client *clients.ClientSet,
-	_ resource.ResourceMeta,
-	actionID string,
-	input resource.ActionInput,
-) (*resource.ActionResult, error) {
-	switch actionID {
+	input resource.ActionRequest,
+) (resource.Value, error) {
+	switch input.Action {
 	case "restart":
 		return s.executeRestart(ctx, client, input)
 	case "scale":
 		return s.executeScale(ctx, client, input)
 	default:
-		return nil, fmt.Errorf("unknown action: %s", actionID)
+		return resource.Value{}, fmt.Errorf("unknown action: %s", input.Action)
 	}
 }
 
 func (s *StatefulSetResourcer) StreamAction(
 	ctx context.Context,
 	client *clients.ClientSet,
-	_ resource.ResourceMeta,
-	actionID string,
-	input resource.ActionInput,
+	input resource.ActionRequest,
 	stream chan<- resource.ActionEvent,
 ) error {
-	switch actionID {
+	switch input.Action {
 	case "restart":
 		return s.streamRestart(ctx, client, input, stream)
 	default:
@@ -198,55 +177,63 @@ func (s *StatefulSetResourcer) StreamAction(
 func (s *StatefulSetResourcer) executeRestart(
 	ctx context.Context,
 	client *clients.ClientSet,
-	input resource.ActionInput,
-) (*resource.ActionResult, error) {
+	input resource.ActionRequest,
+) (resource.Value, error) {
+	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
+	if scopeErr != nil { return resource.Value{}, scopeErr }
 	patch := fmt.Sprintf(
 		`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`,
 		time.Now().Format(time.RFC3339),
 	)
-	_, err := client.KubeClient.AppsV1().StatefulSets(input.Namespace).Patch(
-		ctx, input.ID, k8stypes.StrategicMergePatchType,
-		[]byte(patch), metav1.PatchOptions{},
+	_, err := client.KubeClient.AppsV1().StatefulSets(namespace).Patch(
+		ctx, input.Reference.Address.ID, k8stypes.StrategicMergePatchType,
+		nativeActionPatch(input, patch), metav1.PatchOptions{},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to restart statefulset %s: %w", input.ID, err)
+		return resource.Value{}, fmt.Errorf("failed to restart statefulset %s: %w", input.Reference.Address.ID, err)
 	}
 
-	return &resource.ActionResult{
-		Success: true,
-		Message: fmt.Sprintf("Rollout restart initiated for statefulset %s", input.ID),
-	}, nil
+	return resource.ValueFromNative(map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Rollout restart initiated for statefulset %s", input.Reference.Address.ID),
+	})
 }
 
 func (s *StatefulSetResourcer) streamRestart(
 	ctx context.Context,
 	client *clients.ClientSet,
-	input resource.ActionInput,
+	input resource.ActionRequest,
 	stream chan<- resource.ActionEvent,
 ) error {
-	defer close(stream)
+	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
+	if scopeErr != nil { return scopeErr }
 
 	patch := fmt.Sprintf(
 		`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`,
 		time.Now().Format(time.RFC3339),
 	)
-	_, err := client.KubeClient.AppsV1().StatefulSets(input.Namespace).Patch(
-		ctx, input.ID, k8stypes.StrategicMergePatchType,
-		[]byte(patch), metav1.PatchOptions{},
+	_, err := client.KubeClient.AppsV1().StatefulSets(namespace).Patch(
+		ctx, input.Reference.Address.ID, k8stypes.StrategicMergePatchType,
+		nativeActionPatch(input, patch), metav1.PatchOptions{},
 	)
 	if err != nil {
 		return err
 	}
 
-	watcher, err := client.KubeClient.AppsV1().StatefulSets(input.Namespace).Watch(
+	watcher, err := client.KubeClient.AppsV1().StatefulSets(namespace).Watch(
 		ctx, metav1.ListOptions{
-			FieldSelector: fmt.Sprintf("metadata.name=%s", input.ID),
+			FieldSelector: fmt.Sprintf("metadata.name=%s", input.Reference.Address.ID),
 		},
 	)
 	if err != nil {
 		return err
 	}
 	defer watcher.Stop()
+	if input.Reference.Incarnation != nil {
+		current, err := client.KubeClient.AppsV1().StatefulSets(namespace).Get(ctx, input.Reference.Address.ID, metav1.GetOptions{})
+		if err != nil { return err }
+		if err := nativeActionObjectMatches(input, current); err != nil { return err }
+	}
 	select {
 	case stream <- resource.ActionEvent{Type: "ready"}:
 	case <-ctx.Done():
@@ -266,6 +253,9 @@ func (s *StatefulSetResourcer) streamRestart(
 			if !ok {
 				return fmt.Errorf("watch channel closed")
 			}
+			if object, ok := event.Object.(metav1.Object); ok {
+				if err := nativeActionObjectMatches(input, object); err != nil { return err }
+			}
 			if event.Type != watch.Modified {
 				continue
 			}
@@ -279,13 +269,15 @@ func (s *StatefulSetResourcer) streamRestart(
 				desired = *sts.Spec.Replicas
 			}
 
-			select {
-			case stream <- resource.ActionEvent{Type: "progress", Data: map[string]interface{}{
+			progress, err := nativeActionEventValue(map[string]interface{}{
 				"ready":   sts.Status.ReadyReplicas,
 				"desired": desired,
 				"updated": sts.Status.UpdatedReplicas,
 				"message": fmt.Sprintf("%d/%d replicas ready", sts.Status.ReadyReplicas, desired),
-			}}:
+			})
+			if err != nil { return err }
+			select {
+			case stream <- resource.ActionEvent{Type: "progress", Data: progress}:
 			case <-ctx.Done():
 				return ctx.Err()
 			}
@@ -293,10 +285,12 @@ func (s *StatefulSetResourcer) streamRestart(
 			if sts.Status.UpdatedReplicas == desired &&
 				sts.Status.ReadyReplicas == desired &&
 				sts.Status.Replicas == desired {
+				complete, err := nativeActionEventValue(map[string]interface{}{
+					"message": fmt.Sprintf("StatefulSet %s successfully restarted", input.Reference.Address.ID),
+				})
+				if err != nil { return err }
 				select {
-				case stream <- resource.ActionEvent{Type: "complete", Data: map[string]interface{}{
-					"message": fmt.Sprintf("StatefulSet %s successfully restarted", input.ID),
-				}}:
+				case stream <- resource.ActionEvent{Type: "complete", Data: complete}:
 				case <-ctx.Done():
 					return ctx.Err()
 				}
@@ -309,28 +303,26 @@ func (s *StatefulSetResourcer) streamRestart(
 func (s *StatefulSetResourcer) executeScale(
 	ctx context.Context,
 	client *clients.ClientSet,
-	input resource.ActionInput,
-) (*resource.ActionResult, error) {
-	replicas, ok := input.Params["replicas"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("replicas parameter is required and must be a number")
-	}
-	if replicas != math.Trunc(replicas) || replicas < 0 || replicas > math.MaxInt32 {
-		return nil, fmt.Errorf("replicas must be a non-negative whole number")
-	}
-
+	input resource.ActionRequest,
+) (resource.Value, error) {
+	namespace, scopeErr := nativeRequestNamespace(input.Reference.Address.Scope)
+	if scopeErr != nil { return resource.Value{}, scopeErr }
+	params, paramsErr := nativeActionParams(input.Input)
+	if paramsErr != nil { return resource.Value{}, paramsErr }
+	replicas, parseErr := nativeActionInteger(params["replicas"], 0, 2147483647)
+	if parseErr != nil { return resource.Value{}, fmt.Errorf("replicas: %w", parseErr) }
 	replicaCount := int32(replicas)
 	patch := fmt.Sprintf(`{"spec":{"replicas":%d}}`, replicaCount)
-	_, err := client.KubeClient.AppsV1().StatefulSets(input.Namespace).Patch(
-		ctx, input.ID, k8stypes.StrategicMergePatchType,
-		[]byte(patch), metav1.PatchOptions{},
+	_, err := client.KubeClient.AppsV1().StatefulSets(namespace).Patch(
+		ctx, input.Reference.Address.ID, k8stypes.StrategicMergePatchType,
+		nativeActionPatch(input, patch), metav1.PatchOptions{},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to scale statefulset %s: %w", input.ID, err)
+		return resource.Value{}, fmt.Errorf("failed to scale statefulset %s: %w", input.Reference.Address.ID, err)
 	}
 
-	return &resource.ActionResult{
-		Success: true,
-		Message: fmt.Sprintf("StatefulSet %s scaled to %d replicas", input.ID, replicaCount),
-	}, nil
+	return resource.ValueFromNative(map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("StatefulSet %s scaled to %d replicas", input.Reference.Address.ID, replicaCount),
+	})
 }

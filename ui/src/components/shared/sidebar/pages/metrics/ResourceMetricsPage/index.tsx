@@ -44,9 +44,9 @@ interface Props {
 }
 
 const ResourceMetricsPage: React.FC<Props> = ({ ctx }) => {
-  const resourceKey = ctx.resource?.key || '';
-  const connectionID = ctx.resource?.connectionID || '';
-  const resourceID = ctx.resource?.id || '';
+  const resourceKey = ctx.resource?.reference.address.type || '';
+  const connectionID = ctx.resource?.route.connection || '';
+  const resourceID = ctx.resource?.reference.address.id || '';
   const metadata = (ctx.data)?.metadata as Record<string, unknown> | undefined;
   const resourceNamespace = (metadata?.namespace as string) ?? '';
 

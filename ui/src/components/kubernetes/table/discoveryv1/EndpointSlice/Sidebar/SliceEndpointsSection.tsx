@@ -109,7 +109,7 @@ const SliceEndpointsSection: React.FC<Props> = ({ endpoints, connectionID }) => 
             {ep.nodeName && connectionID ? (
               <ResourceLinkChip
                 connectionID={connectionID}
-                resourceKey="core::v1::Node"
+                resourceKey="k8s:/nodes"
                 resourceID={ep.nodeName}
                 resourceName={ep.nodeName}
               />

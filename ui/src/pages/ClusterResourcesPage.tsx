@@ -80,8 +80,8 @@ const clusterNameStyle: React.CSSProperties = { textOverflow: 'ellipsis', overfl
 export default function ClusterResourcesPage(): React.ReactElement {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { types } = useResourceTypes({ pluginID: 'kubernetes', connectionID: id });
-  const { groups } = useResourceGroups({ pluginID: 'kubernetes', connectionID: id });
+  const { resourceTypes: types } = useResourceTypes({ pluginID: 'kubernetes', route: { connection: id } });
+  const { groups } = useResourceGroups({ pluginID: 'kubernetes', route: { connection: id } });
   const { connection } = useConnection({ pluginID: 'kubernetes', connectionID: id });
   const { connectionOverrides } = useClusterPreferences('kubernetes');
   const { layout: rawLayout } = useSidebarLayout({ connectionID: id });
@@ -125,10 +125,10 @@ export default function ClusterResourcesPage(): React.ReactElement {
     },
     [setSavedExpandedState],
   );
-  const { isFullySynced, summary } = useWatchState({ pluginID: 'kubernetes', connectionID: id });
+  const { isFullySynced, summary } = useWatchState({ pluginID: 'kubernetes', route: { connection: id } });
 
   // Fetch and register OpenAPI schemas with the host's Monaco schema registry
-  const { schemas: editorSchemas } = useEditorSchemas({ pluginID: 'kubernetes', connectionID: id });
+  const { schemas: editorSchemas } = useEditorSchemas({ pluginID: 'kubernetes', route: { connection: id } });
   React.useEffect(() => {
     // The Monaco schema registry is attached to window by the host app at runtime.
     // It exposes register/unregister methods for managing JSON schemas.

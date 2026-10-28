@@ -1,4 +1,16 @@
 import type { GraphEdge, GraphNode, Subgraph } from '@omniviewdev/runtime/models';
+import type { DrawerContext } from '@omniviewdev/runtime';
+import { ResourceClient } from '@omniviewdev/runtime/api';
+import { useQuery } from '@tanstack/react-query';
+
+/** Catalog labels are presentation metadata; resource types remain opaque. */
+export function useGraphDisplayNames(ctx: DrawerContext) {
+  return useQuery({
+    queryKey: ['resource-graph-catalog', ctx.resource!.pluginID, ctx.resource!.route],
+    queryFn: () => ResourceClient.Catalog(ctx.resource!.pluginID, { route: ctx.resource!.route }),
+    select: (catalog) => new Map(catalog.types.map((type) => [type.type, type.displayName])),
+  });
+}
 
 export const NODE_WIDTH = 184;
 export const NODE_HEIGHT = 38;
@@ -58,13 +70,9 @@ export type GraphLayout = {
   height: number;
 };
 
-export function nodeKey(n: GraphNode): string {
-  return `${n.pluginId}/${n.connectionId}/${n.resourceKey}/${n.namespace ?? ''}/${n.id}`;
-}
 
-export function kindFromKey(resourceKey: string): string {
-  const parts = resourceKey.split('::');
-  return parts[parts.length - 1];
+export function graphKind(node: GraphNode, displayNames: ReadonlyMap<string, string>): string {
+  return displayNames.get(node.reference.address.type) ?? 'Resource';
 }
 
 /**
@@ -109,21 +117,22 @@ function edgePath(from: LayoutNode, to: LayoutNode): string {
  * (upstream on the left, the root, then downstream). Each column is sorted by
  * kind, namespace and name, and centred vertically against the tallest one.
  */
-export function layoutGraph(sg: Subgraph): GraphLayout {
-  const rootKey = nodeKey(sg.root);
+export function layoutGraph(sg: Subgraph, displayNames: ReadonlyMap<string, string> = new Map()): GraphLayout {
+  const rootKey = sg.root.key;
   const depths = [...new Set(sg.nodes.map((n) => n.depth))].sort((a, b) => a - b);
   const columnOf = new Map(depths.map((d, i) => [d, i]));
 
   const columns = depths.map((depth) =>
     sg.nodes
       .filter((n) => n.depth === depth)
-      .map((n) => ({ ...n, kind: kindFromKey(n.node.resourceKey) }))
+      .map((n) => ({ ...n, kind: graphKind(n.node, displayNames) }))
       .sort(
         (a, b) =>
           kindRank(a.kind) - kindRank(b.kind) ||
           a.kind.localeCompare(b.kind) ||
-          (a.node.namespace ?? '').localeCompare(b.node.namespace ?? '') ||
-          a.node.id.localeCompare(b.node.id),
+          (a.node.reference.address.scope.find((entry) => entry.dimension === 'namespace')?.value ?? '')
+            .localeCompare(b.node.reference.address.scope.find((entry) => entry.dimension === 'namespace')?.value ?? '') ||
+          a.node.reference.address.id.localeCompare(b.node.reference.address.id),
       ),
   );
 
@@ -135,7 +144,7 @@ export function layoutGraph(sg: Subgraph): GraphLayout {
   columns.forEach((column, ci) => {
     const top = PADDING + (tallest - columnHeight(column.length)) / 2;
     column.forEach((n, row) => {
-      const key = nodeKey(n.node);
+      const key = n.node.key;
       const laid: LayoutNode = {
         key,
         node: n.node,
@@ -153,8 +162,8 @@ export function layoutGraph(sg: Subgraph): GraphLayout {
 
   const edges: LayoutEdge[] = [];
   for (const edge of sg.edges) {
-    const from = byKey.get(nodeKey(edge.source));
-    const to = byKey.get(nodeKey(edge.target));
+    const from = byKey.get(edge.source.key);
+    const to = byKey.get(edge.target.key);
     if (!from || !to) continue;
     edges.push({
       key: `${from.key}->${to.key}:${edge.type}:${edge.label}`,

@@ -3,11 +3,12 @@ import { Spinner } from '@omniviewdev/base-ui';
 import {
   usePluginContext,
   useResourceGroups,
+  useResourceTypes,
   useWatchState,
   WatchState,
   ResourceIcon,
 } from '@omniviewdev/runtime';
-import { resource } from '@omniviewdev/runtime/models';
+import type { ResourceGroup } from '@omniviewdev/runtime';
 import React from 'react';
 import {
   LuBlocks,
@@ -23,7 +24,7 @@ import { SiHelm } from 'react-icons/si';
 
 import DynamicIcon from '../components/shared/Icon';
 import type { NavSection, NavMenuItem } from '../types/navigation';
-import { toResourceKey } from '../utils/resourceKey';
+import type { ResourceType } from '@omniviewdev/runtime';
 import { IsImage } from '../utils/url';
 
 import { useStableObject } from './useStableRef';
@@ -35,12 +36,9 @@ type Opts = {
 /**
  * Get the ID from the meta object
  */
-const toID = (meta: resource.ResourceMeta) => `${meta.group}_${meta.version}_${meta.kind}`;
+const toID = (type: string) => encodeURIComponent(type);
 
-/**
- * Returns whether the item is a CRD resource or not
- */
-const isCrd = (group: string) => group.includes('.') && !group.includes('.k8s.io');
+const primaryTypes: Record<string, true> = { 'k8s:/nodes': true, 'k8s:events.k8s.io/events': true, 'k8s:/namespaces': true };
 
 /** sorter for sorting alphabetically by labels */
 const labelSort = (a: NavMenuItem, b: NavMenuItem) => a.label.localeCompare(b.label);
@@ -94,7 +92,7 @@ const getStateBadge = (
   states?: Record<string, WatchState>,
 ): React.ReactNode | undefined => {
   if (!states) return undefined;
-  const state = states[toResourceKey(navId)];
+  const state = states[decodeURIComponent(navId)];
   if (state === WatchState.WatchStateSyncing || state === WatchState.WatchStateIdle)
     return SYNCING_BADGE;
   if (state === WatchState.WatchStateError || state === WatchState.WatchStateFailed || state === WatchState.WatchStateForbidden) return ERROR_BADGE;
@@ -110,7 +108,7 @@ const getGroupBadge = (
   let hasSyncing = false;
   let hasError = false;
   for (const child of children) {
-    const state = states[toResourceKey(child.id)];
+    const state = states[decodeURIComponent(child.id)];
     if (state === WatchState.WatchStateSyncing || state === WatchState.WatchStateIdle)
       hasSyncing = true;
     if (state === WatchState.WatchStateError || state === WatchState.WatchStateFailed || state === WatchState.WatchStateForbidden) hasError = true;
@@ -124,7 +122,8 @@ const getGroupBadge = (
  * Calculates the full sidebar layout divided by the API groups
  */
 const calculateFullLayout = (
-  data: Record<string, resource.ResourceGroup | undefined>,
+  data: readonly ResourceGroup[],
+  types: readonly ResourceType[],
   watchStates?: Record<string, WatchState>,
 ): Array<NavSection> => {
   if (!data) {
@@ -135,18 +134,16 @@ const calculateFullLayout = (
   const crdSection: NavMenuItem[] = [];
 
   const grouped: NavMenuItem[] = Object.values(data)
-    .filter((group): group is resource.ResourceGroup => group !== undefined)
+    .filter((group): group is ResourceGroup => group !== undefined)
     .map((group) => {
       const children: NavMenuItem[] = [];
 
-      Object.entries(group.resources).forEach(([_, metas]) => {
-        (metas ?? []).forEach((meta) => {
-          children.push({
-            id: toID(meta),
-            label: meta.kind,
-            icon: <ResourceIcon pluginId="kubernetes" resourceKey={toResourceKey(toID(meta))} size={16} />,
-            badge: getStateBadge(toID(meta), watchStates),
-          });
+      group.resources.forEach((type) => {
+        children.push({
+          id: toID(type),
+          label: types.find((entry) => entry.type === type)?.displayName ?? type,
+          icon: <ResourceIcon pluginId="kubernetes" resourceKey={type} size={16} />,
+          badge: getStateBadge(toID(type), watchStates),
         });
       });
 
@@ -165,7 +162,7 @@ const calculateFullLayout = (
     .sort((a, b) => a.label.localeCompare(b.label));
 
   grouped.forEach((group) => {
-    if (isCrd(group.label)) {
+    if (!group.children?.some((child) => ModernSectionMap[decodeURIComponent(child.id)] || primaryTypes[decodeURIComponent(child.id)])) {
       crdSection.push(group);
     } else {
       coreSection.push(group);
@@ -177,7 +174,7 @@ const calculateFullLayout = (
       title: '',
       items: [{ id: '__dashboard__', label: 'Dashboard', icon: ICON_GAUGE }, ...coreSection],
     },
-    { title: 'Custom Resource Definitions', items: crdSection },
+    { title: 'Other API Groups', items: crdSection },
   ];
 
   return sections;
@@ -196,62 +193,49 @@ type ModernSection =
  * Map of where found resources should go
  */
 const ModernSectionMap: Record<string, ModernSection> = {
-  // Workload
-  Pod: 'workload',
-  ReplicationController: 'workload',
-  Deployment: 'workload',
-  DaemonSet: 'workload',
-  ReplicaSet: 'workload',
-  StatefulSet: 'workload',
-  CronJob: 'workload',
-  Job: 'workload',
-
-  // Config
-  ConfigMap: 'config',
-  Secret: 'config',
-  ResourceQuota: 'config',
-  LimitRange: 'config',
-  HorizontalPodAutoscaler: 'config',
-  PodDisruptionBudget: 'config',
-  PriorityClass: 'config',
-  RuntimeClass: 'config',
-  Lease: 'config',
-  FlowSchema: 'config',
-  PriorityLevelConfiguration: 'config',
-
-  // Networking
-  Ingress: 'network',
-  IngressClass: 'network',
-  Endpoints: 'network',
-  EndpointSlice: 'network',
-  Service: 'network',
-  NetworkPolicy: 'network',
-
-  // Storage
-  PersistentVolume: 'storage',
-  PersistentVolumeClaim: 'storage',
-  StorageClass: 'storage',
-  CSIDriver: 'storage',
-  CSINode: 'storage',
-  VolumeAttachment: 'storage',
-
-  // Access Control
-  ServiceAccount: 'access_control',
-  Role: 'access_control',
-  ClusterRole: 'access_control',
-  RoleBinding: 'access_control',
-  ClusterRoleBinding: 'access_control',
-
-  // Admission Control
-  MutatingWebhookConfiguration: 'admission_control',
-  ValidatingWebhookConfiguration: 'admission_control',
-  ValidatingAdmissionPolicy: 'admission_control',
-  ValidatingAdmissionPolicyBinding: 'admission_control',
-
-  // Helm
-  Release: 'helm',
-  Repository: 'helm',
-  Chart: 'helm',
+  'k8s:/pods': 'workload',
+  'k8s:/replicationcontrollers': 'workload',
+  'k8s:apps/deployments': 'workload',
+  'k8s:apps/daemonsets': 'workload',
+  'k8s:apps/replicasets': 'workload',
+  'k8s:apps/statefulsets': 'workload',
+  'k8s:batch/cronjobs': 'workload',
+  'k8s:batch/jobs': 'workload',
+  'k8s:/configmaps': 'config',
+  'k8s:/secrets': 'config',
+  'k8s:/resourcequotas': 'config',
+  'k8s:/limitranges': 'config',
+  'k8s:autoscaling/horizontalpodautoscalers': 'config',
+  'k8s:policy/poddisruptionbudgets': 'config',
+  'k8s:scheduling.k8s.io/priorityclasses': 'config',
+  'k8s:node.k8s.io/runtimeclasses': 'config',
+  'k8s:coordination.k8s.io/leases': 'config',
+  'k8s:flowcontrol.apiserver.k8s.io/flowschemas': 'config',
+  'k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations': 'config',
+  'k8s:networking.k8s.io/ingresses': 'network',
+  'k8s:networking.k8s.io/ingressclasses': 'network',
+  'k8s:/endpoints': 'network',
+  'k8s:discovery.k8s.io/endpointslices': 'network',
+  'k8s:/services': 'network',
+  'k8s:networking.k8s.io/networkpolicies': 'network',
+  'k8s:/persistentvolumes': 'storage',
+  'k8s:/persistentvolumeclaims': 'storage',
+  'k8s:storage.k8s.io/storageclasses': 'storage',
+  'k8s:storage.k8s.io/csidrivers': 'storage',
+  'k8s:storage.k8s.io/csinodes': 'storage',
+  'k8s:storage.k8s.io/volumeattachments': 'storage',
+  'k8s:/serviceaccounts': 'access_control',
+  'k8s:rbac.authorization.k8s.io/roles': 'access_control',
+  'k8s:rbac.authorization.k8s.io/clusterroles': 'access_control',
+  'k8s:rbac.authorization.k8s.io/rolebindings': 'access_control',
+  'k8s:rbac.authorization.k8s.io/clusterrolebindings': 'access_control',
+  'k8s:admissionregistration.k8s.io/mutatingwebhookconfigurations': 'admission_control',
+  'k8s:admissionregistration.k8s.io/validatingwebhookconfigurations': 'admission_control',
+  'k8s:admissionregistration.k8s.io/validatingadmissionpolicies': 'admission_control',
+  'k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings': 'admission_control',
+  'helm:releases': 'helm',
+  'helm:repositories': 'helm',
+  'helm:charts': 'helm',
 };
 
 /**
@@ -259,7 +243,8 @@ const ModernSectionMap: Record<string, ModernSection> = {
  * resources that are available.
  */
 const calculateModernLayout = (
-  data: Record<string, resource.ResourceGroup | undefined>,
+  data: readonly ResourceGroup[],
+  types: readonly ResourceType[],
   watchStates?: Record<string, WatchState>,
 ): Array<NavSection> => {
   if (!data) {
@@ -269,7 +254,7 @@ const calculateModernLayout = (
   const withBadge = (id: string, label: string): NavMenuItem => ({
     id,
     label,
-    icon: <ResourceIcon pluginId="kubernetes" resourceKey={toResourceKey(id)} size={16} />,
+    icon: <ResourceIcon pluginId="kubernetes" resourceKey={decodeURIComponent(id)} size={16} />,
     badge: getStateBadge(id, watchStates),
   });
 
@@ -286,17 +271,18 @@ const calculateModernLayout = (
 
   Object.values(data).forEach((group) => {
     if (!group) return;
-    Object.entries(group.resources).forEach(([_, metas]) => {
-      (metas ?? []).forEach((meta) => {
-        const navItem = withBadge(toID(meta), meta.kind);
-        // if CRD, push to CRD
-        if (isCrd(meta.group)) {
-          if (!crds[meta.group]) {
-            crds[meta.group] = [];
+    group.resources.forEach((type) => {
+        const label = types.find((entry) => entry.type === type)?.displayName ?? type;
+        const navItem = withBadge(toID(type), label);
+        if (primaryTypes[type]) return;
+        // Unclassified catalog types remain available under their declared group.
+        if (!ModernSectionMap[type]) {
+          if (!crds[group.id]) {
+            crds[group.id] = [];
           }
-          crds[meta.group].push(navItem);
+          crds[group.id].push(navItem);
         } else {
-          switch (ModernSectionMap[meta.kind]) {
+          switch (ModernSectionMap[type]) {
             case 'workload':
               workloadResources.push(navItem);
               break;
@@ -321,12 +307,11 @@ const calculateModernLayout = (
           }
         }
       });
-    });
   });
 
   const crdChildren: NavMenuItem[] = Object.entries(crds).map(([group, entry]) => ({
     id: group,
-    label: group,
+    label: data.find((entry) => entry.id === group)?.name ?? group,
     children: entry.sort(labelSort),
     badge: getGroupBadge(entry, watchStates),
   }));
@@ -346,22 +331,22 @@ const calculateModernLayout = (
       items: [
         { id: '__dashboard__', label: 'Dashboard', icon: ICON_GAUGE },
         {
-          id: 'core_v1_Node',
+          id: toID('k8s:/nodes'),
           label: 'Nodes',
-          icon: <ResourceIcon pluginId="kubernetes" resourceKey="core::v1::Node" size={16} />,
-          badge: getStateBadge('core_v1_Node', watchStates),
+          icon: <ResourceIcon pluginId="kubernetes" resourceKey="k8s:/nodes" size={16} />,
+          badge: getStateBadge(toID('k8s:/nodes'), watchStates),
         },
         {
-          id: 'events_v1_Event',
+          id: toID('k8s:events.k8s.io/events'),
           label: 'Events',
-          icon: <ResourceIcon pluginId="kubernetes" resourceKey="events::v1::Event" size={16} />,
-          badge: getStateBadge('events_v1_Event', watchStates),
+          icon: <ResourceIcon pluginId="kubernetes" resourceKey="k8s:events.k8s.io/events" size={16} />,
+          badge: getStateBadge(toID('k8s:events.k8s.io/events'), watchStates),
         },
         {
-          id: 'core_v1_Namespace',
+          id: toID('k8s:/namespaces'),
           label: 'Namespaces',
-          icon: <ResourceIcon pluginId="kubernetes" resourceKey="core::v1::Namespace" size={16} />,
-          badge: getStateBadge('core_v1_Namespace', watchStates),
+          icon: <ResourceIcon pluginId="kubernetes" resourceKey="k8s:/namespaces" size={16} />,
+          badge: getStateBadge(toID('k8s:/namespaces'), watchStates),
         },
         {
           id: 'workload',
@@ -414,7 +399,7 @@ const calculateModernLayout = (
         },
         {
           id: 'crd',
-          label: 'Custom Resource Definitions',
+          label: 'Other API Groups',
           icon: ICON_BLOCKS,
           children: crdSorted,
           badge: getGroupBadge(
@@ -434,8 +419,9 @@ const calculateModernLayout = (
  */
 export const useSidebarLayout = ({ connectionID }: Opts) => {
   const { settings } = usePluginContext();
-  const { groups } = useResourceGroups({ pluginID: 'kubernetes', connectionID });
-  const { summary, isFullySynced } = useWatchState({ pluginID: 'kubernetes', connectionID });
+  const { groups } = useResourceGroups({ pluginID: 'kubernetes', route: { connection: connectionID } });
+  const { resourceTypes } = useResourceTypes({ pluginID: 'kubernetes', route: { connection: connectionID } });
+  const { summary, isFullySynced } = useWatchState({ pluginID: 'kubernetes', route: { connection: connectionID } });
 
   // Stabilize the watchStates reference so we don't recalculate on every
   // watch event when the actual values haven't changed.
@@ -463,13 +449,13 @@ export const useSidebarLayout = ({ connectionID }: Opts) => {
       setIsLoading(true);
       switch (layoutSetting) {
         case 'modern':
-          setLayout(calculateModernLayout(groups.data, watchStates));
+          setLayout(calculateModernLayout(groups.data, resourceTypes.data ?? [], watchStates));
           break;
         case 'full':
-          setLayout(calculateFullLayout(groups.data, watchStates));
+          setLayout(calculateFullLayout(groups.data, resourceTypes.data ?? [], watchStates));
           break;
         default:
-          setLayout(calculateModernLayout(groups.data, watchStates));
+          setLayout(calculateModernLayout(groups.data, resourceTypes.data ?? [], watchStates));
           break;
       }
       setIsLoading(false);
@@ -485,7 +471,7 @@ export const useSidebarLayout = ({ connectionID }: Opts) => {
     // Debounce during active sync to avoid hundreds of recalculations
     const timer = setTimeout(compute, 500);
     return () => clearTimeout(timer);
-  }, [groups.data, layoutSetting, watchStates, isFullySynced]);
+  }, [groups.data, resourceTypes.data, layoutSetting, watchStates, isFullySynced]);
 
   return {
     layout,

@@ -17,7 +17,7 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import HorizontalPodAutoscalerSidebar from './Sidebar';
 
-const resourceKey = 'autoscaling::v2::HorizontalPodAutoscaler';
+const resourceKey = 'k8s:autoscaling/horizontalpodautoscalers';
 
 const HorizontalPodAutoscalerTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -123,7 +123,6 @@ const HorizontalPodAutoscalerTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

@@ -27,7 +27,7 @@ export const Primary: Story = {
 Primary.decorators = [
   (Story, c) => (
     <ResourceDrawerContainer
-      type="core::v1::PersistentVolume"
+      type="k8s:/persistentvolumes"
       // @ts-expect-error - arbitrary json
       title={c.args.ctx.data.metadata.name}
       icon="LuStorage"

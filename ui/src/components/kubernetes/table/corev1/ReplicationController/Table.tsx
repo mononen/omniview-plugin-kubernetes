@@ -16,7 +16,7 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import ReplicationControllerSidebar from './Sidebar';
 
-const resourceKey = 'core::v1::ReplicationController';
+const resourceKey = 'k8s:/replicationcontrollers';
 
 const ReplicationControllerTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -87,7 +87,6 @@ const ReplicationControllerTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

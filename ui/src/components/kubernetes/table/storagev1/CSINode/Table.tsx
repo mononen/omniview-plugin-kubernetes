@@ -15,7 +15,7 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import CSINodeSidebar from './Sidebar';
 
-const resourceKey = 'storage::v1::CSINode';
+const resourceKey = 'k8s:storage.k8s.io/csinodes';
 
 const CSINodeTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -72,7 +72,6 @@ const CSINodeTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );

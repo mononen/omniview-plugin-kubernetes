@@ -1,5 +1,6 @@
 import { IconButton } from '@omniviewdev/base-ui';
-import { useResources, useResourceMetrics } from '@omniviewdev/runtime';
+import { useResourceMetrics } from '@omniviewdev/runtime';
+import { useKubernetesResources } from '../../hooks/useKubernetesResources';
 import type { metric, types  } from '@omniviewdev/runtime/models';
 import type { Pod, Event as K8sEvent } from 'kubernetes-types/core/v1';
 import React from 'react';
@@ -70,33 +71,10 @@ const ConnectedClusterCard: React.FC<Props> = ({
   const avatar = override?.avatar ?? conn?.avatar;
   const avatarColor = override?.avatarColor;
 
-  const { resources: podsQuery } = useResources({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'core::v1::Pod',
-    idAccessor: 'metadata.uid',
-  });
-
-  const { resources: eventsQuery } = useResources({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'core::v1::Event',
-    idAccessor: 'metadata.uid',
-  });
-
-  const { resources: nodesQuery } = useResources({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'core::v1::Node',
-    idAccessor: 'metadata.uid',
-  });
-
-  const { resources: deploymentsQuery } = useResources({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'apps::v1::Deployment',
-    idAccessor: 'metadata.uid',
-  });
+  const podsQuery = useKubernetesResources<Pod>({ connectionID, resourceType: 'k8s:/pods' });
+  const eventsQuery = useKubernetesResources<K8sEvent>({ connectionID, resourceType: 'k8s:/events' });
+  const nodesQuery = useKubernetesResources({ connectionID, resourceType: 'k8s:/nodes' });
+  const deploymentsQuery = useKubernetesResources({ connectionID, resourceType: 'k8s:apps/deployments' });
 
   const metricConfig = override?.metricConfig;
 
@@ -125,17 +103,17 @@ const ConnectedClusterCard: React.FC<Props> = ({
   });
 
   const { failedCount, pendingCount, warningCount, podCount, nodeCount, deploymentCount } = React.useMemo(() => {
-    const pods = (podsQuery.data?.result ?? []) as Pod[];
-    const events = (eventsQuery.data?.result ?? []) as unknown as K8sEvent[];
+    const pods = (podsQuery.bodies ?? []) as Pod[];
+    const events = (eventsQuery.bodies ?? []) as unknown as K8sEvent[];
     return {
       failedCount: pods.filter((p) => p.status?.phase === 'Failed').length,
       pendingCount: pods.filter((p) => p.status?.phase === 'Pending').length,
       warningCount: events.filter((e) => e.type === 'Warning').length,
       podCount: pods.length,
-      nodeCount: (nodesQuery.data?.result ?? []).length,
-      deploymentCount: (deploymentsQuery.data?.result ?? []).length,
+      nodeCount: (nodesQuery.bodies ?? []).length,
+      deploymentCount: (deploymentsQuery.bodies ?? []).length,
     };
-  }, [podsQuery.data, eventsQuery.data, nodesQuery.data, deploymentsQuery.data]);
+  }, [podsQuery.bodies, eventsQuery.bodies, nodesQuery.bodies, deploymentsQuery.bodies]);
 
   const values = React.useMemo(() => extractCurrentValues(metricsData), [metricsData]);
   const hasMetrics = providers.length > 0 && values.size > 0;

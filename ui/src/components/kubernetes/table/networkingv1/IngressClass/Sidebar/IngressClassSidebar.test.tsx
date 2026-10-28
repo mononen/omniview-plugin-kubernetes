@@ -1,4 +1,5 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { DrawerContext } from '@omniviewdev/runtime';
 import { render, screen } from '@testing-library/react';
 import type { IngressClass } from 'kubernetes-types/networking/v1';
@@ -57,7 +58,7 @@ function makeIngressClass(overrides: Partial<IngressClass> = {}): IngressClass {
 function makeDrawerCtx(data: IngressClass | undefined): DrawerContext<IngressClass> {
   return {
     data,
-    resource: { connectionID: 'conn-1', id: 'nginx' },
+    resource: fixtureResource('k8s:networking.k8s.io/ingressclasses', data, 'conn-1', data?.metadata?.name ?? 'fixture-object'),
   } as DrawerContext<IngressClass>;
 }
 

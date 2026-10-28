@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { RoleBinding } from 'kubernetes-types/rbac/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="rbac::v1::RoleBinding"
+        type="k8s:rbac.authorization.k8s.io/rolebindings"
         icon="LuLink"
         title={title}
         open
@@ -34,10 +35,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: {
-      data: data as unknown as RoleBinding,
-      resource: { connectionID: 'ctx-1', id: 'dev-pod-manager', key: 'rbac::v1::RoleBinding' },
-    },
+    ctx: { data: data as unknown as RoleBinding, resource: fixtureResource('k8s:rbac.authorization.k8s.io/rolebindings', data as unknown as RoleBinding, 'ctx-1', 'dev-pod-manager') },
   },
   decorators: withDrawer(data.metadata.name),
 };

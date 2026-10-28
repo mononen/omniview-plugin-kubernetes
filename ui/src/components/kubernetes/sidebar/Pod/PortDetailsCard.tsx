@@ -327,7 +327,7 @@ const PortDetailsCard: React.FC<PortDetailsCardProps> = ({
     void forward({
       opts: {
         resourceId: resourceID,
-        resourceKey: 'core::v1::Pod',
+        resourceKey: 'k8s:/pods',
         resource: podData ?? { metadata: { name: resourceID, namespace: 'default' } },
         remotePort: port,
         localPort: opts?.localPort,

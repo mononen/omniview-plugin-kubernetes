@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import ResourceDrawerContainer from '../../../../../../stories/containers/SidebarContainer';
@@ -19,7 +20,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="coordination::v1::Lease"
+        type="k8s:coordination.k8s.io/leases"
         icon="LuTimer"
         title={title}
         open
@@ -33,10 +34,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: {
-      data: data as Record<string, unknown>,
-      resource: { connectionID: 'ctx-1', id: 'kube-scheduler', key: 'coordination::v1::Lease', pluginID: 'kubernetes' },
-    },
+    ctx: { data: data as Record<string, unknown>, resource: fixtureResource('k8s:coordination.k8s.io/leases', data as Record<string, unknown>, 'ctx-1', 'kube-scheduler') },
   },
   decorators: withDrawer(data.metadata.name),
 };

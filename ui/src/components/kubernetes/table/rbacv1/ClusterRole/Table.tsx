@@ -14,7 +14,7 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import ClusterRoleSidebar from './Sidebar';
 
-const resourceKey = 'rbac::v1::ClusterRole';
+const resourceKey = 'k8s:rbac.authorization.k8s.io/clusterroles';
 
 const ClusterRoleTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -64,7 +64,6 @@ const ClusterRoleTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );

@@ -318,7 +318,7 @@ const ServicePortsSection: React.FC<Props> = ({ service, connectionID, resourceI
     void forward({
       opts: {
         resourceId: resourceID || '',
-        resourceKey: 'core::v1::Service',
+        resourceKey: 'k8s:/services',
         resource: service,
         remotePort: port,
         localPort: opts?.localPort,

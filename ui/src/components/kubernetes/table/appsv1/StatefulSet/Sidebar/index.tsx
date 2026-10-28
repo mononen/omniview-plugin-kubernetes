@@ -26,7 +26,7 @@ export const StatefulSetSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) return null;
 
   const sts = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
   const namespace = sts.metadata?.namespace;
   const spec = sts.spec;
   const status = sts.status;
@@ -38,7 +38,7 @@ export const StatefulSetSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={sts.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={sts.metadata} connectionID={ctx.resource?.route.connection} />
 
         <WorkloadStatusSection
           title="Status"
@@ -61,7 +61,7 @@ export const StatefulSetSidebar: React.FC<Props> = ({ ctx }) => {
                     connectionID={connectionID}
                     namespace={namespace}
                     resourceID={spec.serviceName}
-                    resourceKey="core::v1::Service"
+                    resourceKey="k8s:/services"
                     resourceName={spec.serviceName}
                   />
                 }
@@ -102,16 +102,16 @@ export const StatefulSetSidebar: React.FC<Props> = ({ ctx }) => {
       {sts.spec?.template?.spec && (
         <WorkloadPortsCard
           podSpec={sts.spec.template.spec}
-          resourceKey="apps::v1::StatefulSet"
+          resourceKey="k8s:apps/statefulsets"
           resourceData={sts}
-          resourceID={ctx.resource?.id || ''}
-          connectionID={ctx.resource?.connectionID || ''}
+          resourceID={ctx.resource?.reference.address.id || ''}
+          connectionID={ctx.resource?.route.connection || ''}
         />
       )}
 
       <PodContainersSectionFromPodSpec
-        resourceID={ctx.resource?.id || ''}
-        connectionID={ctx.resource?.connectionID || ''}
+        resourceID={ctx.resource?.reference.address.id || ''}
+        connectionID={ctx.resource?.route.connection || ''}
         spec={sts.spec?.template?.spec}
       />
     </Stack>

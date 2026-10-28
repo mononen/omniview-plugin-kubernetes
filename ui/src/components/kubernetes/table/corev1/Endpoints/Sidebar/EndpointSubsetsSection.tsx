@@ -65,7 +65,7 @@ const AddressRow: React.FC<{
         {addr.nodeName && connectionID ? (
           <ResourceLinkChip
             connectionID={connectionID}
-            resourceKey="core::v1::Node"
+            resourceKey="k8s:/nodes"
             resourceID={addr.nodeName}
             resourceName={addr.nodeName}
           />

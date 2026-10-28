@@ -36,7 +36,7 @@ export const PersistentVolumeClaimSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) return null;
 
   const pvc = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
   const spec = pvc.spec;
   const status = pvc.status;
   const phase = status?.phase;
@@ -50,7 +50,7 @@ export const PersistentVolumeClaimSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={pvc.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={pvc.metadata} connectionID={ctx.resource?.route.connection} />
 
         <SidebarSection
           title="Status"
@@ -97,7 +97,7 @@ export const PersistentVolumeClaimSidebar: React.FC<Props> = ({ ctx }) => {
                   <ResourceLinkChip
                     connectionID={connectionID}
                     resourceID={spec.volumeName}
-                    resourceKey="core::v1::PersistentVolume"
+                    resourceKey="k8s:/persistentvolumes"
                     resourceName={spec.volumeName}
                   />
                 }
@@ -110,7 +110,7 @@ export const PersistentVolumeClaimSidebar: React.FC<Props> = ({ ctx }) => {
                   <ResourceLinkChip
                     connectionID={connectionID}
                     resourceID={spec.storageClassName}
-                    resourceKey="storage::v1::StorageClass"
+                    resourceKey="k8s:storage.k8s.io/storageclasses"
                     resourceName={spec.storageClassName}
                   />
                 }

@@ -134,7 +134,7 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
   const metricConfig = existing.metricConfig ?? {};
 
   const { data: providers, isLoading: providersLoading } =
-    useMetricProvidersForResource('core::v1::Pod');
+    useMetricProvidersForResource('k8s:/pods');
 
   // Invalidate provider cache on mount so we don't show stale 0-provider results
   React.useEffect(() => {

@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { VolumeAttachment } from 'kubernetes-types/storage/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="storage::v1::VolumeAttachment"
+        type="k8s:storage.k8s.io/volumeattachments"
         icon="LuLink"
         title={title}
         open
@@ -36,10 +37,7 @@ function withDrawer(title: string) {
 
 export const Attached: Story = {
   args: {
-    ctx: {
-      data: data as unknown as VolumeAttachment,
-      resource: { connectionID: 'ctx-1', id: 'csi-a1b2c3d4e5f6', key: 'storage::v1::VolumeAttachment' },
-    },
+    ctx: { data: data as unknown as VolumeAttachment, resource: fixtureResource('k8s:storage.k8s.io/volumeattachments', data as unknown as VolumeAttachment, 'ctx-1', 'csi-a1b2c3d4e5f6') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -60,10 +58,7 @@ const detachedData: VolumeAttachment = {
 
 export const Detached: Story = {
   args: {
-    ctx: {
-      data: detachedData,
-      resource: { connectionID: 'ctx-1', id: 'csi-detached-xyz', key: 'storage::v1::VolumeAttachment' },
-    },
+    ctx: { data: detachedData, resource: fixtureResource('k8s:storage.k8s.io/volumeattachments', detachedData, 'ctx-1', 'csi-detached-xyz') },
   },
   decorators: withDrawer('csi-detached-xyz'),
 };

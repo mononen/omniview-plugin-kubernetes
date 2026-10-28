@@ -1,17 +1,15 @@
 //nolint:gochecknoglobals,gomnd // column definitions are global
 package corev1
 
-import "github.com/omniviewdev/plugin-sdk/pkg/resource/types"
+import types "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 
 var ComponentStatusDef = types.ResourceDefinition{
-	IDAccessor:       "metadata.name",
-	MemoizerAccessor: "metadata.uid,metadata.resourceVersion",
-	ColumnDefs: []types.ColumnDef{
+	ColumnDefs: []types.ColumnDefinition{
 		{
 			ID:        "name",
 			Header:    "Name",
 			Accessors: "metadata.name",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 		},
 		{
 			ID:        "healthy",

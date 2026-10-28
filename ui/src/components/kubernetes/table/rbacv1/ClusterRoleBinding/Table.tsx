@@ -18,12 +18,12 @@ import ClusterRoleBindingSidebar from './Sidebar';
 
 const scrollRowStyle = { gap: 2 } as const;
 
-const resourceKey = 'rbac::v1::ClusterRoleBinding';
+const resourceKey = 'k8s:rbac.authorization.k8s.io/clusterrolebindings';
 
 const ownerRefKeyMap: Record<string, string> = {
-  ServiceAccount: 'core::v1::ServiceAccount',
-  ClusterRole: 'rbac::v1::ClusterRole',
-  Role: 'rbac::v1::Role',
+  ServiceAccount: 'k8s:/serviceaccounts',
+  ClusterRole: 'k8s:rbac.authorization.k8s.io/clusterroles',
+  Role: 'k8s:rbac.authorization.k8s.io/roles',
 };
 
 const ClusterRoleBindingTable: React.FC = () => {
@@ -104,7 +104,6 @@ const ClusterRoleBindingTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );

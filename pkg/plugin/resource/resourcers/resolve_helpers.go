@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -116,20 +116,29 @@ func listPodsByOwner(
 	return result, nil
 }
 
-// descriptorByTarget builds a lookup map from TargetResourceKey to descriptor.
+// descriptorByTarget indexes descriptors by their canonical target type.
 func descriptorByTarget(descriptors []resource.RelationshipDescriptor) map[string]resource.RelationshipDescriptor {
 	m := make(map[string]resource.RelationshipDescriptor, len(descriptors))
 	for _, d := range descriptors {
-		m[d.TargetResourceKey] = d
+		m[d.TargetType] = d
 	}
 	return m
 }
 
-// makeRef creates a ResourceRef with standard fields.
-func makeRef(resourceKey, id, namespace string) resource.ResourceRef {
-	return resource.ResourceRef{
-		ResourceKey: resourceKey,
-		ID:          id,
-		Namespace:   namespace,
+// makeRef inherits source authority and access route without inventing identity.
+func makeRef(source resource.GetRequest, targetType, id, namespace string, uid ...string) resource.RelationshipTarget {
+	scope := []resource.ScopeEntry{}
+	if namespace != "" {
+		scope = append(scope, resource.ScopeEntry{Dimension: "namespace", Value: namespace})
 	}
+	ref := resource.ResourceReference{Address: resource.ResourceAddress{
+		Provider: source.Reference.Address.Provider,
+		Authority: source.Reference.Address.Authority,
+		Type: targetType, ID: id, Scope: scope,
+	}}
+	if len(uid) > 0 && uid[0] != "" {
+		incarnation := uid[0]
+		ref.Incarnation = &incarnation
+	}
+	return resource.RelationshipTarget{Reference: ref, Route: source.Route, DisplayName: id}
 }

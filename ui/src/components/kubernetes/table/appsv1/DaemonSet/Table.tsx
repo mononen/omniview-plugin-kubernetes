@@ -17,7 +17,7 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import DaemonSetSidebar from './Sidebar';
 
-const resourceKey = 'apps::v1::DaemonSet';
+const resourceKey = 'k8s:apps/daemonsets';
 
 const DaemonSetTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -127,7 +127,6 @@ const DaemonSetTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

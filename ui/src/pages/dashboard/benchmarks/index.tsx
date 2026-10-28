@@ -1,5 +1,5 @@
 import { Spinner, Stack } from '@omniviewdev/base-ui';
-import { useResources } from '@omniviewdev/runtime';
+import { useKubernetesResources } from '../../../hooks/useKubernetesResources';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 
@@ -36,10 +36,9 @@ const pageStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column
 const ClusterDashboardBenchmarksPage: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { resources } = useResources({
-    pluginID: 'kubernetes',
+  const resources = useKubernetesResources<ClusterBenchmarkResult>({
     connectionID: id,
-    resourceKey: 'extras::v1::ClusterBenchmark',
+    resourceType: 'audit:polaris',
   });
 
   if (resources.isLoading) {
@@ -50,8 +49,7 @@ const ClusterDashboardBenchmarksPage: React.FC = () => {
     );
   }
 
-  // runtime ListResult.result is typed as any[]; cast to the known benchmark shape
-  const results = (resources.data?.result ?? []) as ClusterBenchmarkResult[];
+  const results = (resources.bodies ?? []) as ClusterBenchmarkResult[];
   const firstResult: ClusterBenchmarkResult | undefined = results[0];
 
   return (

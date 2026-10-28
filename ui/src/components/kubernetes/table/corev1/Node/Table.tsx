@@ -16,7 +16,7 @@ import { withClusterResourceColumns } from '../../shared/columns';
 
 import { drawerActions } from './actions';
 
-const resourceKey = 'core::v1::Node';
+const resourceKey = 'k8s:/nodes';
 
 const NodeTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -138,7 +138,6 @@ const NodeTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
       createEnabled={false}
     />

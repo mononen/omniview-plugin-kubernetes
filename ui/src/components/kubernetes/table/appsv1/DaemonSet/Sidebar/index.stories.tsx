@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { DaemonSet } from 'kubernetes-types/apps/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="apps::v1::DaemonSet"
+        type="k8s:apps/daemonsets"
         icon="LuLayers"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: {
-      data: data as unknown as DaemonSet,
-      resource: { connectionID: 'ctx-1', id: 'node-exporter', key: 'apps::v1::DaemonSet' },
-    },
+    ctx: { data: data as unknown as DaemonSet, resource: fixtureResource('k8s:apps/daemonsets', data as unknown as DaemonSet, 'ctx-1', 'node-exporter') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -71,10 +69,7 @@ const withConditionsData: DaemonSet = {
 
 export const WithConditions: Story = {
   args: {
-    ctx: {
-      data: withConditionsData,
-      resource: { connectionID: 'ctx-1', id: 'fluentd', key: 'apps::v1::DaemonSet' },
-    },
+    ctx: { data: withConditionsData, resource: fixtureResource('k8s:apps/daemonsets', withConditionsData, 'ctx-1', 'fluentd') },
   },
   decorators: withDrawer('fluentd'),
 };

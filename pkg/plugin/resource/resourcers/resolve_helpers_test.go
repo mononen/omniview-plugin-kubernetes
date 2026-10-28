@@ -180,8 +180,14 @@ func TestListPodsByOwner_Empty(t *testing.T) {
 }
 
 func TestMakeRef(t *testing.T) {
-	ref := makeRef("core::v1::Pod", "my-pod", "default")
-	assert.Equal(t, "core::v1::Pod", ref.ResourceKey)
-	assert.Equal(t, "my-pod", ref.ID)
-	assert.Equal(t, "default", ref.Namespace)
+	source := podRequest("source-pod", "default")
+	ref := makeRef(source, "k8s:/pods", "my-pod", "default", "pod-uid")
+	assert.Equal(t, "k8s:/pods", ref.Reference.Address.Type)
+	assert.Equal(t, "my-pod", ref.Reference.Address.ID)
+	assert.Equal(t, source.Reference.Address.Scope, ref.Reference.Address.Scope)
+	assert.Equal(t, source.Reference.Address.Provider, ref.Reference.Address.Provider)
+	assert.Equal(t, source.Reference.Address.Authority, ref.Reference.Address.Authority)
+	assert.Equal(t, source.Route, ref.Route)
+	require.NotNil(t, ref.Reference.Incarnation)
+	assert.Equal(t, "pod-uid", *ref.Reference.Incarnation)
 }

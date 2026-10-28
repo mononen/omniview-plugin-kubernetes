@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { Deployment } from 'kubernetes-types/apps/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="apps::v1::Deployment"
+        type="k8s:apps/deployments"
         icon="LuBox"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const RollingUpdate: Story = {
   args: {
-    ctx: {
-      data: data as unknown as Deployment,
-      resource: { connectionID: 'ctx-1', id: 'frontend', key: 'apps::v1::Deployment' },
-    },
+    ctx: { data: data as unknown as Deployment, resource: fixtureResource('k8s:apps/deployments', data as unknown as Deployment, 'ctx-1', 'frontend') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -58,10 +56,7 @@ const recreateData: Deployment = {
 
 export const Recreate: Story = {
   args: {
-    ctx: {
-      data: recreateData,
-      resource: { connectionID: 'ctx-1', id: 'backend-worker', key: 'apps::v1::Deployment' },
-    },
+    ctx: { data: recreateData, resource: fixtureResource('k8s:apps/deployments', recreateData, 'ctx-1', 'backend-worker') },
   },
   decorators: withDrawer('backend-worker'),
 };
@@ -79,10 +74,7 @@ const pausedData: Deployment = {
 
 export const Paused: Story = {
   args: {
-    ctx: {
-      data: pausedData,
-      resource: { connectionID: 'ctx-1', id: 'frontend-canary', key: 'apps::v1::Deployment' },
-    },
+    ctx: { data: pausedData, resource: fixtureResource('k8s:apps/deployments', pausedData, 'ctx-1', 'frontend-canary') },
   },
   decorators: withDrawer('frontend-canary'),
 };

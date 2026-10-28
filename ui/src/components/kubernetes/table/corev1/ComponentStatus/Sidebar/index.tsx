@@ -24,7 +24,7 @@ export const ComponentStatusSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={cs.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={cs.metadata} connectionID={ctx.resource?.route.connection} />
 
         {conditions.length > 0 && (
           <SidebarSection

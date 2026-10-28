@@ -14,7 +14,7 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import RoleSidebar from './Sidebar';
 
-const resourceKey = 'rbac::v1::Role';
+const resourceKey = 'k8s:rbac.authorization.k8s.io/roles';
 
 const RoleTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -54,7 +54,6 @@ const RoleTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );

@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { Service } from 'kubernetes-types/core/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="core::v1::Service"
+        type="k8s:/services"
         icon="LuNetwork"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const LoadBalancer: Story = {
   args: {
-    ctx: {
-      data: data as unknown as Service,
-      resource: { connectionID: 'ctx-1', id: 'frontend', key: 'core::v1::Service' },
-    },
+    ctx: { data: data as unknown as Service, resource: fixtureResource('k8s:/services', data as unknown as Service, 'ctx-1', 'frontend') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -69,10 +67,7 @@ const clusterIPData: Service = {
 
 export const ClusterIP: Story = {
   args: {
-    ctx: {
-      data: clusterIPData,
-      resource: { connectionID: 'ctx-1', id: 'backend-api', key: 'core::v1::Service' },
-    },
+    ctx: { data: clusterIPData, resource: fixtureResource('k8s:/services', clusterIPData, 'ctx-1', 'backend-api') },
   },
   decorators: withDrawer('backend-api'),
 };
@@ -98,10 +93,7 @@ const nodePortData: Service = {
 
 export const NodePort: Story = {
   args: {
-    ctx: {
-      data: nodePortData,
-      resource: { connectionID: 'ctx-1', id: 'nginx-nodeport', key: 'core::v1::Service' },
-    },
+    ctx: { data: nodePortData, resource: fixtureResource('k8s:/services', nodePortData, 'ctx-1', 'nginx-nodeport') },
   },
   decorators: withDrawer('nginx-nodeport'),
 };
@@ -126,10 +118,7 @@ const headlessData: Service = {
 
 export const Headless: Story = {
   args: {
-    ctx: {
-      data: headlessData,
-      resource: { connectionID: 'ctx-1', id: 'postgres-headless', key: 'core::v1::Service' },
-    },
+    ctx: { data: headlessData, resource: fixtureResource('k8s:/services', headlessData, 'ctx-1', 'postgres-headless') },
   },
   decorators: withDrawer('postgres-headless'),
 };

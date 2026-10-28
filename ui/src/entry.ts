@@ -169,71 +169,70 @@ window.PluginReact = React;
  */
 export const sidebars: Record<string, React.FC<{ ctx: DrawerContext }>> = {
   // core.v1
-  'core::v1::Pod': PodSidebar,
-  'core::v1::Node': NodeSidebar,
-  'core::v1::Secret': SecretSidebar,
-  'core::v1::ConfigMap': ConfigMapSidebar,
-  'core::v1::Namespace': NamespaceSidebar,
-  'core::v1::Service': ServiceSidebar,
-  'core::v1::ServiceAccount': ServiceAccountSidebar,
-  'core::v1::Endpoints': EndpointsSidebar,
-  'core::v1::ReplicationController': ReplicationControllerSidebar,
-  'core::v1::PersistentVolume': PersistentVolumeSidebar,
-  'core::v1::PersistentVolumeClaim': PersistentVolumeClaimSidebar,
-  'core::v1::LimitRange': LimitRangeSidebar,
-  'core::v1::ResourceQuota': ResourceQuotaSidebar,
-  'core::v1::ComponentStatus': ComponentStatusSidebar,
-  'core::v1::Event': EventSidebar,
+  'k8s:/pods': PodSidebar,
+  'k8s:/nodes': NodeSidebar,
+  'k8s:/secrets': SecretSidebar,
+  'k8s:/configmaps': ConfigMapSidebar,
+  'k8s:/namespaces': NamespaceSidebar,
+  'k8s:/services': ServiceSidebar,
+  'k8s:/serviceaccounts': ServiceAccountSidebar,
+  'k8s:/endpoints': EndpointsSidebar,
+  'k8s:/replicationcontrollers': ReplicationControllerSidebar,
+  'k8s:/persistentvolumes': PersistentVolumeSidebar,
+  'k8s:/persistentvolumeclaims': PersistentVolumeClaimSidebar,
+  'k8s:/limitranges': LimitRangeSidebar,
+  'k8s:/resourcequotas': ResourceQuotaSidebar,
+  'k8s:/componentstatuses': ComponentStatusSidebar,
+  'k8s:/events': EventSidebar,
   // apps.v1
-  'apps::v1::ReplicaSet': ReplicaSetSidebar,
-  'apps::v1::DaemonSet': DaemonSetSidebar,
-  'apps::v1::Deployment': DeploymentSidebar,
-  'apps::v1::StatefulSet': StatefulSetSidebar,
+  'k8s:apps/replicasets': ReplicaSetSidebar,
+  'k8s:apps/daemonsets': DaemonSetSidebar,
+  'k8s:apps/deployments': DeploymentSidebar,
+  'k8s:apps/statefulsets': StatefulSetSidebar,
   // batch.v1
-  'batch::v1::Job': JobSidebar,
-  'batch::v1::CronJob': CronJobSidebar,
+  'k8s:batch/jobs': JobSidebar,
+  'k8s:batch/cronjobs': CronJobSidebar,
   // autoscaling.v1
-  'autoscaling::v1::HorizontalPodAutoscaler': HorizontalPodAutoscalerSidebar,
-  'autoscaling::v2::HorizontalPodAutoscaler': HorizontalPodAutoscalerSidebar,
+  'k8s:autoscaling/horizontalpodautoscalers': HorizontalPodAutoscalerSidebar,
   // policy.v1
-  'policy::v1::PodDisruptionBudget': PodDisruptionBudgetSidebar,
+  'k8s:policy/poddisruptionbudgets': PodDisruptionBudgetSidebar,
   // coordination.v1
-  'coordination::v1::Lease': LeaseSidebar,
+  'k8s:coordination.k8s.io/leases': LeaseSidebar,
   // flowcontrol.v1
-  'flowcontrol::v1::FlowSchema': FlowSchemaSidebar,
-  'flowcontrol::v1::PriorityLevelConfiguration': PriorityLevelConfigurationSidebar,
+  'k8s:flowcontrol.apiserver.k8s.io/flowschemas': FlowSchemaSidebar,
+  'k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations': PriorityLevelConfigurationSidebar,
   // rbac.v1
-  'rbac::v1::ClusterRole': ClusterRoleSidebar,
-  'rbac::v1::ClusterRoleBinding': ClusterRoleBindingSidebar,
-  'rbac::v1::Role': RoleSidebar,
-  'rbac::v1::RoleBinding': RoleBindingSidebar,
+  'k8s:rbac.authorization.k8s.io/clusterroles': ClusterRoleSidebar,
+  'k8s:rbac.authorization.k8s.io/clusterrolebindings': ClusterRoleBindingSidebar,
+  'k8s:rbac.authorization.k8s.io/roles': RoleSidebar,
+  'k8s:rbac.authorization.k8s.io/rolebindings': RoleBindingSidebar,
   // networking.v1
-  'networking::v1::NetworkPolicy': NetworkPolicySidebar,
-  'networking::v1::IngressClass': IngressClassSidebar,
-  'networking::v1::Ingress': IngressSidebar,
+  'k8s:networking.k8s.io/networkpolicies': NetworkPolicySidebar,
+  'k8s:networking.k8s.io/ingressclasses': IngressClassSidebar,
+  'k8s:networking.k8s.io/ingresses': IngressSidebar,
   // discovery.v1
-  'discovery::v1::EndpointSlice': EndpointSliceSidebar,
+  'k8s:discovery.k8s.io/endpointslices': EndpointSliceSidebar,
   // scheduling.v1
-  'scheduling::v1::PriorityClass': PriorityClassSidebar,
+  'k8s:scheduling.k8s.io/priorityclasses': PriorityClassSidebar,
   // node.v1
-  'node::v1::RuntimeClass': RuntimeClassSidebar,
+  'k8s:node.k8s.io/runtimeclasses': RuntimeClassSidebar,
   // storage.v1
-  'storage::v1::CSIDriver': CSIDriverSidebar,
-  'storage::v1::CSINode': CSINodeSidebar,
-  'storage::v1::StorageClass': StorageClassSidebar,
-  'storage::v1::VolumeAttachment': VolumeAttachmentSidebar,
-  'storage::v1::CSIStorageCapacity': CSIStorageCapacitySidebar,
+  'k8s:storage.k8s.io/csidrivers': CSIDriverSidebar,
+  'k8s:storage.k8s.io/csinodes': CSINodeSidebar,
+  'k8s:storage.k8s.io/storageclasses': StorageClassSidebar,
+  'k8s:storage.k8s.io/volumeattachments': VolumeAttachmentSidebar,
+  'k8s:storage.k8s.io/csistoragecapacities': CSIStorageCapacitySidebar,
   // admissionregistration.v1
-  'admissionregistration::v1::MutatingWebhookConfiguration': MutatingWebhookConfigurationSidebar,
-  'admissionregistration::v1::ValidatingAdmissionPolicy': ValidatingAdmissionPolicySidebar,
-  'admissionregistration::v1::ValidatingAdmissionPolicyBinding':
+  'k8s:admissionregistration.k8s.io/mutatingwebhookconfigurations': MutatingWebhookConfigurationSidebar,
+  'k8s:admissionregistration.k8s.io/validatingadmissionpolicies': ValidatingAdmissionPolicySidebar,
+  'k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings':
     ValidatingAdmissionPolicyBindingSidebar,
-  'admissionregistration::v1::ValidatingWebhookConfiguration':
+  'k8s:admissionregistration.k8s.io/validatingwebhookconfigurations':
     ValidatingWebhookConfigurationSidebar,
   // helm.v1
-  'helm::v1::Release': ReleaseSidebar,
-  'helm::v1::Repository': RepoSidebar,
-  'helm::v1::Chart': ChartSidebar,
+  'helm:releases': ReleaseSidebar,
+  'helm:repositories': RepoSidebar,
+  'helm:charts': ChartSidebar,
 };
 
 /**
@@ -311,105 +310,100 @@ const routes: Array<RouteObject> = [
           { path: 'page/:pagePath/:subPath', Component: ClusterExtensionPage },
           // admissionregistration.v1
           {
-            path: 'admissionregistration_v1_MutatingWebhookConfiguration',
+            path: encodeURIComponent('k8s:admissionregistration.k8s.io/mutatingwebhookconfigurations'),
             Component: MutatingWebhookConfigurationTable,
           },
           {
-            path: 'admissionregistration_v1_ValidatingAdmissionPolicy',
+            path: encodeURIComponent('k8s:admissionregistration.k8s.io/validatingadmissionpolicies'),
             Component: ValidatingAdmissionPolicyTable,
           },
           {
-            path: 'admissionregistration_v1_ValidatingAdmissionPolicyBinding',
+            path: encodeURIComponent('k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings'),
             Component: ValidatingAdmissionPolicyBindingTable,
           },
           {
-            path: 'admissionregistration_v1_ValidatingWebhookConfiguration',
+            path: encodeURIComponent('k8s:admissionregistration.k8s.io/validatingwebhookconfigurations'),
             Component: ValidatingWebhookConfigurationTable,
           },
 
           // apps.v1
-          { path: 'apps_v1_DaemonSet', Component: DaemonSetTable },
-          { path: 'apps_v1_Deployment', Component: DeploymentTable },
-          { path: 'apps_v1_ReplicaSet', Component: ReplicaSetTable },
-          { path: 'apps_v1_StatefulSet', Component: StatefulSetTable },
+          { path: encodeURIComponent('k8s:apps/daemonsets'), Component: DaemonSetTable },
+          { path: encodeURIComponent('k8s:apps/deployments'), Component: DeploymentTable },
+          { path: encodeURIComponent('k8s:apps/replicasets'), Component: ReplicaSetTable },
+          { path: encodeURIComponent('k8s:apps/statefulsets'), Component: StatefulSetTable },
 
           // autoscaling.v1
           {
-            path: 'autoscaling_v1_HorizontalPodAutoscaler',
+            path: encodeURIComponent('k8s:autoscaling/horizontalpodautoscalers'),
             Component: HorizontalPodAutoscalerTable,
           },
 
-          // autoscaling.v2
-          {
-            path: 'autoscaling_v2_HorizontalPodAutoscaler',
-            Component: HorizontalPodAutoscalerTable,
-          },
 
           // batch.v1
-          { path: 'batch_v1_CronJob', Component: CronJobTable },
-          { path: 'batch_v1_Job', Component: JobTable },
+          { path: encodeURIComponent('k8s:batch/cronjobs'), Component: CronJobTable },
+          { path: encodeURIComponent('k8s:batch/jobs'), Component: JobTable },
 
           // core.v1
-          { path: 'core_v1_ComponentStatus', Component: ComponentStatusTable },
-          { path: 'core_v1_ConfigMap', Component: ConfigMapTable },
-          { path: 'core_v1_Endpoints', Component: EndpointsTable },
-          { path: 'core_v1_Event', Component: EventTable },
-          { path: 'core_v1_LimitRange', Component: LimitRangeTable },
-          { path: 'core_v1_Namespace', Component: NamespaceTable },
-          { path: 'core_v1_Node', Component: NodeTable },
-          { path: 'core_v1_PersistentVolume', Component: PersistentVolumeTable },
-          { path: 'core_v1_PersistentVolumeClaim', Component: PersistentVolumeClaimTable },
-          { path: 'core_v1_Pod', Component: PodTable },
-          { path: 'core_v1_ResourceQuota', Component: ResourceQuotaTable },
-          { path: 'core_v1_Secret', Component: SecretTable },
-          { path: 'core_v1_Service', Component: ServiceTable },
-          { path: 'core_v1_ServiceAccount', Component: ServiceAccountTable },
-          { path: 'core_v1_ReplicationController', Component: ReplicationControllerTable },
+          { path: encodeURIComponent('k8s:/componentstatuses'), Component: ComponentStatusTable },
+          { path: encodeURIComponent('k8s:/configmaps'), Component: ConfigMapTable },
+          { path: encodeURIComponent('k8s:/endpoints'), Component: EndpointsTable },
+          { path: encodeURIComponent('k8s:/events'), Component: EventTable },
+          { path: encodeURIComponent('k8s:/limitranges'), Component: LimitRangeTable },
+          { path: encodeURIComponent('k8s:/namespaces'), Component: NamespaceTable },
+          { path: encodeURIComponent('k8s:/nodes'), Component: NodeTable },
+          { path: encodeURIComponent('k8s:/persistentvolumes'), Component: PersistentVolumeTable },
+          { path: encodeURIComponent('k8s:/persistentvolumeclaims'), Component: PersistentVolumeClaimTable },
+          { path: encodeURIComponent('k8s:/pods'), Component: PodTable },
+          { path: encodeURIComponent('k8s:/resourcequotas'), Component: ResourceQuotaTable },
+          { path: encodeURIComponent('k8s:/secrets'), Component: SecretTable },
+          { path: encodeURIComponent('k8s:/services'), Component: ServiceTable },
+          { path: encodeURIComponent('k8s:/serviceaccounts'), Component: ServiceAccountTable },
+          { path: encodeURIComponent('k8s:/replicationcontrollers'), Component: ReplicationControllerTable },
 
           // coordination.v1
-          { path: 'coordination_v1_Lease', Component: LeaseTable },
+          { path: encodeURIComponent('k8s:coordination.k8s.io/leases'), Component: LeaseTable },
 
           // discovery.v1
-          { path: 'discovery_v1_EndpointSlice', Component: EndpointSliceTable },
+          { path: encodeURIComponent('k8s:discovery.k8s.io/endpointslices'), Component: EndpointSliceTable },
 
           // flowcontrol.v1
           {
-            path: 'flowcontrol_v1_PriorityLevelConfiguration',
+            path: encodeURIComponent('k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations'),
             Component: PriorityLevelConfigurationTable,
           },
-          { path: 'flowcontrol_v1_FlowSchema', Component: FlowSchemaTable },
+          { path: encodeURIComponent('k8s:flowcontrol.apiserver.k8s.io/flowschemas'), Component: FlowSchemaTable },
 
           // networking.v1
-          { path: 'networking_v1_Ingress', Component: IngressTable },
-          { path: 'networking_v1_IngressClass', Component: IngressClassTable },
-          { path: 'networking_v1_NetworkPolicy', Component: NetworkPolicyTable },
+          { path: encodeURIComponent('k8s:networking.k8s.io/ingresses'), Component: IngressTable },
+          { path: encodeURIComponent('k8s:networking.k8s.io/ingressclasses'), Component: IngressClassTable },
+          { path: encodeURIComponent('k8s:networking.k8s.io/networkpolicies'), Component: NetworkPolicyTable },
 
           // node.v1
-          { path: 'node_v1_RuntimeClass', Component: RuntimeClassTable },
+          { path: encodeURIComponent('k8s:node.k8s.io/runtimeclasses'), Component: RuntimeClassTable },
 
           // policy.v1
-          { path: 'policy_v1_PodDisruptionBudget', Component: PodDisruptionBudgetTable },
+          { path: encodeURIComponent('k8s:policy/poddisruptionbudgets'), Component: PodDisruptionBudgetTable },
 
           // rbac.v1
-          { path: 'rbac_v1_ClusterRole', Component: ClusterRoleTable },
-          { path: 'rbac_v1_ClusterRoleBinding', Component: ClusterRoleBindingTable },
-          { path: 'rbac_v1_Role', Component: RoleTable },
-          { path: 'rbac_v1_RoleBinding', Component: RoleBindingTable },
+          { path: encodeURIComponent('k8s:rbac.authorization.k8s.io/clusterroles'), Component: ClusterRoleTable },
+          { path: encodeURIComponent('k8s:rbac.authorization.k8s.io/clusterrolebindings'), Component: ClusterRoleBindingTable },
+          { path: encodeURIComponent('k8s:rbac.authorization.k8s.io/roles'), Component: RoleTable },
+          { path: encodeURIComponent('k8s:rbac.authorization.k8s.io/rolebindings'), Component: RoleBindingTable },
 
           // scheduling.v1
-          { path: 'scheduling_v1_PriorityClass', Component: PriorityClassTable },
+          { path: encodeURIComponent('k8s:scheduling.k8s.io/priorityclasses'), Component: PriorityClassTable },
 
           // storage.v1
-          { path: 'storage_v1_CSIDriver', Component: CSIDriverTable },
-          { path: 'storage_v1_CSINode', Component: CSINodeTable },
-          { path: 'storage_v1_CSIStorageCapacity', Component: CSIStorageCapacityTable },
-          { path: 'storage_v1_StorageClass', Component: StorageClassTable },
-          { path: 'storage_v1_VolumeAttachment', Component: VolumeAttachmentTable },
+          { path: encodeURIComponent('k8s:storage.k8s.io/csidrivers'), Component: CSIDriverTable },
+          { path: encodeURIComponent('k8s:storage.k8s.io/csinodes'), Component: CSINodeTable },
+          { path: encodeURIComponent('k8s:storage.k8s.io/csistoragecapacities'), Component: CSIStorageCapacityTable },
+          { path: encodeURIComponent('k8s:storage.k8s.io/storageclasses'), Component: StorageClassTable },
+          { path: encodeURIComponent('k8s:storage.k8s.io/volumeattachments'), Component: VolumeAttachmentTable },
 
           // helm.v1
-          { path: 'helm_v1_Release', Component: HelmReleaseTable },
-          { path: 'helm_v1_Repository', Component: HelmRepoTable },
-          { path: 'helm_v1_Chart', Component: HelmChartTable },
+          { path: encodeURIComponent('helm:releases'), Component: HelmReleaseTable },
+          { path: encodeURIComponent('helm:repositories'), Component: HelmRepoTable },
+          { path: encodeURIComponent('helm:charts'), Component: HelmChartTable },
 
           // Custom Resource Definitions / breaking api versions
           { path: ':resourceKey', Component: DefaultTable },

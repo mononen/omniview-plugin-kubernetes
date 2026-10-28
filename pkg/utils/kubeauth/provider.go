@@ -3,6 +3,7 @@ package kubeauth
 import (
 	"context"
 	"log"
+	"net/http"
 	"time"
 
 	"k8s.io/client-go/discovery"
@@ -22,6 +23,9 @@ type KubeClientBundle struct {
 	Dynamic         dynamic.Interface
 	InformerFactory dynamicinformer.DynamicSharedInformerFactory
 	RestConfig      *rest.Config
+	// HTTPClient is the auth-aware bounded client for resource-only bundles.
+	// Use it with RestConfig when constructing additional finite resource clients.
+	HTTPClient      *http.Client
 }
 
 // LoadKubeClients loads the various clients necessary to interact with the api, given a kubeconfig path and

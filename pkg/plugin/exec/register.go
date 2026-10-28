@@ -25,7 +25,7 @@ func Register(plugin *sdk.Plugin) {
 		Handlers: []exec.Handler{
 			{
 				Plugin:         "kubernetes",
-				Resource:       "core::v1::Pod",
+				Resource:       "k8s:/pods",
 				TTYHandler:     PodHandler,
 				DefaultCommand: []string{"/bin/bash"},
 				TargetBuilder: exec.ActionTargetBuilder{
@@ -38,7 +38,7 @@ func Register(plugin *sdk.Plugin) {
 			},
 			{
 				Plugin:         "kubernetes",
-				Resource:       "core::v1::Node",
+				Resource:       "k8s:/nodes",
 				TTYHandler:     NodeHandler,
 				DefaultCommand: []string{"/bin/bash"},
 			},

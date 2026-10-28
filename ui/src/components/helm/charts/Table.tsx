@@ -11,7 +11,7 @@ import ResourceTable from '../../shared/table/ResourceTable';
 
 import ChartSidebar from './ChartSidebar';
 
-const resourceKey = 'helm::v1::Chart';
+const resourceKey = 'helm:charts';
 
 const nameCellStyle: React.CSSProperties = {
   display: 'flex',
@@ -170,7 +170,6 @@ const HelmChartTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="id"
       drawer={drawer}
       hideNamespaceSelector
       createEnabled={false}

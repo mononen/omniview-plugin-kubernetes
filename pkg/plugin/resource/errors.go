@@ -7,7 +7,7 @@ import (
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
-	sdkresource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	sdkresource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
 // classifyResourceError inspects a Kubernetes API error and returns a structured
@@ -21,6 +21,16 @@ func classifyResourceError(err error) error {
 		msg := statusErr.ErrStatus.Message
 
 		switch {
+		case code == 400 || code == 422:
+			return &sdkresource.ResourceOperationError{Err: err, Code: "INVALID_REQUEST", Title: "Invalid request", Message: msg}
+		case code == 405:
+			return &sdkresource.ResourceOperationError{Err: err, Code: "UNSUPPORTED", Title: "Unsupported operation", Message: msg}
+		case code == 410:
+			return &sdkresource.ResourceOperationError{Err: err, Code: "CONTINUATION_EXPIRED", Title: "Source continuation expired", Message: msg}
+		case code == 413 || code == 429:
+			return &sdkresource.ResourceOperationError{Err: err, Code: "RESOURCE_LIMIT", Title: "Resource limit", Message: msg}
+		case code == 503:
+			return &sdkresource.ResourceOperationError{Err: err, Code: "UNAVAILABLE", Title: "Source unavailable", Message: msg}
 		case code == 403:
 			return &sdkresource.ResourceOperationError{
 				Err:     err,

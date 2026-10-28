@@ -29,7 +29,7 @@ Primary.decorators = [
     <ResourceDrawerContainer
       // @ts-expect-error - arbitrary json
       title={c.args.ctx.data.metadata.name}
-      type="core::v1::PersistentVolumeClaim"
+      type="k8s:/persistentvolumeclaims"
       icon="LuStorage"
       open
       onClose={() => {}}

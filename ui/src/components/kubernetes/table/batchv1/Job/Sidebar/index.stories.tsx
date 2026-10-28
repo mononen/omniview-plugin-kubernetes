@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { Job } from 'kubernetes-types/batch/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="batch::v1::Job"
+        type="k8s:batch/jobs"
         icon="LuPlay"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const Complete: Story = {
   args: {
-    ctx: {
-      data: data as unknown as Job,
-      resource: { connectionID: 'ctx-1', id: 'data-migration-v3', key: 'batch::v1::Job' },
-    },
+    ctx: { data: data as unknown as Job, resource: fixtureResource('k8s:batch/jobs', data as unknown as Job, 'ctx-1', 'data-migration-v3') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -62,10 +60,7 @@ const runningData: Job = {
 
 export const Running: Story = {
   args: {
-    ctx: {
-      data: runningData,
-      resource: { connectionID: 'ctx-1', id: 'data-migration-v3', key: 'batch::v1::Job' },
-    },
+    ctx: { data: runningData, resource: fixtureResource('k8s:batch/jobs', runningData, 'ctx-1', 'data-migration-v3') },
   },
   decorators: withDrawer('data-migration-v3'),
 };
@@ -96,10 +91,7 @@ const failedData: Job = {
 
 export const Failed: Story = {
   args: {
-    ctx: {
-      data: failedData,
-      resource: { connectionID: 'ctx-1', id: 'data-migration-v3', key: 'batch::v1::Job' },
-    },
+    ctx: { data: failedData, resource: fixtureResource('k8s:batch/jobs', failedData, 'ctx-1', 'data-migration-v3') },
   },
   decorators: withDrawer('data-migration-v3'),
 };

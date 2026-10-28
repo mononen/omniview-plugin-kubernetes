@@ -1,5 +1,5 @@
 import { Autocomplete, Stack, Text, type ComponentSize } from '@omniviewdev/base-ui';
-import { useConnectionNamespaces } from '@omniviewdev/runtime';
+import { useScopeValues } from '@omniviewdev/runtime';
 import React, { useMemo } from 'react';
 import { LuChevronDown } from 'react-icons/lu';
 
@@ -29,9 +29,10 @@ export default function NamespaceSelect({
   placeholder = 'Select or create namespace',
   error,
 }: NamespaceSelectProps) {
-  const { namespaces } = useConnectionNamespaces({
+  const { values: namespaces } = useScopeValues({
     pluginID: 'kubernetes',
-    connectionID,
+    route: { connection: connectionID },
+    dimension: 'namespace',
   });
 
   const items = useMemo<string[]>(() => namespaces.data ?? [], [namespaces.data]);

@@ -1,8 +1,9 @@
 import { Chip, SearchInput, Spinner, Stack, Text } from '@omniviewdev/base-ui';
-import { useRightDrawer } from '@omniviewdev/runtime';
+import { useRightDrawer, useSnackbar } from '@omniviewdev/runtime';
 import React, { useState, useMemo, useDeferredValue, useCallback } from 'react';
 
 import { formatTimeDifference } from '../../../utils/time';
+import { resolveKubernetesReference } from '../../../utils/kubernetesReference';
 
 import styles from './EventsTable.module.css';
 
@@ -94,27 +95,27 @@ type Props = {
 // ---------------------------------------------------------------------------
 
 const KIND_TO_KEY: Record<string, string> = {
-  Pod: 'core::v1::Pod',
-  Node: 'core::v1::Node',
-  Service: 'core::v1::Service',
-  Deployment: 'apps::v1::Deployment',
-  StatefulSet: 'apps::v1::StatefulSet',
-  DaemonSet: 'apps::v1::DaemonSet',
-  ReplicaSet: 'apps::v1::ReplicaSet',
-  Job: 'batch::v1::Job',
-  CronJob: 'batch::v1::CronJob',
-  ConfigMap: 'core::v1::ConfigMap',
-  Secret: 'core::v1::Secret',
-  Ingress: 'networking.k8s.io::v1::Ingress',
-  PersistentVolumeClaim: 'core::v1::PersistentVolumeClaim',
-  PersistentVolume: 'core::v1::PersistentVolume',
-  Namespace: 'core::v1::Namespace',
-  ServiceAccount: 'core::v1::ServiceAccount',
-  Endpoints: 'core::v1::Endpoints',
-  ReplicationController: 'core::v1::ReplicationController',
-  HorizontalPodAutoscaler: 'autoscaling::v1::HorizontalPodAutoscaler',
-  Lease: 'coordination.k8s.io::v1::Lease',
-  EndpointSlice: 'discovery.k8s.io::v1::EndpointSlice',
+  Pod: 'k8s:/pods',
+  Node: 'k8s:/nodes',
+  Service: 'k8s:/services',
+  Deployment: 'k8s:apps/deployments',
+  StatefulSet: 'k8s:apps/statefulsets',
+  DaemonSet: 'k8s:apps/daemonsets',
+  ReplicaSet: 'k8s:apps/replicasets',
+  Job: 'k8s:batch/jobs',
+  CronJob: 'k8s:batch/cronjobs',
+  ConfigMap: 'k8s:/configmaps',
+  Secret: 'k8s:/secrets',
+  Ingress: 'k8s:networking.k8s.io/ingresses',
+  PersistentVolumeClaim: 'k8s:/persistentvolumeclaims',
+  PersistentVolume: 'k8s:/persistentvolumes',
+  Namespace: 'k8s:/namespaces',
+  ServiceAccount: 'k8s:/serviceaccounts',
+  Endpoints: 'k8s:/endpoints',
+  ReplicationController: 'k8s:/replicationcontrollers',
+  HorizontalPodAutoscaler: 'k8s:autoscaling/horizontalpodautoscalers',
+  Lease: 'k8s:coordination.k8s.io/leases',
+  EndpointSlice: 'k8s:discovery.k8s.io/endpointslices',
 };
 
 // ---------------------------------------------------------------------------
@@ -255,6 +256,7 @@ const EventsTable: React.FC<Props> = ({ events, loading, connectionID }) => {
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search);
   const { showResourceSidebar } = useRightDrawer();
+  const { showSnackbar } = useSnackbar();
 
   const deduped = useMemo(() => deduplicateEvents(events), [events]);
 
@@ -284,18 +286,24 @@ const EventsTable: React.FC<Props> = ({ events, loading, connectionID }) => {
 
   const handleObjectClick = useCallback(
     (event: DedupedEvent) => {
-      const resourceKey = KIND_TO_KEY[event.kind];
-      if (!resourceKey || !connectionID) return;
-
-      showResourceSidebar({
-        pluginID: 'kubernetes',
+      const resourceType = KIND_TO_KEY[event.kind];
+      if (!resourceType || !connectionID) return;
+      void resolveKubernetesReference({
         connectionID,
-        resourceKey,
-        resourceID: event.name,
+        resourceType,
+        name: event.name,
         namespace: event.namespace || undefined,
+      }).then((resolved) => {
+        showResourceSidebar({ ...resolved, pluginID: 'kubernetes', resourceName: event.name });
+      }).catch((error: unknown) => {
+        showSnackbar({
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Unable to open resource',
+          icon: 'LuCircleAlert',
+        });
       });
     },
-    [connectionID, showResourceSidebar],
+    [connectionID, showResourceSidebar, showSnackbar],
   );
 
   if (loading) {

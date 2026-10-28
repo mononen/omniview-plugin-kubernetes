@@ -118,16 +118,16 @@ const ResourceEventsView: React.FC<ResourceEventsViewProps> = ({ ctx }) => {
   const namespace = (metadata?.namespace as string) ?? '';
 
   const pluginID = ctx.resource?.pluginID ?? '';
-  const connectionID = ctx.resource?.connectionID ?? '';
-  const resourceKey = ctx.resource?.key ?? '';
+  const connectionID = ctx.resource?.route.connection ?? '';
+  const nativeKind = typeof data.kind === 'string' ? data.kind : '';
 
   const { events, timelineEvents, isLoading, warningCount } = useResourceEvents({
     pluginID,
     connectionID,
-    resourceKey,
+    nativeKind,
     resourceName,
     namespace,
-    enabled: !!pluginID && !!connectionID && !!resourceKey && !!resourceName,
+    enabled: !!pluginID && !!connectionID && !!nativeKind && !!resourceName,
   });
 
   const filteredEvents = useMemo(
@@ -141,7 +141,7 @@ const ResourceEventsView: React.FC<ResourceEventsViewProps> = ({ ctx }) => {
     return timelineEvents.filter((e) => e.color === color);
   }, [timelineEvents, filter]);
 
-  if (!pluginID || !connectionID || !resourceKey) {
+  if (!pluginID || !connectionID || !nativeKind) {
     return null;
   }
 

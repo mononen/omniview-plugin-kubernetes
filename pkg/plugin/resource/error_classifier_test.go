@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	sdkresource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	sdkresource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
 func TestErrorClassifier_DelegatesToClassify(t *testing.T) {

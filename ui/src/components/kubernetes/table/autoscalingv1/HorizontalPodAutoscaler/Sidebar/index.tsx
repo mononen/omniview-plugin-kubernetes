@@ -18,13 +18,13 @@ interface Props {
 function resolveResourceKey(kind?: string): string {
   switch (kind) {
     case 'Deployment':
-      return 'apps::v1::Deployment';
+      return 'k8s:apps/deployments';
     case 'StatefulSet':
-      return 'apps::v1::StatefulSet';
+      return 'k8s:apps/statefulsets';
     case 'ReplicaSet':
-      return 'apps::v1::ReplicaSet';
+      return 'k8s:apps/replicasets';
     case 'ReplicationController':
-      return 'core::v1::ReplicationController';
+      return 'k8s:/replicationcontrollers';
     default:
       return `apps::v1::${kind || 'Deployment'}`;
   }
@@ -34,7 +34,7 @@ export const HorizontalPodAutoscalerSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) return null;
 
   const hpa = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
   const namespace = hpa.metadata?.namespace;
   const spec = hpa.spec;
   const status = hpa.status;
@@ -43,7 +43,7 @@ export const HorizontalPodAutoscalerSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={hpa.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={hpa.metadata} connectionID={ctx.resource?.route.connection} />
 
         {targetRef && (
           <SidebarSection title="Scale Target">

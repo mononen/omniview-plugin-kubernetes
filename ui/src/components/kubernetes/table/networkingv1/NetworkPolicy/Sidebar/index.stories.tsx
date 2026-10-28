@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { NetworkPolicy } from 'kubernetes-types/networking/v1';
 
@@ -20,17 +21,14 @@ type Story = StoryObj<typeof meta>;
 
 export const Primary: Story = {
   args: {
-    ctx: {
-      data: data as unknown as NetworkPolicy,
-      resource: { connectionID: 'ctx-1', id: 'web-allow-ingress', key: 'networking.k8s.io::v1::NetworkPolicy' },
-    },
+    ctx: { data: data as unknown as NetworkPolicy, resource: fixtureResource('k8s:networking.k8s.io/networkpolicies', data as unknown as NetworkPolicy, 'ctx-1', 'web-allow-ingress') },
   },
 };
 
 Primary.decorators = [
   (Story, c) => (
     <ResourceDrawerContainer
-      type="networking.k8s.io::v1::NetworkPolicy"
+      type="k8s:networking.k8s.io/networkpolicies"
       icon="LuShield"
       title={c.args.ctx.data?.metadata?.name ?? ''}
       open
@@ -60,17 +58,14 @@ const denyAllData: NetworkPolicy = {
 
 export const DenyAll: Story = {
   args: {
-    ctx: {
-      data: denyAllData,
-      resource: { connectionID: 'ctx-1', id: 'deny-all', key: 'networking.k8s.io::v1::NetworkPolicy' },
-    },
+    ctx: { data: denyAllData, resource: fixtureResource('k8s:networking.k8s.io/networkpolicies', denyAllData, 'ctx-1', 'deny-all') },
   },
 };
 
 DenyAll.decorators = [
   (Story) => (
     <ResourceDrawerContainer
-      type="networking.k8s.io::v1::NetworkPolicy"
+      type="k8s:networking.k8s.io/networkpolicies"
       icon="LuShield"
       title="deny-all"
       open

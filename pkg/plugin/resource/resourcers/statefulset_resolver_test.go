@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -21,13 +20,6 @@ import (
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 )
 
-func stsMeta() resource.ResourceMeta {
-	return resource.ResourceMeta{
-		Group:   "apps",
-		Version: "v1",
-		Kind:    "StatefulSet",
-	}
-}
 
 func TestStatefulSetResourcer_ResolveRelationships(t *testing.T) {
 	replicas := int32(2)
@@ -93,27 +85,27 @@ func TestStatefulSetResourcer_ResolveRelationships(t *testing.T) {
 	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
-	resourcer := NewStatefulSetResourcer(logger, WithRelationships(RelationshipTable()["apps::v1::StatefulSet"]))
+	resourcer := NewStatefulSetResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/statefulsets"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, stsMeta(), "my-sts", "default")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, workloadGetRequest("my-sts", "default"))
 	require.NoError(t, err)
 	require.Len(t, rels, 3) // Pod, PVC, ConfigMap
 
 	// Pod
-	assert.Equal(t, "core::v1::Pod", rels[0].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/pods", rels[0].Descriptor.TargetType)
 	require.Len(t, rels[0].Targets, 1)
-	assert.Equal(t, "my-sts-0", rels[0].Targets[0].ID)
+	assert.Equal(t, "my-sts-0", rels[0].Targets[0].Reference.Address.ID)
 
 	// PVC — names follow <template>-<sts>-<ordinal> pattern
-	assert.Equal(t, "core::v1::PersistentVolumeClaim", rels[1].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/persistentvolumeclaims", rels[1].Descriptor.TargetType)
 	require.Len(t, rels[1].Targets, 2)
-	assert.Equal(t, "data-my-sts-0", rels[1].Targets[0].ID)
-	assert.Equal(t, "data-my-sts-1", rels[1].Targets[1].ID)
+	assert.Equal(t, "data-my-sts-0", rels[1].Targets[0].Reference.Address.ID)
+	assert.Equal(t, "data-my-sts-1", rels[1].Targets[1].Reference.Address.ID)
 
 	// ConfigMap
-	assert.Equal(t, "core::v1::ConfigMap", rels[2].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/configmaps", rels[2].Descriptor.TargetType)
 	require.Len(t, rels[2].Targets, 1)
-	assert.Equal(t, "db-config", rels[2].Targets[0].ID)
+	assert.Equal(t, "db-config", rels[2].Targets[0].Reference.Address.ID)
 }
 
 func TestStatefulSetResourcer_ResolveRelationships_Empty(t *testing.T) {
@@ -160,9 +152,9 @@ func TestStatefulSetResourcer_ResolveRelationships_Empty(t *testing.T) {
 	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
-	resourcer := NewStatefulSetResourcer(logger, WithRelationships(RelationshipTable()["apps::v1::StatefulSet"]))
+	resourcer := NewStatefulSetResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/statefulsets"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, stsMeta(), "bare-sts", "default")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, workloadGetRequest("bare-sts", "default"))
 	require.NoError(t, err)
 	assert.Empty(t, rels)
 }

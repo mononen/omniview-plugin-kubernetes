@@ -29,7 +29,7 @@ export const ReplicaSetSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={rs.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={rs.metadata} connectionID={ctx.resource?.route.connection} />
 
         <WorkloadStatusSection
           title="Status"
@@ -52,16 +52,16 @@ export const ReplicaSetSidebar: React.FC<Props> = ({ ctx }) => {
       {rs.spec?.template?.spec && (
         <WorkloadPortsCard
           podSpec={rs.spec.template.spec}
-          resourceKey="apps::v1::ReplicaSet"
+          resourceKey="k8s:apps/replicasets"
           resourceData={rs}
-          resourceID={ctx.resource?.id || ''}
-          connectionID={ctx.resource?.connectionID || ''}
+          resourceID={ctx.resource?.reference.address.id || ''}
+          connectionID={ctx.resource?.route.connection || ''}
         />
       )}
 
       <PodContainersSectionFromPodSpec
-        resourceID={ctx.resource?.id || ''}
-        connectionID={ctx.resource?.connectionID || ''}
+        resourceID={ctx.resource?.reference.address.id || ''}
+        connectionID={ctx.resource?.route.connection || ''}
         spec={rs.spec?.template?.spec}
       />
     </Stack>

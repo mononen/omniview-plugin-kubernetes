@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -20,13 +19,6 @@ import (
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 )
 
-func deployMeta() resource.ResourceMeta {
-	return resource.ResourceMeta{
-		Group:   "apps",
-		Version: "v1",
-		Kind:    "Deployment",
-	}
-}
 
 func TestDeploymentResourcer_ResolveRelationships(t *testing.T) {
 	replicas := int32(1)
@@ -93,26 +85,26 @@ func TestDeploymentResourcer_ResolveRelationships(t *testing.T) {
 	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
-	resourcer := NewDeploymentResourcer(logger, WithRelationships(RelationshipTable()["apps::v1::Deployment"]))
+	resourcer := NewDeploymentResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/deployments"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, deployMeta(), "my-deploy", "default")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, workloadGetRequest("my-deploy", "default"))
 	require.NoError(t, err)
 	require.Len(t, rels, 3)
 
 	// ReplicaSet
-	assert.Equal(t, "apps::v1::ReplicaSet", rels[0].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:apps/replicasets", rels[0].Descriptor.TargetType)
 	require.Len(t, rels[0].Targets, 1)
-	assert.Equal(t, "my-deploy-abc123", rels[0].Targets[0].ID)
+	assert.Equal(t, "my-deploy-abc123", rels[0].Targets[0].Reference.Address.ID)
 
 	// ConfigMap
-	assert.Equal(t, "core::v1::ConfigMap", rels[1].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/configmaps", rels[1].Descriptor.TargetType)
 	require.Len(t, rels[1].Targets, 1)
-	assert.Equal(t, "my-config", rels[1].Targets[0].ID)
+	assert.Equal(t, "my-config", rels[1].Targets[0].Reference.Address.ID)
 
 	// Secret
-	assert.Equal(t, "core::v1::Secret", rels[2].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/secrets", rels[2].Descriptor.TargetType)
 	require.Len(t, rels[2].Targets, 1)
-	assert.Equal(t, "my-secret", rels[2].Targets[0].ID)
+	assert.Equal(t, "my-secret", rels[2].Targets[0].Reference.Address.ID)
 }
 
 func TestDeploymentResourcer_ResolveRelationships_NoVolumes(t *testing.T) {
@@ -158,9 +150,9 @@ func TestDeploymentResourcer_ResolveRelationships_NoVolumes(t *testing.T) {
 	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
-	resourcer := NewDeploymentResourcer(logger, WithRelationships(RelationshipTable()["apps::v1::Deployment"]))
+	resourcer := NewDeploymentResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/deployments"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, deployMeta(), "bare-deploy", "default")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, workloadGetRequest("bare-deploy", "default"))
 	require.NoError(t, err)
 	// No ReplicaSets, no volumes → empty
 	assert.Empty(t, rels)

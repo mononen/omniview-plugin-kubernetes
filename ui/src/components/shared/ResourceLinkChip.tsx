@@ -1,5 +1,8 @@
 import { Chip, type ComponentColor } from '@omniviewdev/base-ui';
-import { useRightDrawer } from '@omniviewdev/runtime';
+import { useRightDrawer, useSnackbar, parseAppError, useResourceTypes, type GraphNode } from '@omniviewdev/runtime';
+import { ResourceClient } from '@omniviewdev/runtime/api';
+import { resolveKubernetesReference } from '../../utils/kubernetesReference';
+import { templateIdentity } from '../kubernetes/actions/create/templates';
 import type { OwnerReference } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuCopy, LuLayers, LuDatabase, LuPlay, LuClock, LuServer, LuUser } from 'react-icons/lu';
@@ -24,21 +27,9 @@ const kindConfigMap: Record<string, KindConfig> = {
 
 const defaultConfig: KindConfig = { color: 'neutral', icon: <LuCopy size={10} /> };
 
-/** Extract the kind (last segment) from a resourceKey like "apps::v1::ReplicaSet" */
-function kindFromKey(resourceKey: string): string {
-  const parts = resourceKey.split('::');
-  return parts[parts.length - 1];
-}
-
-/** Build a resourceKey from an OwnerReference (e.g. "apps/v1" + "DaemonSet" → "apps::v1::DaemonSet") */
-// eslint-disable-next-line react-refresh/only-export-components
-export function ownerRefToResourceKey(ref: OwnerReference): string {
-  return `${ref.apiVersion?.replace('/', '::')}::${ref.kind}`;
-}
-
 const chipStyle: React.CSSProperties = { borderRadius: 4, maxWidth: '100%' };
 
-type Props = {
+type NativeLinkProps = {
   /** ID of the plugin this resource belongs to */
   pluginID?: string;
   /** ID of the connection */
@@ -47,44 +38,91 @@ type Props = {
   namespace?: string;
   /** ID of the resource being referenced */
   resourceID: string;
-  /** The key identifying the resource (e.g. core::v1::Node) */
+  /** Opaque canonical resource Type. */
   resourceKey: string;
   /** The readable name of the resource (e.g. Node) */
   resourceName?: string;
+  incarnation?: string;
 };
+
+type Props = NativeLinkProps | {
+  connectionID: string;
+  namespace?: string;
+  ownerReference: OwnerReference;
+  resourceName?: string;
+} | { target: GraphNode; resourceName?: string };
 
 /**
  * A clickable chip that opens the referenced resource's sidebar.
  * Shared between table cells and sidebar sections.
  */
-const ResourceLinkChip: React.FC<Props> = ({
-  pluginID = 'kubernetes',
-  connectionID,
-  namespace,
-  resourceID,
-  resourceKey,
-  resourceName,
-}) => {
+const ResourceLinkChip: React.FC<Props> = (props) => {
   const { showResourceSidebar } = useRightDrawer();
+  const { showSnackbar } = useSnackbar();
+  const canonical = 'target' in props ? props.target : undefined;
+  const native = 'resourceKey' in props ? props : undefined;
+  const owner = 'ownerReference' in props ? props.ownerReference : undefined;
+  const resourceKey = canonical?.reference.address.type ?? native?.resourceKey;
+  const resourceID = canonical?.reference.address.id ?? native?.resourceID ?? owner?.name;
+  const resourceName = props.resourceName;
+  const pluginID = canonical?.pluginId ?? native?.pluginID ?? 'kubernetes';
+  const route = canonical?.route ?? { connection: 'connectionID' in props ? props.connectionID : '' };
+  const { resourceTypes } = useResourceTypes({ pluginID, route });
 
-  if (!resourceName || !resourceKey) {
-    return null;
-  }
+  if (!resourceName || !resourceID || (!resourceKey && !owner)) return null;
 
-  const handleClick = () => {
-    showResourceSidebar({
-      pluginID,
-      connectionID,
-      resourceKey,
-      resourceID,
-      // Keep drawer title consistent with row-click behavior (actual resource ID/name),
-      // while allowing chip label text to stay contextual (kind/type/etc).
-      resourceName: resourceID,
-      namespace,
-    });
+  const handleClick = async () => {
+    try {
+      let ownerType: string | undefined;
+      if (owner) {
+        // Native owner metadata selects a catalog Type; only the host assigns reference authority and keys.
+        const catalog = await ResourceClient.Catalog(pluginID, { route });
+        const matches: string[] = [];
+        for (const descriptor of catalog.types) {
+          for (const representation of descriptor.representations) {
+            const binding = representation.schema;
+            const document = binding.document ?? (binding.documentRef
+              ? (await ResourceClient.GetSchemaDocument(pluginID, route, binding.documentRef)).document
+              : undefined);
+            const identity = templateIdentity(document, binding.root, false);
+            // API version is representation metadata; the native group and kind identify the owner type.
+            const ownerGroup = owner.apiVersion.includes('/') ? owner.apiVersion.slice(0, owner.apiVersion.lastIndexOf('/')) : '';
+            const schemaGroup = identity?.apiVersion.includes('/') ? identity.apiVersion.slice(0, identity.apiVersion.lastIndexOf('/')) : '';
+            if (identity?.kind === owner.kind && schemaGroup === ownerGroup) {
+              matches.push(descriptor.type);
+              break;
+            }
+          }
+        }
+        if (matches.length !== 1) throw new Error(`Owner resource type is unavailable or ambiguous: ${owner.kind}`);
+        ownerType = matches[0];
+      }
+      const resolved = canonical
+        ? await ResourceClient.ResolveReference(pluginID, {
+          route: canonical.route, type: canonical.reference.address.type,
+          scope: canonical.reference.address.scope, id: canonical.reference.address.id,
+          incarnation: canonical.reference.incarnation,
+        })
+        : await resolveKubernetesReference({
+          connectionID: 'connectionID' in props ? props.connectionID : '',
+          resourceType: ownerType ?? resourceKey!, name: resourceID,
+          namespace: 'namespace' in props ? props.namespace : undefined,
+          incarnation: owner?.uid || native?.incarnation || undefined,
+        });
+      await showResourceSidebar({
+        pluginID,
+        reference: resolved.reference,
+        route: resolved.route,
+        representation: resolved.representation,
+        targetId: resolved.targetId,
+        resourceName: resourceID,
+      });
+    } catch (error) {
+      showSnackbar(parseAppError(error).detail, 'error');
+    }
   };
 
-  const kind = kindFromKey(resourceKey);
+  const kind = owner?.kind ?? resourceTypes.data?.find((entry) => entry.type === resourceKey)?.displayName ?? '';
   const config = kindConfigMap[kind] ?? defaultConfig;
 
   return (

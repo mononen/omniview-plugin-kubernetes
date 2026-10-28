@@ -1,16 +1,29 @@
-import { parseResourceKey } from '../../../../utils/resourceKey';
+import { parse, stringify } from 'yaml';
 
-/**
- * Convert a resource key like "core::v1::Pod" to a Kubernetes apiVersion.
- * - "core::v1::Pod" → "v1"
- * - "apps::v1::Deployment" → "apps/v1"
- * - "networking.k8s.io::v1::Ingress" → "networking.k8s.io/v1"
- */
-export const resourceKeyToApiVersion = (key: string): string => {
-  const { group, version } = parseResourceKey(key);
-  if (group === 'core') return version;
-  return `${group}/${version}`;
-};
+export interface NativeTemplateIdentity {
+  apiVersion: string;
+  kind: string;
+  namespaced: boolean;
+}
+
+/** Read only the selected native schema root; opaque resource Types carry no GVK. */
+export function templateIdentity(document: unknown, root: string | undefined, namespaced: boolean): NativeTemplateIdentity | undefined {
+  let selected = document;
+  if (root && root !== '#') {
+    if (!root.startsWith('#/')) return undefined;
+    for (const segment of root.slice(2).split('/')) {
+      if (!selected || typeof selected !== 'object') return undefined;
+      selected = (selected as Record<string, unknown>)[segment.replace(/~1/g, '/').replace(/~0/g, '~')];
+    }
+  }
+  if (!selected || typeof selected !== 'object') return undefined;
+  const entries = (selected as Record<string, unknown>)['x-kubernetes-group-version-kind'];
+  if (!Array.isArray(entries) || entries.length !== 1) return undefined;
+  const entry = entries[0] as Record<string, unknown>;
+  if (typeof entry.group !== 'string' || typeof entry.version !== 'string' || !entry.version ||
+      typeof entry.kind !== 'string' || !entry.kind) return undefined;
+  return { apiVersion: entry.group ? `${entry.group}/${entry.version}` : entry.version, kind: entry.kind, namespaced };
+}
 
 /**
  * Hand-crafted YAML templates for common Kubernetes resource kinds.
@@ -295,43 +308,17 @@ volumeBindingMode: WaitForFirstConsumer
 `,
 };
 
-/** Cluster-scoped kinds that should NOT have metadata.namespace in the generic template */
-const clusterScopedKinds = new Set([
-  'Namespace',
-  'Node',
-  'ClusterRole',
-  'ClusterRoleBinding',
-  'StorageClass',
-  'PersistentVolume',
-  'CustomResourceDefinition',
-  'PriorityClass',
-  'IngressClass',
-]);
-
-/**
- * Return a YAML template for the given resourceKey.
- * Uses a hand-crafted template if available, otherwise generates a generic one.
- */
-export const getTemplate = (resourceKey: string): string => {
-  const { kind } = parseResourceKey(resourceKey);
-
-  // Return hand-crafted template if we have one
-  if (templates[kind]) {
-    return templates[kind];
-  }
-
-  // Generate a generic template
-  const apiVersion = resourceKeyToApiVersion(resourceKey);
-  const isClusterScoped = clusterScopedKinds.has(kind);
-  const name = `my-${kind
-    .toLowerCase()
-    .replace(/([a-z])([A-Z])/g, '$1-$2')
-    .toLowerCase()}`;
-
-  let yaml = `apiVersion: ${apiVersion}\nkind: ${kind}\nmetadata:\n  name: ${name}\n`;
-  if (!isClusterScoped) {
-    yaml += '  namespace: default\n';
-  }
-
-  return yaml;
+/** Keep useful native examples, but take identity and namespace admission from the selected schema and catalog. */
+export const getTemplate = (identity?: NativeTemplateIdentity): string => {
+  if (!identity) return '# Paste a complete Kubernetes YAML manifest, including apiVersion, kind, and metadata.name.\n';
+  const { apiVersion, kind, namespaced } = identity;
+  const example = templates[kind];
+  const body = example ? parse(example) as Record<string, unknown> : {};
+  body.apiVersion = apiVersion;
+  body.kind = kind;
+  const metadata = (body.metadata ?? { name: `my-${kind.toLowerCase()}` }) as Record<string, unknown>;
+  if (namespaced) metadata.namespace = 'default';
+  else delete metadata.namespace;
+  body.metadata = metadata;
+  return stringify(body);
 };

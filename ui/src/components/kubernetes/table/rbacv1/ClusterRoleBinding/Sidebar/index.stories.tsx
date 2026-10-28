@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ClusterRoleBinding } from 'kubernetes-types/rbac/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="rbac::v1::ClusterRoleBinding"
+        type="k8s:rbac.authorization.k8s.io/clusterrolebindings"
         icon="LuLink"
         title={title}
         open
@@ -34,10 +35,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: {
-      data: data as unknown as ClusterRoleBinding,
-      resource: { connectionID: 'ctx-1', id: 'monitoring-reader-binding', key: 'rbac::v1::ClusterRoleBinding' },
-    },
+    ctx: { data: data as unknown as ClusterRoleBinding, resource: fixtureResource('k8s:rbac.authorization.k8s.io/clusterrolebindings', data as unknown as ClusterRoleBinding, 'ctx-1', 'monitoring-reader-binding') },
   },
   decorators: withDrawer(data.metadata.name),
 };

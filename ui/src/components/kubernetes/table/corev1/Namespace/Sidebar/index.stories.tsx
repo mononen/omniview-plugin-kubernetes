@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { Namespace } from 'kubernetes-types/core/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="core::v1::Namespace"
+        type="k8s:/namespaces"
         icon="LuFolderOpen"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const Active: Story = {
   args: {
-    ctx: {
-      data: data as unknown as Namespace,
-      resource: { connectionID: 'ctx-1', id: 'production', key: 'core::v1::Namespace' },
-    },
+    ctx: { data: data as unknown as Namespace, resource: fixtureResource('k8s:/namespaces', data as unknown as Namespace, 'ctx-1', 'production') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -57,10 +55,7 @@ const terminatingData: Namespace = {
 
 export const Terminating: Story = {
   args: {
-    ctx: {
-      data: terminatingData,
-      resource: { connectionID: 'ctx-1', id: 'production', key: 'core::v1::Namespace' },
-    },
+    ctx: { data: terminatingData, resource: fixtureResource('k8s:/namespaces', terminatingData, 'ctx-1', 'production') },
   },
   decorators: withDrawer('production'),
 };

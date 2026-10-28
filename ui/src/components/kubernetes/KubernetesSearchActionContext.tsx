@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SearchActionReferenceV1, SearchExecutionContextV1, SearchProviderItemV1, SearchScopeV1 } from '@omniviewdev/runtime';
+import { valueToJSON, type SearchActionReferenceV1, type SearchExecutionContextV1, type SearchProviderItemV1, type SearchScopeV1 } from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
 import { useDrawerActionExecution } from '../shared/drawer/DrawerActionsBridge';
 import type { DrawerActionDeps } from '../shared/drawer/actionDeps';
@@ -14,12 +14,12 @@ const keyOf = (target: ContextTarget) => JSON.stringify([target.connectionID, ta
 const abortError = () => new DOMException('Kubernetes action request cancelled', 'AbortError');
 let discovered: { scope: string; ids: Set<string> } | undefined;
 
-async function freshTarget(scope: ResourceScope, signal: AbortSignal): Promise<KubernetesActionTarget> {
+export async function freshTarget(scope: ResourceScope, signal: AbortSignal): Promise<KubernetesActionTarget> {
   if (scope.pluginId !== 'kubernetes') throw new Error('Kubernetes action target belongs to another plugin');
   if (signal.aborted) throw abortError();
-  const request = ResourceClient.Get('kubernetes', scope.connectionId, scope.resourceKey, {
-    id: scope.resourceId, namespace: scope.namespace,
-  });
+  const request = ResourceClient.Get('kubernetes', { targetId: scope.targetId, request: {
+    reference: scope.reference, route: scope.route, representation: scope.representation,
+  } });
   const cancel = () => { void request.cancel?.(); };
   signal.addEventListener('abort', cancel, { once: true });
   let result;
@@ -29,23 +29,35 @@ async function freshTarget(scope: ResourceScope, signal: AbortSignal): Promise<K
     signal.removeEventListener('abort', cancel);
   }
   if (signal.aborted) throw abortError();
-  if (!result?.success || !result.result || typeof result.result !== 'object') {
-    throw new Error('Kubernetes resource is no longer available');
+  const expected = scope.reference.address;
+  const actual = result.record.reference.address;
+  if (result.targetId !== scope.targetId || result.route.connection !== scope.route.connection
+    || result.record.representation.id !== scope.representation
+    || actual.provider !== expected.provider || actual.authority !== expected.authority
+    || actual.type !== expected.type || actual.id !== expected.id
+    || actual.scope.length !== expected.scope.length
+    || !expected.scope.every(entry => actual.scope.some(candidate => candidate.dimension === entry.dimension && candidate.value === entry.value))
+    || (scope.reference.incarnation !== undefined && result.record.reference.incarnation !== scope.reference.incarnation)) {
+    throw new Error('Kubernetes action target identity no longer matches the resource');
   }
-  return targetFromData(scope, result.result);
+  const target = targetFromData(scope, valueToJSON(result.record.body));
+  target.resource = { ...target.resource, key: result.key, record: result };
+  return target;
 }
 
 function targetFromData(scope: ResourceScope, data: unknown): KubernetesActionTarget {
   if (!data || typeof data !== 'object') throw new Error('Kubernetes resource is no longer available');
   const metadata = (data as KubernetesActionTarget['data']).metadata;
-  if (!scope.connectionId || !scope.resourceId || !metadata || metadata.name !== scope.resourceId
-    || (metadata.namespace ?? '') !== scope.namespace
-    || (scope.uid !== undefined && metadata.uid !== scope.uid)) {
+  const namespace = scope.reference.address.scope.find(entry => entry.dimension === 'namespace')?.value ?? '';
+  if (!scope.route.connection || !scope.reference.address.id || !metadata || metadata.name !== scope.reference.address.id
+    || (metadata.namespace ?? '') !== namespace
+    || (scope.reference.incarnation !== undefined && metadata.uid !== scope.reference.incarnation)) {
     throw new Error('Kubernetes action target identity no longer matches the resource');
   }
   return {
-    pluginID: 'kubernetes', connectionID: scope.connectionId, resourceKey: scope.resourceKey,
-    resourceID: scope.resourceId, namespace: scope.namespace, uid: scope.uid,
+    pluginID: 'kubernetes',
+    resource: { pluginID: 'kubernetes', reference: scope.reference, route: scope.route,
+      representation: scope.representation, targetId: scope.targetId, name: scope.label },
     data: data as KubernetesActionTarget['data'],
   };
 }
@@ -54,7 +66,7 @@ async function prepare(scope: ResourceScope, signal: AbortSignal) {
   const resolver = resolveContext;
   if (!resolver) throw new Error('Kubernetes search action context is unavailable');
   const target = await freshTarget(scope, signal);
-  const deps = await resolver({ connectionID: scope.connectionId, resourceKey: scope.resourceKey }, signal);
+  const deps = await resolver({ connectionID: scope.route.connection, resourceKey: scope.reference.address.type }, signal);
   if (signal.aborted || resolver !== resolveContext) throw abortError();
   return { target, deps };
 }
@@ -110,8 +122,7 @@ function ActionContext({ target, register }: {
   }, [deps]);
   const stable = React.useMemo<DrawerActionDeps>(() => ({
     show: (...args) => latest.current.show(...args),
-    remove: (...args) => latest.current.remove(...args),
-    update: (...args) => latest.current.update(...args),
+    mutate: (...args) => latest.current.mutate(...args),
     createLogSession: (...args) => latest.current.createLogSession(...args),
     createExecSession: (...args) => latest.current.createExecSession(...args),
     executeAction: (...args) => latest.current.executeAction(...args),

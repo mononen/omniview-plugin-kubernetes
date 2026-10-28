@@ -1,4 +1,4 @@
-import { useResources } from '@omniviewdev/runtime';
+import { useKubernetesResources } from '../../../../hooks/useKubernetesResources';
 import type { Deployment, StatefulSet, DaemonSet } from 'kubernetes-types/apps/v1';
 import type { Job, JobCondition, CronJob } from 'kubernetes-types/batch/v1';
 import type { Pod } from 'kubernetes-types/core/v1';
@@ -45,16 +45,10 @@ export const PodStatCard = React.memo(function PodStatCard({
   namespaces,
   onClick,
 }: CardProps) {
-  const { resources: pods } = useResources({
-    pluginID: 'kubernetes',
-    connectionID,
-    resourceKey: 'core::v1::Pod',
-    idAccessor: 'metadata.uid',
-  });
+  const pods = useKubernetesResources<Pod>({ connectionID, resourceType: 'k8s:/pods', namespaces });
 
   const stats = React.useMemo(() => {
-    // runtime ListResult.result is typed as any[]; cast to the known K8s type
-    const all = filterByNamespace((pods.data?.result ?? []) as Pod[], namespaces);
+    const all = filterByNamespace((pods.bodies ?? []) as Pod[], namespaces);
     const counts = { Running: 0, Pending: 0, Failed: 0, Succeeded: 0, Unknown: 0 };
     for (const p of all) {
       const phase = p.status?.phase ?? 'Unknown';
@@ -74,7 +68,7 @@ export const PodStatCard = React.memo(function PodStatCard({
         { label: 'Unknown', count: counts.Unknown, color: 'neutral' as const },
       ],
     };
-  }, [pods.data, namespaces]);
+  }, [pods.bodies, namespaces]);
 
   return (
     <WorkloadSummaryCard
@@ -93,15 +87,10 @@ export const DeploymentStatCard = React.memo(function DeploymentStatCard({
   namespaces,
   onClick,
 }: CardProps) {
-  const { resources: deployments } = useResources({
-    pluginID: 'kubernetes',
-    connectionID,
-    resourceKey: 'apps::v1::Deployment',
-    idAccessor: 'metadata.uid',
-  });
+  const deployments = useKubernetesResources<Deployment>({ connectionID, resourceType: 'k8s:apps/deployments', namespaces });
 
   const stats = React.useMemo(() => {
-    const all = filterByNamespace((deployments.data?.result ?? []) as Deployment[], namespaces);
+    const all = filterByNamespace((deployments.bodies ?? []) as Deployment[], namespaces);
     let ready = 0;
     let unavailable = 0;
     for (const d of all) {
@@ -120,7 +109,7 @@ export const DeploymentStatCard = React.memo(function DeploymentStatCard({
         { label: 'Unavailable', count: unavailable, color: 'danger' as const },
       ],
     };
-  }, [deployments.data, namespaces]);
+  }, [deployments.bodies, namespaces]);
 
   return (
     <WorkloadSummaryCard
@@ -139,15 +128,10 @@ export const StatefulSetStatCard = React.memo(function StatefulSetStatCard({
   namespaces,
   onClick,
 }: CardProps) {
-  const { resources: statefulSets } = useResources({
-    pluginID: 'kubernetes',
-    connectionID,
-    resourceKey: 'apps::v1::StatefulSet',
-    idAccessor: 'metadata.uid',
-  });
+  const statefulSets = useKubernetesResources<StatefulSet>({ connectionID, resourceType: 'k8s:apps/statefulsets', namespaces });
 
   const stats = React.useMemo(() => {
-    const all = filterByNamespace((statefulSets.data?.result ?? []) as StatefulSet[], namespaces);
+    const all = filterByNamespace((statefulSets.bodies ?? []) as StatefulSet[], namespaces);
     let ready = 0;
     let notReady = 0;
     for (const s of all) {
@@ -166,7 +150,7 @@ export const StatefulSetStatCard = React.memo(function StatefulSetStatCard({
         { label: 'Not Ready', count: notReady, color: 'danger' as const },
       ],
     };
-  }, [statefulSets.data, namespaces]);
+  }, [statefulSets.bodies, namespaces]);
 
   return (
     <WorkloadSummaryCard
@@ -185,15 +169,10 @@ export const DaemonSetStatCard = React.memo(function DaemonSetStatCard({
   namespaces,
   onClick,
 }: CardProps) {
-  const { resources: daemonSets } = useResources({
-    pluginID: 'kubernetes',
-    connectionID,
-    resourceKey: 'apps::v1::DaemonSet',
-    idAccessor: 'metadata.uid',
-  });
+  const daemonSets = useKubernetesResources<DaemonSet>({ connectionID, resourceType: 'k8s:apps/daemonsets', namespaces });
 
   const stats = React.useMemo(() => {
-    const all = filterByNamespace((daemonSets.data?.result ?? []) as DaemonSet[], namespaces);
+    const all = filterByNamespace((daemonSets.bodies ?? []) as DaemonSet[], namespaces);
     let ready = 0;
     let notReady = 0;
     for (const d of all) {
@@ -212,7 +191,7 @@ export const DaemonSetStatCard = React.memo(function DaemonSetStatCard({
         { label: 'Not Ready', count: notReady, color: 'danger' as const },
       ],
     };
-  }, [daemonSets.data, namespaces]);
+  }, [daemonSets.bodies, namespaces]);
 
   return (
     <WorkloadSummaryCard
@@ -231,15 +210,10 @@ export const JobStatCard = React.memo(function JobStatCard({
   namespaces,
   onClick,
 }: CardProps) {
-  const { resources: jobs } = useResources({
-    pluginID: 'kubernetes',
-    connectionID,
-    resourceKey: 'batch::v1::Job',
-    idAccessor: 'metadata.uid',
-  });
+  const jobs = useKubernetesResources<Job>({ connectionID, resourceType: 'k8s:batch/jobs', namespaces });
 
   const stats = React.useMemo(() => {
-    const all = filterByNamespace((jobs.data?.result ?? []) as Job[], namespaces);
+    const all = filterByNamespace((jobs.bodies ?? []) as Job[], namespaces);
     let complete = 0;
     let active = 0;
     let failed = 0;
@@ -263,7 +237,7 @@ export const JobStatCard = React.memo(function JobStatCard({
         { label: 'Failed', count: failed, color: 'danger' as const },
       ],
     };
-  }, [jobs.data, namespaces]);
+  }, [jobs.bodies, namespaces]);
 
   return (
     <WorkloadSummaryCard
@@ -282,15 +256,10 @@ export const CronJobStatCard = React.memo(function CronJobStatCard({
   namespaces,
   onClick,
 }: CardProps) {
-  const { resources: cronJobs } = useResources({
-    pluginID: 'kubernetes',
-    connectionID,
-    resourceKey: 'batch::v1::CronJob',
-    idAccessor: 'metadata.uid',
-  });
+  const cronJobs = useKubernetesResources<CronJob>({ connectionID, resourceType: 'k8s:batch/cronjobs', namespaces });
 
   const stats = React.useMemo(() => {
-    const all = filterByNamespace((cronJobs.data?.result ?? []) as CronJob[], namespaces);
+    const all = filterByNamespace((cronJobs.bodies ?? []) as CronJob[], namespaces);
     let activeCount = 0;
     let suspended = 0;
     for (const cj of all) {
@@ -307,7 +276,7 @@ export const CronJobStatCard = React.memo(function CronJobStatCard({
         { label: 'Suspended', count: suspended, color: 'neutral' as const },
       ],
     };
-  }, [cronJobs.data, namespaces]);
+  }, [cronJobs.bodies, namespaces]);
 
   return (
     <WorkloadSummaryCard

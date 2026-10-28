@@ -1,4 +1,4 @@
-import { useResources } from '@omniviewdev/runtime';
+import { useKubernetesResources } from './useKubernetesResources';
 import type { Event as K8sEvent } from 'kubernetes-types/core/v1';
 import { useMemo } from 'react';
 
@@ -9,8 +9,8 @@ const MAX_EVENTS = 100;
 export interface UseResourceEventsOptions {
   pluginID: string;
   connectionID: string;
-  /** The resource key, e.g. "core::v1::Pod" */
-  resourceKey: string;
+  /** Exact native body.kind, never a catalog display label or parsed opaque Type. */
+  nativeKind: string;
   /** The specific resource name to filter events for */
   resourceName: string;
   /** The namespace the resource lives in */
@@ -26,14 +26,6 @@ export interface UseResourceEventsResult {
   warningCount: number;
 }
 
-/**
- * Extract the Kind portion from a resource key.
- * "core::v1::Pod" → "Pod", "apps::v1::Deployment" → "Deployment"
- */
-function extractKind(resourceKey: string): string {
-  const parts = resourceKey.split('::');
-  return parts[parts.length - 1];
-}
 
 /**
  * Format a timestamp into a short relative age string.
@@ -50,44 +42,39 @@ function formatAge(timestamp?: string): string {
 }
 
 /**
- * Reusable hook that fetches Kubernetes Events scoped to a specific resource.
- *
- * Uses the existing `useResources` hook to pull `core::v1::Event` from the
- * watch cache, then filters client-side by `involvedObject.kind` + `name`.
+ * Reads canonical Kubernetes Event bodies with best-effort live updates,
+ * then filters by the provider-native involved object fields.
  */
 export function useResourceEvents({
   pluginID,
   connectionID,
-  resourceKey,
+  nativeKind,
   resourceName,
   namespace,
   enabled = true,
 }: UseResourceEventsOptions): UseResourceEventsResult {
-  const kind = extractKind(resourceKey);
 
-  const { resources } = useResources({
+  const resources = useKubernetesResources<K8sEvent>({
     pluginID,
     connectionID,
-    resourceKey: 'core::v1::Event',
+    resourceType: 'k8s:/events',
     namespaces: namespace ? [namespace] : [],
-    idAccessor: 'metadata.uid',
-    ...(enabled ? {} : { listParams: { __skip: true } }),
+    enabled: enabled && !!nativeKind,
   });
 
   const result = useMemo(() => {
-    if (!enabled || !resources.data?.result) {
+    if (!enabled || !nativeKind) {
       return { events: [], timelineEvents: [], isLoading: false, warningCount: 0 };
     }
 
-    // The runtime SDK types result as any[]; cast to the K8s Event type
-    const rawEvents = resources.data.result as K8sEvent[];
+    const rawEvents = resources.bodies;
 
     // Filter events belonging to this specific resource
     const filtered = rawEvents
       .filter((ev) => {
         const io = ev.involvedObject;
         if (!io) return false;
-        return io.kind === kind && io.name === resourceName;
+        return io.kind === nativeKind && io.name === resourceName && (io.namespace ?? '') === namespace;
       })
       .sort((a, b) => {
         const tsA = (a.lastTimestamp ?? a.firstTimestamp ?? a.metadata?.creationTimestamp ?? '');
@@ -123,7 +110,7 @@ export function useResourceEvents({
     const warningCount = events.filter((e) => e.type === 'Warning').length;
 
     return { events, timelineEvents, isLoading: false, warningCount };
-  }, [enabled, resources.data, kind, resourceName]);
+  }, [enabled, resources.bodies, nativeKind, resourceName, namespace]);
 
   return {
     ...result,

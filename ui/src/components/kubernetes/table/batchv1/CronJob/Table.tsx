@@ -15,7 +15,7 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import CronJobSidebar from './Sidebar';
 
-const resourceKey = 'batch::v1::CronJob';
+const resourceKey = 'k8s:batch/cronjobs';
 
 const CronJobTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -112,7 +112,6 @@ const CronJobTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

@@ -5,11 +5,7 @@ import { resourceDrawerActions } from './drawerActions';
 
 export type KubernetesActionTarget = {
   pluginID: 'kubernetes';
-  connectionID: string;
-  resourceKey: string;
-  resourceID: string;
-  namespace: string;
-  uid?: string;
+  resource: NonNullable<DrawerContext['resource']>;
   data: Record<string, unknown> & {
     metadata?: { name?: string; namespace?: string; uid?: string };
   };
@@ -20,25 +16,22 @@ const actionID = (key: string, title: string) => `kubernetes:${key}:${encodeURIC
 /** Resolve only existing actions, against exact object identity and fresh data. */
 export function resolveKubernetesActions(target: KubernetesActionTarget, deps?: DrawerActionDeps) {
   const metadata = target.data.metadata;
-  if (target.pluginID !== 'kubernetes' || !target.connectionID || !target.resourceID
-    || !metadata || metadata.name !== target.resourceID || (metadata.namespace ?? '') !== target.namespace
-    || (target.uid !== undefined && metadata.uid !== target.uid)) {
+  const { reference, route } = target.resource;
+  const namespace = reference.address.scope.find((entry) => entry.dimension === 'namespace')?.value ?? '';
+  if (target.pluginID !== 'kubernetes' || !route.connection || !reference.address.id
+    || !metadata || metadata.name !== reference.address.id || (metadata.namespace ?? '') !== namespace
+    || (reference.incarnation !== undefined && metadata.uid !== reference.incarnation)) {
     throw new Error('Kubernetes action target identity no longer matches the resource');
   }
   const ctx: DrawerContext = {
     data: target.data,
-    resource: {
-      pluginID: target.pluginID,
-      connectionID: target.connectionID,
-      key: target.resourceKey,
-      id: target.resourceID,
-    },
+    resource: target.resource,
   };
   if (deps) bindDrawerActionDeps(ctx, deps);
-  return (resourceDrawerActions[target.resourceKey]?.actions ?? []).flatMap((descriptor: DrawerComponentAction) => {
+  return (resourceDrawerActions[reference.address.type]?.actions ?? []).flatMap((descriptor: DrawerComponentAction) => {
     if (typeof descriptor.title !== 'string'
       || (typeof descriptor.enabled === 'function' ? !descriptor.enabled(ctx) : descriptor.enabled === false)) return [];
-    const id = actionID(target.resourceKey, descriptor.title);
+    const id = actionID(reference.address.type, descriptor.title);
     const items = typeof descriptor.list === 'function' ? descriptor.list(ctx) : descriptor.list;
     return [{
       id,

@@ -25,7 +25,7 @@ export const JobSidebar: React.FC<Props> = ({ ctx }) => {
   // compose your component here
   return (
     <Stack direction="column" spacing={4} style={{ width: '100%' }}>
-      <ObjectMetaSection data={obj.metadata} connectionID={ctx.resource?.connectionID} />
+      <ObjectMetaSection data={obj.metadata} connectionID={ctx.resource?.route.connection} />
     </Stack>
   );
 };

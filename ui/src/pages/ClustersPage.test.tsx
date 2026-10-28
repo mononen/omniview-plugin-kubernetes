@@ -33,7 +33,7 @@ vi.mock('@omniviewdev/runtime', () => ({
     startWatch: vi.fn(),
     stopWatch: vi.fn(),
   }),
-  useConnection: () => ({ deleteConnection: vi.fn().mockResolvedValue(undefined) }),
+  useConnection: () => ({ removeConnection: vi.fn().mockResolvedValue(undefined) }),
   useSnackbar: () => ({ showSnackbar: vi.fn() }),
 }));
 

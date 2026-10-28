@@ -1,10 +1,11 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   useResourceGraph: vi.fn(),
   showResourceSidebar: vi.fn(),
+  resolve: vi.fn(),
 }));
 
 vi.mock('@omniviewdev/runtime', () => ({
@@ -13,26 +14,37 @@ vi.mock('@omniviewdev/runtime', () => ({
   useRightDrawer: () => ({ showResourceSidebar: mocks.showResourceSidebar }),
 }));
 
+vi.mock('@omniviewdev/runtime/api', () => ({ ResourceClient: { ResolveReference: mocks.resolve } }));
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: () => ({ data: new Map(Object.entries({
+    'k8s:apps/replicasets': 'ReplicaSet', 'k8s:/pods': 'Pod', 'k8s:/nodes': 'Node',
+  })) }),
+}));
+
 import ResourceGraphView from './ResourceGraphView';
 
 const node = (resourceKey: string, id: string, namespace = '') => ({
   pluginId: 'kubernetes',
-  connectionId: 'conn-1',
-  resourceKey,
-  id,
-  namespace,
+  key: `host-key:${resourceKey}:${namespace}:${id}`,
+  route: { connection: 'conn-1' },
+  reference: {
+    address: {
+      provider: 'kubernetes', authority: 'cluster-1', type: resourceKey, id,
+      scope: namespace ? [{ dimension: 'namespace', value: namespace }] : [],
+    },
+  },
 });
 
-const rs = node('apps::v1::ReplicaSet', 'web-abc', 'default');
-const pod = node('core::v1::Pod', 'web-abc-1', 'default');
-const worker = node('core::v1::Node', 'worker-1');
+const rs = node('k8s:apps/replicasets', 'web-abc', 'default');
+const pod = node('k8s:/pods', 'web-abc-1', 'default');
+const worker = node('k8s:/nodes', 'worker-1');
 
 const ctx = {
   data: { metadata: { name: 'web-abc', namespace: 'default' } },
   resource: {
-    id: 'uid-123',
-    key: 'apps::v1::ReplicaSet',
-    connectionID: 'conn-1',
+    reference: { ...rs.reference, incarnation: 'uid-123' },
+    route: rs.route,
+    representation: 'kubernetes-object',
     pluginID: 'kubernetes',
   },
 };
@@ -65,22 +77,25 @@ function hookResult(overrides: Record<string, unknown> = {}) {
 describe('ResourceGraphView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.resolve.mockImplementation(async (_plugin, request) => ({
+      reference: { address: { ...request, authority: 'must-not-replace-observed-authority' } },
+      route: { connection: 'must-not-replace-observed-route' },
+      representation: 'kubernetes-object', targetId: 'host-target',
+    }));
   });
 
-  it('queries the graph by name, not by UID', () => {
+  it('queries by canonical reference with UID only as incarnation', () => {
     mocks.useResourceGraph.mockReturnValue(hookResult());
     render(<ResourceGraphView ctx={ctx as never} />);
 
     expect(mocks.useResourceGraph).toHaveBeenCalledWith({
       pluginID: 'kubernetes',
-      connectionID: 'conn-1',
-      resourceKey: 'apps::v1::ReplicaSet',
-      resourceID: 'web-abc',
-      namespace: 'default',
+      reference: ctx.resource.reference,
+      route: ctx.resource.route,
     });
   });
 
-  it('draws nodes, a legend, and opens a resource on click', () => {
+  it('draws nodes, a legend, and opens a resource on click', async () => {
     mocks.useResourceGraph.mockReturnValue(hookResult({ graph }));
     const { container } = render(<ResourceGraphView ctx={ctx as never} />);
 
@@ -90,20 +105,25 @@ describe('ResourceGraphView', () => {
     expect(screen.getByText('3 resources')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Node worker-1' }));
-    expect(mocks.showResourceSidebar).toHaveBeenCalledWith(
+    await waitFor(() => expect(mocks.showResourceSidebar).toHaveBeenCalledWith(
       expect.objectContaining({
-        resourceKey: 'core::v1::Node',
-        resourceID: 'worker-1',
-        connectionID: 'conn-1',
+        reference: worker.reference,
+        route: worker.route,
+        targetId: 'host-target',
+        representation: 'kubernetes-object',
       }),
-    );
+    ));
+    expect(mocks.resolve).toHaveBeenCalledWith('kubernetes', {
+      route: worker.route, type: 'k8s:/nodes', scope: worker.reference.address.scope,
+      id: 'worker-1', incarnation: undefined,
+    });
 
     fireEvent.keyDown(screen.getByRole('button', { name: 'Pod default/web-abc-1' }), {
       key: 'Enter',
     });
-    expect(mocks.showResourceSidebar).toHaveBeenLastCalledWith(
-      expect.objectContaining({ resourceID: 'web-abc-1', namespace: 'default' }),
-    );
+    await waitFor(() => expect(mocks.showResourceSidebar).toHaveBeenLastCalledWith(
+      expect.objectContaining({ reference: pod.reference, route: pod.route }),
+    ));
   });
 
   it('does not make the root clickable', () => {
@@ -134,19 +154,13 @@ describe('ResourceGraphView', () => {
   });
 });
 
-describe('ResourceGraphView on a host without the subgraph hook', () => {
-  it('asks for a newer Omniview instead of crashing', async () => {
-    vi.resetModules();
-    // SystemJS resolves exports the host lacks to undefined.
-    vi.doMock('@omniviewdev/runtime', () => ({
-      useResourceGraph: undefined,
-      relationshipLabel: undefined,
-      useRightDrawer: () => ({ showResourceSidebar: vi.fn() }),
-    }));
-    const { default: View } = await import('./ResourceGraphView');
-
-    render(<View ctx={ctx as never} />);
-    expect(screen.getByText('Update Omniview to see the resource graph')).toBeInTheDocument();
-    vi.doUnmock('@omniviewdev/runtime');
-  });
+it('shows guard failures without opening a fake resource', async () => {
+  mocks.useResourceGraph.mockReturnValue(hookResult({ graph }));
+  mocks.resolve.mockRejectedValueOnce(new Error('target membership expired'));
+  mocks.showResourceSidebar.mockClear();
+  render(<ResourceGraphView ctx={ctx as never} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Node worker-1' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('target membership expired');
+  expect(mocks.showResourceSidebar).not.toHaveBeenCalled();
 });
+

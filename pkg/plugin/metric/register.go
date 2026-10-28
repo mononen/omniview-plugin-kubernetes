@@ -20,8 +20,8 @@ func Register(plugin *sdk.Plugin) {
 		},
 		Handlers: map[string]metric.Handler{
 			// --- Pod metrics (metrics-server + Prometheus) ---
-			"core::v1::Pod": {
-				Resource: "core::v1::Pod",
+			"k8s:/pods": {
+				Resource: "k8s:/pods",
 				Metrics: []metric.MetricDescriptor{
 					// ── metrics-server (instant only) ──
 					{
@@ -283,8 +283,8 @@ func Register(plugin *sdk.Plugin) {
 				},
 			},
 			// --- Node metrics (metrics-server + Prometheus) ---
-			"core::v1::Node": {
-				Resource: "core::v1::Node",
+			"k8s:/nodes": {
+				Resource: "k8s:/nodes",
 				Metrics: []metric.MetricDescriptor{
 					// metrics-server (instant only)
 					{

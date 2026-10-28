@@ -3,8 +3,8 @@ import {
   useConnection,
   useExtensionPoint,
   usePluginRouter,
-  useResources,
 } from '@omniviewdev/runtime';
+import { useKubernetesResources } from '../../../hooks/useKubernetesResources';
 import type { Pod, Node as K8sNode, Event as K8sEvent } from 'kubernetes-types/core/v1';
 import React from 'react';
 import { useParams } from 'react-router-dom';
@@ -117,26 +117,9 @@ const ClusterDashboardOverviewPage: React.FC = () => {
   const metricConfig = connectionOverrides[id]?.metricConfig;
 
   // Only keep the resource hooks needed for ClusterInfoCard and EventsTable
-  const { resources: pods } = useResources({
-    pluginID: 'kubernetes',
-    connectionID: id,
-    resourceKey: 'core::v1::Pod',
-    idAccessor: 'metadata.uid',
-  });
-
-  const { resources: nodes } = useResources({
-    pluginID: 'kubernetes',
-    connectionID: id,
-    resourceKey: 'core::v1::Node',
-    idAccessor: 'metadata.uid',
-  });
-
-  const { resources: events } = useResources({
-    pluginID: 'kubernetes',
-    connectionID: id,
-    resourceKey: 'core::v1::Event',
-    idAccessor: 'metadata.uid',
-  });
+  const pods = useKubernetesResources<Pod>({ connectionID: id, resourceType: 'k8s:/pods', namespaces });
+  const nodes = useKubernetesResources<K8sNode>({ connectionID: id, resourceType: 'k8s:/nodes' });
+  const events = useKubernetesResources<K8sEvent>({ connectionID: id, resourceType: 'k8s:/events', namespaces });
 
   // --- Extension point for dashboard widgets ---
   const widgetEP = useExtensionPoint<React.FC<{ pluginID: string; connectionID: string }>>(
@@ -145,15 +128,14 @@ const ClusterDashboardOverviewPage: React.FC = () => {
   const widgets = widgetEP?.list() ?? [];
 
   // --- Filtered data for health banner and events ---
-  // runtime ListResult.result is typed as any[]; cast to the known K8s types
   const allPods = React.useMemo(
-    () => filterByNamespace((pods.data?.result ?? []) as Pod[], namespaces),
-    [pods.data, namespaces],
+    () => filterByNamespace((pods.bodies ?? []) as Pod[], namespaces),
+    [pods.bodies, namespaces],
   );
-  const allNodes = React.useMemo(() => (nodes.data?.result ?? []) as K8sNode[], [nodes.data]);
+  const allNodes = nodes.bodies;
   const allEvents = React.useMemo(
-    () => filterByNamespace((events.data?.result ?? []) as K8sEvent[], namespaces),
-    [events.data, namespaces],
+    () => filterByNamespace((events.bodies ?? []) as K8sEvent[], namespaces),
+    [events.bodies, namespaces],
   );
 
   return (

@@ -3,29 +3,29 @@ package resourcers
 import (
 	"testing"
 
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
 func TestRelationshipTable_AllKeysPresent(t *testing.T) {
 	table := RelationshipTable()
 
 	expectedKeys := []string{
-		"core::v1::Pod",
-		"core::v1::Node",
-		"apps::v1::ReplicaSet",
-		"batch::v1::Job",
-		"apps::v1::Deployment",
-		"apps::v1::DaemonSet",
-		"apps::v1::StatefulSet",
-		"networking::v1::Ingress",
-		"core::v1::PersistentVolumeClaim",
-		"core::v1::PersistentVolume",
-		"autoscaling::v2::HorizontalPodAutoscaler",
-		"core::v1::Service",
-		"networking::v1::NetworkPolicy",
-		"policy::v1::PodDisruptionBudget",
-		"rbac::v1::ClusterRoleBinding",
-		"rbac::v1::RoleBinding",
+		"k8s:/pods",
+		"k8s:/nodes",
+		"k8s:apps/replicasets",
+		"k8s:batch/jobs",
+		"k8s:apps/deployments",
+		"k8s:apps/daemonsets",
+		"k8s:apps/statefulsets",
+		"k8s:networking.k8s.io/ingresses",
+		"k8s:/persistentvolumeclaims",
+		"k8s:/persistentvolumes",
+		"k8s:autoscaling/horizontalpodautoscalers",
+		"k8s:/services",
+		"k8s:networking.k8s.io/networkpolicies",
+		"k8s:policy/poddisruptionbudgets",
+		"k8s:rbac.authorization.k8s.io/clusterrolebindings",
+		"k8s:rbac.authorization.k8s.io/rolebindings",
 	}
 
 	for _, key := range expectedKeys {
@@ -37,7 +37,7 @@ func TestRelationshipTable_AllKeysPresent(t *testing.T) {
 
 func TestRelationshipTable_PodRelationships(t *testing.T) {
 	table := RelationshipTable()
-	rels := table["core::v1::Pod"]
+	rels := table["k8s:/pods"]
 
 	// Pod should have: 4 ownership (RS, DS, SS, Job) + 7 direct refs = 11
 	if len(rels) != 11 {
@@ -55,9 +55,9 @@ func TestRelationshipTable_PodRelationships(t *testing.T) {
 	}
 
 	for _, r := range rels {
-		if r.TargetResourceKey == "core::v1::Node" {
-			if r.TargetNamespaced == nil || *r.TargetNamespaced != false {
-				t.Errorf("Pod→Node should have TargetNamespaced=false")
+		if r.TargetType == "k8s:/nodes" {
+			if r.TargetScope == nil || len(r.TargetScope) != 0 {
+				t.Errorf("Pod→Node should have empty target scope")
 			}
 		}
 	}
@@ -67,19 +67,19 @@ func TestRelationshipTable_ClusterScopedTargets(t *testing.T) {
 	table := RelationshipTable()
 
 	clusterScoped := map[string]bool{
-		"core::v1::Node":               true,
-		"core::v1::PersistentVolume":   true,
-		"storage::v1::StorageClass":    true,
-		"rbac::v1::ClusterRole":        true,
-		"networking::v1::IngressClass": true,
+		"k8s:/nodes":               true,
+		"k8s:/persistentvolumes":   true,
+		"k8s:storage.k8s.io/storageclasses":    true,
+		"k8s:rbac.authorization.k8s.io/clusterroles":        true,
+		"k8s:networking.k8s.io/ingressclasses": true,
 	}
 
 	for sourceKey, rels := range table {
 		for _, r := range rels {
-			if clusterScoped[r.TargetResourceKey] {
-				if r.TargetNamespaced == nil || *r.TargetNamespaced != false {
-					t.Errorf("%s → %s should have TargetNamespaced=false",
-						sourceKey, r.TargetResourceKey)
+			if clusterScoped[r.TargetType] {
+				if r.TargetScope == nil || len(r.TargetScope) != 0 {
+					t.Errorf("%s → %s should have empty target scope",
+						sourceKey, r.TargetType)
 				}
 			}
 		}
@@ -111,19 +111,38 @@ func TestRelationshipTable_PodSelectorsUseFullLabelSelector(t *testing.T) {
 	table := RelationshipTable()
 
 	for key, path := range map[string]string{
-		"networking::v1::NetworkPolicy":   "spec.podSelector",
-		"policy::v1::PodDisruptionBudget": "spec.selector",
+		"k8s:networking.k8s.io/networkpolicies":   "spec.podSelector",
+		"k8s:policy/poddisruptionbudgets": "spec.selector",
 	} {
 		rels := table[key]
 		if len(rels) != 1 || rels[0].Extractor == nil {
 			t.Fatalf("%s: want one selector relationship, got %+v", key, rels)
 		}
 		r := rels[0]
-		if r.Type != resource.RelSelects || r.TargetResourceKey != "core::v1::Pod" {
-			t.Errorf("%s: want selects -> core::v1::Pod, got %s -> %s", key, r.Type, r.TargetResourceKey)
+		if r.Type != resource.RelSelects || r.TargetType != "k8s:/pods" {
+			t.Errorf("%s: want selects -> k8s:/pods, got %s -> %s", key, r.Type, r.TargetType)
 		}
 		if r.Extractor.Method != "labelSelectorObject" || r.Extractor.FieldPath != path {
 			t.Errorf("%s: want labelSelectorObject at %s, got %s at %s", key, path, r.Extractor.Method, r.Extractor.FieldPath)
+		}
+	}
+}
+
+func TestRelationshipNamespaceScopeExtractors(t *testing.T) {
+	for source, descriptors := range RelationshipTable() {
+		for _, descriptor := range descriptors {
+			if descriptor.Extractor == nil { continue }
+			if descriptor.TargetScope != nil {
+				if len(descriptor.ScopeExtractors) != 0 {
+					t.Errorf("%s: cluster target must not extract namespace", source)
+				}
+				continue
+			}
+			if len(descriptor.ScopeExtractors) != 1 ||
+				descriptor.ScopeExtractors[0].Dimension != "namespace" ||
+				descriptor.ScopeExtractors[0].FieldPath != "metadata.namespace" {
+				t.Errorf("%s: namespaced target must extract source namespace", source)
+			}
 		}
 	}
 }

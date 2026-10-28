@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { HorizontalPodAutoscaler } from 'kubernetes-types/autoscaling/v2';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="autoscaling::v2::HorizontalPodAutoscaler"
+        type="k8s:autoscaling/horizontalpodautoscalers"
         icon="LuArrowUpDown"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: {
-      data: data as unknown as HorizontalPodAutoscaler,
-      resource: { connectionID: 'ctx-1', id: 'frontend-hpa', key: 'autoscaling::v2::HorizontalPodAutoscaler' },
-    },
+    ctx: { data: data as unknown as HorizontalPodAutoscaler, resource: fixtureResource('k8s:autoscaling/horizontalpodautoscalers', data as unknown as HorizontalPodAutoscaler, 'ctx-1', 'frontend-hpa') },
   },
   decorators: withDrawer(data.metadata.name),
 };

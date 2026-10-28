@@ -4,7 +4,7 @@ import { LuTrash } from 'react-icons/lu';
 
 import { drawerActionDeps } from '../../../../shared/drawer/actionDeps';
 
-const resourceKey = 'networking::v1::IngressClass';
+
 
 /** Drawer header and row menu actions for IngressClasss. Handlers come from `drawerActionDeps`. */
 export const drawerActions: Array<DrawerComponentAction<IngressClass>> = [
@@ -27,14 +27,7 @@ export const drawerActions: Array<DrawerComponentAction<IngressClass>> = [
         confirmLabel: 'Delete',
         cancelLabel: 'Cancel',
         onConfirm: async () => {
-          await drawerActionDeps(ctx).remove({
-            opts: {
-              connectionID: ctx.resource?.connectionID ?? '',
-              resourceKey,
-              resourceID: ctx.data?.metadata?.name as string,
-            },
-            input: {},
-          });
+          await drawerActionDeps(ctx).mutate({ route: ctx.resource!.route, reference: ctx.resource!.reference, operation: 'delete', input: { kind: 'map', value: {} } });
           drawerActionDeps(ctx).closeDrawer();
         },
       }),

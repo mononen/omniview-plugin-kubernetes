@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import ResourceDrawerContainer from '../../../../../../stories/containers/SidebarContainer';
@@ -19,7 +20,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="flowcontrol::v1::PriorityLevelConfiguration"
+        type="k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations"
         icon="LuLayers"
         title={title}
         open
@@ -33,10 +34,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: {
-      data: data as Record<string, unknown>,
-      resource: { connectionID: 'ctx-1', id: 'leader-election', key: 'flowcontrol::v1::PriorityLevelConfiguration', pluginID: 'kubernetes' },
-    },
+    ctx: { data: data as Record<string, unknown>, resource: fixtureResource('k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations', data as Record<string, unknown>, 'ctx-1', 'leader-election') },
   },
   decorators: withDrawer(data.metadata.name),
 };

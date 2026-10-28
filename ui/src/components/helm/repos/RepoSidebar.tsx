@@ -1,6 +1,10 @@
 import { Card, Chip, IconButton, Input, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import {
   DrawerContext,
+  jsonToValue,
+  valueToJSON,
+  useResolvedResourceTarget,
+  type HostRecord,
   useExecuteAction,
   useResources,
   useRightDrawer,
@@ -107,35 +111,36 @@ const ChartIcon: React.FC<{ icon?: string; name: string }> = ({ icon, name }) =>
  * instead of making a separate action call each time.
  */
 export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
-  const connectionID = ctx.resource?.connectionID ?? '';
-  const repoName = ctx.data?.name ?? ctx.resource?.id ?? '';
+  const connectionID = ctx.resource?.route.connection ?? '';
+  const repoName = ctx.resource?.reference.address.id ?? '';
   const [chartFilter, setChartFilter] = React.useState('');
 
-  const { executeAction, isExecuting } = useExecuteAction({
-    pluginID: 'kubernetes',
-    connectionID,
-    resourceKey: 'helm::v1::Repository',
+  const { executeAction, isExecuting } = useExecuteAction({ pluginID: 'kubernetes' });
+  const target = useResolvedResourceTarget({
+    pluginID: 'kubernetes', route: { connection: connectionID }, type: 'helm:charts',
+    scope: [{ dimension: 'domain', match: 'oneOf', values: ['helm-client'] }],
   });
-
-  // Use the existing Chart resource list — cached by React Query
   const { resources: chartsQuery } = useResources({
-    pluginID: 'kubernetes',
-    connectionID,
-    resourceKey: 'helm::v1::Chart',
-    idAccessor: 'id',
+    pluginID: 'kubernetes', live: false,
+    request: target.data ? {
+      targetId: target.data.targetId, request: { target: target.data.target, pageSize: 256 },
+    } : undefined,
   });
 
   const { showResourceSidebar } = useRightDrawer();
 
-  if (!ctx.data) {
+  if (!ctx.data || !ctx.resource) {
     return null;
   }
 
   const data = ctx.data;
 
-  // Filter charts by this repository
-  // chartsQuery.data?.result is typed as unknown[] from the runtime; cast to expected shape
-  const allCharts = (chartsQuery.data?.result ?? []) as ChartListEntry[];
+  const chartRecords = new WeakMap<ChartListEntry, HostRecord>();
+  const allCharts = (chartsQuery.data?.records ?? []).map((record) => {
+    const chart = valueToJSON(record.record.body) as ChartListEntry;
+    chartRecords.set(chart, record);
+    return chart;
+  });
   const repoCharts = allCharts.filter((c) => c.repository === repoName);
 
   const filteredCharts = chartFilter
@@ -169,8 +174,8 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
               disabled={isExecuting}
               onClick={() =>
                 void executeAction({
-                  actionID: 'refresh',
-                  id: repoName,
+                  route: ctx.resource!.route, reference: ctx.resource!.reference,
+                  action: 'refresh', input: jsonToValue({}),
                 })
               }
               title="Refresh Repository"
@@ -237,17 +242,18 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
         <Stack direction="column" spacing={1} style={chartListContainerStyle}>
           {filteredCharts.map((chart) => (
             <Card
-              key={chart.id ?? chart.name ?? ''}
+              key={chartRecords.get(chart)?.key}
               className={styles.chartCard}
               variant="outline"
-              onClick={() =>
+              onClick={() => {
+                const row = chartRecords.get(chart);
+                if (!row) return;
                 showResourceSidebar({
-                  pluginID: 'kubernetes',
-                  connectionID,
-                  resourceKey: 'helm::v1::Chart',
-                  resourceID: chart.id ?? '',
-                })
-              }
+                  pluginID: 'kubernetes', reference: row.record.reference, route: row.route,
+                  representation: row.record.representation.id, targetId: row.targetId,
+                  record: row, resourceName: chart.name,
+                });
+              }}
             >
               <Stack direction="row" spacing={3} align="start">
                 <ChartIcon icon={chart.icon} name={chart.name ?? ''} />

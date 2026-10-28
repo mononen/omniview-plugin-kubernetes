@@ -13,7 +13,7 @@ import (
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
-	sdkresource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	sdkresource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
 // helper to create a Kubernetes StatusError with a given code and message.
@@ -99,8 +99,8 @@ func TestClassifyResourceError_Conflict(t *testing.T) {
 }
 
 func TestClassifyResourceError_UnhandledStatusCode(t *testing.T) {
-	// 422 Unprocessable Entity — not in our switch
-	err := k8sStatusError(422, "Unprocessable Entity")
+	// Unclassified native server failures retain the transport INTERNAL fallback.
+	err := k8sStatusError(500, "Internal Server Error")
 
 	result := classifyResourceError(err)
 	assert.Nil(t, result, "unhandled K8s status codes should return nil for INTERNAL fallback")
@@ -224,4 +224,28 @@ func TestClassifyResourceError_JSONRoundTrip(t *testing.T) {
 	assert.Contains(t, jsonStr, `"code":"FORBIDDEN"`)
 	assert.Contains(t, jsonStr, `"title":"Access denied"`)
 	assert.Contains(t, jsonStr, `"suggestions"`)
+}
+
+func TestClassifyResourceErrorFiniteSourceFailures(t *testing.T) {
+	for _, test := range []struct {
+		status int32
+		code string
+	}{
+		{400, "INVALID_REQUEST"},
+		{422, "INVALID_REQUEST"},
+		{405, "UNSUPPORTED"},
+		{410, "CONTINUATION_EXPIRED"},
+		{413, "RESOURCE_LIMIT"},
+		{429, "RESOURCE_LIMIT"},
+		{503, "UNAVAILABLE"},
+	} {
+		t.Run(fmt.Sprint(test.status), func(t *testing.T) {
+			cause := k8sStatusError(test.status, "native source failure")
+			classified := classifyResourceError(cause)
+			var operationError *sdkresource.ResourceOperationError
+			require.ErrorAs(t, classified, &operationError)
+			require.Equal(t, test.code, operationError.Code)
+			require.ErrorIs(t, classified, cause)
+		})
+	}
 }

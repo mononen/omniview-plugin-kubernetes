@@ -9,7 +9,7 @@ import BaseEditorPage from '../../../../shared/sidebar/pages/editor/BaseEditorPa
 import ResourceTable from '../../../../shared/table/ResourceTable';
 import { withClusterResourceColumns } from '../../shared/columns';
 
-const resourceKey = 'flowcontrol::v1::PriorityLevelConfiguration';
+const resourceKey = 'k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations';
 
 const IngressTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -95,7 +95,7 @@ const IngressTable: React.FC = () => {
           title: 'Editor',
           icon: <LuCode />,
           component: (ctx) => (
-            <BaseEditorPage data={ctx.data || {}} resourceKey={ctx.resource?.key} />
+            <BaseEditorPage data={ctx.data || {}} resourceKey={ctx.resource?.reference.address.type} />
           ),
         },
       ],
@@ -109,7 +109,6 @@ const IngressTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

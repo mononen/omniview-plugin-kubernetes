@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { MutatingWebhookConfiguration } from 'kubernetes-types/admissionregistration/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="admissionregistration::v1::MutatingWebhookConfiguration"
+        type="k8s:admissionregistration.k8s.io/mutatingwebhookconfigurations"
         icon="LuShield"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: {
-      data: data as unknown as MutatingWebhookConfiguration,
-      resource: { connectionID: 'ctx-1', id: 'istio-sidecar-injector', key: 'admissionregistration::v1::MutatingWebhookConfiguration' },
-    },
+    ctx: { data: data as unknown as MutatingWebhookConfiguration, resource: fixtureResource('k8s:admissionregistration.k8s.io/mutatingwebhookconfigurations', data as unknown as MutatingWebhookConfiguration, 'ctx-1', 'istio-sidecar-injector') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -64,10 +62,7 @@ const minimalData: MutatingWebhookConfiguration = {
 
 export const Minimal: Story = {
   args: {
-    ctx: {
-      data: minimalData,
-      resource: { connectionID: 'ctx-1', id: 'minimal-mutator', key: 'admissionregistration::v1::MutatingWebhookConfiguration' },
-    },
+    ctx: { data: minimalData, resource: fixtureResource('k8s:admissionregistration.k8s.io/mutatingwebhookconfigurations', minimalData, 'ctx-1', 'minimal-mutator') },
   },
   decorators: withDrawer('minimal-mutator'),
 };

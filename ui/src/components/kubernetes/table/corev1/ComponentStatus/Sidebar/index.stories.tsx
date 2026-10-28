@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ComponentStatus } from 'kubernetes-types/core/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="core::v1::ComponentStatus"
+        type="k8s:/componentstatuses"
         icon="LuHeart"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const Healthy: Story = {
   args: {
-    ctx: {
-      data: data as unknown as ComponentStatus,
-      resource: { connectionID: 'ctx-1', id: 'scheduler', key: 'core::v1::ComponentStatus' },
-    },
+    ctx: { data: data as unknown as ComponentStatus, resource: fixtureResource('k8s:/componentstatuses', data as unknown as ComponentStatus, 'ctx-1', 'scheduler') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -56,10 +54,7 @@ const unhealthyData: ComponentStatus = {
 
 export const Unhealthy: Story = {
   args: {
-    ctx: {
-      data: unhealthyData,
-      resource: { connectionID: 'ctx-1', id: 'scheduler', key: 'core::v1::ComponentStatus' },
-    },
+    ctx: { data: unhealthyData, resource: fixtureResource('k8s:/componentstatuses', unhealthyData, 'ctx-1', 'scheduler') },
   },
   decorators: withDrawer('scheduler'),
 };

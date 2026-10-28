@@ -2,37 +2,22 @@ package resourcers
 
 import (
 	"context"
-	"encoding/json"
+	"k8s.io/apimachinery/pkg/runtime"
 	"fmt"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
-// Compile-time checks for HealthAssessor.
-var (
-	_ resource.HealthAssessor[clients.ClientSet] = (*NodeResourcer)(nil)
-	_ resource.HealthAssessor[clients.ClientSet] = (*DeploymentResourcer)(nil)
-	_ resource.HealthAssessor[clients.ClientSet] = (*StatefulSetResourcer)(nil)
-	_ resource.HealthAssessor[clients.ClientSet] = (*DaemonSetResourcer)(nil)
-)
-
-// Compile-time checks for EventRetriever.
-var (
-	_ resource.EventRetriever[clients.ClientSet] = (*NodeResourcer)(nil)
-	_ resource.EventRetriever[clients.ClientSet] = (*DeploymentResourcer)(nil)
-	_ resource.EventRetriever[clients.ClientSet] = (*StatefulSetResourcer)(nil)
-	_ resource.EventRetriever[clients.ClientSet] = (*DaemonSetResourcer)(nil)
-)
 
 // ====================== NODE HEALTH ====================== //
 
-func (n *NodeResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ resource.ResourceMeta, data json.RawMessage) (*resource.ResourceHealth, error) {
+func (n *NodeResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ resource.GetRequest, data resource.Value) (*resource.ResourceHealth, error) {
 	var node corev1.Node
-	if err := json.Unmarshal(data, &node); err != nil {
+	if err := decodeHealthValue(data, &node); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal node: %w", err)
 	}
 
@@ -90,16 +75,17 @@ func (n *NodeResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ 
 	return health, nil
 }
 
-func (n *NodeResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, _ resource.ResourceMeta, id string, namespace string, limit int32) ([]resource.ResourceEvent, error) {
-	fieldSelector := fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Node", id)
+func (n *NodeResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, request resource.GetRequest, limit uint32) ([]resource.ResourceEvent, error) {
+	if _, err := nativeRequestNamespace(request.Reference.Address.Scope); err != nil { return nil, err }
+	fieldSelector := nativeEventSelector(request, "Node")
 	return getK8sEvents(ctx, client, "", fieldSelector, limit)
 }
 
 // ====================== DEPLOYMENT HEALTH ====================== //
 
-func (d *DeploymentResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ resource.ResourceMeta, data json.RawMessage) (*resource.ResourceHealth, error) {
+func (d *DeploymentResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ resource.GetRequest, data resource.Value) (*resource.ResourceHealth, error) {
 	var dep appsv1.Deployment
-	if err := json.Unmarshal(data, &dep); err != nil {
+	if err := decodeHealthValue(data, &dep); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal deployment: %w", err)
 	}
 
@@ -138,16 +124,18 @@ func (d *DeploymentResourcer) AssessHealth(_ context.Context, _ *clients.ClientS
 	return health, nil
 }
 
-func (d *DeploymentResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, _ resource.ResourceMeta, id string, namespace string, limit int32) ([]resource.ResourceEvent, error) {
-	fieldSelector := fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Deployment", id)
+func (d *DeploymentResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, request resource.GetRequest, limit uint32) ([]resource.ResourceEvent, error) {
+	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
+	if err != nil { return nil, err }
+	fieldSelector := nativeEventSelector(request, "Deployment")
 	return getK8sEvents(ctx, client, namespace, fieldSelector, limit)
 }
 
 // ====================== STATEFULSET HEALTH ====================== //
 
-func (s *StatefulSetResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ resource.ResourceMeta, data json.RawMessage) (*resource.ResourceHealth, error) {
+func (s *StatefulSetResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ resource.GetRequest, data resource.Value) (*resource.ResourceHealth, error) {
 	var sts appsv1.StatefulSet
-	if err := json.Unmarshal(data, &sts); err != nil {
+	if err := decodeHealthValue(data, &sts); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal statefulset: %w", err)
 	}
 
@@ -186,16 +174,18 @@ func (s *StatefulSetResourcer) AssessHealth(_ context.Context, _ *clients.Client
 	return health, nil
 }
 
-func (s *StatefulSetResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, _ resource.ResourceMeta, id string, namespace string, limit int32) ([]resource.ResourceEvent, error) {
-	fieldSelector := fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=StatefulSet", id)
+func (s *StatefulSetResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, request resource.GetRequest, limit uint32) ([]resource.ResourceEvent, error) {
+	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
+	if err != nil { return nil, err }
+	fieldSelector := nativeEventSelector(request, "StatefulSet")
 	return getK8sEvents(ctx, client, namespace, fieldSelector, limit)
 }
 
 // ====================== DAEMONSET HEALTH ====================== //
 
-func (d *DaemonSetResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ resource.ResourceMeta, data json.RawMessage) (*resource.ResourceHealth, error) {
+func (d *DaemonSetResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ resource.GetRequest, data resource.Value) (*resource.ResourceHealth, error) {
 	var ds appsv1.DaemonSet
-	if err := json.Unmarshal(data, &ds); err != nil {
+	if err := decodeHealthValue(data, &ds); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal daemonset: %w", err)
 	}
 
@@ -235,7 +225,25 @@ func (d *DaemonSetResourcer) AssessHealth(_ context.Context, _ *clients.ClientSe
 	return health, nil
 }
 
-func (d *DaemonSetResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, _ resource.ResourceMeta, id string, namespace string, limit int32) ([]resource.ResourceEvent, error) {
-	fieldSelector := fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=DaemonSet", id)
+func (d *DaemonSetResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, request resource.GetRequest, limit uint32) ([]resource.ResourceEvent, error) {
+	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
+	if err != nil { return nil, err }
+	fieldSelector := nativeEventSelector(request, "DaemonSet")
 	return getK8sEvents(ctx, client, namespace, fieldSelector, limit)
+}
+
+func decodeHealthValue(value resource.Value, target interface{}) error {
+	native, err := resource.NativeFromValue(value)
+	if err != nil { return err }
+	object, ok := native.(map[string]interface{})
+	if !ok { return resource.NewError("INVALID_REQUEST", "Kubernetes health body must be an object") }
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(object, target)
+}
+
+func nativeEventSelector(request resource.GetRequest, kind string) string {
+	selector := fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=%s", request.Reference.Address.ID, kind)
+	if request.Reference.Incarnation != nil {
+		selector += ",involvedObject.uid=" + *request.Reference.Incarnation
+	}
+	return selector
 }

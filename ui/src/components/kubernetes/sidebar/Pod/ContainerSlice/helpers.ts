@@ -219,13 +219,13 @@ export function getVolumeResourceRef(
   const vol = volumes?.find((v) => v.name === name);
   if (!vol) return undefined;
   if (vol.configMap?.name)
-    return { resourceName: vol.configMap.name, resourceKey: 'core::v1::ConfigMap' };
+    return { resourceName: vol.configMap.name, resourceKey: 'k8s:/configmaps' };
   if (vol.secret?.secretName)
-    return { resourceName: vol.secret.secretName, resourceKey: 'core::v1::Secret' };
+    return { resourceName: vol.secret.secretName, resourceKey: 'k8s:/secrets' };
   if (vol.persistentVolumeClaim?.claimName)
     return {
       resourceName: vol.persistentVolumeClaim.claimName,
-      resourceKey: 'core::v1::PersistentVolumeClaim',
+      resourceKey: 'k8s:/persistentvolumeclaims',
     };
   return undefined;
 }

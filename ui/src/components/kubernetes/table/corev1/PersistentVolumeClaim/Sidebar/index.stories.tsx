@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { PersistentVolumeClaim } from 'kubernetes-types/core/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="core::v1::PersistentVolumeClaim"
+        type="k8s:/persistentvolumeclaims"
         icon="LuHardDrive"
         title={title}
         open
@@ -36,10 +37,7 @@ function withDrawer(title: string) {
 
 export const Bound: Story = {
   args: {
-    ctx: {
-      data: data as unknown as PersistentVolumeClaim,
-      resource: { connectionID: 'ctx-1', id: 'data-pvc', key: 'core::v1::PersistentVolumeClaim' },
-    },
+    ctx: { data: data as unknown as PersistentVolumeClaim, resource: fixtureResource('k8s:/persistentvolumeclaims', data as unknown as PersistentVolumeClaim, 'ctx-1', 'data-pvc') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -60,10 +58,7 @@ const pendingData: PersistentVolumeClaim = {
 
 export const Pending: Story = {
   args: {
-    ctx: {
-      data: pendingData,
-      resource: { connectionID: 'ctx-1', id: 'pending-pvc', key: 'core::v1::PersistentVolumeClaim' },
-    },
+    ctx: { data: pendingData, resource: fixtureResource('k8s:/persistentvolumeclaims', pendingData, 'ctx-1', 'pending-pvc') },
   },
   decorators: withDrawer('pending-pvc'),
 };

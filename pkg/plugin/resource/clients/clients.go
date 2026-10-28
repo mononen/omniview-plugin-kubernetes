@@ -93,6 +93,15 @@ func (cs *ClientSet) GetOrCreateNamespaceFactory(ns string) dynamicinformer.Dyna
 	return f
 }
 
+// EnsureNamespaceFactoryStarted starts namespace informers for the client
+// lifetime. Retiring one resource handler must not stop a shared factory.
+func (cs *ClientSet) EnsureNamespaceFactoryStarted(namespace string) {
+	cs.factoryStartOnce.Do(func() {
+		cs.factoryStopCh = make(chan struct{})
+	})
+	cs.GetOrCreateNamespaceFactory(namespace).Start(cs.factoryStopCh)
+}
+
 // ShutdownNamespaceFactories stops all per-namespace informer factories.
 func (cs *ClientSet) ShutdownNamespaceFactories() {
 	cs.nsFactoriesMu.Lock()

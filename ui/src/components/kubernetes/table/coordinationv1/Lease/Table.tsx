@@ -13,7 +13,7 @@ import AgeCell from '../../shared/cells/AgeCell';
 import { squareChipStyle } from '../../shared/cells/styles';
 import { withClusterResourceColumns } from '../../shared/columns';
 
-const resourceKey = 'coordination::v1::Lease';
+const resourceKey = 'k8s:coordination.k8s.io/leases';
 
 const LeaseOverview: React.FC<{ ctx: DrawerContext<Lease> }> = ({ ctx }) => (
   <BaseOverviewPage data={ctx.data || {}} />
@@ -100,7 +100,6 @@ const LeaseTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

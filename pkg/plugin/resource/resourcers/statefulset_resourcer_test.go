@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -50,7 +50,7 @@ func testStatefulSet(name, ns string, replicas int32, opts ...func(*appsv1.State
 
 func TestStatefulSetResourcer_GetActions(t *testing.T) {
 	r := newTestStatefulSetResourcer()
-	actions, err := r.GetActions(context.Background(), nil, resource.ResourceMeta{})
+	actions, err := r.GetActions(context.Background(), nil)
 	require.NoError(t, err)
 	require.Len(t, actions, 2)
 
@@ -71,14 +71,11 @@ func TestStatefulSetResourcer_Restart(t *testing.T) {
 	cs := newAppsStatefulSetClientSet(sts)
 	r := newTestStatefulSetResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "restart", resource.ActionInput{
-		ID:        "redis",
-		Namespace: "default",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("restart", "redis", "default", nil))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
 
 	updated, err := cs.KubeClient.AppsV1().StatefulSets("default").Get(context.Background(), "redis", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -90,13 +87,10 @@ func TestStatefulSetResourcer_Restart_NotFound(t *testing.T) {
 	cs := newAppsStatefulSetClientSet()
 	r := newTestStatefulSetResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "restart", resource.ActionInput{
-		ID:        "nonexistent",
-		Namespace: "default",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("restart", "nonexistent", "default", nil))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "failed to restart statefulset")
 }
 
@@ -107,16 +101,12 @@ func TestStatefulSetResourcer_Scale(t *testing.T) {
 	cs := newAppsStatefulSetClientSet(sts)
 	r := newTestStatefulSetResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "scale", resource.ActionInput{
-		ID:        "redis",
-		Namespace: "default",
-		Params:    map[string]interface{}{"replicas": float64(3)},
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("scale", "redis", "default", map[string]interface{}{"replicas": int64(3)}))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
-	assert.Contains(t, result.Message, "scaled to 3")
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
+	assert.Contains(t, result.Map["message"].String, "scaled to 3")
 
 	updated, err := cs.KubeClient.AppsV1().StatefulSets("default").Get(context.Background(), "redis", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -128,14 +118,10 @@ func TestStatefulSetResourcer_Scale_ToZero(t *testing.T) {
 	cs := newAppsStatefulSetClientSet(sts)
 	r := newTestStatefulSetResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "scale", resource.ActionInput{
-		ID:        "redis",
-		Namespace: "default",
-		Params:    map[string]interface{}{"replicas": float64(0)},
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("scale", "redis", "default", map[string]interface{}{"replicas": float64(0)}))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	require.Equal(t, "map", result.Kind)
 
 	updated, err := cs.KubeClient.AppsV1().StatefulSets("default").Get(context.Background(), "redis", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -147,29 +133,21 @@ func TestStatefulSetResourcer_Scale_MissingParam(t *testing.T) {
 	cs := newAppsStatefulSetClientSet(sts)
 	r := newTestStatefulSetResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "scale", resource.ActionInput{
-		ID:        "redis",
-		Namespace: "default",
-		Params:    map[string]interface{}{},
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("scale", "redis", "default", map[string]interface{}{}))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "replicas parameter is required")
+	assert.Equal(t, resource.Value{}, result)
+	assert.Contains(t, err.Error(), "replicas:")
 }
 
 func TestStatefulSetResourcer_Scale_NotFound(t *testing.T) {
 	cs := newAppsStatefulSetClientSet()
 	r := newTestStatefulSetResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "scale", resource.ActionInput{
-		ID:        "nonexistent",
-		Namespace: "default",
-		Params:    map[string]interface{}{"replicas": float64(3)},
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("scale", "nonexistent", "default", map[string]interface{}{"replicas": int64(3)}))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "failed to scale statefulset")
 }
 
@@ -179,10 +157,10 @@ func TestStatefulSetResourcer_UnknownAction(t *testing.T) {
 	cs := newAppsStatefulSetClientSet()
 	r := newTestStatefulSetResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "foo", resource.ActionInput{})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("foo", "", "", nil))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "unknown action")
 }
 
@@ -192,7 +170,7 @@ func TestStatefulSetResourcer_StreamAction_UnsupportedAction(t *testing.T) {
 	r := newTestStatefulSetResourcer()
 	stream := make(chan resource.ActionEvent, 10)
 
-	err := r.StreamAction(context.Background(), nil, resource.ResourceMeta{}, "scale", resource.ActionInput{}, stream)
+	err := r.StreamAction(context.Background(), nil, workloadActionRequest("scale", "", "", nil), stream)
 
 	require.Error(t, err)
 	var operationError *resource.ResourceOperationError
@@ -205,14 +183,12 @@ func TestStatefulSetResourcer_StreamAction_Restart_NotFound(t *testing.T) {
 	r := newTestStatefulSetResourcer()
 	stream := make(chan resource.ActionEvent, 10)
 
-	err := r.StreamAction(context.Background(), cs, resource.ResourceMeta{}, "restart", resource.ActionInput{
-		ID:        "nonexistent",
-		Namespace: "default",
-	}, stream)
+	err := r.StreamAction(context.Background(), cs, workloadActionRequest("restart", "nonexistent", "default", nil), stream)
 
 	require.Error(t, err)
 
 	var events []resource.ActionEvent
+	close(stream)
 	for ev := range stream {
 		events = append(events, ev)
 	}

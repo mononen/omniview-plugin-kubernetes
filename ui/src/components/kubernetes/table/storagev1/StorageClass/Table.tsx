@@ -16,7 +16,7 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import StorageClassSidebar from './Sidebar';
 
-const resourceKey = 'storage::v1::StorageClass';
+const resourceKey = 'k8s:storage.k8s.io/storageclasses';
 
 const StorageClassTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -82,7 +82,6 @@ const StorageClassTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );

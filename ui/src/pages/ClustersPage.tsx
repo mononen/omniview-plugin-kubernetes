@@ -424,10 +424,10 @@ function DeleteConnectionHandler({
   connectionName: string;
   onClose: () => void;
 }) {
-  const { deleteConnection } = useConnection({ pluginID, connectionID: connectionId });
+  const { removeConnection } = useConnection({ pluginID, connectionID: connectionId });
 
   const handleConfirm = () => {
-    deleteConnection()
+    removeConnection()
       .then(() => onClose())
       .catch(() => onClose());
   };

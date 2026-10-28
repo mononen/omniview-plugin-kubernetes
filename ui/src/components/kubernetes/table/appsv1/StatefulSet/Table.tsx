@@ -17,7 +17,7 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import StatefulSetSidebar from './Sidebar';
 
-const resourceKey = 'apps::v1::StatefulSet';
+const resourceKey = 'k8s:apps/statefulsets';
 
 const StatefulSetTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -70,7 +70,7 @@ const StatefulSetTable: React.FC = () => {
               <ResourceLinkCell
                 connectionId={id}
                 resourceId={getValue() as string}
-                resourceKey="core::v1::Service"
+                resourceKey="k8s:/services"
                 resourceName={getValue() as string}
               />
             ),
@@ -142,7 +142,6 @@ const StatefulSetTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

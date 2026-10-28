@@ -45,12 +45,12 @@ interface Props {
 
 const GenericResourceSidebar: React.FC<Props> = ({ ctx }) => {
   const data = ctx.data as Record<string, unknown> | undefined;
-  const resourceKey = ctx.resource?.key || '';
+  const resourceKey = ctx.resource?.reference.address.type || '';
   const pluginID = ctx.resource?.pluginID || 'kubernetes';
 
   const { data: definition } = useQuery({
-    queryKey: [pluginID, 'resource_definition', resourceKey],
-    queryFn: () => ResourceClient.GetResourceDefinition(pluginID, resourceKey),
+    queryKey: [pluginID, 'resource_definition', ctx.resource?.route, resourceKey],
+    queryFn: () => ResourceClient.GetResourceDefinition(pluginID, ctx.resource!.route, resourceKey),
     retry: false,
     enabled: !!resourceKey,
   });
@@ -92,7 +92,7 @@ const GenericResourceSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={metadata} connectionID={ctx.resource?.route.connection} />
 
         {keyFields.length > 0 && (
           <SidebarSection title="Key Fields">

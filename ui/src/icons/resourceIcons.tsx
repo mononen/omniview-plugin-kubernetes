@@ -39,50 +39,41 @@ function nativeIcon(source: string): ComponentType<ResourceIconProps> {
 }
 
 const icons: Record<string, ComponentType<ResourceIconProps>> = {
-  'core::Node': nativeIcon(nodeIcon),
-  'core::Pod': nativeIcon(podIcon),
-  'core::ConfigMap': nativeIcon(configMapIcon),
-  'core::Secret': nativeIcon(secretIcon),
-  'core::Namespace': nativeIcon(namespaceIcon),
-  'core::Service': nativeIcon(serviceIcon),
-  'core::Endpoints': nativeIcon(endpointsIcon),
-  'core::PersistentVolume': nativeIcon(persistentVolumeIcon),
-  'core::PersistentVolumeClaim': nativeIcon(persistentVolumeClaimIcon),
-  'core::ResourceQuota': nativeIcon(resourceQuotaIcon),
-  'core::LimitRange': nativeIcon(limitRangeIcon),
-  'core::ServiceAccount': nativeIcon(serviceAccountIcon),
-  'apps::Deployment': nativeIcon(deploymentIcon),
-  'apps::DaemonSet': nativeIcon(daemonSetIcon),
-  'apps::ReplicaSet': nativeIcon(replicaSetIcon),
-  'apps::StatefulSet': nativeIcon(statefulSetIcon),
-  'batch::Job': nativeIcon(jobIcon),
-  'batch::CronJob': nativeIcon(cronJobIcon),
-  'autoscaling::HorizontalPodAutoscaler': nativeIcon(horizontalPodAutoscalerIcon),
-  'networking::Ingress': nativeIcon(ingressIcon),
-  'networking::NetworkPolicy': nativeIcon(networkPolicyIcon),
-  'rbac::Role': nativeIcon(roleIcon),
-  'rbac::ClusterRole': nativeIcon(clusterRoleIcon),
-  'rbac::RoleBinding': nativeIcon(roleBindingIcon),
-  'rbac::ClusterRoleBinding': nativeIcon(clusterRoleBindingIcon),
-  'storage::StorageClass': nativeIcon(storageClassIcon),
-  'apiextensions::CustomResourceDefinition': nativeIcon(customResourceDefinitionIcon),
-  'policy::PodSecurityPolicy': nativeIcon(podSecurityPolicyIcon),
+  'k8s:/nodes': nativeIcon(nodeIcon),
+  'k8s:/pods': nativeIcon(podIcon),
+  'k8s:/configmaps': nativeIcon(configMapIcon),
+  'k8s:/secrets': nativeIcon(secretIcon),
+  'k8s:/namespaces': nativeIcon(namespaceIcon),
+  'k8s:/services': nativeIcon(serviceIcon),
+  'k8s:/endpoints': nativeIcon(endpointsIcon),
+  'k8s:/persistentvolumes': nativeIcon(persistentVolumeIcon),
+  'k8s:/persistentvolumeclaims': nativeIcon(persistentVolumeClaimIcon),
+  'k8s:/resourcequotas': nativeIcon(resourceQuotaIcon),
+  'k8s:/limitranges': nativeIcon(limitRangeIcon),
+  'k8s:/serviceaccounts': nativeIcon(serviceAccountIcon),
+  'k8s:apps/deployments': nativeIcon(deploymentIcon),
+  'k8s:apps/daemonsets': nativeIcon(daemonSetIcon),
+  'k8s:apps/replicasets': nativeIcon(replicaSetIcon),
+  'k8s:apps/statefulsets': nativeIcon(statefulSetIcon),
+  'k8s:batch/jobs': nativeIcon(jobIcon),
+  'k8s:batch/cronjobs': nativeIcon(cronJobIcon),
+  'k8s:autoscaling/horizontalpodautoscalers': nativeIcon(horizontalPodAutoscalerIcon),
+  'k8s:networking.k8s.io/ingresses': nativeIcon(ingressIcon),
+  'k8s:networking.k8s.io/networkpolicies': nativeIcon(networkPolicyIcon),
+  'k8s:rbac.authorization.k8s.io/roles': nativeIcon(roleIcon),
+  'k8s:rbac.authorization.k8s.io/clusterroles': nativeIcon(clusterRoleIcon),
+  'k8s:rbac.authorization.k8s.io/rolebindings': nativeIcon(roleBindingIcon),
+  'k8s:rbac.authorization.k8s.io/clusterrolebindings': nativeIcon(clusterRoleBindingIcon),
+  'k8s:storage.k8s.io/storageclasses': nativeIcon(storageClassIcon),
+  'k8s:apiextensions.k8s.io/customresourcedefinitions': nativeIcon(customResourceDefinitionIcon),
+  'k8s:policy/podsecuritypolicies': nativeIcon(podSecurityPolicyIcon),
 };
 
-/** Kubernetes owns key parsing. Native artwork remains stable across API versions. */
+/** Native logical Types select trusted artwork without parsing generic identity. */
 export const kubernetesResourceIconSet: ResourceIconSetV1 = {
   schemaVersion: 1,
-  resolve(resourceKey) {
-    const parts = resourceKey.split('::');
-    if (parts.length !== 3 || !parts[1] || !parts[2]) return undefined;
-    const aliases: Record<string, string> = {
-      'rbac.authorization.k8s.io': 'rbac',
-      'networking.k8s.io': 'networking',
-      'storage.k8s.io': 'storage',
-      'apiextensions.k8s.io': 'apiextensions',
-    };
-    const group = aliases[parts[0]] ?? (parts[0] || 'core');
-    return icons[`${group}::${parts[2]}`];
+  resolve(resourceType) {
+    return icons[resourceType];
   },
 };
 

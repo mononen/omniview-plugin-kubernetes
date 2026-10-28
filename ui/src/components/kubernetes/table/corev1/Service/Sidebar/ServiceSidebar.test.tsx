@@ -1,4 +1,5 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { DrawerContext } from '@omniviewdev/runtime';
 import { render, screen } from '@testing-library/react';
 import type { Service } from 'kubernetes-types/core/v1';
@@ -126,7 +127,7 @@ function makeService(overrides: Partial<Service> = {}): Service {
 function makeDrawerCtx(data: Service | undefined): DrawerContext<Service> {
   return {
     data,
-    resource: { connectionID: 'conn-1', id: 'svc-1' },
+    resource: fixtureResource('k8s:/services', data, 'conn-1', data?.metadata?.name ?? 'fixture-object'),
   } as DrawerContext<Service>;
 }
 
@@ -251,7 +252,7 @@ describe('ServiceStatusSection', () => {
   it('shows Endpoints ResourceLinkChip when connectionID provided', () => {
     render(<ServiceStatusSection service={makeService()} connectionID="conn-1" />);
     const chip = screen.getByTestId('resource-link-chip');
-    expect(chip).toHaveAttribute('data-resource-key', 'core::v1::Endpoints');
+    expect(chip).toHaveAttribute('data-resource-key', 'k8s:/endpoints');
     expect(chip).toHaveTextContent('my-svc');
   });
 

@@ -17,7 +17,7 @@ import { inclusionFilter } from '../../shared/filters';
 import { drawerActions } from './actions';
 import PersistentVolumeClaimSidebar from './Sidebar';
 
-const resourceKey = 'core::v1::PersistentVolumeClaim';
+const resourceKey = 'k8s:/persistentvolumeclaims';
 
 const PersistentVolumeClaimTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -117,7 +117,6 @@ const PersistentVolumeClaimTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
       toolbarFilters={[
         {

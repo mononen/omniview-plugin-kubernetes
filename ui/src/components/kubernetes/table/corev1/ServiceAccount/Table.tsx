@@ -18,7 +18,7 @@ import ServiceAccountSidebar from './Sidebar';
 
 const scrollRowStyle = { gap: 2 } as const;
 
-const resourceKey = 'core::v1::ServiceAccount';
+const resourceKey = 'k8s:/serviceaccounts';
 
 const ServiceAccountTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -46,7 +46,7 @@ const ServiceAccountTable: React.FC = () => {
                       key={v.name || ''}
                       connectionId={id}
                       resourceId={v.name || ''}
-                      resourceKey={'core::v1::Secret'}
+                      resourceKey={'k8s:/secrets'}
                       resourceName={v.namespace ? `${v.name}/${v.namespace}` : v.name}
                       namespace={v.namespace}
                     />
@@ -80,7 +80,7 @@ const ServiceAccountTable: React.FC = () => {
                       key={v.name || ''}
                       connectionId={id}
                       resourceId={v.name || ''}
-                      resourceKey={'core::v1::Secret'}
+                      resourceKey={'k8s:/secrets'}
                       resourceName={v.name || ''}
                       namespace={row.original.metadata?.namespace}
                     />
@@ -110,7 +110,6 @@ const ServiceAccountTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

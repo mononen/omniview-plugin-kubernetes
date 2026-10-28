@@ -15,7 +15,7 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import IngressClassSidebar from './Sidebar';
 
-const resourceKey = 'networking::v1::IngressClass';
+const resourceKey = 'k8s:networking.k8s.io/ingressclasses';
 
 const IngressClassTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -78,7 +78,6 @@ const IngressClassTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

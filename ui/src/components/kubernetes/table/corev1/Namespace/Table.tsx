@@ -19,7 +19,7 @@ import ContainerPhaseCell from '../Pod/cells/ContainerPhaseCell';
 import { drawerActions } from './actions';
 import NamespaceSidebar from './Sidebar';
 
-const resourceKey = 'core::v1::Namespace';
+const resourceKey = 'k8s:/namespaces';
 
 const NamespaceTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -87,7 +87,6 @@ const NamespaceTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

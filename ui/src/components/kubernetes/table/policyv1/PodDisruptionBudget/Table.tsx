@@ -14,7 +14,7 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import PodDisruptionBudgetSidebar from './Sidebar';
 
-const resourceKey = 'policy::v1::PodDisruptionBudget';
+const resourceKey = 'k8s:policy/poddisruptionbudgets';
 
 const PodDisruptionBudgetTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -95,7 +95,6 @@ const PodDisruptionBudgetTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

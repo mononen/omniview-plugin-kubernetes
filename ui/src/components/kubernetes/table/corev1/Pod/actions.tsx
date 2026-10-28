@@ -1,10 +1,10 @@
-import { type DrawerComponentAction, type DrawerContext, type DrawerComponentActionListItem } from '@omniviewdev/runtime';
+import { jsonToValue, type DrawerComponentAction, type DrawerContext, type DrawerComponentActionListItem } from '@omniviewdev/runtime'
 import type { Pod } from 'kubernetes-types/core/v1';
 import { LuBugPlay, LuLogs, LuScaling, LuTerminal, LuTrash } from 'react-icons/lu';
 
 import { drawerActionDeps } from '../../../../shared/drawer/actionDeps';
 
-const resourceKey = 'core::v1::Pod';
+const resourceKey = 'k8s:/pods';
 
 /** Drawer header and row menu actions for Pods. Handlers come from `drawerActionDeps`. */
 export const drawerActions: Array<DrawerComponentAction<Pod>> = [
@@ -27,15 +27,7 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
         confirmLabel: 'Delete',
         cancelLabel: 'Cancel',
         onConfirm: async () => {
-          await drawerActionDeps(ctx).remove({
-            opts: {
-              connectionID: ctx.resource?.connectionID ?? '',
-              resourceKey,
-              resourceID: ctx.data?.metadata?.name as string,
-              namespace: ctx.data?.metadata?.namespace as string,
-            },
-            input: {},
-          });
+          await drawerActionDeps(ctx).mutate({ route: ctx.resource!.route, reference: ctx.resource!.reference, operation: 'delete', input: { kind: 'map', value: {} } });
           drawerActionDeps(ctx).closeDrawer();
         },
       });
@@ -53,13 +45,13 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
           title: container.name,
           action: () => {
             return drawerActionDeps(ctx).createExecSession({
-              connectionID: ctx.resource?.connectionID ?? '',
+              connectionID: ctx.resource?.route.connection ?? '',
               label: `${ctx.data?.metadata?.name}/${container.name}`,
               icon: 'LuContainer',
               opts: {
                 resource_plugin: 'kubernetes',
                 resource_data: ctx.data,
-                resource_key: ctx.resource?.key,
+                resource_key: ctx.resource?.reference.address.type,
                 params: { container: container.name },
               },
             }).then(() => drawerActionDeps(ctx).closeDrawer());
@@ -71,13 +63,13 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
           title: container.name,
           action: () => {
             return drawerActionDeps(ctx).createExecSession({
-              connectionID: ctx.resource?.connectionID ?? '',
+              connectionID: ctx.resource?.route.connection ?? '',
               label: `${ctx.data?.metadata?.name}/${container.name}`,
               icon: 'LuContainer',
               opts: {
                 resource_plugin: 'kubernetes',
                 resource_data: ctx.data,
-                resource_key: ctx.resource?.key,
+                resource_key: ctx.resource?.reference.address.type,
                 params: { container: container.name },
               },
             }).then(() => drawerActionDeps(ctx).closeDrawer());
@@ -105,7 +97,7 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
           title: 'All Containers',
           action: () => {
             return drawerActionDeps(ctx).createLogSession({
-              connectionID: ctx.resource?.connectionID ?? '',
+              connectionID: ctx.resource?.route.connection ?? '',
               resourceKey,
               resourceID: ctx.data?.metadata?.name as string,
               resourceData: ctx.data as Record<string, unknown>,
@@ -123,7 +115,7 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
           title: container.name,
           action: () => {
             return drawerActionDeps(ctx).createLogSession({
-              connectionID: ctx.resource?.connectionID ?? '',
+              connectionID: ctx.resource?.route.connection ?? '',
               resourceKey,
               resourceID: ctx.data?.metadata?.name as string,
               resourceData: ctx.data as Record<string, unknown>,
@@ -140,7 +132,7 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
           title: `${container.name} (init)`,
           action: () => {
             return drawerActionDeps(ctx).createLogSession({
-              connectionID: ctx.resource?.connectionID ?? '',
+              connectionID: ctx.resource?.route.connection ?? '',
               resourceKey,
               resourceID: ctx.data?.metadata?.name as string,
               resourceData: ctx.data as Record<string, unknown>,
@@ -157,7 +149,7 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
           title: `${container.name} (ephemeral)`,
           action: () => {
             return drawerActionDeps(ctx).createLogSession({
-              connectionID: ctx.resource?.connectionID ?? '',
+              connectionID: ctx.resource?.route.connection ?? '',
               resourceKey,
               resourceID: ctx.data?.metadata?.name as string,
               resourceData: ctx.data as Record<string, unknown>,
@@ -190,17 +182,6 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
 /** Saves the Editor view's changes. */
 export const editorSubmit = (ctx: DrawerContext<Pod>, value: Record<string, unknown>) => {
   const deps = drawerActionDeps(ctx);
-  void deps
-    .update({
-      opts: {
-        connectionID: ctx.resource?.connectionID ?? '',
-        resourceKey,
-        resourceID: ctx.data?.metadata?.name as string,
-        namespace: ctx.data?.metadata?.namespace as string,
-      },
-      input: {
-        input: value,
-      },
-    })
+  void deps.mutate({ route: ctx.resource!.route, reference: ctx.resource!.reference, operation: 'update', input: jsonToValue(value), expectedRevision: ctx.resource?.record?.record.sourceRevision })
     .then(() => deps.closeDrawer());
 };

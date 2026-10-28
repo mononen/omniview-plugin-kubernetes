@@ -18,7 +18,7 @@ import { inclusionFilter } from '../../shared/filters';
 import { drawerActions, editorSubmit } from './actions';
 import DeploymentSidebar from './Sidebar';
 
-const resourceKey = 'apps::v1::Deployment';
+const resourceKey = 'k8s:apps/deployments';
 
 const DeploymentTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -143,7 +143,6 @@ const DeploymentTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
       toolbarFilters={[
         {

@@ -14,7 +14,7 @@ type ResourceSidebarContext = { pluginId: string; resourceKey: string; getCacheK
 
 const DefaultTable: React.FC = () => {
   const { id = '', resourceKey = '' } = useParams<{ id: string; resourceKey: string }>();
-  const key = resourceKey.replace(/_/g, '::');
+  const key = resourceKey;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const columns = React.useMemo<Array<ColumnDef<any>>>(
@@ -52,7 +52,6 @@ const DefaultTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={key}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );
