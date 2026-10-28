@@ -1,6 +1,8 @@
 import { Progress, Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import { type metric } from '@omniviewdev/runtime/models';
+import { PLUGIN_ID } from '@/pluginId';
+
 import { MetricsPanel } from '../../shared/charts';
 import type { TimeSeriesDef, ChartTimeRange } from '../../shared/charts';
 import React, { useState, useMemo, useCallback } from 'react';
@@ -181,7 +183,7 @@ const NodeMetricsSection: React.FC<Props> = ({
     isLoading: currentLoading,
     error,
   } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceKey,
     resourceID,
@@ -191,7 +193,7 @@ const NodeMetricsSection: React.FC<Props> = ({
 
   // Time-series data (shape=1 TIMESERIES)
   const { data: tsData, isLoading: tsLoading } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceKey,
     resourceID,

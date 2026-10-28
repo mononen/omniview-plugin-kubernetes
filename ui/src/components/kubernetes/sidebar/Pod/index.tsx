@@ -3,6 +3,8 @@ import { Stack } from '@omniviewdev/base-ui';
 import { Pod } from 'kubernetes-types/core/v1';
 import React from 'react';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 import MetadataSection from '../../../shared/sidebar/pages/overview/sections/MetadataSection';
 
 import PodConfigSection from './PodConfigSection';
@@ -22,7 +24,7 @@ export const PodSidebar: React.FC<Props> = ({ ctx }) => {
   // Fetch live CPU/memory metrics for this pod.
   // Request both metrics-server and Prometheus IDs — whichever is available responds.
   const { data: metricsData } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceKey: 'core::v1::Pod',
     resourceID,

@@ -2,6 +2,8 @@ import { type DrawerComponentAction, type DrawerContext, type DrawerComponentAct
 import type { Pod } from 'kubernetes-types/core/v1';
 import { LuBugPlay, LuLogs, LuScaling, LuTerminal, LuTrash } from 'react-icons/lu';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 import { drawerActionDeps } from '../../../../shared/drawer/actionDeps';
 
 const resourceKey = 'core::v1::Pod';
@@ -57,7 +59,7 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
               label: `${ctx.data?.metadata?.name}/${container.name}`,
               icon: 'LuContainer',
               opts: {
-                resource_plugin: 'kubernetes',
+                resource_plugin: PLUGIN_ID,
                 resource_data: ctx.data,
                 resource_key: ctx.resource?.key,
                 params: { container: container.name },
@@ -75,7 +77,7 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
               label: `${ctx.data?.metadata?.name}/${container.name}`,
               icon: 'LuContainer',
               opts: {
-                resource_plugin: 'kubernetes',
+                resource_plugin: PLUGIN_ID,
                 resource_data: ctx.data,
                 resource_key: ctx.resource?.key,
                 params: { container: container.name },

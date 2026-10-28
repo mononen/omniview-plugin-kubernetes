@@ -12,6 +12,7 @@ import { Outlet, useParams } from 'react-router-dom';
 
 import DraggableNavMenu from '../components/kubernetes/sidebar/DraggableNavMenu';
 import { useStoredState } from '@/hooks/useStoredState';
+import { PLUGIN_ID } from '@/pluginId';
 import { useKubernetesSearchNavigation } from '../search/provider';
 import SimpleTooltip from '../components/shared/SimpleTooltip';
 import SyncProgressDialog from '../components/shared/SyncProgressDialog';
@@ -80,10 +81,10 @@ const clusterNameStyle: React.CSSProperties = { textOverflow: 'ellipsis', overfl
 export default function ClusterResourcesPage(): React.ReactElement {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { types } = useResourceTypes({ pluginID: 'kubernetes', connectionID: id });
-  const { groups } = useResourceGroups({ pluginID: 'kubernetes', connectionID: id });
-  const { connection } = useConnection({ pluginID: 'kubernetes', connectionID: id });
-  const { connectionOverrides } = useClusterPreferences('kubernetes');
+  const { types } = useResourceTypes({ pluginID: PLUGIN_ID, connectionID: id });
+  const { groups } = useResourceGroups({ pluginID: PLUGIN_ID, connectionID: id });
+  const { connection } = useConnection({ pluginID: PLUGIN_ID, connectionID: id });
+  const { connectionOverrides } = useClusterPreferences(PLUGIN_ID);
   const { layout: rawLayout } = useSidebarLayout({ connectionID: id });
   const { order, setOrder, isEditing, setIsEditing, resetOrder } = useSidebarOrder();
   const clusterPages = useClusterPages();
@@ -125,10 +126,10 @@ export default function ClusterResourcesPage(): React.ReactElement {
     },
     [setSavedExpandedState],
   );
-  const { isFullySynced, summary } = useWatchState({ pluginID: 'kubernetes', connectionID: id });
+  const { isFullySynced, summary } = useWatchState({ pluginID: PLUGIN_ID, connectionID: id });
 
   // Fetch and register OpenAPI schemas with the host's Monaco schema registry
-  const { schemas: editorSchemas } = useEditorSchemas({ pluginID: 'kubernetes', connectionID: id });
+  const { schemas: editorSchemas } = useEditorSchemas({ pluginID: PLUGIN_ID, connectionID: id });
   React.useEffect(() => {
     // The Monaco schema registry is attached to window by the host app at runtime.
     // It exposes register/unregister methods for managing JSON schemas.
@@ -141,10 +142,10 @@ export default function ClusterResourcesPage(): React.ReactElement {
     const registry = win.__monacoSchemaRegistry;
     if (!registry || !editorSchemas?.length || !id) return;
 
-    registry.register('kubernetes', id, editorSchemas);
+    registry.register(PLUGIN_ID, id, editorSchemas);
 
     return () => {
-      registry.unregister('kubernetes', id);
+      registry.unregister(PLUGIN_ID, id);
     };
   }, [editorSchemas, id]);
 
@@ -236,7 +237,7 @@ export default function ClusterResourcesPage(): React.ReactElement {
         open={syncModalOpen === true}
         onClose={handleCloseSyncModal}
         clusterName={id}
-        pluginID="kubernetes"
+        pluginID={PLUGIN_ID}
         connectionID={id}
       />
     );
@@ -280,7 +281,7 @@ export default function ClusterResourcesPage(): React.ReactElement {
                   color="neutral"
                   aria-label="Find in this connection"
                   onClick={() => openGlobalSearch({ scope: {
-                    kind: 'connection', pluginId: 'kubernetes', connectionId: id, label: clusterName,
+                    kind: 'connection', pluginId: PLUGIN_ID, connectionId: id, label: clusterName,
                   } })}
                 >
                   <LuSearch size={16} />
@@ -338,7 +339,7 @@ export default function ClusterResourcesPage(): React.ReactElement {
         open={syncModalOpen === true}
         onClose={handleCloseSyncModal}
         clusterName={clusterName}
-        pluginID="kubernetes"
+        pluginID={PLUGIN_ID}
         connectionID={id}
       />
     </Layout.Root>
