@@ -140,7 +140,7 @@ const ResourceGraph: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
     [layout],
   );
 
-  if (isLoading) {
+  if (isLoading && !error) {
     return (
       <div style={centeredStyle}>
         <Spinner size="sm" />
