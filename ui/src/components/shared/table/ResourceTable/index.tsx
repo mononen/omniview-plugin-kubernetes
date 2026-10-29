@@ -15,6 +15,8 @@ import {
 import get from 'lodash.get';
 import React, { useMemo, useState } from 'react';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 const SKELETON_ROWS = Array.from({ length: 8 }, (_, i) => `skel-${i}`);
 
 /** Sorting, resizing and pinning UI come from DataTable.Header; the rest is ours. */
@@ -142,7 +144,7 @@ const ResourceTableContainer = <T extends RowData,>({
   const [filterOpen, setFilterOpen] = React.useState(false);
 
   const { resources, isSyncing } = useResources({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceKey,
     idAccessor: 'metadata.uid',
@@ -269,7 +271,7 @@ const ResourceTableContainer = <T extends RowData,>({
           name: (row.original as KubernetesResourceObject)?.metadata?.name ?? row.id,
           key: resourceKey,
           connectionID,
-          pluginID: 'kubernetes',
+          pluginID: PLUGIN_ID,
         },
       });
     },

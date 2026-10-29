@@ -27,6 +27,7 @@ export const useDynamicResourceColumns = <T extends RowData>({
     {},
   );
 
+
   React.useEffect(() => {
     if (!resources?.length) {
       // nothing to calculate
