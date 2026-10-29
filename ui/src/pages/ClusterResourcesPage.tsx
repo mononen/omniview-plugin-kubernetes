@@ -1,12 +1,14 @@
-import { Avatar, IconButton, Stack, Text } from '@omniviewdev/base-ui';
+import { Avatar, Button, IconButton, Stack, Text } from '@omniviewdev/base-ui';
 import { Link, useWatchState, openGlobalSearch,
   useConnection,
+  useConnectionStatus,
   useResourceTypes,
   useResourceGroups,
   useSnackbar,
   usePluginRouter,
   useEditorSchemas } from '@omniviewdev/runtime';
 import React from 'react';
+import { types as runtimeTypes } from '@omniviewdev/runtime/models';
 import { LuCog, LuLock, LuLockOpen, LuPuzzle, LuRotateCcw, LuSearch } from 'react-icons/lu';
 import { Outlet, useParams } from 'react-router-dom';
 
@@ -77,7 +79,82 @@ const mainContentStyle: React.CSSProperties = { display: 'flex', flexDirection: 
 
 const clusterNameStyle: React.CSSProperties = { textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' };
 
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null) {
+    if ('detail' in error && typeof error.detail === 'string') return error.detail;
+    if ('title' in error && typeof error.title === 'string') return error.title;
+  }
+  return typeof error === 'string' ? error : 'The request could not be completed.';
+}
+
+function RouteState({ title, detail, action, onAction }: {
+  title: string;
+  detail: string;
+  action?: string;
+  onAction?: () => void;
+}): React.ReactElement {
+  return (
+    <Stack direction="column" spacing={3} style={{ padding: 32 }} role="status">
+      <Text weight="semibold">{title}</Text>
+      <Text>{detail}</Text>
+      {action && onAction && <Button onClick={onAction}>{action}</Button>}
+    </Stack>
+  );
+}
+
 export default function ClusterResourcesPage(): React.ReactElement {
+  const { id = '' } = useParams<{ id: string }>();
+  return <ClusterRouteReadiness key={id} connectionID={id} />;
+}
+
+function ClusterRouteReadiness({ connectionID }: { connectionID: string }): React.ReactElement {
+  const { connection, startConnection } = useConnection({ pluginID: 'kubernetes', connectionID });
+  const { entries } = useConnectionStatus();
+  const entry = entries.find((item) => item.pluginID === 'kubernetes' && item.connectionID === connectionID);
+  const [connecting, setConnecting] = React.useState(false);
+  const [connectError, setConnectError] = React.useState<string>();
+  const connect = async () => {
+    setConnectError(undefined);
+    setConnecting(true);
+    try {
+      const result = await startConnection();
+      if (result.status !== runtimeTypes.ConnectionStatusCode.ConnectionStatusConnected) {
+        setConnectError(result.details || 'The cluster did not connect.');
+      }
+    } catch (error) {
+      setConnectError(errorMessage(error));
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  if (connection.isError) {
+    return <RouteState title="Cluster unavailable" detail={errorMessage(connection.error)}
+      action="Retry connection details" onAction={() => { void connection.refetch(); }} />;
+  }
+  if (connection.isLoading) {
+    return <RouteState title="Loading cluster" detail="Loading connection details." />;
+  }
+  if (!connection.data) {
+    return <RouteState title="Cluster not found" detail="This route has no available connection."
+      action="Retry connection details" onAction={() => { void connection.refetch(); }} />;
+  }
+  if (connecting || entry?.readiness === 'PENDING') {
+    return <RouteState title="Connecting to cluster" detail="Waiting for the native connection to become ready." />;
+  }
+  if (entry?.readiness !== 'CONNECTED' || entry.pluginFailed || entry.readinessError) {
+    const readiness = entry?.readiness ?? 'UNKNOWN';
+    return <RouteState title={readiness === 'DISCONNECTED' ? 'Cluster disconnected' : 'Cluster not ready'}
+      detail={connectError || entry?.pluginError || entry?.readinessError?.detail
+        || `Native connection state: ${readiness}. Connect explicitly to resume this resource route.`}
+      action="Connect" onAction={() => { void connect(); }} />;
+  }
+  return <ConnectedClusterResourcesPage />;
+}
+
+// Mount catalog, schema, and watch consumers only after native readiness is confirmed.
+function ConnectedClusterResourcesPage(): React.ReactElement {
   const { id = '' } = useParams<{ id: string }>();
 
   const { resourceTypes: types } = useResourceTypes({ pluginID: 'kubernetes', route: { connection: id } });
@@ -230,20 +307,18 @@ export default function ClusterResourcesPage(): React.ReactElement {
     });
   }, [showSnackbar]);
 
-  if (groups.isLoading || connection.isLoading || !groups.data || !connection.data) {
-    return (
-      <SyncProgressDialog
-        open={syncModalOpen === true}
-        onClose={handleCloseSyncModal}
-        clusterName={id}
-        pluginID="kubernetes"
-        connectionID={id}
-      />
-    );
+  if (connection.isError || groups.isError || types.isError) {
+    const error = connection.error || groups.error || types.error;
+    return <RouteState title="Unable to load cluster resources" detail={errorMessage(error)}
+      action="Retry resources" onAction={() => {
+        if (connection.isError) void connection.refetch();
+        if (groups.isError) void groups.refetch();
+        if (types.isError) void types.refetch();
+      }} />;
   }
 
-  if (groups.isError) {
-    return <>{types.error}</>;
+  if (groups.isLoading || types.isLoading || connection.isLoading || !groups.data || !types.data || !connection.data) {
+    return <RouteState title="Loading cluster resources" detail="Waiting for the resource catalog." />;
   }
 
   const clusterName = connectionOverrides[id]?.displayName || connection.data?.name || id;
