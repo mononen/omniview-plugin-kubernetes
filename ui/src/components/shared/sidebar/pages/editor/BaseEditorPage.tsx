@@ -1,5 +1,5 @@
 import { Button, Stack } from '@omniviewdev/base-ui';
-import { jsonToValue, valueToJSON, useResourceMutations, useResourceTypes, type DrawerContext } from '@omniviewdev/runtime';
+import { jsonToValue, valueToJSON, parseAppError, useResourceMutations, useResourceTypes, type DrawerContext } from '@omniviewdev/runtime';
 import React from 'react';
 import { LuFileCode, LuSave, LuX } from 'react-icons/lu';
 import { stringify, parse } from 'yaml';
@@ -57,25 +57,38 @@ const ResourceEditor: React.FC<{ data: KubernetesResourceObject; resource: Resou
     busy.current = true;
     setPending(true);
     setError(undefined);
+    let phase: 'prepare' | 'mutate' | 'receipt' = 'prepare';
     try {
       const parsed: unknown = parse(value, { intAsBigInt: true });
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
         throw new Error('Resource YAML must contain an object.');
       }
+      const input = jsonToValue(parsed);
+      phase = 'mutate';
       const result = await mutate({
         route: resource.route,
         reference: resource.reference,
         operation: 'update',
-        input: jsonToValue(parsed),
+        input,
         expectedRevision: revision.current,
       });
+      phase = 'receipt';
       if (!mounted.current) return;
       const next = stringify(valueToJSON(result.body));
       revision.current = result.sourceRevision;
       setBaseline(next);
       setValue(next);
     } catch (cause) {
-      if (mounted.current) setError(cause instanceof Error ? cause.message : String(cause));
+      if (mounted.current) {
+        if (phase === 'prepare') {
+          setError(cause instanceof Error ? cause.message : 'Resource YAML could not be converted.');
+        } else if (phase === 'receipt') {
+          setError('The resource was updated, but its returned document could not be displayed. Reopen the resource to load the saved document.');
+        } else {
+          const safe = parseAppError(cause);
+          setError(safe.detail || safe.title);
+        }
+      }
     } finally {
       busy.current = false;
       if (mounted.current) setPending(false);
