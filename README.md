@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://omniview.dev"><img src="https://img.shields.io/badge/omniview-plugin-326CE5?style=flat-square&logo=kubernetes&logoColor=white" alt="Omniview Plugin" /></a>
-  <img src="https://img.shields.io/badge/version-0.7.1-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-0.8.1-blue?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/license-Apache--2.0-green?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/category-cloud-326CE5?style=flat-square" alt="Category" />
 </p>
@@ -23,13 +23,64 @@ Resource icons come from the upstream [Kubernetes Icons Set](https://github.com/
 
 Native artwork is adapted to monochrome resource glyphs without blue badges and uses inherited `currentColor` in every theme. Trusted bundled SVG geometry is imported inline, so sidebar and search icons need no image requests or cross-origin asset URLs. Sanitized assets contain no scripts, embedded HTML, external references, or style URLs; regression tests enforce the geometry and attribute allowlists. Modification details remain in `NOTICE`.
 
+## Resource event and table performance
+
+Informer updates with the same nonempty resource version and the same UID, name,
+namespace, API version, and kind now stop before JSON encoding and watch delivery.
+Changed or empty versions and identity replacements still emit updates. Initial
+ADD replay remains intact.
+
+Resource tables discover label and annotation columns from their existing
+unfiltered resource result, without another resource subscription. Existing
+per-resource storage keys remain shared across connections. New keys start
+unselected; updates with no new keys preserve selection state and write nothing
+to localStorage. Combined table columns retain their reference until inputs change.
+
+Synthetic provider measurements for 300 representative pods: unchanged replay
+0.054 ms, zero encoded bytes and allocations; changed updates 7.442 ms,
+1,453,200 encoded bytes and approximately 6.63 MB allocations. These are different
+workloads on the new handler, not a native before/after CPU comparison. Warm
+informer List still serializes complete objects: 300 pods took 8.132 ms and
+1,452,900 bytes; 3,000 took 75.024 ms and 14,529,000 bytes with fake clients.
+
+These changes reduce provable event and storage work. They do not establish a
+reduction in the reported 53.5% Graphics and Media / 35.6% WebContent CPU on a
+300-pod connection. Native acceptance requires matched cluster, viewport, event
+rate, warmup, and repeated dashboard/table/hidden-view captures.
+
+Remaining work includes single-owner live ingestion, bounded transport batching,
+virtualized dashboard events, projected resource representations, and source
+paging with complete query membership and sorting. Do not truncate results or
+remove initial ADD replay without proving List/watch handoff correctness.
+[FreeLens watch ownership](https://github.com/freelensapp/freelens/blob/0c8f34ac6c5fe6546e25c7591abe335c8ca2b689/packages/core/src/renderer/kube-watch-api/kube-watch-api.ts#L107-L196)
+and its [virtual list](https://github.com/freelensapp/freelens/blob/0c8f34ac6c5fe6546e25c7591abe335c8ca2b689/packages/core/src/renderer/components/virtual-list/virtual-list.tsx#L46-L123)
+provide source references, not measured performance parity.
+
+Regression checks:
+
+```bash
+cd ui
+pnpm exec vitest run src/components/tables/ColumnFilter/useDynamicResourceColumns.test.tsx
+cd ..
+GOWORK=off go test ./pkg/plugin/resource/resourcers -count=1
+GOWORK=off go test ./pkg/plugin/resource/resourcers -run '^$' -bench 'Benchmark(MakeEventHandler|Base_ListRepresentativePods)' -benchmem
+```
+
+The hook regression includes a zero-storage-write smoke check for unchanged keys
+and empty results. Release 0.8.1 consumes the published runtime 0.9.1 reducer fix
+through the `~0.9.1` dependency range and its matching pnpm lock entry.
+
+## Connection route encoding
+
+Cluster IDs are opaque values, including EKS ARNs containing `/`. Encode the ID with `encodeURIComponent` whenever constructing `/cluster/:id` links, including resource navigation, dashboard shortcuts, and connection settings. React Router returns decoded parameters; encode them again when constructing a new URL. Do not encode the entire path or decode an ID before inserting it into a path.
+
 ## Local audit evidence fixture
 
 `hack/history-audit.mjs` creates a separate, randomly named local kind sandbox.
 It does not connect Omniview history, provide historical reads, or resolve the
 blocked production query/evaluator gates.
 
-Requirements: Node.js 20+, `kubectl` compatible with Kubernetes 1.32, kind
+Requirements: Node.js 26.13.0, `kubectl` compatible with Kubernetes 1.32, kind
 **v0.27.0**, and a running local Docker engine using a Unix-socket Docker context.
 Unset `DOCKER_HOST` and `DOCKER_CONTEXT`; remote Docker endpoints are refused.
 Docker must permit bind mounts from the chosen directory. The node image is
@@ -187,7 +238,7 @@ Every resource type gets a dedicated, sortable table with:
 
 ### Scoped Command Search
 
-Requires Omniview 0.7.4 or later in the compatible 0.7.x cohort for the shared search and resource-icon runtime contracts.
+Kubernetes plugin 0.8.0 requires Omniview 0.9.0 in the compatible 0.9.x producer cohort for live-Pod debug recovery, asynchronous resource actions, and the shared search and resource-icon runtime contracts. Its standalone frontend pins published `@omniviewdev/runtime` and `@omniviewdev/vite-plugin` 0.9.0, `@omniviewdev/base-ui` 0.8.0, and `@omniviewdev/editors` 6.1.0 in `ui/package.json` and `ui/pnpm-lock.yaml`. Update Omniview before updating the Kubernetes plugin; the plugin's minor version is independent of the host version.
 
 Cmd/Ctrl-K opens Omniview's single global search surface, including on Kubernetes pages. Type a connection name and press Tab to scope it, then scope a resource type and resource. Enter opens the selected destination or existing action. The sidebar's **Find in this connection** control opens that same surface with a visible connection chip.
 
@@ -227,10 +278,48 @@ Exec into any running container directly from the resource table. The plugin han
 
 - Multi-container pods with container selection
 - Intelligent shell detection (`bash` > `sh` > `ash`)
-- Distroless image fallback with debug containers
+- Explicit distroless recovery with targeted ephemeral containers
 - Node-level shell access via ephemeral debug pods
 - Terminal resize support
 - SPDY and WebSocket protocol fallback
+
+### Live Pod Debug
+
+Use **Debug** beside Exec and Logs in a Pod header. One running application
+container opens a toolbox shell immediately; multiple containers show a
+names-only target picker. No shell is required in the application image.
+The command palette exposes the same **Debug: container** actions after scoping
+to a Pod, including when its details drawer is closed.
+Named targets remain pinned when other containers start or stop; a vanished
+target never redirects the action to another container.
+
+**Debug options** is secondary: choose a template or image, then expand
+**Customize** only when needed. Its controls use `@omniviewdev/base-ui`.
+Genuine missing-shell Exec errors offer **Debug this container**; other Exec
+errors do not inject a debugger automatically. Node shell remains a separate
+Node action.
+
+The toolbox shares Pod networking and requests the selected container's process
+namespace. Runtime support controls process visibility. Its root filesystem,
+environment, user and trust store remain separate. `/proc/PID/root` inspection
+also depends on permissions; the plugin does not automatically chroot, mount
+credentials or elevate privileges.
+
+The restricted default runs as UID 1000, drops all capabilities and disables
+privilege escalation. Network-admin and privileged profiles require explicit
+confirmation on every launch and remain subject to admission policy.
+Required feature permissions are `get` on `pods`, `update` on
+`pods/ephemeralcontainers`, and `get` plus `create` on `pods/attach` for the two
+streaming transports.
+
+Debug sessions retain their original Pod UID and exact container name.
+Image failures show the actual waiting reason; inspect status before opening
+a terminal. Reconnect attaches an existing running debugger rather than adding
+another container. Completed entries cannot restart or reconnect. Closing a
+terminal does not remove an ephemeral container, and Kubernetes does not allow
+editing or deleting individual ephemeral entries. Correcting an image requires
+an explicit new launch. An unconfirmed creation blocks duplicate submissions
+until status can establish its outcome.
 
 ### Log Viewer
 
@@ -307,6 +396,34 @@ The plugin automatically discovers clusters from your `~/.kube/config` file. You
 - Set namespace restrictions per connection
 - Configure node shell image and command overrides
 
+### Debug templates and defaults
+
+Open **Templates & defaults** from the Pod's secondary Debug options. Shell
+(`busybox:1.37.0`) and Network toolbox (`nicolaka/netshoot:v0.14`) are immutable
+starters: duplicate them to customize. Custom templates support a unique name,
+image, JSON argv array, access profile, image pull policy and explicitly entered
+non-secret environment values. Customize starts collapsed. Do not store secrets:
+template values are ordinary plugin preferences, not a secret store.
+Per-launch drafts reset when the Pod, target or resolved default changes.
+Existing-volume mounts require canonical absolute paths; validation errors stay
+beside the mount field before any creation request.
+
+Templates and the all-cluster default persist in the plugin Data Store under
+`debug_templates`. A cluster stores only its chosen template ID in its existing
+connection-ID-keyed preferences (`cluster_overrides.debugDefaultTemplateId`).
+The cluster choice wins over the all-cluster choice, then built-in Shell.
+**Inherit all-cluster default** follows later parent changes rather than copying
+the current image. Missing or invalid selections show an error and resolve to
+restricted Shell.
+
+**Save template** does not select a default or launch a container. **Save default**
+persists the scope's selection separately. Cancel discards template drafts;
+persistence errors remain visible without reporting success. Changes affect
+future launches only. Pod identity, target container and volume bindings are
+never template fields. An elevated saved template or default never authorizes
+an elevated launch: each invocation still requires fresh confirmation and remains
+subject to Kubernetes authorization and admission policy.
+
 ### Prometheus Integration
 
 To enable advanced metrics, configure a Prometheus endpoint in the cluster settings. The plugin will query Prometheus for time-series data and display it alongside metrics-server data.
@@ -314,6 +431,8 @@ To enable advanced metrics, configure a Prometheus endpoint in the cluster setti
 ## Development
 
 Resource-toolbar Create, search, filter and settings controls should consistently request `size="sm"` and rely on the shared density scale rather than fixed pixel heights. The host supplies shared `@omniviewdev/base-ui`, so shared styling fixes reach the plugin through the host's library release.
+
+Resource tables set horizontal cell padding on the table root so header checkboxes, body checkboxes, and loading skeletons share the same inset. Keep the 30px row height and zero vertical cell padding scoped to the body; the header retains the shared library's height and interactions. The shared `@omniviewdev/base-ui` DataTable owns sticky selection and action column behavior.
 
 ### Invocation SDK contract
 
@@ -343,13 +462,15 @@ rather than adding unsupported manifest fields.
 ### Prerequisites
 
 - Go 1.25+
-- Node.js 22+
+- Node.js 26.13.0
 - pnpm 12.14.0 (pinned by `ui/package.json`)
 
 Registry installs retain pnpm's 24-hour release-age protection. Only coordinated
 `@omniviewdev/*` packages are exempted; linked source worktrees resolve locally.
-The current UI cohort is `@omniviewdev/base-ui` 0.7.1 and
-`@omniviewdev/editors` 6.0.1, paired with host/runtime/Vite plugin 0.7.4 and Go SDK v0.7.1.
+The current UI cohort is `@omniviewdev/base-ui` 0.8.0 and
+`@omniviewdev/editors` 6.1.0, paired with host/runtime/Vite plugin 0.9.0 and Go SDK v0.7.1.
+Debug preferences discard unsaved drafts when reopened or switched to another
+connection, but preserve active drafts when saved defaults refresh.
 
 ### Building
 
@@ -375,6 +496,30 @@ cd ui && pnpm test
 
 UI persistence tests use the test document's real JSDOM storage, including on
 Node versions that also expose process-global Web Storage.
+
+### Frontend lint contract
+
+ESLint 10 retains type-aware typescript-eslint checks through the JavaScript
+TypeScript 6 API (`typescript` aliases `@typescript/typescript6`), while `tsc`
+uses the native TypeScript 7 compiler. Do not suppress unsupported-version warnings.
+React checks map explicitly to `@eslint-react`; import and accessibility checks
+use `import-x` and `jsx-a11y-x`. Current React Hooks/compiler diagnostics cover
+compiled sources without enabling a broader React preset.
+
+React Compiler owns value and component memoization. The obsolete react-perf
+allocation heuristic is not retained; it would recommend manual memoization and
+legacy `sx` workarounds in compiler-optimized code. Correctness and compiler lints
+remain enabled. The local nested-component adapter preserves `allowAsProps: true`
+for table render callbacks; the JSX text check retains unescaped-entity diagnostics.
+TypeScript handles duplicate/undefined JSX props, string refs, removed `isMounted`,
+and invalid class render return types. Existing prop-types/display-name allowances
+remain unchanged.
+
+Run local rule regressions from the plugin root:
+
+```sh
+node --test ui/scripts/eslint/*.test.mjs
+```
 
 
 ### Isolated workspace development
@@ -451,7 +596,7 @@ dependencies without a sibling checkout or workspace replacements. Local
 `go.work` files are not release inputs: development SDK selection belongs to the
 host's isolated workspace, and direct Go commands must use `GOWORK=off GOFLAGS=`.
 
-The reusable marketplace workflow uses Go 1.25, Node.js 22 and native pnpm
+The reusable marketplace workflow uses Go 1.25, Node.js 26.13.0 and native pnpm
 12.14.0, then builds five platform archives. `OMNIVIEW_API_KEY` must authorize
 publisher `omniview` on `https://api.omniview.dev`.
 The publisher action submits the version for review; a successful workflow does

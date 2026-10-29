@@ -1,14 +1,5 @@
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import type { metric } from '@omniviewdev/runtime/models';
-import { PLUGIN_ID } from '@/pluginId';
-
-import { MetricsPanel } from '../../../../components/shared/charts';
-import type {
-  TimeSeriesDef,
-  ChartTimeRange,
-  MetricFormat,
-  ChartAnnotation,
-} from '../../../../components/shared/charts';
 import React, { useMemo } from 'react';
 import {
   LuCpu,
@@ -18,6 +9,16 @@ import {
   LuActivity,
   LuRotateCcw,
 } from 'react-icons/lu';
+
+import { MetricsPanel } from '../../../../components/shared/charts';
+import type {
+  TimeSeriesDef,
+  ChartTimeRange,
+  MetricFormat,
+  ChartAnnotation,
+} from '../../../../components/shared/charts';
+
+import { PLUGIN_ID } from '@/pluginId';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,7 +101,7 @@ function toTimeSeriesDef(
     id: ts.metric_id,
     label,
     data: (ts.data_points ?? []).map((dp) => ({
-      timestamp: new Date(dp.timestamp as unknown as string).getTime(),
+      timestamp: new Date(dp.timestamp).getTime(),
       value: dp.value,
     })),
     color,

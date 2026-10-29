@@ -8,18 +8,19 @@ import { Link, useWatchState, openGlobalSearch,
   useEditorSchemas } from '@omniviewdev/runtime';
 import React from 'react';
 import { LuCog, LuLock, LuLockOpen, LuPuzzle, LuRotateCcw, LuSearch } from 'react-icons/lu';
-import { Outlet, useParams } from 'react-router-dom';
+import { Outlet, useParams } from 'react-router';
 
 import DraggableNavMenu from '../components/kubernetes/sidebar/DraggableNavMenu';
-import { useStoredState } from '@/hooks/useStoredState';
-import { PLUGIN_ID } from '@/pluginId';
-import { useKubernetesSearchNavigation } from '../search/provider';
 import SimpleTooltip from '../components/shared/SimpleTooltip';
 import SyncProgressDialog from '../components/shared/SyncProgressDialog';
 import { useClusterPreferences } from '../hooks/useClusterPreferences';
 import { useSidebarLayout } from '../hooks/useSidebarLayout';
 import { useSidebarOrder, applyOrder } from '../hooks/useSidebarOrder';
 import Layout from '../layouts/resource';
+import { useKubernetesSearchNavigation } from '../search/provider';
+import { getInitials } from '../utils/avatarUtils';
+import { stringToColor } from '../utils/color';
+
 import {
   CLUSTER_PAGE_PREFIX,
   clusterPageChildren,
@@ -27,8 +28,10 @@ import {
   clusterPagePath,
   useClusterPages,
 } from './extension';
-import { getInitials } from '../utils/avatarUtils';
-import { stringToColor } from '../utils/color';
+
+import { useStoredState } from '@/hooks/useStoredState';
+import { PLUGIN_ID } from '@/pluginId';
+
 
 const rootStyle: React.CSSProperties = { padding: 0, gap: 0 };
 
@@ -80,6 +83,10 @@ const clusterNameStyle: React.CSSProperties = { textOverflow: 'ellipsis', overfl
 
 export default function ClusterResourcesPage(): React.ReactElement {
   const { id = '' } = useParams<{ id: string }>();
+  return <ClusterResourcesSession key={id} id={id} />;
+}
+
+function ClusterResourcesSession({ id }: { id: string }): React.ReactElement {
 
   const { types } = useResourceTypes({ pluginID: PLUGIN_ID, connectionID: id });
   const { groups } = useResourceGroups({ pluginID: PLUGIN_ID, connectionID: id });
@@ -152,36 +159,25 @@ export default function ClusterResourcesPage(): React.ReactElement {
   // eslint-disable-next-line @typescript-eslint/unbound-method
   const { showSnackbar } = useSnackbar();
 
-  // Sync modal — open only when we know the connection is actively syncing,
-  // not before data has loaded. `undefined` = "haven't decided yet".
-  const [syncModalOpen, setSyncModalOpen] = React.useState<boolean | undefined>(undefined);
+  // Each connection decides once after its initial summary arrives.
+  const [syncModalMode, setSyncModalMode] = React.useState<
+    'pending' | 'auto' | 'manual' | 'closed'
+  >('pending');
+  if (syncModalMode === 'pending' && summary.data) {
+    setSyncModalMode(isFullySynced ? 'closed' : 'auto');
+  }
+  const syncModalOpen = syncModalMode === 'auto' || syncModalMode === 'manual';
 
-  // Track whether the modal was opened manually (e.g. footer Details click)
-  // so we don't auto-close it.
-  const manualOpenRef = React.useRef(false);
-
-  // Once summary data loads, decide whether to show the modal
+  // Preserve the completion grace period for automatically opened dialogs.
   React.useEffect(() => {
-    if (syncModalOpen !== undefined) return; // already decided
-    if (!summary.data) return; // data not loaded yet — don't decide
-    if (!isFullySynced) {
-      setSyncModalOpen(true);
-    } else {
-      setSyncModalOpen(false);
-    }
-  }, [summary.data, isFullySynced, syncModalOpen]);
-
-  // Auto-close after sync completes — only when auto-opened (not user-initiated)
-  React.useEffect(() => {
-    if (isFullySynced && syncModalOpen === true && !manualOpenRef.current) {
-      const timer = setTimeout(() => setSyncModalOpen(false), 1500);
+    if (isFullySynced && syncModalMode === 'auto') {
+      const timer = setTimeout(() => setSyncModalMode('closed'), 1500);
       return () => clearTimeout(timer);
     }
-  }, [isFullySynced, syncModalOpen]);
+  }, [isFullySynced, syncModalMode]);
 
   const handleCloseSyncModal = React.useCallback(() => {
-    manualOpenRef.current = false;
-    setSyncModalOpen(false);
+    setSyncModalMode('closed');
   }, []);
 
   // Listen for footer click to re-open sync modal
@@ -189,8 +185,7 @@ export default function ClusterResourcesPage(): React.ReactElement {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ connectionID?: string }>).detail;
       if (detail?.connectionID === id) {
-        manualOpenRef.current = true;
-        setSyncModalOpen(true);
+        setSyncModalMode('manual');
       }
     };
     window.addEventListener('ov:show-sync-modal', handler);
@@ -211,9 +206,9 @@ export default function ClusterResourcesPage(): React.ReactElement {
   const handleSelect = React.useCallback(
     (resourceID: string) => {
       if (resourceID === '__dashboard__') {
-        navigate(`/cluster/${id}/resources`);
+        navigate(`/cluster/${encodeURIComponent(id)}/resources`);
       } else {
-        navigate(`/cluster/${id}/resources/${resourceID}`);
+        navigate(`/cluster/${encodeURIComponent(id)}/resources/${resourceID}`);
       }
     },
     [navigate, id],
@@ -311,7 +306,7 @@ export default function ClusterResourcesPage(): React.ReactElement {
                   {isEditing ? <LuLockOpen size={16} /> : <LuLock size={16} />}
                 </IconButton>
               </SimpleTooltip>
-              <Link to={`/cluster/${id}/edit`}>
+              <Link to={`/cluster/${encodeURIComponent(id)}/edit`}>
                 <IconButton variant="soft" size="sm" color="neutral" aria-label="Cluster settings">
                   <LuCog size={20} />
                 </IconButton>

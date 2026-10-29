@@ -1,16 +1,17 @@
-import { DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
 import { Stack } from '@omniviewdev/base-ui';
+import { DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
 import { Pod } from 'kubernetes-types/core/v1';
 import React from 'react';
 
-import { PLUGIN_ID } from '@/pluginId';
-
+import DebugSessionsSection from '../../../../features/debug/DebugSessionsSection';
 import MetadataSection from '../../../shared/sidebar/pages/overview/sections/MetadataSection';
 
 import PodConfigSection from './PodConfigSection';
 import PodContainersSection from './PodContainersSection';
 import PodStatusSection from './PodStatusSection';
 import PodVolumesSection from './PodVolumesSection';
+
+import { PLUGIN_ID } from '@/pluginId';
 
 interface Props {
   ctx: DrawerContext<Pod>;
@@ -77,6 +78,7 @@ export const PodSidebar: React.FC<Props> = ({ ctx }) => {
         <PodStatusSection pod={pod} connectionID={connectionID} />
         <PodConfigSection pod={pod} connectionID={connectionID} />
       </Stack>
+      <DebugSessionsSection connectionID={connectionID} pod={pod} />
 
       {/* Containers — separated by section heading */}
       <PodContainersSection

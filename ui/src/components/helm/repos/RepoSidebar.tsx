@@ -242,14 +242,14 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
               key={chart.id ?? chart.name ?? ''}
               className={styles.chartCard}
               variant="outline"
-              onClick={() =>
-                showResourceSidebar({
+              onClick={() => {
+                void showResourceSidebar({
                   pluginID: PLUGIN_ID,
                   connectionID,
                   resourceKey: 'helm::v1::Chart',
                   resourceID: chart.id ?? '',
-                })
-              }
+                });
+              }}
             >
               <Stack direction="row" spacing={3} align="start">
                 <ChartIcon icon={chart.icon} name={chart.name ?? ''} />

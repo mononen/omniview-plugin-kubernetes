@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -6,7 +7,7 @@ import { Pod } from 'kubernetes-types/core/v1';
 import { Condition, OwnerReference } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuContainer } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { PLUGIN_ID } from '@/pluginId';
 
@@ -47,7 +48,7 @@ const PodTable: React.FC = () => {
    * Handler to go ahead and submit a resource change
    */
 
-  const columns = React.useMemo<Array<ColumnDef<Pod>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, Pod>>>(
     () =>
       withNamespacedResourceColumns(
         [
@@ -86,7 +87,7 @@ const PodTable: React.FC = () => {
             id: 'controlledBy',
             header: 'Controlled By',
             accessorKey: 'metadata.ownerReferences',
-            filterFn: ownerRefFilter as FilterFn<Pod>,
+            filterFn: ownerRefFilter as FilterFn<DataTableFeatures, Pod>,
             cell: ({ getValue, row }) => {
               const refs = getValue() as Array<OwnerReference> | undefined;
               if (refs == null || refs.length === 0) {
@@ -123,7 +124,7 @@ const PodTable: React.FC = () => {
             id: 'node',
             header: 'Node',
             accessorKey: 'spec.nodeName',
-            filterFn: inclusionFilter as FilterFn<Pod>,
+            filterFn: inclusionFilter as FilterFn<DataTableFeatures, Pod>,
             size: 150,
             cell: ({ getValue }) => (
               <ResourceLinkCell
