@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 
 import NamespaceSelect from './NamespaceSelect';
 
@@ -134,7 +134,8 @@ describe('NamespaceSelect', () => {
     renderNs(['earlier-page-namespace']);
     expect(screen.getByText('earlier-page-namespace')).toBeInTheDocument();
     expect(paging.nextPage).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    const namespacePages = screen.getByRole('group', { name: /^Namespaces source pages;/ });
+    fireEvent.click(within(namespacePages).getByRole('button', { name: 'Namespaces: next page' }));
     expect(paging.nextPage).toHaveBeenCalledWith('namespace-source-cursor');
   });
 });
