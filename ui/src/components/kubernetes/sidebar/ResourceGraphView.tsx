@@ -1,6 +1,6 @@
 import { EmptyState, Spinner, Text } from '@omniviewdev/base-ui';
 import type { DrawerContext } from '@omniviewdev/runtime';
-import { relationshipLabel, useResourceGraph, useRightDrawer } from '@omniviewdev/runtime';
+import { parseAppError, relationshipLabel, useResourceGraph, useRightDrawer } from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
 import React, { useMemo, useState } from 'react';
 import { LuNetwork } from 'react-icons/lu';
@@ -154,12 +154,12 @@ const ResourceGraph: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
         size="sm"
         icon={<LuNetwork />}
         title="Could not load the resource graph"
-        description={error instanceof Error ? error.message : String(error)}
+        description={parseAppError(error).detail}
       />
     );
   }
 
-  if (!graph || !layout || layout.edges.length === 0) {
+  if (!graph || !layout) {
     return (
       <EmptyState
         size="sm"
