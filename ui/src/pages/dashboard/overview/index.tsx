@@ -26,6 +26,7 @@ const pageStyle: React.CSSProperties = {
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
+  minHeight: 0,
 };
 
 // EventsTable scrolls its own list, so the frame clips instead of adding a
@@ -37,10 +38,10 @@ const eventsContainerStyle: React.CSSProperties = {
   borderRadius: 4,
 };
 
-/** Six equal columns (MUI Grid md=2 of 12). */
+/** Keep cards wide enough for source controls, wrapping into rows as needed. */
 const workloadGridStyle: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
 };
 
@@ -142,7 +143,7 @@ const ClusterDashboardOverviewPage: React.FC = () => {
 
   return (
     <div style={pageStyle}>
-      <Stack direction="column" spacing={3}>
+      <Stack direction="column" spacing={3} style={{ flexShrink: 0, minWidth: 0 }}>
         {/* Cluster info + health status */}
         <ClusterInfoCard
           // Connection.data is Record<string, any> from the runtime; cast to the expected shape
@@ -152,11 +153,20 @@ const ClusterDashboardOverviewPage: React.FC = () => {
           pods={allPods}
           events={allEvents}
         />
-        <SourcePageControls {...pods.pageControls} label="Health pods" />
-        <SourcePageControls {...nodes.pageControls} label="Health nodes" />
+        <details>
+          <summary style={{ cursor: 'pointer', color: 'var(--ov-color-fg-muted)', fontSize: 'var(--ov-font-size-xs)' }}>
+            Health source pages · pods {pods.pageControls.pagination.pageNumber} · nodes {nodes.pageControls.pagination.pageNumber}
+            {(pods.pageControls.error || nodes.pageControls.error) ? ' · page request failed' : ''}
+            {(pods.pageControls.membershipStale || nodes.pageControls.membershipStale) ? ' · refresh needed' : ''}
+          </summary>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, paddingTop: 8 }}>
+            <SourcePageControls {...pods.pageControls} label="Health pods" compact />
+            <SourcePageControls {...nodes.pageControls} label="Health nodes" compact />
+          </div>
+        </details>
 
         {/* Namespace filter */}
-        <Stack direction="row" align="center" spacing={2}>
+        <Stack direction="row" align="center" spacing={2} style={{ flexWrap: 'wrap', minWidth: 0 }}>
           <Text size="sm" tone="muted">
             Namespace:
           </Text>
@@ -164,6 +174,9 @@ const ClusterDashboardOverviewPage: React.FC = () => {
         </Stack>
 
         {/* Workload summary cards — each owns its own useResources hook */}
+        <Text size="xs" tone="muted">
+          Each summary uses its own source page. Totals are unknown; filters apply only to that page.
+        </Text>
         <div style={workloadGridStyle}>
           <PodStatCard connectionID={id} namespaces={namespaces} onClick={goToPods} />
           <DeploymentStatCard connectionID={id} namespaces={namespaces} onClick={goToDeployments} />
@@ -204,7 +217,7 @@ const ClusterDashboardOverviewPage: React.FC = () => {
           <Text weight="semibold" size="sm">
             Events on this page ({allEvents.length})
           </Text>
-          <SourcePageControls {...events.pageControls} label="Events" />
+          <SourcePageControls {...events.pageControls} label="Events" compact />
           <div style={eventsContainerStyle}>
             <EventsTable events={allEvents} loading={events.isLoading} connectionID={id} />
           </div>

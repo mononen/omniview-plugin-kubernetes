@@ -72,7 +72,6 @@ export const PodStatCard = React.memo(function PodStatCard({
   }, [pods.bodies, namespaces]);
 
   return (
-    <div>
     <WorkloadSummaryCard
       title="Pods on this page"
       icon={ICON_POD}
@@ -80,9 +79,8 @@ export const PodStatCard = React.memo(function PodStatCard({
       statuses={stats.statuses}
       loading={pods.isLoading}
       onClick={onClick}
+      footer={<SourcePageControls {...pods.pageControls} label="Pods" compact />}
     />
-      <SourcePageControls {...pods.pageControls} label="Pods" />
-    </div>
   );
 });
 
@@ -116,7 +114,6 @@ export const DeploymentStatCard = React.memo(function DeploymentStatCard({
   }, [deployments.bodies, namespaces]);
 
   return (
-    <div>
     <WorkloadSummaryCard
       title="Deployments on this page"
       icon={ICON_DEPLOY}
@@ -124,9 +121,8 @@ export const DeploymentStatCard = React.memo(function DeploymentStatCard({
       statuses={stats.statuses}
       loading={deployments.isLoading}
       onClick={onClick}
+      footer={<SourcePageControls {...deployments.pageControls} label="Deployments" compact />}
     />
-      <SourcePageControls {...deployments.pageControls} label="Deployments" />
-    </div>
   );
 });
 
@@ -160,7 +156,6 @@ export const StatefulSetStatCard = React.memo(function StatefulSetStatCard({
   }, [statefulSets.bodies, namespaces]);
 
   return (
-    <div>
     <WorkloadSummaryCard
       title="StatefulSets on this page"
       icon={ICON_STS}
@@ -168,9 +163,8 @@ export const StatefulSetStatCard = React.memo(function StatefulSetStatCard({
       statuses={stats.statuses}
       loading={statefulSets.isLoading}
       onClick={onClick}
+      footer={<SourcePageControls {...statefulSets.pageControls} label="StatefulSets" compact />}
     />
-      <SourcePageControls {...statefulSets.pageControls} label="StatefulSets" />
-    </div>
   );
 });
 
@@ -204,7 +198,6 @@ export const DaemonSetStatCard = React.memo(function DaemonSetStatCard({
   }, [daemonSets.bodies, namespaces]);
 
   return (
-    <div>
     <WorkloadSummaryCard
       title="DaemonSets on this page"
       icon={ICON_DS}
@@ -212,9 +205,8 @@ export const DaemonSetStatCard = React.memo(function DaemonSetStatCard({
       statuses={stats.statuses}
       loading={daemonSets.isLoading}
       onClick={onClick}
+      footer={<SourcePageControls {...daemonSets.pageControls} label="DaemonSets" compact />}
     />
-      <SourcePageControls {...daemonSets.pageControls} label="DaemonSets" />
-    </div>
   );
 });
 
@@ -253,7 +245,6 @@ export const JobStatCard = React.memo(function JobStatCard({
   }, [jobs.bodies, namespaces]);
 
   return (
-    <div>
     <WorkloadSummaryCard
       title="Jobs on this page"
       icon={ICON_JOB}
@@ -261,9 +252,8 @@ export const JobStatCard = React.memo(function JobStatCard({
       statuses={stats.statuses}
       loading={jobs.isLoading}
       onClick={onClick}
+      footer={<SourcePageControls {...jobs.pageControls} label="Jobs" compact />}
     />
-      <SourcePageControls {...jobs.pageControls} label="Jobs" />
-    </div>
   );
 });
 
@@ -295,7 +285,6 @@ export const CronJobStatCard = React.memo(function CronJobStatCard({
   }, [cronJobs.bodies, namespaces]);
 
   return (
-    <div>
     <WorkloadSummaryCard
       title="CronJobs on this page"
       icon={ICON_CRONJOB}
@@ -303,8 +292,7 @@ export const CronJobStatCard = React.memo(function CronJobStatCard({
       statuses={stats.statuses}
       loading={cronJobs.isLoading}
       onClick={onClick}
+      footer={<SourcePageControls {...cronJobs.pageControls} label="CronJobs" compact />}
     />
-      <SourcePageControls {...cronJobs.pageControls} label="CronJobs" />
-    </div>
   );
 });
