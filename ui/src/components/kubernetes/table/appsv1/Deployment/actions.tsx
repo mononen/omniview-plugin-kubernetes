@@ -1,4 +1,4 @@
-import { jsonToValue, type DrawerComponentAction, type DrawerContext, type DrawerComponentActionListItem } from '@omniviewdev/runtime'
+import { type DrawerComponentAction, type DrawerComponentActionListItem } from '@omniviewdev/runtime'
 import type { Deployment } from 'kubernetes-types/apps/v1';
 import { LuLogs, LuPause, LuPlay, LuRefreshCw, LuScaling, LuTrash } from 'react-icons/lu';
 
@@ -163,9 +163,3 @@ export const drawerActions: Array<DrawerComponentAction<Deployment>> = [
   },
 ];
 
-/** Saves the Editor view's changes. */
-export const editorSubmit = (ctx: DrawerContext<Deployment>, value: Record<string, unknown>) => {
-  const deps = drawerActionDeps(ctx);
-  void deps.mutate({ route: ctx.resource!.route, reference: ctx.resource!.reference, operation: 'update', input: jsonToValue(value), expectedRevision: ctx.resource?.record?.record.sourceRevision })
-    .then(() => deps.closeDrawer());
-};

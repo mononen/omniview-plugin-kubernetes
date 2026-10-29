@@ -19,7 +19,7 @@ import { CopyableCell } from '../../shared/cells/CopyableCell';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 import { inclusionFilter, ownerRefFilter } from '../../shared/filters';
 
-import { drawerActions, editorSubmit } from './actions';
+import { drawerActions } from './actions';
 import ContainerPhaseCell from './cells/ContainerPhaseCell';
 import ContainerStatusCell from './cells/ContainerStatusCell';
 import MetricUsageCell, { PodMetricsContext } from './cells/MetricUsageCell';
@@ -252,7 +252,7 @@ const PodTable: React.FC = () => {
     () => ({
       title: resourceKey, // TODO: change runtime sdk to accept a function
       icon: <LuContainer />,
-      views: createStandardViews({ SidebarComponent: PodSidebar, onEditorSubmit: editorSubmit }),
+      views: createStandardViews({ SidebarComponent: PodSidebar }),
       actions: drawerActions,
     }),
     [],

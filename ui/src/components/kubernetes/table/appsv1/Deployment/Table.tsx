@@ -15,7 +15,7 @@ import ConditionsCell from '../../shared/cells/ConditionsCell';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 import { inclusionFilter } from '../../shared/filters';
 
-import { drawerActions, editorSubmit } from './actions';
+import { drawerActions } from './actions';
 import DeploymentSidebar from './Sidebar';
 
 const resourceKey = 'k8s:apps/deployments';
@@ -132,7 +132,7 @@ const DeploymentTable: React.FC = () => {
     () => ({
       title: resourceKey,
       icon: <LuScaling />,
-      views: createStandardViews({ SidebarComponent: DeploymentSidebar, onEditorSubmit: editorSubmit }),
+      views: createStandardViews({ SidebarComponent: DeploymentSidebar }),
       actions: drawerActions,
     }),
     [],

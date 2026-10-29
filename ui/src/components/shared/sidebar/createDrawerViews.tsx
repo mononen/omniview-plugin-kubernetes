@@ -21,9 +21,8 @@ import { createMetricsView } from './pages/metrics/ResourceMetricsPage';
  */
 export function createStandardViews<T = KubernetesResourceObject>(opts: {
   SidebarComponent: React.FC<{ ctx: DrawerContext<T> }>;
-  onEditorSubmit?: (ctx: DrawerContext<T>, value: Record<string, unknown>) => void;
 }): Array<DrawerComponentView<T>> {
-  const { SidebarComponent, onEditorSubmit } = opts;
+  const { SidebarComponent } = opts;
 
   const views: Array<DrawerComponentView<T>> = [
     {
@@ -50,15 +49,7 @@ export function createStandardViews<T = KubernetesResourceObject>(opts: {
     {
       title: 'Editor',
       icon: <LuCode />,
-      component: onEditorSubmit
-        ? (ctx) => (
-            <BaseEditorPage
-              data={ctx.data as KubernetesResourceObject}
-              resourceKey={ctx.resource?.reference.address.type}
-              onSubmit={(val) => onEditorSubmit(ctx, val)}
-            />
-          )
-        : (ctx) => <BaseEditorPage data={ctx.data as KubernetesResourceObject} resourceKey={ctx.resource?.reference.address.type} />,
+      component: (ctx) => <BaseEditorPage ctx={ctx as DrawerContext<KubernetesResourceObject>} />,
     },
   ];
 
