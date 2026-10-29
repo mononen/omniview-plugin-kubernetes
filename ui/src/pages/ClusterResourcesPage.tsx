@@ -1,6 +1,7 @@
 import { Avatar, Button, IconButton, Stack, Text } from '@omniviewdev/base-ui';
 import { Link, useWatchState, openGlobalSearch,
   useConnection,
+  useConnectionStatus,
   useResourceTypes,
   useResourceGroups,
   useSnackbar,
@@ -8,9 +9,6 @@ import { Link, useWatchState, openGlobalSearch,
   parseAppError,
   useEditorSchemas } from '@omniviewdev/runtime';
 import React from 'react';
-import { ResourceClient } from '@omniviewdev/runtime/api';
-import { useQuery } from '@tanstack/react-query';
-import { Events } from '@wailsio/runtime';
 import { types as runtimeTypes } from '@omniviewdev/runtime/models';
 import { LuCog, LuLock, LuLockOpen, LuPuzzle, LuRotateCcw, LuSearch } from 'react-icons/lu';
 import { Outlet, useParams } from 'react-router-dom';
@@ -110,19 +108,8 @@ export default function ClusterResourcesPage(): React.ReactElement {
 function ClusterRouteReadiness({ connectionID }: { connectionID: string }): React.ReactElement {
   // Metadata does not establish native readiness and must not block explicit recovery.
   const { startConnection } = useConnection({ pluginID: 'kubernetes', connectionID, enabled: false });
-  const readiness = useQuery({
-    queryKey: ['kubernetes', 'route-readiness', connectionID],
-    queryFn: () => ResourceClient.GetAllConnectionStates(),
-    retry: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
-  const entry = readiness.data?.kubernetes?.find((item) => item.connection.id === connectionID);
-  React.useEffect(() => Events.On('connection/status', (event) => {
-    if (event.data.pluginID !== 'kubernetes' || event.data.connectionID !== connectionID) return;
-    // A lifecycle event may refresh a successful snapshot, never retry a denied query.
-    if (!readiness.isError) void readiness.refetch();
-  }), [connectionID, readiness.isError, readiness.refetch]);
+  const readiness = useConnectionStatus();
+  const entry = readiness.entries.find((item) => item.pluginID === 'kubernetes' && item.connectionID === connectionID);
   const [connecting, setConnecting] = React.useState(false);
   const [connectError, setConnectError] = React.useState<string>();
   const connect = async () => {
@@ -133,7 +120,7 @@ function ClusterRouteReadiness({ connectionID }: { connectionID: string }): Reac
       if (result.status !== runtimeTypes.ConnectionStatusCode.ConnectionStatusConnected) {
         setConnectError(result.details || 'The cluster did not connect.');
       }
-      await readiness.refetch();
+      await readiness.refresh();
     } catch (error) {
       setConnectError(errorMessage(error));
     } finally {
@@ -141,9 +128,9 @@ function ClusterRouteReadiness({ connectionID }: { connectionID: string }): Reac
     }
   };
 
-  if (readiness.isError) {
+  if (readiness.error) {
     return <RouteState title="Unable to read cluster readiness" detail={errorMessage(readiness.error)}
-      action="Retry readiness" onAction={() => { void readiness.refetch(); }} />;
+      action="Retry readiness" onAction={() => { void readiness.refresh(); }} />;
   }
   if (readiness.isLoading) {
     return <RouteState title="Loading cluster readiness" detail="Reading native connection state." />;
@@ -151,10 +138,11 @@ function ClusterRouteReadiness({ connectionID }: { connectionID: string }): Reac
   if (connecting || entry?.readiness === 'PENDING') {
     return <RouteState title="Connecting to cluster" detail="Waiting for the native connection to become ready." />;
   }
-  if (entry?.readiness !== 'CONNECTED' || entry.readinessError) {
+  if (entry?.readiness !== 'CONNECTED' || entry.pluginFailed || entry.readinessError) {
     const state = entry?.readiness ?? 'UNKNOWN';
     return <RouteState title={state === 'DISCONNECTED' ? 'Cluster disconnected' : 'Cluster not ready'}
-      detail={connectError || (entry?.readinessError ? errorMessage(entry.readinessError) : undefined)
+      detail={connectError || (entry?.pluginError ? errorMessage(entry.pluginError) : undefined)
+        || (entry?.readinessError ? errorMessage(entry.readinessError) : undefined)
         || `Native connection state: ${state}. Connect explicitly to resume this resource route.`}
       action="Connect" onAction={() => { void connect(); }} />;
   }
