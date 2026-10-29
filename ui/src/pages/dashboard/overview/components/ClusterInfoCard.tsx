@@ -8,12 +8,14 @@ const statLabelStyle: React.CSSProperties = { fontWeight: 600 };
 
 const cardRowStyle: React.CSSProperties = {
   paddingBlock: 6,
+  flexWrap: 'wrap',
+  gap: 8,
   borderBottom: '1px solid var(--ov-color-border-muted)',
 };
 
-const statListStyle: React.CSSProperties = { minWidth: 0 };
+const statListStyle: React.CSSProperties = { minWidth: 0, flexWrap: 'wrap', rowGap: 6 };
 
-const healthChipStyle: React.CSSProperties = { flexShrink: 0, marginLeft: 12 };
+const healthChipStyle: React.CSSProperties = { flexShrink: 0, maxWidth: '100%' };
 
 const emptyValueStyle: React.CSSProperties = { fontStyle: 'italic' };
 
