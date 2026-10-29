@@ -92,6 +92,7 @@ const ResourceEditor: React.FC<{ data: KubernetesResourceObject; resource: Resou
         diff={usingDiff}
         original={baseline}
         value={value}
+        readOnly={pending}
         onChange={(next) => { if (!busy.current) setValue(next); }}
         language="yaml"
         filename={`${resource.reference.address.id}/spec.yaml`}
