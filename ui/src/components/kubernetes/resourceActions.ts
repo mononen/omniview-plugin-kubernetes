@@ -1,6 +1,7 @@
 import type { DrawerContext, DrawerComponentAction } from '@omniviewdev/runtime';
 
 import { bindDrawerActionDeps, type DrawerActionDeps } from '../shared/drawer/actionDeps';
+
 import { resourceDrawerActions } from './drawerActions';
 
 export type KubernetesActionTarget = {
@@ -65,6 +66,7 @@ export function executeKubernetesAction(
   const action = resolveKubernetesActions(target, deps).find((candidate) => candidate.id === id);
   if (!action) throw new Error('Kubernetes action is no longer available');
   if (action.items) {
+    if (!itemID && action.items.length === 1 && action.execute) return action.execute();
     const item = action.items.find((candidate) => candidate.id === itemID);
     if (!item) throw new Error('Choose an available Kubernetes action target');
     return item.execute();
