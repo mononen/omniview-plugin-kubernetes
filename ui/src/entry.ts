@@ -117,7 +117,7 @@ import { createStandardViews } from './components/shared/sidebar/createDrawerVie
 import GenericResourceSidebar from './components/shared/sidebar/GenericResourceSidebar';
 import { kubernetesResourceIconSet } from './icons/resourceIcons';
 import ClusterEditPage from './pages/ClusterEditPage';
-import ClusterResourcesPage from './pages/ClusterResourcesPage';
+import ClusterResourcesRoute from './pages/ClusterResourcesRoute';
 import ClustersPage from './pages/ClustersPage';
 import ClusterDashboardPage from './pages/dashboard';
 import ClusterDashboardBenchmarksPage from './pages/dashboard/benchmarks';
@@ -295,7 +295,7 @@ const routes: Array<RouteObject> = [
       },
       {
         path: 'resources',
-        Component: ClusterResourcesPage,
+        Component: ClusterResourcesRoute,
         handle: connectionSearchHandle,
         children: [
           {
