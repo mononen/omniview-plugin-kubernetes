@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://omniview.dev"><img src="https://img.shields.io/badge/omniview-plugin-326CE5?style=flat-square&logo=kubernetes&logoColor=white" alt="Omniview Plugin" /></a>
-  <img src="https://img.shields.io/badge/version-0.7.3-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-0.8.0-blue?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/license-Apache--2.0-green?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/category-cloud-326CE5?style=flat-square" alt="Category" />
 </p>
@@ -29,7 +29,7 @@ Native artwork is adapted to monochrome resource glyphs without blue badges and 
 It does not connect Omniview history, provide historical reads, or resolve the
 blocked production query/evaluator gates.
 
-Requirements: Node.js 20+, `kubectl` compatible with Kubernetes 1.32, kind
+Requirements: Node.js 26.13.0, `kubectl` compatible with Kubernetes 1.32, kind
 **v0.27.0**, and a running local Docker engine using a Unix-socket Docker context.
 Unset `DOCKER_HOST` and `DOCKER_CONTEXT`; remote Docker endpoints are refused.
 Docker must permit bind mounts from the chosen directory. The node image is
@@ -187,7 +187,7 @@ Every resource type gets a dedicated, sortable table with:
 
 ### Scoped Command Search
 
-Requires Omniview 0.8.2 or later in the compatible 0.8.x cohort for live-Pod debug recovery, asynchronous resource actions, and the shared search and resource-icon runtime contracts. Update Omniview before updating the Kubernetes plugin.
+Kubernetes plugin 0.8.0 requires Omniview 0.9.0 in the compatible 0.9.x producer cohort for live-Pod debug recovery, asynchronous resource actions, and the shared search and resource-icon runtime contracts. Its standalone frontend pins published `@omniviewdev/runtime` and `@omniviewdev/vite-plugin` 0.9.0, `@omniviewdev/base-ui` 0.8.0, and `@omniviewdev/editors` 6.1.0 in `ui/package.json` and `ui/pnpm-lock.yaml`. Update Omniview before updating the Kubernetes plugin; the plugin's minor version is independent of the host version.
 
 Cmd/Ctrl-K opens Omniview's single global search surface, including on Kubernetes pages. Type a connection name and press Tab to scope it, then scope a resource type and resource. Enter opens the selected destination or existing action. The sidebar's **Find in this connection** control opens that same surface with a visible connection chip.
 
@@ -411,13 +411,15 @@ rather than adding unsupported manifest fields.
 ### Prerequisites
 
 - Go 1.25+
-- Node.js 22+
+- Node.js 26.13.0
 - pnpm 12.14.0 (pinned by `ui/package.json`)
 
 Registry installs retain pnpm's 24-hour release-age protection. Only coordinated
 `@omniviewdev/*` packages are exempted; linked source worktrees resolve locally.
-The current UI cohort is `@omniviewdev/base-ui` 0.7.2 and
-`@omniviewdev/editors` 6.0.2, paired with host/runtime/Vite plugin 0.8.2 and Go SDK v0.7.1.
+The current UI cohort is `@omniviewdev/base-ui` 0.8.0 and
+`@omniviewdev/editors` 6.1.0, paired with host/runtime/Vite plugin 0.9.0 and Go SDK v0.7.1.
+Debug preferences discard unsaved drafts when reopened or switched to another
+connection, but preserve active drafts when saved defaults refresh.
 
 ### Building
 
@@ -443,6 +445,30 @@ cd ui && pnpm test
 
 UI persistence tests use the test document's real JSDOM storage, including on
 Node versions that also expose process-global Web Storage.
+
+### Frontend lint contract
+
+ESLint 10 retains type-aware typescript-eslint checks through the JavaScript
+TypeScript 6 API (`typescript` aliases `@typescript/typescript6`), while `tsc`
+uses the native TypeScript 7 compiler. Do not suppress unsupported-version warnings.
+React checks map explicitly to `@eslint-react`; import and accessibility checks
+use `import-x` and `jsx-a11y-x`. Current React Hooks/compiler diagnostics cover
+compiled sources without enabling a broader React preset.
+
+React Compiler owns value and component memoization. The obsolete react-perf
+allocation heuristic is not retained; it would recommend manual memoization and
+legacy `sx` workarounds in compiler-optimized code. Correctness and compiler lints
+remain enabled. The local nested-component adapter preserves `allowAsProps: true`
+for table render callbacks; the JSX text check retains unescaped-entity diagnostics.
+TypeScript handles duplicate/undefined JSX props, string refs, removed `isMounted`,
+and invalid class render return types. Existing prop-types/display-name allowances
+remain unchanged.
+
+Run local rule regressions from the plugin root:
+
+```sh
+node --test ui/scripts/eslint/*.test.mjs
+```
 
 
 ### Isolated workspace development
@@ -519,7 +545,7 @@ dependencies without a sibling checkout or workspace replacements. Local
 `go.work` files are not release inputs: development SDK selection belongs to the
 host's isolated workspace, and direct Go commands must use `GOWORK=off GOFLAGS=`.
 
-The reusable marketplace workflow uses Go 1.25, Node.js 22 and native pnpm
+The reusable marketplace workflow uses Go 1.25, Node.js 26.13.0 and native pnpm
 12.14.0, then builds five platform archives. `OMNIVIEW_API_KEY` must authorize
 publisher `omniview` on `https://api.omniview.dev`.
 The publisher action submits the version for review; a successful workflow does

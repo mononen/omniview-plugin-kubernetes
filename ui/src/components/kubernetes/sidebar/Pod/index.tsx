@@ -1,15 +1,15 @@
-import { DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
 import { Stack } from '@omniviewdev/base-ui';
+import { DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
 import { Pod } from 'kubernetes-types/core/v1';
 import React from 'react';
 
+import DebugSessionsSection from '../../../../features/debug/DebugSessionsSection';
 import MetadataSection from '../../../shared/sidebar/pages/overview/sections/MetadataSection';
 
 import PodConfigSection from './PodConfigSection';
 import PodContainersSection from './PodContainersSection';
 import PodStatusSection from './PodStatusSection';
 import PodVolumesSection from './PodVolumesSection';
-import DebugSessionsSection from '../../../../features/debug/DebugSessionsSection';
 
 interface Props {
   ctx: DrawerContext<Pod>;
