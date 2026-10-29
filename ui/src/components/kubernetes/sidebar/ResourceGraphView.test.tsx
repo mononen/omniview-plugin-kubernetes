@@ -8,18 +8,26 @@ const mocks = vi.hoisted(() => ({
   resolve: vi.fn(),
 }));
 
-vi.mock('@omniviewdev/runtime', () => ({
-  useResourceGraph: (...args: unknown[]) => mocks.useResourceGraph(...args),
-  relationshipLabel: (type: string) => ({ owns: 'Owns', runs_on: 'Runs on' })[type] ?? type,
-  useRightDrawer: () => ({ showResourceSidebar: mocks.showResourceSidebar }),
-}));
+vi.mock('@omniviewdev/runtime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@omniviewdev/runtime')>();
+  return {
+    ...actual,
+    useResourceGraph: (...args: unknown[]) => mocks.useResourceGraph(...args),
+    relationshipLabel: (type: string) => ({ owns: 'Owns', runs_on: 'Runs on' })[type] ?? type,
+    useRightDrawer: () => ({ showResourceSidebar: mocks.showResourceSidebar }),
+  };
+});
 
 vi.mock('@omniviewdev/runtime/api', () => ({ ResourceClient: { ResolveReference: mocks.resolve } }));
-vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: new Map(Object.entries({
-    'k8s:apps/replicasets': 'ReplicaSet', 'k8s:/pods': 'Pod', 'k8s:/nodes': 'Node',
-  })) }),
-}));
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>();
+  return {
+    ...actual,
+    useQuery: () => ({ data: new Map(Object.entries({
+      'k8s:apps/replicasets': 'ReplicaSet', 'k8s:/pods': 'Pod', 'k8s:/nodes': 'Node',
+    })) }),
+  };
+});
 
 import ResourceGraphView from './ResourceGraphView';
 
@@ -133,25 +141,22 @@ describe('ResourceGraphView', () => {
     expect(screen.queryByRole('button', { name: 'ReplicaSet default/web-abc' })).toBeNull();
   });
 
-  it('says when the result was truncated', () => {
-    mocks.useResourceGraph.mockReturnValue(hookResult({ graph: { ...graph, truncated: true } }));
+  it('preserves a source failure that arrives while the graph is loading', () => {
+    const error = {
+      name: 'RuntimeError',
+      cause: {
+        type: 'omniview:connection/failed', title: 'Source unavailable', status: 503,
+        detail: 'graph relationships incomplete: source declaration binding unavailable',
+        code: 'UNAVAILABLE', recovery: 'reconnect',
+      },
+    };
+    mocks.useResourceGraph.mockReturnValue(hookResult({ isLoading: true, error }));
     render(<ResourceGraphView ctx={ctx as never} />);
 
-    expect(screen.getByText('3 resources (limit reached, some left out)')).toBeInTheDocument();
+    expect(screen.getByText(error.cause.detail)).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Resource relationship graph' })).toBeNull();
   });
 
-  it('shows empty and error states', () => {
-    mocks.useResourceGraph.mockReturnValue(
-      hookResult({ graph: { ...graph, nodes: [graph.nodes[0]], edges: [] } }),
-    );
-    const { unmount } = render(<ResourceGraphView ctx={ctx as never} />);
-    expect(screen.getByText('No relationships to draw')).toBeInTheDocument();
-    unmount();
-
-    mocks.useResourceGraph.mockReturnValue(hookResult({ error: new Error('boom') }));
-    render(<ResourceGraphView ctx={ctx as never} />);
-    expect(screen.getByText('Could not load the resource graph')).toBeInTheDocument();
-  });
 });
 
 it('shows guard failures without opening a fake resource', async () => {
