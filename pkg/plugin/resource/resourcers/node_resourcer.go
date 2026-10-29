@@ -115,7 +115,7 @@ func (n *NodeResourcer) GetActions(
 			Dangerous:   true,
 			ParamsSchema: &resource.Schema{
 				Properties: map[string]resource.SchemaProperty{
-					"gracePeriodSeconds": {Type: resource.SchemaInteger, Default: 30, Description: "Seconds to wait for graceful termination"},
+					"gracePeriodSeconds": {Type: resource.SchemaInteger, Default: 30, Description: "Seconds to wait for graceful termination; -1 uses each pod's native termination grace period"},
 					"ignoreDaemonSets":   {Type: resource.SchemaBoolean, Default: true, Description: "Ignore DaemonSet-managed pods"},
 					"deleteEmptyDirData": {Type: resource.SchemaBoolean, Default: true, Description: "Delete pods using emptyDir volumes"},
 					"force":              {Type: resource.SchemaBoolean, Default: false, Description: "Force-delete pods that fail eviction"},
@@ -224,7 +224,7 @@ func (n *NodeResourcer) executeCordon(
 	})
 }
 
-// executeDrain evicts all non-DaemonSet, non-mirror pods from the node, then cordons it.
+// executeDrain cordons the node, then evicts all non-DaemonSet, non-mirror pods.
 func (n *NodeResourcer) executeDrain(
 	ctx context.Context,
 	client *clients.ClientSet,
@@ -238,10 +238,16 @@ func (n *NodeResourcer) executeDrain(
 	gracePeriod := int64(30)
 	if v, ok := params["gracePeriodSeconds"]; ok {
 		var err error
-		gracePeriod, err = nativeActionInteger(v, 0, 9223372036854775807)
+		gracePeriod, err = nativeActionInteger(v, -1, math.MaxInt64)
 		if err != nil {
 			return resource.Value{}, fmt.Errorf("gracePeriodSeconds: %w", err)
 		}
+	}
+	// Kubernetes uses each pod's terminationGracePeriodSeconds when this option
+	// is absent. Only -1 selects that behavior; other negatives remain invalid.
+	var nativeGracePeriod *int64
+	if gracePeriod != -1 {
+		nativeGracePeriod = &gracePeriod
 	}
 	ignoreDaemonSets := true
 	if v, ok := params["ignoreDaemonSets"].(bool); ok {
@@ -299,7 +305,7 @@ func (n *NodeResourcer) executeDrain(
 				Namespace: pod.Namespace,
 			},
 			DeleteOptions: &metav1.DeleteOptions{
-				GracePeriodSeconds: &gracePeriod,
+				GracePeriodSeconds: nativeGracePeriod,
 				Preconditions:      nativePodUIDPreconditions(pod),
 			},
 		}

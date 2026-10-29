@@ -65,13 +65,14 @@ export const drawerActions: Array<DrawerComponentAction<Node>> = [
         body: (
           <span>
             This will evict all pods from the node and cordon it. DaemonSet-managed pods will
-            be ignored.
+            be ignored. Each pod keeps its own termination grace period.
           </span>
         ),
         confirmLabel: 'Drain',
         cancelLabel: 'Cancel',
         onConfirm: async () => {
           await drawerActionDeps(ctx).executeAction({ route: ctx.resource!.route, reference: ctx.resource!.reference, action: 'drain', input: jsonToValue({
+            // -1 leaves Kubernetes eviction grace unset, preserving each pod's default.
             gracePeriodSeconds: -1,
             ignoreDaemonSets: true,
             deleteEmptyDirData: true,

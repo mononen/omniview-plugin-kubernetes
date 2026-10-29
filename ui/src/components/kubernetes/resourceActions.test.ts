@@ -84,6 +84,33 @@ describe('standalone Kubernetes actions', () => {
     expect(resolveKubernetesActions(object, deps()).some((action) => action.title === 'Resize')).toBe(false);
   });
 
+  it('dispatches the node drawer drain with canonical pod-default grace', async () => {
+    const handlers = { ...deps(), executeAction: vi.fn().mockResolvedValue({}) };
+    const object = target('k8s:/nodes');
+    object.resource.reference.address.scope = [];
+    object.data.metadata!.namespace = undefined;
+    const drain = resolveKubernetesActions(object, handlers).find((entry) => entry.title === 'Drain')!;
+    executeKubernetesAction(object, handlers, drain.id);
+    expect(handlers.executeAction).not.toHaveBeenCalled();
+    const confirmation = vi.mocked(handlers.show).mock.calls[0][0] as { onConfirm: () => Promise<void> };
+    await confirmation.onConfirm();
+    expect(handlers.executeAction).toHaveBeenCalledTimes(1);
+    expect(handlers.executeAction).toHaveBeenCalledWith({
+      route: object.resource.route,
+      reference: object.resource.reference,
+      action: 'drain',
+      input: {
+        kind: 'map',
+        value: {
+          gracePeriodSeconds: { kind: 'int64', value: '-1' },
+          ignoreDaemonSets: { kind: 'bool', value: true },
+          deleteEmptyDirData: { kind: 'bool', value: true },
+          force: { kind: 'bool', value: false },
+        },
+      },
+    });
+  });
+
   it('preserves confirmation and propagates rejected delete without closing drawer', async () => {
     const handlers = { ...deps(), mutate: vi.fn().mockRejectedValue(new Error('Forbidden')) };
     const object = target();

@@ -2,6 +2,7 @@ package resourcers
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -11,9 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 // newNodeResourcer creates a NodeResourcer for testing.
@@ -188,6 +191,71 @@ func TestNodeResourcer_Uncordon(t *testing.T) {
 }
 
 // ===================== Drain =====================
+
+func TestNodeResourcer_Drain_GracePeriodOptions(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value *resource.Value
+		want  *int64
+	}{
+		{name: "drawer pod defaults", value: &resource.Value{Kind: "int64", Int: "-1"}},
+		{name: "absent retains thirty seconds", want: ptrInt64(30)},
+		{name: "immediate", value: &resource.Value{Kind: "int64", Int: "0"}, want: ptrInt64(0)},
+		{name: "explicit", value: &resource.Value{Kind: "int64", Int: "45"}, want: ptrInt64(45)},
+		{name: "maximum", value: &resource.Value{Kind: "int64", Int: "9223372036854775807"}, want: ptrInt64(9223372036854775807)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pod := testPodOnNode("app", "default", "worker")
+			pod.UID = "pod-uid"
+			pod.Spec.TerminationGracePeriodSeconds = ptrInt64(75)
+			cs := newNodeClientSet(testNode("worker"), pod)
+			var eviction *policyv1.Eviction
+			cs.KubeClient.(*fake.Clientset).PrependReactor("create", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+				require.Equal(t, "eviction", action.GetSubresource())
+				eviction = action.(k8stesting.CreateAction).GetObject().(*policyv1.Eviction)
+				return true, eviction, nil
+			})
+			request := workloadActionRequest("drain", "worker", "", nil)
+			request.Reference.Address.Type = "k8s:/nodes"
+			uid := "node-uid"
+			request.Reference.Incarnation = &uid
+			// This is the actual jsonToValue drawer payload, including tagged -1.
+			require.NoError(t, json.Unmarshal([]byte(`{"kind":"map","value":{"gracePeriodSeconds":{"kind":"int64","value":"-1"},"ignoreDaemonSets":{"kind":"bool","value":true},"deleteEmptyDirData":{"kind":"bool","value":true},"force":{"kind":"bool","value":false}}}`), &request.Input))
+			if tc.value == nil {
+				delete(request.Input.Map, "gracePeriodSeconds")
+			} else {
+				request.Input.Map["gracePeriodSeconds"] = *tc.value
+			}
+
+			result, err := newTestNodeResourcer().ExecuteAction(context.Background(), cs, request)
+			require.NoError(t, err)
+			require.True(t, result.Map["success"].Bool)
+			require.NotNil(t, eviction)
+			require.NotNil(t, eviction.DeleteOptions)
+			assert.Equal(t, tc.want, eviction.DeleteOptions.GracePeriodSeconds)
+			require.NotNil(t, eviction.DeleteOptions.Preconditions)
+			assert.Equal(t, pod.UID, *eviction.DeleteOptions.Preconditions.UID)
+			patch := cs.KubeClient.(*fake.Clientset).Actions()[0].(k8stesting.PatchAction)
+			assert.JSONEq(t, `{"metadata":{"uid":"node-uid"},"spec":{"unschedulable":true}}`, string(patch.GetPatch()))
+		})
+	}
+}
+
+func TestNodeResourcer_Drain_InvalidGraceNeverAcquiresNativeClient(t *testing.T) {
+	for _, value := range []resource.Value{
+		{Kind: "int64", Int: "-2"},
+		{Kind: "int64", Int: "-9223372036854775808"},
+		{Kind: "uint64", Uint: "9223372036854775808"},
+		{Kind: "double", Double: -1.5},
+	} {
+		request := workloadActionRequest("drain", "worker", "", nil)
+		request.Input = resource.Value{Kind: "map", Map: map[string]resource.Value{"gracePeriodSeconds": value}}
+		_, err := newTestNodeResourcer().ExecuteAction(context.Background(), nil, request)
+		require.ErrorContains(t, err, "gracePeriodSeconds")
+	}
+}
+
+func ptrInt64(value int64) *int64 { return &value }
 
 func TestNodeResourcer_Drain_EvictsPods(t *testing.T) {
 	node := testNode("drain-node")
