@@ -128,25 +128,25 @@ export default function ClusterResourcesPage(): React.ReactElement {
   const { isFullySynced, summary } = useWatchState({ pluginID: 'kubernetes', route: { connection: id } });
 
   // Fetch and register OpenAPI schemas with the host's Monaco schema registry
-  const { schemas: editorSchemas } = useEditorSchemas({ pluginID: 'kubernetes', route: { connection: id } });
+  const { schemas: editorSchemas, documents: editorSchemaDocuments } = useEditorSchemas({ pluginID: 'kubernetes', route: { connection: id } });
   React.useEffect(() => {
     // The Monaco schema registry is attached to window by the host app at runtime.
     // It exposes register/unregister methods for managing JSON schemas.
     const win = window as Window & {
       __monacoSchemaRegistry?: {
-        register: (plugin: string, connId: string, schemas: typeof editorSchemas) => void;
+        register: (plugin: string, connId: string, schemas: typeof editorSchemas, documents: typeof editorSchemaDocuments) => void;
         unregister: (plugin: string, connId: string) => void;
       };
     };
     const registry = win.__monacoSchemaRegistry;
     if (!registry || !editorSchemas?.length || !id) return;
 
-    registry.register('kubernetes', id, editorSchemas);
+    registry.register('kubernetes', id, editorSchemas, editorSchemaDocuments);
 
     return () => {
       registry.unregister('kubernetes', id);
     };
-  }, [editorSchemas, id]);
+  }, [editorSchemas, editorSchemaDocuments, id]);
 
   // eslint-disable-next-line @typescript-eslint/unbound-method
   const { showSnackbar } = useSnackbar();
