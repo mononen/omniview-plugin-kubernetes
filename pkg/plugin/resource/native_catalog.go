@@ -108,10 +108,13 @@ func discoverNativeTypes(ctx context.Context, client discovery.DiscoveryInterfac
 			if verbSliceContains(api.Verbs, "list") {
 				capabilities = append(capabilities, resourcev2.Capability{Operation: resourcev2.OperationEnumerate, Scope: scope})
 			}
-			// Mutation support is declared only when at least one native verb
-			// exists. Dispatch checks the selected mutation verb separately.
-			if verbSliceContains(api.Verbs, "create") || verbSliceContains(api.Verbs, "update") || verbSliceContains(api.Verbs, "delete") {
-				capabilities = append(capabilities, resourcev2.Capability{Operation: resourcev2.OperationMutation, Scope: scope})
+			for _, mutation := range []struct {
+				verb      string
+				operation resourcev2.Operation
+			}{{"create", resourcev2.OperationCreate}, {"update", resourcev2.OperationMutationUpdate}, {"delete", resourcev2.OperationDelete}} {
+				if verbSliceContains(api.Verbs, mutation.verb) {
+					capabilities = append(capabilities, resourcev2.Capability{Operation: mutation.operation, Scope: scope})
+				}
 			}
 			result[token] = nativeType{
 				GVR: gvr,

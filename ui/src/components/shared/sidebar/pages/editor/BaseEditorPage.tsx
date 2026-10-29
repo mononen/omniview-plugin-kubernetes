@@ -24,7 +24,7 @@ const ResourceEditor: React.FC<{ data: KubernetesResourceObject; resource: Resou
   const { mutate } = useResourceMutations({ pluginID: resource.pluginID });
   const { resourceTypes } = useResourceTypes({ pluginID: resource.pluginID, route: resource.route });
   const descriptor = resourceTypes.data?.find((type) => type.type === resource.reference.address.type);
-  const canUpdate = descriptor?.capabilities.some((capability) => capability.operation === 'mutation'
+  const canUpdate = descriptor?.capabilities.some((capability) => capability.operation === 'mutationUpdate'
     && capability.scope.every((constraint) => constraint.match === 'any'
       || resource.reference.address.scope.some((entry) => entry.dimension === constraint.dimension && constraint.values.includes(entry.value))));
   const [baseline, setBaseline] = React.useState(() => stringify(data));

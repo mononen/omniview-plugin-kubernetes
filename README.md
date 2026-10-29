@@ -41,6 +41,8 @@ While another source page is pending or fails, the last successfully acquired pa
 
 Repository chart drawers resolve the selected native repository before pagination through the chart Type's declared `repository` query dimension. Chart identity remains `helm:charts` with native opaque ID and only `domain=helm-client` identity scope; repository is not another identity field. Only configured repository bindings participate, and unrelated indexes are not loaded for a repository-scoped page.
 
+Valid empty `oneOf` selections for Helm release namespaces, repository domains, or chart repositories return an empty source page before any native or filesystem acquisition. Empty selections never become unscoped queries; pages retain explicit coverage and best-effort consistency without continuation.
+
 Existing informer updates remain explicitly **bestEffort**. Cache readiness does not prove an atomic snapshot, replay, gap-free delivery, or P05 source continuity. Native `{namespace,GVR}` acquisitions are shared only while consumers remain; the final consumer stops the underlying LIST/WATCH and releases its cache. Connection teardown stops all remaining sources.
 
 OpenAPI documents are read once per group/version, bounded to 16 MiB, and shared by document reference plus exact local root. One provider-wide 32 MiB retained-schema budget covers every connection; exhausted entries are unavailable, not incorrectly absent, and resource Get remains independent. Replacement, failed acquisition, and teardown release the cache budget; queued acquisition is cancellable. Available, absent, and unavailable schemas remain distinct; raw OpenAPI transport does not claim P07 normalization or full validation. Editor metadata also forwards installed Helm chart `values.schema.json` roles with native acquisition errors intact. Creation can use a schema-derived template or a complete pasted native manifest.
@@ -64,6 +66,8 @@ Resource-scoped terminals, logs, metrics, and port forwarding carry original tag
 Metric queries and subscriptions use the SDK's sole connected-generation lease, never a stopped profile or first-connection fallback. Canonical connection retirement evicts native metric clients, detection results, proxy-failure state, and SPDY tunnels; pending work cannot publish into a later generation, and unrelated connections remain active. Helm configurations are operation-local rather than cached: HTTP-only Helm clients reuse the existing bounded TLS/exec/EKS transport, merging RPC cancellation with the source connection lifetime without mutating shared clients or reimplementing Helm storage.
 
 The old mandatory CRUD/Find registration generator and public resource DTO stack are retired. The owned kind/history audit fixture below is unchanged. Helm release enumeration is bounded through native Secret/ConfigMap storage; other Helm storage drivers are not advertised as bounded enumeration sources.
+
+Node drain accepts `gracePeriodSeconds: -1` to leave Kubernetes eviction grace unset, preserving each pod's native termination grace period. The drawer sends that sentinel explicitly. Omitting the parameter retains the 30-second action default; zero requests immediate termination, nonnegative integers override the grace period, and all other negative values fail before cordon or eviction.
 
 ## Local audit evidence fixture
 

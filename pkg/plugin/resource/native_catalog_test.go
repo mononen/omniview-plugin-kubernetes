@@ -49,11 +49,13 @@ func TestNativeCatalogIndependentOperations(t *testing.T) {
 	require.Equal(t, []resourcev2.Capability{
 		{Operation: resourcev2.OperationGet, Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}},
 		{Operation: resourcev2.OperationEnumerate, Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}},
-		{Operation: resourcev2.OperationMutation, Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}},
+		{Operation: resourcev2.OperationCreate, Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}},
+		{Operation: resourcev2.OperationMutationUpdate, Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}},
+		{Operation: resourcev2.OperationDelete, Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}},
 	}, pod.Descriptor.Capabilities)
 
 	review := bindings["k8s:authentication.k8s.io/tokenreviews"]
-	require.Equal(t, []resourcev2.Capability{{Operation: resourcev2.OperationMutation, Scope: resourcev2.QueryScope{}}}, review.Descriptor.Capabilities)
+	require.Equal(t, []resourcev2.Capability{{Operation: resourcev2.OperationCreate, Scope: resourcev2.QueryScope{}}}, review.Descriptor.Capabilities)
 	component := bindings["k8s:/componentstatuses"]
 	require.Equal(t, []resourcev2.Capability{{Operation: resourcev2.OperationGet, Scope: resourcev2.QueryScope{}}}, component.Descriptor.Capabilities)
 	report, ok := bindings["k8s:example.k8s.io/reports"]
