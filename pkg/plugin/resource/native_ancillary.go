@@ -299,7 +299,14 @@ func (p *kubernetesProvider) GetRelationships(ctx context.Context, route resourc
 		if err != nil {
 			return err
 		}
-		if _, exists := snapshot.bindings[token]; !exists {
+		exists := false
+		for _, descriptor := range snapshot.catalog.Types {
+			if descriptor.Type == token {
+				exists = true
+				break
+			}
+		}
+		if !exists {
 			return resourcev2.NewError("NOT_FOUND", "Resource type is not present in this connection catalog")
 		}
 		if helper, ok := p.helpers[token].(nativeRelationshipDeclarer); ok {

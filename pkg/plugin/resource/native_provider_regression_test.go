@@ -107,6 +107,52 @@ func TestNativeActionRegistrationPreservesPatchOnlyNodePermission(t *testing.T) 
 	mu.Unlock()
 }
 
+func TestNativeRelationshipsAdmitWholeRouteCatalog(t *testing.T) {
+	route := resourcev2.AccessRoute{Connection: "owned-cluster"}
+	podType := resourcev2.ResourceType{Type: "k8s:/pods", DefaultRepresentation: boundaryRepresentation().ID, Representations: []resourcev2.Representation{boundaryRepresentation()}}
+	catalogTypes := append([]resourcev2.ResourceType{podType}, helm.HelmResourceTypes()...)
+	catalogTypes = append(catalogTypes, auditResourceType())
+	p := &kubernetesProvider{
+		catalogs: map[string]*nativeCatalogSnapshot{route.Connection: {
+			catalog:  resourcev2.Catalog{Provider: "kubernetes", Revision: "relationship-catalog", Coverage: resourcev2.Coverage{Kind: "complete"}, Types: catalogTypes},
+			bindings: map[string]nativeType{podType.Type: {Descriptor: podType}},
+		}},
+		relationships: resourcers.RelationshipTable(),
+	}
+	controller, err := resourcev2.NewController(resourcev2.Config[clients.ClientSet]{Catalog: p.catalog, Lifecycle: &resourcev2.Lifecycle[clients.ClientSet]{
+		LoadConnections: func(context.Context) ([]types.Connection, error) {
+			return []types.Connection{{ID: route.Connection, Name: "Owned cluster"}}, nil
+		},
+		CreateClient: func(context.Context, types.Connection) (*clients.ClientSet, error) {
+			return &clients.ClientSet{}, nil
+		},
+		DestroyClient: (&kubeConnectionProvider{logger: zap.NewNop().Sugar()}).DestroyClient,
+	}})
+	require.NoError(t, err)
+	p.Controller = controller
+	t.Cleanup(func() { require.NoError(t, controller.Close()) })
+	_, err = controller.LoadConnections(context.Background())
+	require.NoError(t, err)
+	_, err = controller.StartConnection(context.Background(), route.Connection)
+	require.NoError(t, err)
+	for _, descriptor := range catalogTypes {
+		t.Run(descriptor.Type, func(t *testing.T) {
+			declarations, err := p.GetRelationships(context.Background(), route, descriptor.Type)
+			require.NoError(t, err, "catalogued static types must not poison route graph bootstrap")
+			require.NotNil(t, declarations)
+			if descriptor.Type == podType.Type {
+				require.NotEmpty(t, declarations, "native Pod relationships remain declared")
+			} else {
+				require.Empty(t, declarations, "admitted types without relationship declarations")
+			}
+		})
+	}
+	_, err = p.GetRelationships(context.Background(), route, "not-in-route-catalog")
+	require.Equal(t, "NOT_FOUND", resourcev2.ErrorCode(err))
+	_, err = p.GetRelationships(context.Background(), resourcev2.AccessRoute{Connection: "other-cluster"}, podType.Type)
+	require.Error(t, err, "catalog membership must not bypass the connection lease")
+}
+
 func TestNativeEditorSchemasIncludeInstalledHelmValuesSchema(t *testing.T) {
 	t.Setenv("HELM_DRIVER", "secrets")
 	schema := []byte(`{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"replicas":{"type":"integer"}}}`)
