@@ -134,40 +134,11 @@ const connectionSearchHandle: SearchRouteHandleV1 = {
 // @ts-expect-error Expose React to the plugin host window
 window.PluginReact = React;
 
-// ── Sidebar components ──────────────────────────────────────────────
-
-// core.v1
-
-// apps.v1
-
-// batch.v1
-
-// autoscaling.v1
-
-// policy.v1
-
-// flowcontrol.v1
-
-// rbac.v1
-
-// networking.v1
-
-// discovery.v1
-
-// node.v1
-
-// storage.v1
-
-// helm.v1
-
-// admissionregistration.v1
-
 /**
- * Sidebar components keyed by resource key (group::version::Kind).
- * Registered with the host's sidebar registry at plugin load time so that
- * linked-resource chip clicks render the same rich sidebar as table row clicks.
+ * Sidebar components keyed by opaque logical Type.
+ * Canonical contributions give linked resources the same rich sidebar as tables.
  */
-export const sidebars: Record<string, React.FC<{ ctx: DrawerContext }>> = {
+const sidebars: Record<string, React.FC<{ ctx: DrawerContext }>> = {
   // core.v1
   'k8s:/pods': PodSidebar,
   'k8s:/nodes': NodeSidebar,
@@ -254,11 +225,10 @@ function createResourceDrawerFactory(
 }
 
 /**
- * Drawer factories keyed by resource key. Registered with the host's
- * drawer registry at plugin load time so that linked-resource chip clicks
- * and showResourceSidebar() render the full sidebar experience.
+ * Drawer factories keyed by opaque logical Type, contributed alongside sidebars
+ * so linked-resource clicks render the full standard view set.
  */
-export const drawers: Record<string, DrawerFactory> = Object.fromEntries(
+const drawers: Record<string, DrawerFactory> = Object.fromEntries(
   Object.entries(sidebars).map(([key, Component]) => [
     key,
     createResourceDrawerFactory(key, Component),
@@ -416,6 +386,26 @@ export const routes: Array<RouteObject> = [
 ];
 
 export const extensionRegistrations: ExtensionRegistration[] = [
+  ...Object.entries(sidebars).map(([resourceKey, Component]): ExtensionRegistration => ({
+    extensionPointId: 'omniview/resource/sidebar/infopanel',
+    registration: {
+      id: `sidebar/${resourceKey}`,
+      plugin: 'kubernetes',
+      label: `Kubernetes sidebar for ${resourceKey}`,
+      value: Component,
+      meta: { pluginId: 'kubernetes', resourceKey },
+    },
+  })),
+  ...Object.entries(drawers).map(([resourceKey, factory]): ExtensionRegistration => ({
+    extensionPointId: 'omniview/resource/drawer',
+    registration: {
+      id: `drawer/${resourceKey}`,
+      plugin: 'kubernetes',
+      label: `Kubernetes drawer for ${resourceKey}`,
+      value: factory,
+      meta: { pluginId: 'kubernetes', resourceKey },
+    },
+  })),
   {
     extensionPointId: 'omniview/resource/icons',
     registration: {
