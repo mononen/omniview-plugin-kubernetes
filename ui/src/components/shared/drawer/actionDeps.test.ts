@@ -78,7 +78,6 @@ describe('resourceDrawerActions', () => {
     expect(titles('k8s:apps/deployments')).toEqual([
       'Restart', 'Scale', 'Pause Rollout', 'Resume Rollout', 'Delete', 'Logs',
     ]);
-    expect(resourceDrawerActions['k8s:apps/deployments'].editorSubmit).toBeTypeOf('function');
   });
 
   it('runs a linked delete through the mounted handlers', async () => {

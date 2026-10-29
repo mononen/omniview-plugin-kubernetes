@@ -248,7 +248,7 @@ function createResourceDrawerFactory(
   const shared = resourceDrawerActions[resourceKey];
   return (_closeDrawer: () => void): DrawerComponent => ({
     title: resourceKey,
-    views: createStandardViews({ SidebarComponent, onEditorSubmit: shared?.editorSubmit }),
+    views: createStandardViews({ SidebarComponent }),
     actions: shared?.actions ?? [],
   });
 }

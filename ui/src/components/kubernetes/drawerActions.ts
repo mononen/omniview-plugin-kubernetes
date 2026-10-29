@@ -1,8 +1,8 @@
-import type { DrawerComponentAction, DrawerContext } from '@omniviewdev/runtime';
+import type { DrawerComponentAction } from '@omniviewdev/runtime';
 
 import { drawerActions as validatingAdmissionPolicyBindingActions } from './table/admissionregistrationv1/ValidatingAdmissionPolicyBinding/actions';
 import { drawerActions as daemonSetActions } from './table/appsv1/DaemonSet/actions';
-import { drawerActions as deploymentActions, editorSubmit as deploymentEditorSubmit } from './table/appsv1/Deployment/actions';
+import { drawerActions as deploymentActions } from './table/appsv1/Deployment/actions';
 import { drawerActions as replicaSetActions } from './table/appsv1/ReplicaSet/actions';
 import { drawerActions as statefulSetActions } from './table/appsv1/StatefulSet/actions';
 import { drawerActions as horizontalPodAutoscalerActions } from './table/autoscalingv1/HorizontalPodAutoscaler/actions';
@@ -14,7 +14,7 @@ import { drawerActions as namespaceActions } from './table/corev1/Namespace/acti
 import { drawerActions as nodeActions } from './table/corev1/Node/actions';
 import { drawerActions as persistentVolumeActions } from './table/corev1/PersistentVolume/actions';
 import { drawerActions as persistentVolumeClaimActions } from './table/corev1/PersistentVolumeClaim/actions';
-import { drawerActions as podActions, editorSubmit as podEditorSubmit } from './table/corev1/Pod/actions';
+import { drawerActions as podActions } from './table/corev1/Pod/actions';
 import { drawerActions as replicationControllerActions } from './table/corev1/ReplicationController/actions';
 import { drawerActions as resourceQuotaActions } from './table/corev1/ResourceQuota/actions';
 import { drawerActions as serviceActions } from './table/corev1/Service/actions';
@@ -40,8 +40,6 @@ type AnyAction = DrawerComponentAction<any>;
 
 export type ResourceDrawerActions = {
   actions: Array<AnyAction>;
-  /** Saves the Editor view; only resources whose table supported editing have one. */
-  editorSubmit?: (ctx: DrawerContext, value: Record<string, unknown>) => void;
 };
 
 /**
@@ -53,7 +51,7 @@ export type ResourceDrawerActions = {
 export const resourceDrawerActions: Record<string, ResourceDrawerActions> = {
   'k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings': { actions: validatingAdmissionPolicyBindingActions },
   'k8s:apps/daemonsets': { actions: daemonSetActions },
-  'k8s:apps/deployments': { actions: deploymentActions, editorSubmit: deploymentEditorSubmit as ResourceDrawerActions['editorSubmit'] },
+  'k8s:apps/deployments': { actions: deploymentActions },
   'k8s:apps/replicasets': { actions: replicaSetActions },
   'k8s:apps/statefulsets': { actions: statefulSetActions },
   'k8s:autoscaling/horizontalpodautoscalers': { actions: horizontalPodAutoscalerActions },
@@ -65,7 +63,7 @@ export const resourceDrawerActions: Record<string, ResourceDrawerActions> = {
   'k8s:/nodes': { actions: nodeActions },
   'k8s:/persistentvolumes': { actions: persistentVolumeActions },
   'k8s:/persistentvolumeclaims': { actions: persistentVolumeClaimActions },
-  'k8s:/pods': { actions: podActions, editorSubmit: podEditorSubmit as ResourceDrawerActions['editorSubmit'] },
+  'k8s:/pods': { actions: podActions },
   'k8s:/replicationcontrollers': { actions: replicationControllerActions },
   'k8s:/resourcequotas': { actions: resourceQuotaActions },
   'k8s:/services': { actions: serviceActions },
