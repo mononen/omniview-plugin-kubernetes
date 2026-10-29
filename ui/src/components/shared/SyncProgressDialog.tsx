@@ -1,5 +1,6 @@
 import { Button, Dialog, IconButton, Progress, Spinner, Text } from '@omniviewdev/base-ui';
 import { useWatchState, useResourceTypes, useResourceGroups, WatchState } from '@omniviewdev/runtime';
+import type { Count } from '@omniviewdev/runtime/models';
 import { ResourceClient } from '@omniviewdev/runtime/api';
 import React from 'react';
 import { LuCircleCheck, LuCircleAlert, LuCircleSlash, LuShieldAlert, LuX } from 'react-icons/lu';
@@ -90,7 +91,7 @@ interface SyncProgressDialogProps {
   connectionID: string;
 }
 
-type ResourceItem = { key: string; kind: string; state: WatchState; count: number };
+type ResourceItem = { key: string; kind: string; state: WatchState; count?: Count };
 
 /** Whether a state is terminal (done — won't change further) */
 const isTerminal = (s: WatchState) =>
@@ -197,7 +198,7 @@ function SyncProgressDialogInner({
       const kind = resourceTypes.data?.find((type) => type.type === key)?.displayName ?? key;
       const label = resourceGroups.data?.find((group) => group.resources.includes(key))?.name ?? 'Resources';
       if (!groups[label]) groups[label] = [];
-      groups[label].push({ key, kind, state, count: resourceCounts[key] ?? 0 });
+      groups[label].push({ key, kind, state, count: resourceCounts[key] });
     }
 
     // Sort items within each group
@@ -298,9 +299,9 @@ function SyncProgressDialogInner({
                     Skipped
                   </Text>
                 )}
-                {state === WatchState.WatchStateSynced && count > 0 && (
+                {state === WatchState.WatchStateSynced && (
                   <Text size="xs" tone="subtle" style={countTextStyle}>
-                    {count}
+                    {count?.kind === 'exact' ? count.value : count?.kind === 'estimate' ? `~${count.value}` : 'Unknown'}
                   </Text>
                 )}
                 {(state === WatchState.WatchStateError || state === WatchState.WatchStateFailed) && (

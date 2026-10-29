@@ -149,7 +149,7 @@ describe('EndpointSubsetsSection', () => {
       {
         addresses: [{
           ip: '10.244.0.5',
-          targetRef: { kind: 'Pod', name: 'my-pod', namespace: 'default' },
+          targetRef: { apiVersion: 'v1', kind: 'Pod', name: 'my-pod', namespace: 'default', uid: 'observed-pod-uid' },
         }],
       },
     ];

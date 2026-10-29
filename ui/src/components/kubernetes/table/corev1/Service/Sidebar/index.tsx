@@ -83,6 +83,7 @@ export const ServiceSidebar: React.FC<Props> = ({ ctx }) => {
         service={svc}
         connectionID={connectionID}
         resourceID={ctx.resource?.reference.address.id || ''}
+        resource={ctx.resource}
       />
     </Stack>
   );

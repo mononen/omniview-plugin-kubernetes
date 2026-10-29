@@ -1,5 +1,6 @@
 import { Chip, type ComponentColor } from '@omniviewdev/base-ui';
-import { useRightDrawer, useSnackbar, parseAppError, useResourceTypes, type GraphNode } from '@omniviewdev/runtime';
+import { useRightDrawer, useSnackbar, parseAppError, useResourceTypes } from '@omniviewdev/runtime';
+import type { GraphNode } from '@omniviewdev/runtime/models';
 import { ResourceClient } from '@omniviewdev/runtime/api';
 import { resolveKubernetesReference } from '../../utils/kubernetesReference';
 import { templateIdentity } from '../kubernetes/actions/create/templates';

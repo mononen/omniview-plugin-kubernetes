@@ -318,22 +318,11 @@ describe('ServicePortsSection', () => {
     expect(screen.getByText('https')).toBeInTheDocument();
   });
 
-  it('shows Forward button when connectionID and resourceID provided', () => {
-    render(
-      <ServicePortsSection service={makeService()} connectionID="conn-1" resourceID="svc-1" />,
-    );
-    expect(screen.getByText('Forward')).toBeInTheDocument();
-  });
-
-  it('shows "Forwarded" chip and Stop button when session is active', () => {
-    mockPortForwarder.sessions.data = [
-      { id: 'session-1', remote_port: 80, local_port: 8080 },
-    ];
-    render(
-      <ServicePortsSection service={makeService()} connectionID="conn-1" resourceID="svc-1" />,
-    );
-    expect(screen.getByText('Forwarded')).toBeInTheDocument();
-    expect(screen.getByText('Stop')).toBeInTheDocument();
+  it('does not offer forwarding from display-only Service data without an observation', () => {
+    render(<ServicePortsSection service={makeService()} connectionID="conn-1" resourceID="my-svc" />);
+    expect(screen.getByText('http')).toBeInTheDocument();
+    expect(screen.getByText('TCP')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Forward' })).not.toBeInTheDocument();
   });
 });
 

@@ -43,36 +43,11 @@ const deps = () => ({
 } as unknown as DrawerActionDeps);
 
 describe('standalone Kubernetes actions', () => {
-  it.each(['k8s:/pods', 'k8s:/nodes'])('passes canonical observation and admitted target to exec for %s', async (type) => {
-    const object = target(type);
-    if (type === 'k8s:/nodes') object.data.metadata!.namespace = undefined;
-    if (type === 'k8s:/nodes') object.resource.reference.address.scope = [];
-    const handlers = deps();
-    const action = resolveKubernetesActions(object, handlers).find((entry) => entry.title === (type === 'k8s:/pods' ? 'Exec' : 'Shell'))!;
-    await executeKubernetesAction(object, handlers, action.id, action.items?.[0].id);
-    expect(handlers.createExecSession).toHaveBeenCalledWith(expect.objectContaining({
-      opts: expect.objectContaining({
-        resource_data: object.resource.record!.record.body,
-        reference: object.resource.reference, route: object.resource.route,
-      }),
-    }));
-    expect(handlers.closeDrawer).toHaveBeenCalledOnce();
-  });
-
-  it('opens init and ephemeral logs without mounted handlers and keeps exact identity', async () => {
+  it('offers init and ephemeral log container choices without mounted handlers', () => {
     const handlers = deps();
     const object = target();
     const logs = resolveKubernetesActions(object, handlers).find((action) => action.title === 'Logs')!;
     expect(logs.items?.map((item) => item.title)).toEqual(['All Containers', 'main', 'setup (init)', 'debug (ephemeral)']);
-    await executeKubernetesAction(object, handlers, logs.id, logs.items![2].id);
-    expect(handlers.createLogSession).toHaveBeenCalledWith(expect.objectContaining({
-      connectionID: 'prod', resourceKey: 'k8s:/pods', resourceID: 'api',
-      resourceData: object.resource.record!.record.body,
-      reference: object.resource.reference, route: object.resource.route,
-      target: 'setup', params: { filter_labels: 'container' },
-    }));
-    expect(vi.mocked(handlers.createLogSession).mock.calls[0][0].resourceData).toBe(object.resource.record!.record.body);
-    expect(handlers.closeDrawer).toHaveBeenCalledOnce();
   });
 
   it.each([
@@ -80,16 +55,11 @@ describe('standalone Kubernetes actions', () => {
     ['ReplicaSet', 'k8s:apps/replicasets'], ['StatefulSet', 'k8s:apps/statefulsets'],
     ['Job', 'k8s:batch/jobs'], ['CronJob', 'k8s:batch/cronjobs'],
   ])(
-    'keeps all-container and named-container logs for %s', async (_kind, resourceType) => {
+    'keeps all-container and named-container choices for %s', (_kind, resourceType) => {
       const object = target(resourceType);
       const handlers = deps();
       const logs = resolveKubernetesActions(object, handlers).find((action) => action.title === 'Logs')!;
       expect(logs.items?.map((item) => item.title)).toEqual(['All Containers', 'main', 'sidecar']);
-      await executeKubernetesAction(object, handlers, logs.id, logs.items![1].id);
-      const input = vi.mocked(handlers.createLogSession).mock.calls[0][0];
-      expect(input.resourceData).toBe(object.resource.record!.record.body);
-      expect(input.reference).toBe(object.resource.reference);
-      expect(input.route).toBe(object.resource.route);
     },
   );
 

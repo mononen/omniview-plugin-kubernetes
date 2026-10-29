@@ -10,7 +10,7 @@ vi.mock('@omniviewdev/runtime', () => ({
   useResolvedResourceTarget: mocks.resolve,
   useResources: (options: { request?: unknown }) => {
     const result = mocks.resources(options);
-    return { ...result, refreshAcquiredPage: result.resources.refetch, acquired: result.resources.data ? { request: options.request, page: result.resources.data } : undefined };
+    return { ...result, refreshAcquiredPage: result.resources.refetch, acquired: options.request && result.resources.data ? { request: options.request, page: result.resources.data } : undefined };
   },
   valueToJSON: mocks.decode,
 }));

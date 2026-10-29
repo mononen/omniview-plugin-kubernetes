@@ -55,7 +55,8 @@ for (const [name, section] of sections) {
         pluginID: 'kubernetes', reference, route, representation: 'native', targetId: 'host-issued-target', resourceName: 'observed-pod',
       }));
       expect(mocks.catalog).toHaveBeenCalledWith('kubernetes', { route });
-      expect(mocks.resolve).toHaveBeenCalledExactlyOnceWith('kubernetes', {
+      expect(mocks.resolve).toHaveBeenCalledOnce();
+      expect(mocks.resolve).toHaveBeenCalledWith('kubernetes', {
         route, type: 'k8s:/pods', scope: reference.address.scope, id: 'observed-pod', incarnation: 'observed-uid',
       });
     });
@@ -66,7 +67,8 @@ for (const [name, section] of sections) {
       render(section({ ...target, apiVersion: 'example.io/v1' }));
       fireEvent.click(screen.getByRole('button', { name: 'observed-pod' }));
       await waitFor(() => expect(mocks.drawer).toHaveBeenCalledWith(expect.objectContaining({ reference: customReference })));
-      expect(mocks.resolve).toHaveBeenCalledExactlyOnceWith('kubernetes', {
+      expect(mocks.resolve).toHaveBeenCalledOnce();
+      expect(mocks.resolve).toHaveBeenCalledWith('kubernetes', {
         route, type: 'k8s:example.io/workloads', scope: reference.address.scope, id: 'observed-pod', incarnation: 'observed-uid',
       });
     });

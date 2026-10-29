@@ -203,7 +203,7 @@ export const SecretSidebar: React.FC<Props> = ({ ctx }) => {
   // compose your component here
   return (
     <Stack direction="column" spacing={2} style={fullWidthStyle}>
-      <ObjectMetaSection data={secret.metadata} connectionID={ctx.resource?.connectionID} />
+      <ObjectMetaSection data={secret.metadata} connectionID={ctx.resource?.route.connection} />
       <Stack
         direction="row"
         spacing={2}

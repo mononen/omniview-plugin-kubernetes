@@ -40,22 +40,22 @@ export function usePodMetricsBatch(opts: {
     queryFn: async () => {
       const resp = await MetricClient.QueryAll(
         connectionID,
-        resourceKey,
-        '', // empty resourceID = batch mode
-        namespace,
-        {},
-        // Request both metrics-server and Prometheus metric IDs.
-        // The Go backend will try both sources; whichever is available responds.
-        [
-          'cpu_usage',
-          'memory_usage', // metrics-server
-          'prom_cpu_usage_rate',
-          'prom_memory_working_set', // prometheus
-        ],
-        0, // ShapeCurrent
-        new Date(0).toISOString(),
-        new Date(0).toISOString(),
-        0,
+        {
+          resource_key: resourceKey,
+          resource_id: '', // empty native ID selects the existing batch operation
+          resource_namespace: namespace,
+          // Native batch metrics are not one resource observation.
+          metric_ids: [
+            'cpu_usage',
+            'memory_usage',
+            'prom_cpu_usage_rate',
+            'prom_memory_working_set',
+          ],
+          shape: 0, // ShapeCurrent
+          start_time: new Date(0).toISOString(),
+          end_time: new Date(0).toISOString(),
+          step: 0,
+        },
       );
 
       const map = new Map<string, PodMetricEntry>();

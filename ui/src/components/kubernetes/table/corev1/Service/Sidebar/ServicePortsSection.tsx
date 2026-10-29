@@ -10,7 +10,7 @@ import {
   Stack,
   Text,
 } from '@omniviewdev/base-ui';
-import { useResourcePortForwarder } from '@omniviewdev/runtime';
+import { useResourcePortForwarder, type DrawerContext } from '@omniviewdev/runtime';
 import { networker } from '@omniviewdev/runtime/models';
 import { Browser } from '@omniviewdev/runtime/runtime';
 import type { Service, ServicePort } from 'kubernetes-types/core/v1';
@@ -139,6 +139,7 @@ interface Props {
   service: Service;
   connectionID?: string;
   resourceID?: string;
+  resource?: DrawerContext['resource'];
 }
 
 // ---------------------------------------------------------------------------
@@ -287,7 +288,7 @@ const PortDetail: React.FC<{ label: string; value: string }> = ({ label, value }
 // ServicePortsSection
 // ---------------------------------------------------------------------------
 
-const ServicePortsSection: React.FC<Props> = ({ service, connectionID, resourceID }) => {
+const ServicePortsSection: React.FC<Props> = ({ service, connectionID, resourceID, resource }) => {
   // Port forward state — hooks must be called unconditionally
   const [configAnchor, setConfigAnchor] = React.useState<HTMLElement | null>(null);
   const [configPort, setConfigPort] = React.useState<ServicePort | null>(null);
@@ -303,7 +304,7 @@ const ServicePortsSection: React.FC<Props> = ({ service, connectionID, resourceI
 
   const svcType = service.spec?.type || 'ClusterIP';
   const showNodePort = svcType === 'NodePort' || svcType === 'LoadBalancer';
-  const canForward = !!connectionID && !!resourceID;
+  const canForward = !!connectionID && !!resourceID && !!resource?.record;
 
   const portMap =
     sessions.data?.reduce(
@@ -315,11 +316,14 @@ const ServicePortsSection: React.FC<Props> = ({ service, connectionID, resourceI
     port: number,
     opts?: { localPort?: number; protocol?: 'TCP' | 'UDP'; openInBrowser?: boolean },
   ) => {
+    if (!resource?.record) throw new Error('Resource observation is unavailable');
     void forward({
       opts: {
         resourceId: resourceID || '',
         resourceKey: 'k8s:/services',
-        resource: service,
+        resource: resource.record.record.body,
+        reference: resource.reference,
+        route: resource.route,
         remotePort: port,
         localPort: opts?.localPort,
         protocol: opts?.protocol ?? 'TCP',

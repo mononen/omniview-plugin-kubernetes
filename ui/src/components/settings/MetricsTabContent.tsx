@@ -1,7 +1,6 @@
 import { Button, Card, Chip, FormField, Grid, IconButton, Input, Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import { useMetricProvidersForResource } from '@omniviewdev/runtime';
 import { MetricClient } from '@omniviewdev/runtime/api';
-import { metric } from '@omniviewdev/runtime/models';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useRef, useCallback, useId } from 'react';
 import { LuActivity, LuCheck, LuCircle, LuInfo, LuPlugZap, LuRefreshCw, LuX } from 'react-icons/lu';
@@ -206,10 +205,10 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
     });
 
     try {
-      // Call QueryAll via the MetricClient binding — bypasses the
+      // Call QueryAll via the canonical runtime client — bypasses the
       // useResourceMetrics hook's provider-count guard so we get a real
       // backend round-trip even when the provider cache is stale.
-      const results = await MetricClient.QueryAll(connectionID, metric.QueryRequest.createFrom({
+      const results = await MetricClient.QueryAll(connectionID, {
         resource_key: 'cluster::metrics',
         resource_id: '_test',
         resource_namespace: '',
@@ -219,7 +218,7 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
         start_time: new Date(0).toISOString(),
         end_time: new Date(0).toISOString(),
         step: 0,
-      }));
+      });
 
       if (abortRef.current) return;
 

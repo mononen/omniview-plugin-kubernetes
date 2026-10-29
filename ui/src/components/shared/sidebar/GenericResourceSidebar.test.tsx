@@ -1,4 +1,5 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
+import { fixtureResource } from '@/stories/resourceFixture';
 import { render, screen } from '@testing-library/react';
 import type React from 'react';
 import { vi, describe, it, expect } from 'vitest';
@@ -46,7 +47,7 @@ import GenericResourceSidebar from './GenericResourceSidebar';
 function makeCtx(data?: Record<string, unknown>) {
   return {
     data,
-    resource: { connectionID: 'conn-1', id: 'test', key: 'k8s:/configmaps', pluginID: 'kubernetes' },
+    resource: fixtureResource('k8s:/configmaps', data, 'conn-1', 'test'),
   };
 }
 

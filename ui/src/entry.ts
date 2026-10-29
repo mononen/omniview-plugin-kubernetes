@@ -275,7 +275,7 @@ export const defaultDrawerFactory: DrawerFactory =
 
 // React Router decodes incoming segments before matching, except encoded slashes.
 // Static logical Types therefore retain ':' while protecting '/' as '%2F'.
-const routes: Array<RouteObject> = [
+export const routes: Array<RouteObject> = [
   {
     path: '/',
     Component: ClustersPage,
