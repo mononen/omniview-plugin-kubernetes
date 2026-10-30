@@ -32,7 +32,6 @@ import {
 } from './extension';
 
 import { useStoredState } from '@/hooks/useStoredState';
-import { PLUGIN_ID } from '@/pluginId';
 
 
 const rootStyle: React.CSSProperties = { padding: 0, gap: 0 };

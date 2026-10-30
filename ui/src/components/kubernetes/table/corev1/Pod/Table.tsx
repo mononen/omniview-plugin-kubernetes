@@ -10,6 +10,7 @@ import { LuContainer } from 'react-icons/lu';
 import { useParams } from 'react-router'
 
 import { PLUGIN_ID } from '@/pluginId';
+import { sumIntegerValues } from '@/utils/convert';
 
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
