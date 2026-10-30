@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const Active: Story = {
   args: {
-    ctx: { data: data as unknown as CronJob, resource: fixtureResource('k8s:batch/cronjobs', data as unknown as CronJob, 'ctx-1', 'daily-backup') },
+    ctx: { data: data as unknown as CronJob, resource: fixtureResource('k8s:batch/cronjobs', data, 'ctx-1', 'daily-backup') },
   },
   decorators: withDrawer(data.metadata.name),
 };

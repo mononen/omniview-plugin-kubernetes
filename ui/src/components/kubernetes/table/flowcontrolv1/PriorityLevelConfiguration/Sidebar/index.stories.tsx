@@ -34,7 +34,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: { data: data as Record<string, unknown>, resource: fixtureResource('k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations', data as Record<string, unknown>, 'ctx-1', 'leader-election') },
+    ctx: { data: data as Record<string, unknown>, resource: fixtureResource('k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations', data, 'ctx-1', 'leader-election') },
   },
   decorators: withDrawer(data.metadata.name),
 };

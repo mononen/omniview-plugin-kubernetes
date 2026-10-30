@@ -37,7 +37,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: { data: data as unknown as ReplicationController, resource: fixtureResource('k8s:/replicationcontrollers', data as unknown as ReplicationController, 'ctx-1', 'web-rc') },
+    ctx: { data: data as unknown as ReplicationController, resource: fixtureResource('k8s:/replicationcontrollers', data, 'ctx-1', 'web-rc') },
   },
   decorators: withDrawer(data.metadata.name),
 };

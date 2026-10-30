@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: { data: data as unknown as ReplicaSet, resource: fixtureResource('k8s:apps/replicasets', data as unknown as ReplicaSet, 'ctx-1', 'frontend-7c6b4f9d8') },
+    ctx: { data: data as unknown as ReplicaSet, resource: fixtureResource('k8s:apps/replicasets', data, 'ctx-1', 'frontend-7c6b4f9d8') },
   },
   decorators: withDrawer(data.metadata.name),
 };

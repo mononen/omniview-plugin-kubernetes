@@ -19,7 +19,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Primary: Story = {
   args: {
-    ctx: { data: data as unknown as RuntimeClass, resource: fixtureResource('k8s:node.k8s.io/runtimeclasses', data as unknown as RuntimeClass, 'ctx-1', 'gvisor') },
+    ctx: { data: data as unknown as RuntimeClass, resource: fixtureResource('k8s:node.k8s.io/runtimeclasses', data, 'ctx-1', 'gvisor') },
   },
 };
 

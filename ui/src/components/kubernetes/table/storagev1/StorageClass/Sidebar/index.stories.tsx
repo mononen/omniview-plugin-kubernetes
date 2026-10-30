@@ -35,7 +35,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: { data: data as unknown as StorageClass, resource: fixtureResource('k8s:storage.k8s.io/storageclasses', data as unknown as StorageClass, 'ctx-1', 'gp3-encrypted') },
+    ctx: { data: data as unknown as StorageClass, resource: fixtureResource('k8s:storage.k8s.io/storageclasses', data, 'ctx-1', 'gp3-encrypted') },
   },
   decorators: withDrawer(data.metadata.name),
 };

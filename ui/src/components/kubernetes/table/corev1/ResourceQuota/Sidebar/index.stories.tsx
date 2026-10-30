@@ -37,7 +37,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: { data: data as unknown as ResourceQuota, resource: fixtureResource('k8s:/resourcequotas', data as unknown as ResourceQuota, 'ctx-1', 'compute-quota') },
+    ctx: { data: data as unknown as ResourceQuota, resource: fixtureResource('k8s:/resourcequotas', data, 'ctx-1', 'compute-quota') },
   },
   decorators: withDrawer(data.metadata.name),
 };

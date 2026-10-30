@@ -34,7 +34,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: { data: data as Record<string, unknown>, resource: fixtureResource('k8s:scheduling.k8s.io/priorityclasses', data as Record<string, unknown>, 'ctx-1', 'high-priority') },
+    ctx: { data: data as Record<string, unknown>, resource: fixtureResource('k8s:scheduling.k8s.io/priorityclasses', data, 'ctx-1', 'high-priority') },
   },
   decorators: withDrawer(data.metadata.name),
 };

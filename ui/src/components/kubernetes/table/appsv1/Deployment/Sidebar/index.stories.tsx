@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const RollingUpdate: Story = {
   args: {
-    ctx: { data: data as unknown as Deployment, resource: fixtureResource('k8s:apps/deployments', data as unknown as Deployment, 'ctx-1', 'frontend') },
+    ctx: { data: data as unknown as Deployment, resource: fixtureResource('k8s:apps/deployments', data, 'ctx-1', 'frontend') },
   },
   decorators: withDrawer(data.metadata.name),
 };

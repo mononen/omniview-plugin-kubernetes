@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const Active: Story = {
   args: {
-    ctx: { data: data as unknown as Namespace, resource: fixtureResource('k8s:/namespaces', data as unknown as Namespace, 'ctx-1', 'production') },
+    ctx: { data: data as unknown as Namespace, resource: fixtureResource('k8s:/namespaces', data, 'ctx-1', 'production') },
   },
   decorators: withDrawer(data.metadata.name),
 };

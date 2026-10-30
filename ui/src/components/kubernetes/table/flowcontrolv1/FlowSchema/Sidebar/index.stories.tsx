@@ -35,7 +35,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: { data: data as unknown as FlowSchema, resource: fixtureResource('k8s:flowcontrol.apiserver.k8s.io/flowschemas', data as unknown as FlowSchema, 'ctx-1', 'system-leader-election') },
+    ctx: { data: data as unknown as FlowSchema, resource: fixtureResource('k8s:flowcontrol.apiserver.k8s.io/flowschemas', data, 'ctx-1', 'system-leader-election') },
   },
   decorators: withDrawer(data.metadata.name),
 };

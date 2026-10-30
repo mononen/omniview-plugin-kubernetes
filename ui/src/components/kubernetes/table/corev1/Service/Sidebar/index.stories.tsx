@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const LoadBalancer: Story = {
   args: {
-    ctx: { data: data as unknown as Service, resource: fixtureResource('k8s:/services', data as unknown as Service, 'ctx-1', 'frontend') },
+    ctx: { data: data as unknown as Service, resource: fixtureResource('k8s:/services', data, 'ctx-1', 'frontend') },
   },
   decorators: withDrawer(data.metadata.name),
 };

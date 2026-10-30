@@ -37,7 +37,7 @@ function withDrawer(title: string) {
 
 export const WithSecrets: Story = {
   args: {
-    ctx: { data: data as unknown as ServiceAccount, resource: fixtureResource('k8s:/serviceaccounts', data as unknown as ServiceAccount, 'ctx-1', 'my-app') },
+    ctx: { data: data as unknown as ServiceAccount, resource: fixtureResource('k8s:/serviceaccounts', data, 'ctx-1', 'my-app') },
   },
   decorators: withDrawer(data.metadata.name),
 };

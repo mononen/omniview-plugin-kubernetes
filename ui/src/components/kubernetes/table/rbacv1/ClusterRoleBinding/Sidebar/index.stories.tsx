@@ -35,7 +35,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: { data: data as unknown as ClusterRoleBinding, resource: fixtureResource('k8s:rbac.authorization.k8s.io/clusterrolebindings', data as unknown as ClusterRoleBinding, 'ctx-1', 'monitoring-reader-binding') },
+    ctx: { data: data as unknown as ClusterRoleBinding, resource: fixtureResource('k8s:rbac.authorization.k8s.io/clusterrolebindings', data, 'ctx-1', 'monitoring-reader-binding') },
   },
   decorators: withDrawer(data.metadata.name),
 };

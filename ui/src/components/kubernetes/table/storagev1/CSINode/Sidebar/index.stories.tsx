@@ -35,7 +35,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: { data: data as unknown as CSINode, resource: fixtureResource('k8s:storage.k8s.io/csinodes', data as unknown as CSINode, 'ctx-1', 'ip-10-0-1-42.ec2.internal') },
+    ctx: { data: data as unknown as CSINode, resource: fixtureResource('k8s:storage.k8s.io/csinodes', data, 'ctx-1', 'ip-10-0-1-42.ec2.internal') },
   },
   decorators: withDrawer(data.metadata.name),
 };

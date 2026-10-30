@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: { data: data as unknown as ValidatingWebhookConfiguration, resource: fixtureResource('k8s:admissionregistration.k8s.io/validatingwebhookconfigurations', data as unknown as ValidatingWebhookConfiguration, 'ctx-1', 'pod-policy-validator') },
+    ctx: { data: data as unknown as ValidatingWebhookConfiguration, resource: fixtureResource('k8s:admissionregistration.k8s.io/validatingwebhookconfigurations', data, 'ctx-1', 'pod-policy-validator') },
   },
   decorators: withDrawer(data.metadata.name),
 };

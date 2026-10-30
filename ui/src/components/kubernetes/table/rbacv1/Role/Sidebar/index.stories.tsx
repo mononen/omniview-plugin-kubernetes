@@ -35,7 +35,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: { data: data as unknown as Role, resource: fixtureResource('k8s:rbac.authorization.k8s.io/roles', data as unknown as Role, 'ctx-1', 'pod-manager') },
+    ctx: { data: data as unknown as Role, resource: fixtureResource('k8s:rbac.authorization.k8s.io/roles', data, 'ctx-1', 'pod-manager') },
   },
   decorators: withDrawer(data.metadata.name),
 };

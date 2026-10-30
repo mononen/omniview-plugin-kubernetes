@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: { data: data as unknown as LimitRange, resource: fixtureResource('k8s:/limitranges', data as unknown as LimitRange, 'ctx-1', 'default-limits') },
+    ctx: { data: data as unknown as LimitRange, resource: fixtureResource('k8s:/limitranges', data, 'ctx-1', 'default-limits') },
   },
   decorators: withDrawer(data.metadata.name),
 };

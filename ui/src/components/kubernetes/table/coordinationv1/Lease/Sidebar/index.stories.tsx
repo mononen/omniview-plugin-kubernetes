@@ -34,7 +34,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: { data: data as Record<string, unknown>, resource: fixtureResource('k8s:coordination.k8s.io/leases', data as Record<string, unknown>, 'ctx-1', 'kube-scheduler') },
+    ctx: { data: data as Record<string, unknown>, resource: fixtureResource('k8s:coordination.k8s.io/leases', data, 'ctx-1', 'kube-scheduler') },
   },
   decorators: withDrawer(data.metadata.name),
 };

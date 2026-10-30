@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: { data: data as unknown as HorizontalPodAutoscaler, resource: fixtureResource('k8s:autoscaling/horizontalpodautoscalers', data as unknown as HorizontalPodAutoscaler, 'ctx-1', 'frontend-hpa') },
+    ctx: { data: data as unknown as HorizontalPodAutoscaler, resource: fixtureResource('k8s:autoscaling/horizontalpodautoscalers', data, 'ctx-1', 'frontend-hpa') },
   },
   decorators: withDrawer(data.metadata.name),
 };

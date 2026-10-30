@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const OrderedReady: Story = {
   args: {
-    ctx: { data: data as unknown as StatefulSet, resource: fixtureResource('k8s:apps/statefulsets', data as unknown as StatefulSet, 'ctx-1', 'postgres') },
+    ctx: { data: data as unknown as StatefulSet, resource: fixtureResource('k8s:apps/statefulsets', data, 'ctx-1', 'postgres') },
   },
   decorators: withDrawer(data.metadata.name),
 };

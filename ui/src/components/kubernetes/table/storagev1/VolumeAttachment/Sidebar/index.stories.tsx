@@ -37,7 +37,7 @@ function withDrawer(title: string) {
 
 export const Attached: Story = {
   args: {
-    ctx: { data: data as unknown as VolumeAttachment, resource: fixtureResource('k8s:storage.k8s.io/volumeattachments', data as unknown as VolumeAttachment, 'ctx-1', 'csi-a1b2c3d4e5f6') },
+    ctx: { data: data as unknown as VolumeAttachment, resource: fixtureResource('k8s:storage.k8s.io/volumeattachments', data, 'ctx-1', 'csi-a1b2c3d4e5f6') },
   },
   decorators: withDrawer(data.metadata.name),
 };

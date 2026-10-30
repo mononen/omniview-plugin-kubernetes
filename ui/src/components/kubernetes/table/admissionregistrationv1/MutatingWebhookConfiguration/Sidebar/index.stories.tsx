@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: { data: data as unknown as MutatingWebhookConfiguration, resource: fixtureResource('k8s:admissionregistration.k8s.io/mutatingwebhookconfigurations', data as unknown as MutatingWebhookConfiguration, 'ctx-1', 'istio-sidecar-injector') },
+    ctx: { data: data as unknown as MutatingWebhookConfiguration, resource: fixtureResource('k8s:admissionregistration.k8s.io/mutatingwebhookconfigurations', data, 'ctx-1', 'istio-sidecar-injector') },
   },
   decorators: withDrawer(data.metadata.name),
 };

@@ -19,7 +19,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Primary: Story = {
   args: {
-    ctx: { data: data as unknown as IngressClass, resource: fixtureResource('k8s:networking.k8s.io/ingressclasses', data as unknown as IngressClass, 'ctx-1', 'nginx') },
+    ctx: { data: data as unknown as IngressClass, resource: fixtureResource('k8s:networking.k8s.io/ingressclasses', data, 'ctx-1', 'nginx') },
   },
 };
 

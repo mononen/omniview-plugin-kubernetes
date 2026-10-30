@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: { data: data as unknown as ValidatingAdmissionPolicyBinding, resource: fixtureResource('k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings', data as unknown as ValidatingAdmissionPolicyBinding, 'ctx-1', 'deny-privileged-binding') },
+    ctx: { data: data as unknown as ValidatingAdmissionPolicyBinding, resource: fixtureResource('k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings', data, 'ctx-1', 'deny-privileged-binding') },
   },
   decorators: withDrawer(data.metadata.name),
 };

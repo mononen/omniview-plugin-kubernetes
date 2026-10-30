@@ -37,7 +37,7 @@ function withDrawer(title: string) {
 
 export const MinAvailable: Story = {
   args: {
-    ctx: { data: data as unknown as PodDisruptionBudget, resource: fixtureResource('k8s:policy/poddisruptionbudgets', data as unknown as PodDisruptionBudget, 'ctx-1', 'web-frontend-pdb') },
+    ctx: { data: data as unknown as PodDisruptionBudget, resource: fixtureResource('k8s:policy/poddisruptionbudgets', data, 'ctx-1', 'web-frontend-pdb') },
   },
   decorators: withDrawer(data.metadata.name),
 };

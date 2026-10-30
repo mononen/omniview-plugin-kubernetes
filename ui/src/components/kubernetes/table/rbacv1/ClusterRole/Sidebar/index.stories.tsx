@@ -37,7 +37,7 @@ function withDrawer(title: string) {
 
 export const WithRules: Story = {
   args: {
-    ctx: { data: data as unknown as ClusterRole, resource: fixtureResource('k8s:rbac.authorization.k8s.io/clusterroles', data as unknown as ClusterRole, 'ctx-1', 'monitoring-reader') },
+    ctx: { data: data as unknown as ClusterRole, resource: fixtureResource('k8s:rbac.authorization.k8s.io/clusterroles', data, 'ctx-1', 'monitoring-reader') },
   },
   decorators: withDrawer(data.metadata.name),
 };

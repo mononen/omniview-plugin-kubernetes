@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const Complete: Story = {
   args: {
-    ctx: { data: data as unknown as Job, resource: fixtureResource('k8s:batch/jobs', data as unknown as Job, 'ctx-1', 'data-migration-v3') },
+    ctx: { data: data as unknown as Job, resource: fixtureResource('k8s:batch/jobs', data, 'ctx-1', 'data-migration-v3') },
   },
   decorators: withDrawer(data.metadata.name),
 };

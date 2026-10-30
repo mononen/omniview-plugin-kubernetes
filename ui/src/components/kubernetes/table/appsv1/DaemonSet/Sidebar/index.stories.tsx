@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: { data: data as unknown as DaemonSet, resource: fixtureResource('k8s:apps/daemonsets', data as unknown as DaemonSet, 'ctx-1', 'node-exporter') },
+    ctx: { data: data as unknown as DaemonSet, resource: fixtureResource('k8s:apps/daemonsets', data, 'ctx-1', 'node-exporter') },
   },
   decorators: withDrawer(data.metadata.name),
 };

@@ -19,7 +19,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Primary: Story = {
   args: {
-    ctx: { data: data as unknown as Endpoints, resource: fixtureResource('k8s:/endpoints', data as unknown as Endpoints, 'ctx-1', 'backend-api') },
+    ctx: { data: data as unknown as Endpoints, resource: fixtureResource('k8s:/endpoints', data, 'ctx-1', 'backend-api') },
   },
 };
 

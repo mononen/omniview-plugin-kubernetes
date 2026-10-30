@@ -35,7 +35,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: { data: data as unknown as CSIDriver, resource: fixtureResource('k8s:storage.k8s.io/csidrivers', data as unknown as CSIDriver, 'ctx-1', 'ebs.csi.aws.com') },
+    ctx: { data: data as unknown as CSIDriver, resource: fixtureResource('k8s:storage.k8s.io/csidrivers', data, 'ctx-1', 'ebs.csi.aws.com') },
   },
   decorators: withDrawer(data.metadata.name),
 };

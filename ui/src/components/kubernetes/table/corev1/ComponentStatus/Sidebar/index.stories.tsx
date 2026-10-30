@@ -38,7 +38,7 @@ function withDrawer(title: string) {
 
 export const Healthy: Story = {
   args: {
-    ctx: { data: data as unknown as ComponentStatus, resource: fixtureResource('k8s:/componentstatuses', data as unknown as ComponentStatus, 'ctx-1', 'scheduler') },
+    ctx: { data: data as unknown as ComponentStatus, resource: fixtureResource('k8s:/componentstatuses', data, 'ctx-1', 'scheduler') },
   },
   decorators: withDrawer(data.metadata.name),
 };

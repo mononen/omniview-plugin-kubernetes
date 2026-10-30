@@ -37,7 +37,7 @@ function withDrawer(title: string) {
 
 export const Bound: Story = {
   args: {
-    ctx: { data: data as unknown as PersistentVolumeClaim, resource: fixtureResource('k8s:/persistentvolumeclaims', data as unknown as PersistentVolumeClaim, 'ctx-1', 'data-pvc') },
+    ctx: { data: data as unknown as PersistentVolumeClaim, resource: fixtureResource('k8s:/persistentvolumeclaims', data, 'ctx-1', 'data-pvc') },
   },
   decorators: withDrawer(data.metadata.name),
 };
