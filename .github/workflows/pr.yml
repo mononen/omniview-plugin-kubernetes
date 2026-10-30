@@ -3,6 +3,7 @@ name: PR Validation
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 concurrency:
   group: pr-${{ github.event.pull_request.number }}
@@ -15,12 +16,44 @@ jobs:
   ui-checks:
     name: UI checks
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
+    env:
+      CANDIDATE_MODE: ${{ contains(github.event.pull_request.labels.*.name, 'resource-v2-candidate') }}
+      UI_COMMAND: ${{ contains(github.event.pull_request.labels.*.name, 'resource-v2-candidate') && 'node ../hack/candidate-ui.mjs run' || 'pnpm' }}
+      CANDIDATE_HOST_SOURCE: ${{ github.workspace }}/.tools/candidate-sources/host
+      CANDIDATE_SDK_SOURCE: ${{ github.workspace }}/.tools/candidate-sources/sdk
+      CANDIDATE_UI_SOURCE: ${{ github.workspace }}/.tools/candidate-sources/ui
+      OMNIVIEW_RESOURCE_V2_REVIEWED_HOST_REVISION: ${{ vars.OMNIVIEW_RESOURCE_V2_REVIEWED_HOST_REVISION }}
+      REVIEWED_SDK_REVISION: ${{ vars.OMNIVIEW_RESOURCE_V2_REVIEWED_SDK_REVISION }}
+      CANDIDATE_PR_HEAD: ${{ github.event.pull_request.head.sha }}
+      GOWORK: "off"
+      GOFLAGS: ""
     defaults:
       run:
         working-directory: ui
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      # This candidate branch requires explicit host and SDK approval. No registry fallback.
+      - name: Require immutable host approval
+        if: env.CANDIDATE_MODE == 'true'
+        working-directory: .
+        env:
+          HOST_REVISION: ${{ vars.OMNIVIEW_RESOURCE_V2_REVIEWED_HOST_REVISION }}
+        run: |
+          [[ "$HOST_REVISION" =~ ^[a-f0-9]{40}$ ]] || { echo "Missing immutable reviewed host revision"; exit 1; }
+
+      - name: Checkout approved host
+        if: env.CANDIDATE_MODE == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: omniviewdev/omniview
+          ref: ${{ vars.OMNIVIEW_RESOURCE_V2_REVIEWED_HOST_REVISION }}
+          path: .tools/candidate-sources/host
+          persist-credentials: false
 
       - uses: pnpm/setup@c9883cc79df532ad1a7b81bf9ab944ceb090d65c # v2.0.0
         with:
@@ -33,21 +66,65 @@ jobs:
           cache: pnpm
           cache-dependency-path: ui/pnpm-lock.yaml
 
+      - uses: actions/setup-go@v5
+        if: env.CANDIDATE_MODE == 'true'
+        with:
+          go-version-file: .tools/candidate-sources/host/go.mod
+
+      - uses: arduino/setup-task@v2
+        if: env.CANDIDATE_MODE == 'true'
+
+      - name: Select approved cohort
+        if: env.CANDIDATE_MODE == 'true'
+        id: candidate
+        working-directory: .
+        run: node hack/candidate-ui.mjs resolve
+
+      - name: Checkout approved SDK
+        if: env.CANDIDATE_MODE == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: omniviewdev/plugin-sdk
+          ref: ${{ steps.candidate.outputs.sdk }}
+          fetch-depth: 0
+          path: .tools/candidate-sources/sdk
+          persist-credentials: false
+
+      - name: Checkout cohort UI
+        if: env.CANDIDATE_MODE == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: omniviewdev/ui
+          ref: ${{ steps.candidate.outputs.ui }}
+          path: .tools/candidate-sources/ui
+          persist-credentials: false
+
+      - name: Prepare canonical native source workspace
+        if: env.CANDIDATE_MODE == 'true'
+        working-directory: .
+        run: node hack/candidate-ui.mjs prepare
+
       - name: Install dependencies
+        if: env.CANDIDATE_MODE != 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm run lint
+        run: $UI_COMMAND run lint
 
       # The TypeScript 6 alias serves JS API consumers, not CLI typechecking.
       - name: Native typecheck
-        run: node node_modules/@typescript/native/bin/tsc --noEmit
+        run: $UI_COMMAND exec node node_modules/@typescript/native/bin/tsc --noEmit
 
       - name: Behavior tests
-        run: pnpm test
+        run: $UI_COMMAND test
 
       - name: New York age-clock tests
-        run: TZ=America/New_York pnpm exec vitest run src/utils/ageClock.test.tsx
+        run: TZ=America/New_York $UI_COMMAND exec vitest run src/utils/ageClock.test.tsx
 
       - name: Production UI build
-        run: pnpm run build
+        run: $UI_COMMAND run build
+
+      - name: Retire canonical candidate workspace
+        if: always() && env.CANDIDATE_MODE == 'true'
+        working-directory: .
+        run: node hack/candidate-ui.mjs cleanup
