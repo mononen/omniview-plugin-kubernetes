@@ -3,9 +3,12 @@
 // the local Helm client domain. Type and ID tokens stay opaque outside this adapter.
 // Source cursors belong to native acquisition and provide best-effort paging,
 // never host query continuation or atomic update continuity.
+// Type actions use exact query scope and take the new resource name in input;
+// they never construct an instance reference to authorize creation.
 package helm
 
 import (
+	"context"
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"go.uber.org/zap"
@@ -33,6 +36,7 @@ func (h *HelmAncillary) Registrations() []resource.Registration[clients.ClientSe
 	boundedReleases := supportsBoundedReleaseEnumeration()
 	for _, t := range []string{ReleaseType, RepositoryType, ChartType} {
 		registration := resource.Registration[clients.ClientSet]{Type: t, Get: h.Get, Enumerate: h.Enumerate, Action: h.Action}
+		registration.Actions, _ = h.GetActions(context.Background(), nil, t)
 		if t == ReleaseType && !boundedReleases {
 			registration.Enumerate = nil
 		}

@@ -52,10 +52,11 @@ func NativeMutate(ctx context.Context, client dynamic.Interface, gvr schema.Grou
 		if err != nil {
 			return resourcev2.Record{}, err
 		}
-		preconditions := &metav1.Preconditions{ResourceVersion: request.ExpectedRevision}
-		if uid := object.GetUID(); uid != "" {
-			preconditions.UID = &uid
+		uid, revision := object.GetUID(), object.GetResourceVersion()
+		if uid == "" || revision == "" {
+			return resourcev2.Record{}, resourcev2.NewError("UNAVAILABLE", "Kubernetes delete requires an observed UID and resource version")
 		}
+		preconditions := &metav1.Preconditions{UID: &uid, ResourceVersion: &revision}
 		if err := resource.Delete(ctx, request.Reference.Address.ID, metav1.DeleteOptions{Preconditions: preconditions, GracePeriodSeconds: grace}); err != nil {
 			return resourcev2.Record{}, err
 		}

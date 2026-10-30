@@ -5,6 +5,8 @@ import React from 'react';
 import { LuCircleArrowUp, LuUndo2, LuGitCompare } from 'react-icons/lu';
 import { stringify, parse } from 'yaml';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 import CodeEditor from '../../shared/CodeEditor';
 
 import styles from './ReleaseSidebar.module.css';
@@ -198,9 +200,18 @@ function parseManifestResources(
 /**
  * Renders a sidebar for a Helm Release resource.
  */
-export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
+export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => (
+  <ReleaseSidebarContent
+    key={JSON.stringify([ctx.resource?.key ?? '', String(ctx.data?.version ?? 0n)])}
+    ctx={ctx}
+  />
+);
+
+// A release revision owns its cached reads and diff/upgrade dialog state.
+const ReleaseSidebarContent: React.FC<Props> = ({ ctx }) => {
   // Per-action cached tab data
   const [tabData, setTabData] = React.useState<Record<string, TabDataEntry>>({});
+  const tabCacheRef = React.useRef<Record<string, TabDataEntry>>({});
   const [activeTab, setActiveTab] = React.useState('0');
   const [showManifestDiff, setShowManifestDiff] = React.useState(false);
   const [prevManifest, setPrevManifest] = React.useState<string | null>(null);
@@ -209,34 +220,17 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
   const connectionID = ctx.resource?.route.connection ?? '';
   const releaseName = ctx.resource?.reference.address.id ?? '';
   const namespace = ctx.resource?.reference.address.scope.find((entry) => entry.dimension === 'namespace')?.value ?? '';
-  const { executeAction, isExecuting } = useExecuteAction({ pluginID: 'kubernetes' });
+  const { executeAction, isExecuting } = useExecuteAction({ pluginID: PLUGIN_ID });
   const resource = ctx.resource;
   const runAction = React.useCallback((action: string, input = jsonToValue({})) => {
     if (!resource) return Promise.reject(new Error('Release reference is unavailable'));
     return executeAction({ route: resource.route, reference: resource.reference, action, input });
   }, [executeAction, resource]);
-  React.useEffect(() => {
-    setTabData({});
-    setPrevManifest(null);
-    setShowManifestDiff(false);
-  }, [resource?.key]);
-
   const { showResourceSidebar } = useRightDrawer();
+  const executeReleaseRead = React.useEffectEvent(runAction);
 
-  // Fetch tab data on tab change, caching results per action
-  const fetchTabData = React.useCallback(
-    async (actionID: string) => {
-      if (tabData[actionID]) return; // Already cached
-      try {
-        const result = await runAction(actionID);
-        setTabData((prev) => ({ ...prev, [actionID]: helmActionData(result) as TabDataEntry }));
-      } catch {
-        setTabData((prev) => ({ ...prev, [actionID]: null }));
-      }
-    },
-    [runAction, tabData],
-  );
-
+  // Reads commit only after external completion, never from the effect body.
+  // Failed actions remain retryable when the user revisits the tab.
   React.useEffect(() => {
     const tabActions = [
       'get-values',
@@ -247,10 +241,23 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
       'get-manifest',
     ];
     const actionID = tabActions[Number(activeTab)];
-    if (actionID && connectionID) {
-      void fetchTabData(actionID);
-    }
-  }, [activeTab, connectionID, fetchTabData]);
+    if (!actionID || !connectionID || !releaseName || tabCacheRef.current[actionID]) return;
+    let cancelled = false;
+    void executeReleaseRead(actionID)
+      .then((result) => {
+        if (cancelled) return;
+        const entry = helmActionData(result) as TabDataEntry;
+        tabCacheRef.current[actionID] = entry;
+        setTabData((prev) => ({ ...prev, [actionID]: entry }));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setTabData((prev) => ({ ...prev, [actionID]: null }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, connectionID, releaseName, namespace]);
 
   // Load previous revision manifest for diff
   const loadPrevManifest = React.useCallback(async () => {
@@ -494,13 +501,15 @@ export const ReleaseSidebar: React.FC<Props> = ({ ctx }) => {
                   const type = kindToType[`${res.apiGroup}/${res.kind}`];
                   if (!type) return;
                   const clusterScoped = ['Namespace', 'ClusterRole', 'ClusterRoleBinding'].includes(res.kind);
-                  void ResourceClient.ResolveReference('kubernetes', {
+                  void ResourceClient.ResolveReference(PLUGIN_ID, {
                     route: ctx.resource!.route, type, id: res.name,
                     scope: clusterScoped ? [] : [{ dimension: 'namespace', value: res.namespace ?? namespace }],
                   }).then((resolved) => showResourceSidebar({
-                    pluginID: 'kubernetes', reference: resolved.reference, route: resolved.route,
+                    pluginID: PLUGIN_ID, reference: resolved.reference, route: resolved.route,
                     representation: resolved.representation, targetId: resolved.targetId, resourceName: res.name,
-                  }));
+                  })).catch((err: unknown) => {
+                    console.error('[ReleaseSidebar] Failed to open resource sidebar', err);
+                  });
                 }}
               >
                 <Stack direction="row" spacing={2} align="center">

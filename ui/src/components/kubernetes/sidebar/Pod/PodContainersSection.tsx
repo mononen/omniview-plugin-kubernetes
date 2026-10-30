@@ -1,8 +1,11 @@
 import type { DrawerContext } from '@omniviewdev/runtime';
-import { Separator, Text } from '@omniviewdev/base-ui';
+import { Separator, Text, Button } from '@omniviewdev/base-ui';
+import { parseAppError } from '@omniviewdev/runtime';
 import { Container, ContainerStatus, Pod, PodSpec } from 'kubernetes-types/core/v1';
 import React from 'react';
 
+import { runningDebugTargets } from '../../../../features/debug/targets';
+import { useDrawerActionExecution } from '../../../shared/drawer/DrawerActionsBridge';
 import SectionHeading from '../shared/SectionHeading';
 import { subsectionLabelStyle } from '../shared/sectionStyles';
 
@@ -68,7 +71,7 @@ function parseContainers(pod: Pod, resourceID: string, connectionID: string): Pa
     result.push({
       resourceID,
       connectionID,
-      container: ec as unknown as Container,
+      container: ec,
       status: ephemeralStatusMap[ec.name],
       type: 'ephemeral',
     });
@@ -105,6 +108,8 @@ const PodContainersSection: React.FC<ContainersSectionProps> = ({
   podCpuUsage,
   podMemoryUsage,
 }) => {
+  const execution = useDrawerActionExecution({ connectionID, resourceKey: 'k8s:/pods' });
+  const [debugError, setDebugError] = React.useState('');
   const parsed = parseContainers(obj, resourceID, connectionID);
   if (parsed.length === 0) return null;
 
@@ -114,6 +119,8 @@ const PodContainersSection: React.FC<ContainersSectionProps> = ({
 
   return (
     <div>
+      {execution.dialogs}
+      {debugError && <p role="alert">{debugError}</p>}
       <SectionHeading label="Containers" count={parsed.length} />
       <div style={containerBoxStyle}>
         {initContainers.length > 0 && (
@@ -146,6 +153,13 @@ const PodContainersSection: React.FC<ContainersSectionProps> = ({
               podCpuUsage={podCpuUsage}
               podMemoryUsage={podMemoryUsage}
             />
+            {runningDebugTargets(obj).includes(c.container.name) && <Button variant="ghost" onClick={() => {
+              setDebugError('');
+              void execution.deps.startDebug({ connectionID, resourceID, namespace: obj.metadata!.namespace!, podUID: obj.metadata!.uid!, targetContainerName: c.container.name, resourceData: obj }).catch(cause => {
+                const parsed = parseAppError(cause);
+                setDebugError(parsed.code ? `${parsed.title}: ${parsed.detail}` : cause instanceof Error ? cause.message : parsed.detail);
+              });
+            }}>Debug {c.container.name}</Button>}
           </React.Fragment>
         ))}
         {ephemeralContainers.length > 0 && (

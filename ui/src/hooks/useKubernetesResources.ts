@@ -2,9 +2,10 @@ import { useMemo } from 'react';
 import { useResourceTypes, useResolvedResourceTarget, useResources, valueToJSON } from '@omniviewdev/runtime';
 import { useSourcePageNavigation } from './useSourcePageNavigation';
 
+import { PLUGIN_ID } from '@/pluginId';
 /** Kubernetes presentation adapter. Only the host resolves authority and membership. */
 export function useKubernetesResources<T>({
-  pluginID = 'kubernetes', connectionID, resourceType, namespaces = [], enabled = true,
+  pluginID = PLUGIN_ID, connectionID, resourceType, namespaces = [], enabled = true,
 }: {
   pluginID?: string;
   connectionID: string;

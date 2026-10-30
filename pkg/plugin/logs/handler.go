@@ -12,10 +12,11 @@ import (
 	"github.com/omniviewdev/plugin-sdk/pkg/v1/logs"
 
 	"github.com/omniview/kubernetes/pkg/utils"
+	"github.com/omniview/kubernetes/pkg/utils/kubeauth"
 )
 
 // PodLogHandler opens a log stream for a single K8s pod container.
-func PodLogHandler(ctx *types.PluginContext, req logs.LogStreamRequest) (io.ReadCloser, error) {
+func PodLogHandler(clients *kubeauth.KubeClientBundle, ctx *types.PluginContext, req logs.LogStreamRequest) (io.ReadCloser, error) {
 	pod := req.Labels["pod"]
 	namespace := req.Labels["namespace"]
 	if req.Reference != nil || req.Route != nil {
@@ -42,10 +43,6 @@ func PodLogHandler(ctx *types.PluginContext, req logs.LogStreamRequest) (io.Read
 			}
 			pod = name
 		}
-	}
-	clients, err := utils.KubeClientsFromContext(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get kube clients: %w", err)
 	}
 
 	// Prefer source labels (set by SourceResolvers for group resources like
@@ -82,6 +79,16 @@ func PodLogHandler(ctx *types.PluginContext, req logs.LogStreamRequest) (io.Read
 		TailLines:    ptrIfPositive(req.TailLines),
 		SinceSeconds: ptrIfPositive(req.SinceSeconds),
 	}
+	if !req.Follow {
+		tail := req.TailLines
+		if tail <= 0 {
+			tail = 200
+		}
+		if tail > 5000 {
+			tail = 5000
+		}
+		logOpts.TailLines = &tail
+	}
 
 	if req.SinceTime != nil {
 		t := metav1.NewTime(*req.SinceTime)
@@ -90,6 +97,10 @@ func PodLogHandler(ctx *types.PluginContext, req logs.LogStreamRequest) (io.Read
 
 	if req.LimitBytes > 0 {
 		logOpts.LimitBytes = &req.LimitBytes
+	}
+	if !req.Follow && (logOpts.LimitBytes == nil || *logOpts.LimitBytes > 1<<20) {
+		limit := int64(1 << 20)
+		logOpts.LimitBytes = &limit
 	}
 
 	return clients.Clientset.CoreV1().Pods(namespace).GetLogs(pod, logOpts).Stream(ctx.Context)

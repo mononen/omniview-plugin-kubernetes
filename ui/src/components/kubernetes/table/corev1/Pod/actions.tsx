@@ -1,8 +1,23 @@
-import { type DrawerComponentAction, type DrawerComponentActionListItem } from '@omniviewdev/runtime'
+import { type DrawerContext, type DrawerComponentAction, type DrawerComponentActionListItem } from '@omniviewdev/runtime'
 import type { Pod } from 'kubernetes-types/core/v1';
-import { LuBugPlay, LuLogs, LuScaling, LuTerminal, LuTrash } from 'react-icons/lu';
+import { LuBugPlay, LuChevronDown, LuLogs, LuScaling, LuTerminal, LuTrash } from 'react-icons/lu';
 
+import { isMissingShellError, runningDebugTargets } from '../../../../../features/debug/targets';
 import { drawerActionDeps } from '../../../../shared/drawer/actionDeps';
+
+
+const debugInput = (ctx: DrawerContext<Pod>, targetContainerName: string) => {
+  const pod = ctx.data;
+  if (!pod || !runningDebugTargets(pod).includes(targetContainerName)) throw new Error('Debug target is no longer available');
+  return {
+    connectionID: ctx.resource?.route.connection ?? '',
+    resourceID: pod.metadata!.name!,
+    namespace: pod.metadata!.namespace!,
+    podUID: pod.metadata!.uid!,
+    targetContainerName,
+    resourceData: pod,
+  };
+};
 
 const resourceKey = 'k8s:/pods';
 
@@ -44,19 +59,28 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
         list.push({
           title: container.name,
           action: () => {
+            const recoveryTarget = runningDebugTargets(ctx.data).includes(container.name) ? debugInput(ctx, container.name) : null;
             return drawerActionDeps(ctx).createExecSession({
               connectionID: ctx.resource?.route.connection ?? '',
               label: `${ctx.data?.metadata?.name}/${container.name}`,
               icon: 'LuContainer',
+              recovery: {
+                label: 'Debug this container',
+                canRecover: (error) => recoveryTarget !== null && isMissingShellError(error),
+                run: () => {
+                  if (!recoveryTarget) return Promise.reject(new Error('Original container is no longer available'));
+                  return drawerActionDeps(ctx).startDebug(recoveryTarget);
+                },
+              },
               opts: {
-                resource_plugin: 'kubernetes',
+                resource_plugin: ctx.resource!.reference.address.provider,
                 resource_data: ctx.resource!.record!.record.body,
                 reference: ctx.resource!.reference,
                 route: ctx.resource!.route,
                 resource_key: ctx.resource?.reference.address.type,
                 params: { container: container.name },
               },
-            }).then(() => drawerActionDeps(ctx).closeDrawer());
+            }).then((session) => { if (session) drawerActionDeps(ctx).closeDrawer(); });
           },
         });
       });
@@ -69,14 +93,14 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
               label: `${ctx.data?.metadata?.name}/${container.name}`,
               icon: 'LuContainer',
               opts: {
-                resource_plugin: 'kubernetes',
+                resource_plugin: ctx.resource!.reference.address.provider,
                 resource_data: ctx.resource!.record!.record.body,
                 reference: ctx.resource!.reference,
                 route: ctx.resource!.route,
                 resource_key: ctx.resource?.reference.address.type,
-                params: { container: container.name },
+                params: { mode: 'attach', container: container.name, pod_uid: ctx.data?.metadata?.uid },
               },
-            }).then(() => drawerActionDeps(ctx).closeDrawer());
+            }).then((session) => { if (session) drawerActionDeps(ctx).closeDrawer(); });
           },
         });
       });
@@ -178,10 +202,30 @@ export const drawerActions: Array<DrawerComponentAction<Pod>> = [
     },
   },
   {
-    title: 'Add Debug Container',
+    title: 'Debug',
     icon: <LuBugPlay />,
-    enabled: false,
-    action: () => { /* TODO: implement add debug container */ },
+    enabled: (ctx) => runningDebugTargets(ctx.data).length > 0,
+    action: (ctx) => {
+      const targets = runningDebugTargets(ctx.data);
+      if (targets.length !== 1) throw new Error('Choose an available Debug target');
+      return drawerActionDeps(ctx).startDebug(debugInput(ctx, targets[0]));
+    },
+    list: (ctx) => {
+      const targets = runningDebugTargets(ctx.data);
+      return targets.map(name => ({
+        title: name,
+        action: () => drawerActionDeps(ctx).startDebug(debugInput(ctx, name)),
+      }));
+    },
+  },
+  {
+    title: 'Debug options',
+    icon: <LuChevronDown />,
+    enabled: (ctx) => runningDebugTargets(ctx.data).length > 0,
+    list: (ctx) => runningDebugTargets(ctx.data).map(name => ({
+      title: name,
+      action: () => drawerActionDeps(ctx).openDebugOptions(debugInput(ctx, name)),
+    })),
   },
   {
     title: 'Resize',

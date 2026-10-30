@@ -8,6 +8,7 @@ import HelmReleaseTable from './components/helm/releases/Table';
 import HelmRepoTable from './components/helm/repos/Table';
 import HelmChartTable from './components/helm/charts/Table';
 import DefaultTable from './components/kubernetes/table/default/Table';
+import ClusterResourcesRoute from './pages/ClusterResourcesRoute';
 
 // Route matching must not initialize the unrelated browser-only Markdown worker.
 // It is intentionally not a renderer fallback: mounting it fails this test.
@@ -27,6 +28,16 @@ describe('native specialized route registrations', () => {
     const matches = matchRoutes(routes, `/cluster/prod/resources/${encodeURIComponent(type)}`);
     expect(matches?.at(-1)?.route.Component).toBe(component);
     expect(matches?.at(-1)?.params.id).toBe('prod');
+  });
+
+  it.each([
+    '/cluster/prod/resources',
+    '/cluster/prod/resources/metrics',
+    '/cluster/prod/resources/page/contributed/details',
+    `/cluster/prod/resources/${encodeURIComponent('k8s:/pods')}`,
+  ])('keeps connection recovery around plugin-owned resource route %s', (path) => {
+    const matches = matchRoutes(routes, path);
+    expect(matches?.some(({ route }) => route.Component === ClusterResourcesRoute)).toBe(true);
   });
 
   it('requires Type slash encoding instead of changing route structure', () => {

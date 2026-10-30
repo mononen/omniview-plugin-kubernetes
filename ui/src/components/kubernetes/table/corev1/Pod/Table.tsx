@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -6,10 +7,11 @@ import { Pod } from 'kubernetes-types/core/v1';
 import { Condition, OwnerReference } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuContainer } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
-import { usePodMetricsBatch } from '../../../../../hooks/usePodMetricsBatch';
-import { sumIntegerValues } from '../../../../../utils/convert';
+import { PLUGIN_ID } from '@/pluginId';
+
+
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
 import ResourceLinkChip from '../../../../shared/ResourceLinkChip';
@@ -22,23 +24,24 @@ import { inclusionFilter, ownerRefFilter } from '../../shared/filters';
 import { drawerActions } from './actions';
 import ContainerPhaseCell from './cells/ContainerPhaseCell';
 import ContainerStatusCell from './cells/ContainerStatusCell';
-import MetricUsageCell, { PodMetricsContext } from './cells/MetricUsageCell';
+import MetricUsageCell from './cells/MetricUsageCell';
 import ResourceLinkCell from './cells/ResourceLinkCell';
+import PodMetricsProvider from './PodMetricsProvider';
 
 
 const resourceKey = 'k8s:/pods';
 
 
+
 const PodTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { metricsMap } = usePodMetricsBatch({ connectionID: id });
 
   /**
    * Handler to go ahead and submit a resource change
    */
 
-  const columns = React.useMemo<Array<ColumnDef<Pod>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, Pod>>>(
     () =>
       withNamespacedResourceColumns(
         [
@@ -77,7 +80,7 @@ const PodTable: React.FC = () => {
             id: 'controlledBy',
             header: 'Controlled By',
             accessorKey: 'metadata.ownerReferences',
-            filterFn: ownerRefFilter as FilterFn<Pod>,
+            filterFn: ownerRefFilter as FilterFn<DataTableFeatures, Pod>,
             cell: ({ getValue, row }) => {
               const refs = getValue() as Array<OwnerReference> | undefined;
               if (refs == null || refs.length === 0) {
@@ -98,11 +101,11 @@ const PodTable: React.FC = () => {
             id: 'node',
             header: 'Node',
             accessorKey: 'spec.nodeName',
-            filterFn: inclusionFilter as FilterFn<Pod>,
+            filterFn: inclusionFilter as FilterFn<DataTableFeatures, Pod>,
             size: 150,
             cell: ({ getValue }) => (
               <ResourceLinkCell
-                pluginID="kubernetes"
+                pluginID={PLUGIN_ID}
                 connectionId={id}
                 resourceId={getValue() as string}
                 resourceKey="k8s:/nodes"
@@ -149,7 +152,7 @@ const PodTable: React.FC = () => {
             size: 120,
             cell: ({ getValue, row }) => (
               <ResourceLinkCell
-                pluginID="kubernetes"
+                pluginID={PLUGIN_ID}
                 connectionId={id}
                 resourceId={getValue() as string}
                 resourceKey={'k8s:/serviceaccounts'}
@@ -259,19 +262,19 @@ const PodTable: React.FC = () => {
   );
 
   return (
-    <PodMetricsContext.Provider value={metricsMap}>
       <ResourceTable
+        key={id}
         columns={columns}
         connectionID={id}
         resourceKey={resourceKey}
         drawer={drawer}
+        contentWrapper={PodMetricsProvider}
         toolbarFilters={[
           { columnId: 'node', placeholder: 'All Nodes', accessor: (r: Pod) => r?.spec?.nodeName },
           { columnId: 'controlledBy', placeholder: 'All Controllers', accessor: (r: Pod) => r?.metadata?.ownerReferences?.[0]?.name },
           { columnId: 'namespace', placeholder: 'All Namespaces', accessor: (r: Pod) => r?.metadata?.namespace },
         ]}
       />
-    </PodMetricsContext.Provider>
   );
 };
 

@@ -33,7 +33,11 @@ interface Props {
   isCreating?: boolean;
 }
 
-const CreateResourceModal: React.FC<Props> = ({
+const CreateResourceModal: React.FC<Props> = (props) =>
+  props.open ? <CreateResourceForm key={props.resourceKey} {...props} /> : null;
+
+// Reopening or selecting another resource kind starts a new template draft.
+const CreateResourceForm: React.FC<Props> = ({
   open,
   onClose,
   resourceKey,
@@ -42,16 +46,21 @@ const CreateResourceModal: React.FC<Props> = ({
   onCreate,
   isCreating,
 }) => {
-  const [value, setValue] = React.useState('');
+  const [value, setValue] = React.useState(template);
   const [error, setError] = React.useState<string | null>(null);
+  const activeRef = React.useRef(false);
 
-  // Reset template each time modal opens
   React.useEffect(() => {
-    if (open) {
-      setValue(template);
-      setError(null);
-    }
-  }, [open, resourceKey, template]);
+    activeRef.current = true;
+    return () => {
+      activeRef.current = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    setValue(template);
+    setError(null);
+  }, [template]);
 
   const handleSubmit = async () => {
     setError(null);
@@ -61,8 +70,10 @@ const CreateResourceModal: React.FC<Props> = ({
     try {
       // Dynamic import to keep bundle lean — yaml is already installed
       const { parse } = await import('yaml');
+      if (!activeRef.current) return;
       parsed = parse(value, { intAsBigInt: true }) as Record<string, unknown>;
     } catch (err: unknown) {
+      if (!activeRef.current) return;
       setError(`YAML syntax error: ${err instanceof Error ? err.message : 'Invalid YAML'}`);
       return;
     }
@@ -82,8 +93,9 @@ const CreateResourceModal: React.FC<Props> = ({
 
     try {
       await onCreate(value);
-      onClose();
+      if (activeRef.current) onClose();
     } catch (err: unknown) {
+      if (!activeRef.current) return;
       setError(err instanceof Error ? err.message : 'Failed to create resource');
     }
   };

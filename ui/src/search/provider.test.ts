@@ -72,4 +72,23 @@ describe('canonical Kubernetes search', () => {
       route: target.route, type: 'k8s:/pods', representation: 'native',
     });
   });
+  it('uses the catalog UI default when raw and model representations coexist', async () => {
+    clients.catalog.mockResolvedValue({ types: [{
+      type: target.type, displayName: 'Pods', defaultRepresentation: 'raw-v1',
+      representations: [{ id: 'raw-v1' }, { id: 'model-v1' }],
+    }] });
+    clients.resolve.mockResolvedValue({ target: { ...target, representation: 'raw-v1' }, targetId: type.targetId });
+    await provider.search(request(connection, 'Pods'));
+    expect(clients.resolve).toHaveBeenCalledWith('kubernetes', {
+      route: target.route, type: target.type, representation: 'raw-v1',
+    });
+  });
+  it('does not guess among representations without a declared default', async () => {
+    clients.catalog.mockResolvedValue({ types: [{
+      type: target.type, displayName: 'Pods', representations: [{ id: 'raw-v1' }, { id: 'model-v1' }],
+    }] });
+    const result = await provider.search(request(connection, 'Pods'));
+    expect(result.status).toBe('unavailable');
+    expect(clients.resolve).not.toHaveBeenCalled();
+  });
 });

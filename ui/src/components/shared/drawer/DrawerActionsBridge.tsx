@@ -10,12 +10,14 @@ import {
 } from '@omniviewdev/runtime';
 import React from 'react';
 
+import { useDebugActions } from '../../../features/debug/useDebugActions';
 import { useClusterPreferences } from '../../../hooks/useClusterPreferences';
 import ScaleModal from '../../kubernetes/actions/ScaleModal';
 
 import { type DrawerActionDeps, registerDrawerActionDeps, registryKey, type ScaleTarget } from './actionDeps';
 
-const PLUGIN_ID = 'kubernetes';
+import { PLUGIN_ID } from '@/pluginId';
+
 
 /** Mounts the hook-backed handlers that drawer actions use; see `actionDeps.ts`. */
 type BridgeProps = {
@@ -33,6 +35,8 @@ export const useDrawerActionExecution = ({ connectionID, resourceKey }: BridgePr
   const { closeDrawer } = useRightDrawer();
   const { connectionOverrides } = useClusterPreferences(PLUGIN_ID);
   const nodeShellConfig = connectionOverrides[connectionID]?.nodeShellConfig;
+  const debugTransport = React.useMemo(() => ({ executeAction, createExecSession: createSession }), [executeAction, createSession]);
+  const debug = useDebugActions(connectionID, debugTransport);
 
   const [scaleTarget, setScaleTarget] = React.useState<ScaleTarget | null>(null);
 
@@ -47,8 +51,10 @@ export const useDrawerActionExecution = ({ connectionID, resourceKey }: BridgePr
       closeDrawer,
       openScale: setScaleTarget,
       nodeShellConfig,
+      startDebug: debug.startDebug,
+      openDebugOptions: debug.openDebugOptions,
     }),
-    [show, mutate, createLogSession, createSession, executeAction, startStreamAction, closeDrawer, nodeShellConfig],
+    [show, mutate, createLogSession, createSession, executeAction, startStreamAction, closeDrawer, nodeShellConfig, debug.startDebug, debug.openDebugOptions],
   );
 
 
@@ -73,7 +79,7 @@ export const useDrawerActionExecution = ({ connectionID, resourceKey }: BridgePr
       isExecuting={isExecuting}
     />
   ) : null;
-  return { deps, dialogs, isBusy: scaleTarget !== null || isExecuting };
+  return { deps, dialogs: <>{dialogs}{debug.dialogs}</>, isReady: debug.isReady, isBusy: scaleTarget !== null || isExecuting || debug.isBusy };
 };
 
 const DrawerActionsBridge: React.FC<BridgeProps> = (props) => {

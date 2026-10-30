@@ -7,6 +7,7 @@ import type {
   MutationRequest,
   useStreamAction,
 } from '@omniviewdev/runtime';
+import type { Pod } from 'kubernetes-types/core/v1';
 
 /**
  * Shared hook-backed execution dependencies. Drawer bridges register fallback
@@ -18,6 +19,15 @@ export type ScaleTarget = { resource: NonNullable<DrawerContext['resource']>; na
 
 type NodeShellConfig = { image?: string; command?: string };
 
+export type StartDebugInput = {
+  connectionID: string;
+  resourceID: string;
+  namespace: string;
+  podUID: string;
+  targetContainerName: string;
+  resourceData: Pod;
+};
+
 export type DrawerActionDeps = {
   show: ReturnType<typeof useConfirmationModal>['show'];
   mutate: (request: MutationRequest) => Promise<unknown>;
@@ -28,6 +38,8 @@ export type DrawerActionDeps = {
   closeDrawer: () => void;
   /** Opens the replica count dialog; confirming runs the `scale` action. */
   openScale: (target: ScaleTarget) => void;
+  startDebug: (input: StartDebugInput) => Promise<void>;
+  openDebugOptions: (input: StartDebugInput) => void;
   nodeShellConfig?: NodeShellConfig;
 };
 

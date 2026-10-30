@@ -1,12 +1,13 @@
 import type { DrawerContext } from '@omniviewdev/runtime';
 
+import { PLUGIN_ID } from '@/pluginId';
 type NativeFixture = { metadata?: { name?: string; namespace?: string; uid?: string } };
 
 /** Explicit mock host identity for isolated stories and component fixtures only. */
 export function fixtureResource(type: string, data: unknown, connection: string, id: string): NonNullable<DrawerContext['resource']> {
   const metadata = (data as NativeFixture | undefined)?.metadata;
   return {
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     reference: {
       address: {
         provider: 'kubernetes', authority: 'fixture-host-authority', type,

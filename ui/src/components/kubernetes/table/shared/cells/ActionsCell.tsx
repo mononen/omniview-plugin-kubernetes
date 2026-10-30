@@ -4,11 +4,15 @@ import {
   type DrawerContext,
   type HostRecord,
   useConfirmationModal,
+  parseAppError,
+  useSnackbar,
 } from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
 import { ObjectMeta } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuEllipsis, LuTrash } from 'react-icons/lu';
+
+import { PLUGIN_ID } from '@/pluginId';
 
 import { useTableDrawer } from '../../../../shared/table/TableDrawerContext';
 
@@ -22,13 +26,16 @@ type ContextMenuItem = {
   color?: 'danger';
   disabled?: boolean;
   dividerAfter?: boolean;
-  onClick?: () => void;
+  onClick?: () => void | Promise<unknown>;
   children?: ContextMenuItem[];
 };
 
 const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
-function renderMenuItems(items: ContextMenuItem[]): React.ReactNode {
+function renderMenuItems(
+  items: ContextMenuItem[],
+  invoke: (callback: NonNullable<ContextMenuItem['onClick']>) => void,
+): React.ReactNode {
   return items.map((item) => (
     <React.Fragment key={item.key}>
       {item.children && item.children.length > 0 ? (
@@ -38,7 +45,7 @@ function renderMenuItems(items: ContextMenuItem[]): React.ReactNode {
           </Menu.SubmenuTrigger>
           <Menu.Portal>
             <Menu.Positioner sideOffset={4}>
-              <Menu.Popup onClick={stopPropagation}>{renderMenuItems(item.children)}</Menu.Popup>
+              <Menu.Popup onClick={stopPropagation}>{renderMenuItems(item.children, invoke)}</Menu.Popup>
             </Menu.Positioner>
           </Menu.Portal>
         </Menu.SubmenuRoot>
@@ -47,7 +54,7 @@ function renderMenuItems(items: ContextMenuItem[]): React.ReactNode {
           startDecorator={item.icon}
           color={item.color}
           disabled={item.disabled}
-          onClick={item.onClick}
+          onClick={item.onClick ? () => { invoke(item.onClick!); } : undefined}
         >
           {item.label}
         </Menu.Item>
@@ -80,7 +87,7 @@ function buildDrawerContext(props: Props, record: HostRecord): DrawerContext {
       key: record.key,
       record,
       name: record.record.reference.address.id,
-      pluginID: 'kubernetes',
+      pluginID: PLUGIN_ID,
     },
   };
 }
@@ -166,6 +173,17 @@ const ActionsCell: React.FC<Props> = ({ connectionID, resourceKey, resourceID, d
   const drawer = tableContext?.drawer;
   const record = tableContext?.recordsByBody.get(data as object);
   const { show } = useConfirmationModal();
+  const snackbar = useSnackbar();
+  const invoke = (callback: NonNullable<ContextMenuItem['onClick']>) => {
+    void (async () => {
+      try {
+        await callback();
+      } catch (cause) {
+        const error = parseAppError(cause);
+        snackbar.showSnackbar({ message: error.title || 'Action failed', status: 'error', details: error.detail });
+      }
+    })();
+  };
 
   const propsObj = React.useMemo<Props>(
     () => ({ connectionID, resourceKey, resourceID, data, namespace }),
@@ -207,7 +225,7 @@ const ActionsCell: React.FC<Props> = ({ connectionID, resourceKey, resourceID, d
       />
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="end" sideOffset={4}>
-          <Menu.Popup onClick={stopPropagation}>{renderMenuItems(items)}</Menu.Popup>
+          <Menu.Popup onClick={stopPropagation}>{renderMenuItems(items, invoke)}</Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
     </Menu.Root>
@@ -238,7 +256,7 @@ function buildFallbackDelete(
         confirmLabel: 'Delete',
         cancelLabel: 'Cancel',
         onConfirm: async () => {
-          await ResourceClient.Mutate('kubernetes', {
+          await ResourceClient.Mutate(PLUGIN_ID, {
             reference: ctx.resource!.reference,
             route: ctx.resource!.route,
             operation: 'delete',

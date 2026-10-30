@@ -1,19 +1,20 @@
-import { DataTable, Progress, Skeleton } from '@omniviewdev/base-ui';
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
+import { DataTable, Progress, Skeleton, dataTableFeatures } from '@omniviewdev/base-ui';
 import { useResources, useResourceType, useResolvedResourceTarget, useRightDrawer, usePluginRouter, DrawerComponent } from '@omniviewdev/runtime';
 import {
   type ColumnDef,
   type ColumnFiltersState,
   type ColumnSizingState,
   type SortingState,
-  type VisibilityState,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
+  type ColumnVisibilityState as VisibilityState,
+  useTable,
   type Row,
   type RowSelectionState,
+  type RowData,
 } from '@tanstack/react-table';
 import React, { useMemo, useState } from 'react';
+
+import { PLUGIN_ID } from '@/pluginId';
 
 const SKELETON_ROWS = Array.from({ length: 8 }, (_, i) => `skel-${i}`);
 
@@ -28,20 +29,21 @@ const NON_DRAWER_COLUMNS = new Set(['select', 'menu']);
 
 import type { KubernetesResourceObject } from '../../../../types/resource';
 import { useDynamicResourceColumns } from '../../../tables/ColumnFilter/useDynamicResourceColumns';
-
 import DrawerActionsBridge from '../../drawer/DrawerActionsBridge';
 import { TableDrawerContext } from '../TableDrawerContext';
 import { ColumnMeta } from '../types';
 import { useRowSelectionCleanup } from '../useRowSelectionCleanup';
 import { getBodyCellStyles } from '../utils';
+
+import styles from './ResourceTable.module.css';
+import ResourceTableErrorState from './ResourceTableErrorState';
+import ResourceTableToolbar from './ResourceTableToolbar';
+
 import { useConnectionNamespaces } from '@/hooks/useConnectionNamespaces';
 import { useStoredState } from '@/hooks/useStoredState';
 import { useSourcePageNavigation } from '@/hooks/useSourcePageNavigation';
 import { SourcePageControls } from '../../SourcePageControls';
 
-import ResourceTableErrorState from './ResourceTableErrorState';
-import styles from './ResourceTable.module.css';
-import ResourceTableToolbar from './ResourceTableToolbar';
 import { decodeResourceTableRows } from './rows';
 
 export type ToolbarFilterDef = {
@@ -55,10 +57,10 @@ export type ToolbarFilterDef = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Generic component that accepts multiple row data types (Pod, HelmChart, etc.)
-export type Props<T = any> = {
+export type Props<T extends RowData = any> = {
   connectionID: string;
   resourceKey: string;
-  columns: Array<ColumnDef<T> & ColumnMeta>;
+  columns: Array<ColumnDef<DataTableFeatures, T> & ColumnMeta>;
   drawer?: DrawerComponent;
   /** Hide the namespace selector (for non-namespaced resources like Helm Charts) */
   hideNamespaceSelector?: boolean;
@@ -73,9 +75,11 @@ export type Props<T = any> = {
    * the shared useConnectionNamespaces hook so all tables stay in sync.
    */
   toolbarFilters?: ToolbarFilterDef[];
+  /** Wrap table content with consumers that need persisted visibility before mounting. */
+  contentWrapper?: React.ComponentType<React.PropsWithChildren<{ columnVisibility: VisibilityState }>>;
 };
 
-const visibilityFromColumnDefs = <T,>(defs: Array<ColumnDef<T>>): VisibilityState => {
+const visibilityFromColumnDefs = <T extends RowData,>(defs: Array<ColumnDef<DataTableFeatures, T>>): VisibilityState => {
   const visibility: VisibilityState = {};
   defs.forEach((def) => {
     let meta = (def?.meta as { defaultHidden?: boolean }) || undefined;
@@ -90,7 +94,7 @@ const visibilityFromColumnDefs = <T,>(defs: Array<ColumnDef<T>>): VisibilityStat
 };
 
 
-const ResourceTableContainer: React.FC<Props> = ({
+const ResourceTableContainer = <T extends RowData,>({
   connectionID,
   resourceKey,
   columns,
@@ -99,7 +103,8 @@ const ResourceTableContainer: React.FC<Props> = ({
   toolbarActions,
   createEnabled = true,
   toolbarFilters,
-}) => {
+  contentWrapper: ContentWrapper,
+}: Props<T>) => {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }]);
   const [columnVisibility, setColumnVisibility] = useStoredState<VisibilityState>(
     `kubernetes-${connectionID}-${resourceKey}-column-visibility`,
@@ -120,10 +125,15 @@ const ResourceTableContainer: React.FC<Props> = ({
   const { location } = usePluginRouter();
   const navigationSearch = new URLSearchParams(location.search).get('search') ?? '';
   const [search, setSearch] = useState<string>(navigationSearch);
-  React.useEffect(() => {
+  const [searchScope, setSearchScope] = useState(() => ({
+    connectionID, resourceKey, key: location.key, pathname: location.pathname, navigationSearch,
+  }));
+  if (searchScope.connectionID !== connectionID || searchScope.resourceKey !== resourceKey
+    || searchScope.key !== location.key || searchScope.pathname !== location.pathname
+    || searchScope.navigationSearch !== navigationSearch) {
+    setSearchScope({ connectionID, resourceKey, key: location.key, pathname: location.pathname, navigationSearch });
     setSearch(navigationSearch);
-  }, [connectionID, resourceKey, location.key, location.pathname, navigationSearch]);
-
+  }
   // Shared per-connection namespace selection
   const { namespaces: sharedNamespaces, setNamespaces: setSharedNamespaces } =
     useConnectionNamespaces(connectionID);
@@ -138,19 +148,19 @@ const ResourceTableContainer: React.FC<Props> = ({
   const [filterOpen, setFilterOpen] = React.useState(false);
 
   const { resourceType } = useResourceType({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     route: { connection: connectionID },
     type: resourceKey,
   });
   const target = useResolvedResourceTarget({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     route: { connection: connectionID },
     type: resourceKey,
   });
   const pageContext = JSON.stringify([connectionID, resourceKey, target.data]);
   const navigation = useSourcePageNavigation(pageContext);
   const { resources, acquired, refreshAcquiredPage, isSyncing, watchError, membershipStale } = useResources({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     request: target.data ? {
       targetId: target.data.targetId,
       request: { target: target.data.target, pageSize: 256, cursor: navigation.cursor },
@@ -180,7 +190,7 @@ const ResourceTableContainer: React.FC<Props> = ({
   useRowSelectionCleanup(rowKeys, setRowSelection, resources.isSuccess && !resources.isFetching);
 
   const showSyncingIndicator = isSyncing && rows.length > 0;
-  const { labels, setLabels, annotations, setAnnotations, columnDefs } = useDynamicResourceColumns({
+  const { labels, setLabels, annotations, setAnnotations, columnDefs } = useDynamicResourceColumns<T>({
     rows,
     resourceKey,
   });
@@ -193,7 +203,7 @@ const ResourceTableContainer: React.FC<Props> = ({
     setAnnotations((prev: Record<string, boolean>) => ({ ...prev, ...vals }));
   };
 
-  const allColumns = [...columns, ...columnDefs] as ColumnDef<KubernetesResourceObject, any>[];
+  const allColumns = useMemo(() => [...columns, ...columnDefs], [columns, columnDefs]);
 
   // Auto-detect whether this resource has a namespace column
   const hasNamespaceColumn = allColumns.some((col) => col.id === 'namespace');
@@ -239,19 +249,21 @@ const ResourceTableContainer: React.FC<Props> = ({
     [setColumnFilters, setSharedNamespaces],
   );
 
-  const table = useReactTable({
-    data: rows,
+  const table = useTable<DataTableFeatures, T>({
+    features: dataTableFeatures,
+    enableRowRangeSelection: false,
+    manualPagination: true,
+    manualExpanding: true,
+    data: rows as unknown as T[],
     columns: allColumns,
     columnResizeMode: 'onChange',
     onSortingChange: setSorting,
     onColumnFiltersChange: handleColumnFiltersChange,
     onColumnSizingChange: setColumnSizing,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    onGlobalFilterChange: setSearch,
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
-    getRowId: (row) => recordsByBody.get(row)!.key,
+    getRowId: (row) => recordsByBody.get(row as object)!.key,
     defaultColumn: {
       minSize: 40,
       maxSize: 800,
@@ -263,7 +275,7 @@ const ResourceTableContainer: React.FC<Props> = ({
       columnSizing,
       rowSelection,
       globalFilter: search,
-      columnPinning: { left: ['select'], right: ['menu'] },
+      columnPinning: { start: ['select'], end: ['menu'] },
     },
   });
 
@@ -271,7 +283,7 @@ const ResourceTableContainer: React.FC<Props> = ({
 
   const { openDrawer } = useRightDrawer();
   const onRowClick = React.useCallback(
-    (row: Row<KubernetesResourceObject>, event: React.MouseEvent<HTMLTableRowElement>) => {
+    (row: Row<DataTableFeatures, T>, event: React.MouseEvent<HTMLTableRowElement>) => {
       if (drawer === undefined) {
         return;
       }
@@ -282,7 +294,7 @@ const ResourceTableContainer: React.FC<Props> = ({
       if (columnId && NON_DRAWER_COLUMNS.has(columnId)) {
         return;
       }
-      const record = recordsByBody.get(row.original)!;
+      const record = recordsByBody.get(row.original as object)!;
       openDrawer(drawer, {
         data: row.original,
         resource: {
@@ -292,8 +304,8 @@ const ResourceTableContainer: React.FC<Props> = ({
           targetId: record.targetId,
           key: record.key,
           record,
-          name: row.original?.metadata?.name ?? record.record.reference.address.id,
-          pluginID: 'kubernetes',
+          name: (row.original as KubernetesResourceObject)?.metadata?.name ?? record.record.reference.address.id,
+          pluginID: PLUGIN_ID,
         },
       });
     },
@@ -320,7 +332,7 @@ const ResourceTableContainer: React.FC<Props> = ({
     );
   }
 
-  return (
+  const content = (
     <TableDrawerContext.Provider value={{ drawer, recordsByBody }}>
       {/* Row menu actions run outside the drawer, so the table mounts their handlers too */}
       {drawer && <DrawerActionsBridge connectionID={connectionID} resourceKey={resourceKey} />}
@@ -397,6 +409,7 @@ const ResourceTableContainer: React.FC<Props> = ({
       </div>
     </TableDrawerContext.Provider>
   );
+  return ContentWrapper ? <ContentWrapper columnVisibility={columnVisibility}>{content}</ContentWrapper> : content;
 };
 
 ResourceTableContainer.displayName = 'ResourceTableContainer';

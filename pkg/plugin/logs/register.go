@@ -1,18 +1,19 @@
 package logs
 
 import (
+	"github.com/omniview/kubernetes/pkg/pluginid"
 	"github.com/omniviewdev/plugin-sdk/pkg/sdk"
 	"github.com/omniviewdev/plugin-sdk/pkg/v1/logs"
 )
 
 // Register registers the log capability with the Kubernetes plugin.
-func Register(plugin *sdk.Plugin) {
+func Register(plugin *sdk.Plugin, borrow ClientBorrower) {
 	logs.RegisterPlugin(plugin, logs.PluginOpts{
 		Handlers: map[string]logs.Handler{
 			"k8s:/pods": {
-				Plugin:        "kubernetes",
+				Plugin:        pluginid.ID,
 				Resource:      "k8s:/pods",
-				Handler:       PodLogHandler,
+				Handler:       nativeHandler(borrow),
 				SourceBuilder: PodSourceBuilder,
 				TargetBuilder: logs.ActionTargetBuilder{
 					Paths: []string{
@@ -26,12 +27,12 @@ func Register(plugin *sdk.Plugin) {
 			},
 		},
 		SourceResolvers: map[string]logs.SourceResolver{
-			"k8s:apps/deployments":  DeploymentSourceResolver,
-			"k8s:apps/statefulsets": StatefulSetSourceResolver,
-			"k8s:apps/daemonsets":   DaemonSetSourceResolver,
-			"k8s:apps/replicasets":  ReplicaSetSourceResolver,
-			"k8s:batch/jobs":        JobSourceResolver,
-			"k8s:batch/cronjobs":    CronJobSourceResolver,
+			"k8s:apps/deployments":  nativeResolver(borrow, DeploymentSourceResolver),
+			"k8s:apps/statefulsets": nativeResolver(borrow, StatefulSetSourceResolver),
+			"k8s:apps/daemonsets":   nativeResolver(borrow, DaemonSetSourceResolver),
+			"k8s:apps/replicasets":  nativeResolver(borrow, ReplicaSetSourceResolver),
+			"k8s:batch/jobs":        nativeResolver(borrow, JobSourceResolver),
+			"k8s:batch/cronjobs":    nativeResolver(borrow, CronJobSourceResolver),
 		},
 	})
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/omniview/kubernetes/pkg/pluginid"
 	"github.com/omniview/kubernetes/pkg/utils/kubeauth"
 	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
@@ -164,7 +165,7 @@ func TestPodHandler_ContainerFromParams(t *testing.T) {
 
 func TestNativeExecTargetConsumesReferenceWithoutResourceGet(t *testing.T) {
 	opts := exec.SessionOptions{
-		ResourcePlugin: "kubernetes", ResourceKey: "k8s:/pods",
+		ResourcePlugin: pluginid.ResourceProvider, ResourceKey: "k8s:/pods",
 		Reference: &resourcev2.ResourceReference{Address: resourcev2.ResourceAddress{
 			Provider: "kubernetes", Authority: "host-issued-authority", Type: "k8s:/pods",
 			Scope: []resourcev2.ScopeEntry{{Dimension: "namespace", Value: "selected"}}, ID: "native-pod",
@@ -187,6 +188,7 @@ func TestNativeExecTargetRejectsMismatchedObservedIdentity(t *testing.T) {
 	}{
 		{"wrong route", func(options *exec.SessionOptions) { options.Route.Connection = "other" }, "INVALID_REQUEST"},
 		{"missing route", func(options *exec.SessionOptions) { options.Route = nil }, "INVALID_REQUEST"},
+		{"wrong plugin", func(options *exec.SessionOptions) { options.ResourcePlugin = "other" }, "INVALID_REQUEST"},
 		{"wrong provider", func(options *exec.SessionOptions) { options.Reference.Address.Provider = "other" }, "INVALID_REQUEST"},
 		{"wrong type", func(options *exec.SessionOptions) { options.Reference.Address.Type = "k8s:/nodes" }, "INVALID_REQUEST"},
 		{"duplicate namespace", func(options *exec.SessionOptions) {
@@ -202,7 +204,7 @@ func TestNativeExecTargetRejectsMismatchedObservedIdentity(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			options := exec.SessionOptions{
-				ResourcePlugin: "kubernetes", ResourceKey: "k8s:/pods",
+				ResourcePlugin: pluginid.ResourceProvider, ResourceKey: "k8s:/pods",
 				Reference: &resourcev2.ResourceReference{Address: resourcev2.ResourceAddress{
 					Provider: "kubernetes", Authority: "host-issued-authority", Type: "k8s:/pods",
 					Scope: []resourcev2.ScopeEntry{{Dimension: "namespace", Value: "selected"}}, ID: "native-pod",
@@ -233,7 +235,7 @@ func TestNativeExecTargetPreservesTaggedNumericBody(t *testing.T) {
 
 func TestNativeExecTargetNodeReferenceUsesClusterScope(t *testing.T) {
 	options := exec.SessionOptions{
-		ResourcePlugin: "kubernetes", ResourceKey: "k8s:/nodes",
+		ResourcePlugin: pluginid.ResourceProvider, ResourceKey: "k8s:/nodes",
 		Reference: &resourcev2.ResourceReference{Address: resourcev2.ResourceAddress{
 			Provider: "kubernetes", Authority: "host-issued-authority", Type: "k8s:/nodes",
 			Scope: []resourcev2.ScopeEntry{}, ID: "native-node",
@@ -247,4 +249,44 @@ func TestNativeExecTargetNodeReferenceUsesClusterScope(t *testing.T) {
 	options.Reference.Address.Scope = []resourcev2.ScopeEntry{{Dimension: "namespace", Value: "not-cluster-scope"}}
 	_, _, err = nativeExecTarget(testPluginContext(), options, "k8s:/nodes", false)
 	assert.Equal(t, "INVALID_REQUEST", resourcev2.ErrorCode(err))
+}
+
+func TestNativeExecSelectorsRemainCanonicalUnderAlternateInstallationID(t *testing.T) {
+	original := pluginid.ID
+	pluginid.ID = "kubernetes-alternate-installation"
+	t.Cleanup(func() { pluginid.ID = original })
+	for _, namespaced := range []bool{true, false} {
+		resourceType := "k8s:/nodes"
+		scope := []resourcev2.ScopeEntry{}
+		if namespaced {
+			resourceType = "k8s:/pods"
+			scope = []resourcev2.ScopeEntry{{Dimension: "namespace", Value: "selected"}}
+		}
+		options := exec.SessionOptions{
+			ResourcePlugin: pluginid.ResourceProvider, ResourceKey: resourceType,
+			Reference: &resourcev2.ResourceReference{Address: resourcev2.ResourceAddress{
+				Provider: pluginid.ResourceProvider, Authority: "host-issued", Type: resourceType, Scope: scope, ID: "native-name",
+			}},
+			Route: &resourcev2.AccessRoute{Connection: "test"},
+		}
+		normalized, err := exec.NormalizeResourceSessionOptions(options)
+		require.NoError(t, err)
+		name, _, err := nativeExecTarget(testPluginContext(), normalized, resourceType, namespaced)
+		require.NoError(t, err)
+		assert.Equal(t, "native-name", name)
+		assert.Equal(t, "kubernetes", normalized.ResourcePlugin)
+		if namespaced {
+			assert.Equal(t, normalized.ResourcePlugin+"/"+normalized.ResourceKey, podExecHandler().ID())
+		}
+
+		options.ResourcePlugin = pluginid.ID
+		assert.Equal(t, "INVALID_REQUEST", resourcev2.ErrorCode(exec.ValidateResourceSessionOptions(options)))
+		_, _, err = nativeExecTarget(testPluginContext(), options, resourceType, namespaced)
+		assert.Equal(t, "INVALID_REQUEST", resourcev2.ErrorCode(err))
+
+		options.Reference.Address.Provider = pluginid.ID
+		_, _, err = nativeExecTarget(testPluginContext(), options, resourceType, namespaced)
+		assert.Equal(t, "INVALID_REQUEST", resourcev2.ErrorCode(err), "installation identity must not redefine the native provider")
+	}
+	assert.Equal(t, "kubernetes-alternate-installation", pluginid.ID)
 }

@@ -7,7 +7,9 @@ import {
 import { useKubernetesResources } from '../../../hooks/useKubernetesResources';
 import type { Pod, Node as K8sNode, Event as K8sEvent } from 'kubernetes-types/core/v1';
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
+
+import { PLUGIN_ID } from '@/pluginId';
 
 import type { ChartTimeRange } from '../../../components/shared/charts';
 import NamespaceSelect from '../../../components/tables/NamespaceSelect';
@@ -63,15 +65,6 @@ import {
 } from './components/WorkloadStatCards';
 import EventsTable from './EventsTable';
 
-/** Shape of the connection metadata returned by the runtime for Kubernetes clusters. */
-type ConnectionData = {
-  server_url?: string;
-  k8s_version?: string;
-  k8s_platform?: string;
-  node_count?: number;
-  api_groups?: number;
-  last_checked?: string;
-};
 
 /**
  * Generic filter for namespaced K8s resources.
@@ -115,12 +108,11 @@ const ClusterDashboardOverviewPage: React.FC = () => {
   const goToJobs = React.useCallback(() => goToResource('k8s:batch/jobs'), [goToResource]);
   const goToCronJobs = React.useCallback(() => goToResource('k8s:batch/cronjobs'), [goToResource]);
 
-  const { connection } = useConnection({ pluginID: 'kubernetes', connectionID: id });
-  const { connectionOverrides } = useClusterPreferences('kubernetes');
+  const { connection } = useConnection({ pluginID: PLUGIN_ID, connectionID: id });
+  const { connectionOverrides } = useClusterPreferences(PLUGIN_ID);
   const metricConfig = connectionOverrides[id]?.metricConfig;
 
-  // Dashboard summaries describe the selected bounded pages, never cluster totals.
-  // Only keep the resource hooks needed for ClusterInfoCard and EventsTable
+  // Own Pod ingestion once; health and workload counts share this bounded source page.
   const pods = useKubernetesResources<Pod>({ connectionID: id, resourceType: 'k8s:/pods', namespaces });
   const nodes = useKubernetesResources<K8sNode>({ connectionID: id, resourceType: 'k8s:/nodes' });
   const events = useKubernetesResources<K8sEvent>({ connectionID: id, resourceType: 'k8s:/events', namespaces });
@@ -148,7 +140,7 @@ const ClusterDashboardOverviewPage: React.FC = () => {
         {/* Cluster info + health status */}
         <ClusterInfoCard
           // Connection.data is Record<string, any> from the runtime; cast to the expected shape
-          data={connection.data?.data as ConnectionData | undefined}
+          data={connection.data?.data}
           loading={connection.isLoading}
           nodes={allNodes}
           pods={allPods}
@@ -174,12 +166,12 @@ const ClusterDashboardOverviewPage: React.FC = () => {
           <NamespaceSelect connectionID={id} selected={namespaces} setNamespaces={setNamespaces} />
         </Stack>
 
-        {/* Workload summary cards — each owns its own useResources hook */}
+        {/* Pods share the health data; other workload cards own their source pages. */}
         <Text size="xs" tone="muted">
-          Each summary uses its own source page. Totals are unknown; filters apply only to that page.
+          Summaries describe selected source pages, not cluster totals. Filters apply only to those pages.
         </Text>
         <div style={workloadGridStyle}>
-          <PodStatCard connectionID={id} namespaces={namespaces} onClick={goToPods} />
+          <PodStatCard pods={allPods} loading={pods.isLoading} onClick={goToPods} />
           <DeploymentStatCard connectionID={id} namespaces={namespaces} onClick={goToDeployments} />
           <StatefulSetStatCard connectionID={id} namespaces={namespaces} onClick={goToStatefulSets} />
           <DaemonSetStatCard connectionID={id} namespaces={namespaces} onClick={goToDaemonSets} />
@@ -206,7 +198,7 @@ const ClusterDashboardOverviewPage: React.FC = () => {
               const Component = w.value;
               return (
                 <div key={w.id} style={{ minWidth: 0 }}>
-                  <Component pluginID="kubernetes" connectionID={id} />
+                  <Component pluginID={PLUGIN_ID} connectionID={id} />
                 </div>
               );
             })}
@@ -220,7 +212,7 @@ const ClusterDashboardOverviewPage: React.FC = () => {
           </Text>
           <SourcePageControls {...events.pageControls} label="Events" compact />
           <div style={eventsContainerStyle}>
-            <EventsTable events={allEvents} loading={events.isLoading} connectionID={id} />
+            <EventsTable events={allEvents} loading={events.isLoading} connectionID={id} namespaceScope={JSON.stringify(namespaces)} />
           </div>
         </Stack>
       </Stack>

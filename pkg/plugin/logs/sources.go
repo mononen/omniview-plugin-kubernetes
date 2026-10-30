@@ -74,6 +74,14 @@ func PodSourceBuilder(
 	if err != nil {
 		return nil
 	}
+	// A finite canonical read delegates optional container selection to the
+	// native API. It needs no Pod Get or fabricated container observation.
+	if opts.Reference != nil && !opts.Follow {
+		return []logs.LogSource{{
+			ID: name + "/" + opts.Target,
+			Labels: map[string]string{"pod": name, "namespace": namespace, "container": opts.Target},
+		}}
+	}
 
 	// Gather container names from spec.containers, spec.initContainers,
 	// and spec.ephemeralContainers in the raw resource data.

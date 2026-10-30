@@ -22,6 +22,8 @@ import {
 } from 'react-icons/lu';
 import { SiHelm } from 'react-icons/si';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 import DynamicIcon from '../components/shared/Icon';
 import type { NavSection, NavMenuItem } from '../types/navigation';
 import type { ResourceType } from '@omniviewdev/runtime';
@@ -142,7 +144,7 @@ const calculateFullLayout = (
         children.push({
           id: toID(type),
           label: types.find((entry) => entry.type === type)?.displayName ?? type,
-          icon: <ResourceIcon pluginId="kubernetes" resourceKey={type} size={16} />,
+          icon: <ResourceIcon pluginId={PLUGIN_ID} resourceKey={type} size={16} />,
           badge: getStateBadge(toID(type), watchStates),
         });
       });
@@ -254,7 +256,7 @@ const calculateModernLayout = (
   const withBadge = (id: string, label: string): NavMenuItem => ({
     id,
     label,
-    icon: <ResourceIcon pluginId="kubernetes" resourceKey={decodeURIComponent(id)} size={16} />,
+    icon: <ResourceIcon pluginId={PLUGIN_ID} resourceKey={decodeURIComponent(id)} size={16} />,
     badge: getStateBadge(id, watchStates),
   });
 
@@ -333,19 +335,19 @@ const calculateModernLayout = (
         {
           id: toID('k8s:/nodes'),
           label: 'Nodes',
-          icon: <ResourceIcon pluginId="kubernetes" resourceKey="k8s:/nodes" size={16} />,
+          icon: <ResourceIcon pluginId={PLUGIN_ID} resourceKey="k8s:/nodes" size={16} />,
           badge: getStateBadge(toID('k8s:/nodes'), watchStates),
         },
         {
           id: toID('k8s:events.k8s.io/events'),
           label: 'Events',
-          icon: <ResourceIcon pluginId="kubernetes" resourceKey="k8s:events.k8s.io/events" size={16} />,
+          icon: <ResourceIcon pluginId={PLUGIN_ID} resourceKey="k8s:events.k8s.io/events" size={16} />,
           badge: getStateBadge(toID('k8s:events.k8s.io/events'), watchStates),
         },
         {
           id: toID('k8s:/namespaces'),
           label: 'Namespaces',
-          icon: <ResourceIcon pluginId="kubernetes" resourceKey="k8s:/namespaces" size={16} />,
+          icon: <ResourceIcon pluginId={PLUGIN_ID} resourceKey="k8s:/namespaces" size={16} />,
           badge: getStateBadge(toID('k8s:/namespaces'), watchStates),
         },
         {
@@ -419,15 +421,15 @@ const calculateModernLayout = (
  */
 export const useSidebarLayout = ({ connectionID }: Opts) => {
   const { settings } = usePluginContext();
-  const { groups } = useResourceGroups({ pluginID: 'kubernetes', route: { connection: connectionID } });
-  const { resourceTypes } = useResourceTypes({ pluginID: 'kubernetes', route: { connection: connectionID } });
-  const { summary, isFullySynced } = useWatchState({ pluginID: 'kubernetes', route: { connection: connectionID } });
+  const { groups } = useResourceGroups({ pluginID: PLUGIN_ID, route: { connection: connectionID } });
+  const { resourceTypes } = useResourceTypes({ pluginID: PLUGIN_ID, route: { connection: connectionID } });
+  const { summary, isFullySynced } = useWatchState({ pluginID: PLUGIN_ID, route: { connection: connectionID } });
 
   // Stabilize the watchStates reference so we don't recalculate on every
   // watch event when the actual values haven't changed.
   const watchStates = useStableObject(summary.data?.resources);
 
-  const layoutSetting = settings['kubernetes.layout'] as string | undefined;
+  const layoutSetting = settings[`${PLUGIN_ID}.layout`] as string | undefined;
 
   const [layout, setLayout] = React.useState<Array<NavSection>>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);

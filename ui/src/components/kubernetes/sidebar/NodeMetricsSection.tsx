@@ -1,9 +1,12 @@
 import { Progress, Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import { useResourceMetrics, type Value, type ResourceReference, type AccessRoute } from '@omniviewdev/runtime';
 import { type metric } from '@omniviewdev/runtime/models';
+import React, { useState, useMemo, useCallback } from 'react';
+
 import { MetricsPanel } from '../../shared/charts';
 import type { TimeSeriesDef, ChartTimeRange } from '../../shared/charts';
-import React, { useState, useMemo, useCallback } from 'react';
+
+import { PLUGIN_ID } from '@/pluginId';
 
 const outerBoxStyle: React.CSSProperties = {
   borderRadius: 4,
@@ -102,7 +105,7 @@ function toTimeSeriesDef(ts: metric.TimeSeries, label: string, color?: string): 
     label,
     // dp.timestamp is a Wails-serialized time.Time (ISO string at runtime)
     data: (ts.data_points ?? []).map((dp) => ({
-      timestamp: new Date(dp.timestamp as unknown as string).getTime(),
+      timestamp: new Date(dp.timestamp).getTime(),
       value: dp.value,
     })),
     color,
@@ -185,7 +188,7 @@ const NodeMetricsSection: React.FC<Props> = ({
     isLoading: currentLoading,
     error,
   } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceKey,
     resourceID,
@@ -197,7 +200,7 @@ const NodeMetricsSection: React.FC<Props> = ({
 
   // Time-series data (shape=1 TIMESERIES)
   const { data: tsData, isLoading: tsLoading } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceKey,
     resourceID,

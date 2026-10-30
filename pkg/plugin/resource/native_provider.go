@@ -3,6 +3,7 @@ package resource
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/omniview/kubernetes/pkg/plugin/helm"
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
@@ -21,6 +22,9 @@ type nativeCatalogSnapshot struct {
 	documents     map[resourcev2.SchemaDocumentReference]resourcev2.SchemaDocument
 	identityHint  *resourcev2.NativeAuthorityHint
 	schemaLease   *nativeSchemaLease
+	discoveryRevision string
+	nextRefresh time.Time
+	refreshError error
 }
 
 type nativeCatalogLoad struct {
@@ -33,6 +37,7 @@ type kubernetesProvider struct {
 	mu              sync.RWMutex
 	catalogs        map[string]*nativeCatalogSnapshot
 	catalogLoads    map[string]*nativeCatalogLoad
+	catalogRefreshes map[string]*nativeCatalogRefresh
 	schemaBudget    nativeSchemaBudget
 	helpers         map[string]any
 	relationships   map[string][]resourcev2.RelationshipDescriptor
@@ -101,7 +106,7 @@ func nativeSpecializedHelpers(logger *zap.SugaredLogger, relationships map[strin
 }
 
 func (p *kubernetesProvider) startNativeConnection(ctx context.Context, connection types.Connection, client *clients.ClientSet) error {
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithTimeout(ctx, nativeCatalogAcquisitionTimeout)
 	load := &nativeCatalogLoad{cancel: cancel}
 	p.mu.Lock()
 	if p.catalogLoads == nil {
@@ -125,44 +130,18 @@ func (p *kubernetesProvider) startNativeConnection(ctx context.Context, connecti
 		}
 		p.mu.Unlock()
 	}()
-	bindings, coverage, err := discoverNativeTypes(ctx, client.DiscoveryClient)
-	if err != nil {
-		return err
-	}
-	schemas, failures, lease := fetchNativeSchemas(ctx, client.DiscoveryClient.RESTClient(), bindings, &p.schemaBudget)
-	published := false
-	defer func() {
-		if !published {
-			lease.Release()
-		}
-	}()
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	identity, err := nativeClusterIdentity(ctx, client.KubeClient)
-	if err != nil {
-		return err
-	}
-	var identityHint *resourcev2.NativeAuthorityHint
-	if identity != nil {
-		identityHint = &resourcev2.NativeAuthorityHint{Scheme: "kubernetes.namespace-uid.v1", ID: *identity, Continuity: resourcev2.ContinuityConnectionLocal}
-	}
-	watchScope, err := p.connections.ResolveScope(ctx, client)
-	if err != nil {
-		return err
-	}
-	snapshot, err := p.assembleNativeCatalog(ctx, connection.ID, client, bindings, coverage, schemas, failures, identityHint, watchScope)
+	snapshot, _, err := p.acquireNativeCatalog(ctx, connection.ID, client, nil)
 	if err != nil {
 		return err
 	}
 	p.mu.Lock()
 	if p.catalogLoads[connection.ID] != load || ctx.Err() != nil {
 		p.mu.Unlock()
+		snapshot.schemaLease.Release()
 		return resourcev2.NewError("RESET_REQUIRED", "Native connection catalog acquisition was retired")
 	}
-	snapshot.schemaLease = lease
+	snapshot.nextRefresh = time.Now().Add(nativeCatalogRefreshInterval)
 	p.catalogs[connection.ID] = snapshot
-	published = true
 	p.mu.Unlock()
 	return nil
 }
@@ -202,7 +181,12 @@ func (p *kubernetesProvider) snapshot(route resourcev2.AccessRoute) (*nativeCata
 }
 
 func (p *kubernetesProvider) catalog(ctx context.Context, request resourcev2.CatalogRequest) (catalog resourcev2.Catalog, err error) {
-	err = p.WithClient(ctx, request.Route, func(_ context.Context, _ *clients.ClientSet) error {
+	err = p.WithClient(ctx, request.Route, func(ctx context.Context, client *clients.ClientSet) error {
+		if client != nil && client.DiscoveryClient != nil {
+			if err := p.refreshNativeCatalog(ctx, request.Route.Connection, client); err != nil {
+				return err
+			}
+		}
 		snapshot, err := p.snapshot(request.Route)
 		if err != nil {
 			return err
@@ -237,16 +221,31 @@ func (p *kubernetesProvider) registration(_ context.Context, route resourcev2.Ac
 
 func (p *kubernetesProvider) nativeRegistration(route resourcev2.AccessRoute, binding nativeType) resourcev2.Registration[clients.ClientSet] {
 	token := binding.Descriptor.Type
-	registration := resourcev2.Registration[clients.ClientSet]{Type: token, Connection: route.Connection}
+	registration := resourcev2.Registration[clients.ClientSet]{Type: token, Connection: route.Connection, Actions: binding.Actions}
 	representation := binding.Descriptor.Representations[0]
 	if verbSliceContains(binding.API.Verbs, "get") {
 		registration.Get = func(ctx context.Context, client *clients.ClientSet, request resourcev2.GetRequest) (resourcev2.Record, error) {
-			return NativeGet(ctx, client.DynamicClient, binding.GVR, binding.API.Namespaced, request, representation)
+			served, representation, err := nativeRepresentation(binding, request.Representation, "get")
+			if err != nil {
+				return resourcev2.Record{}, err
+			}
+			return NativeGet(ctx, client.DynamicClient, served.GVR, served.API.Namespaced, request, representation)
 		}
 	}
 	if verbSliceContains(binding.API.Verbs, "list") {
 		registration.Enumerate = func(ctx context.Context, client *clients.ClientSet, request resourcev2.EnumerateRequest) (resourcev2.SourcePage, error) {
-			return NativeEnumerate(ctx, client.DynamicClient, binding.GVR, binding.API.Namespaced, request, representation)
+			served, representation, err := nativeRepresentation(binding, request.Target.Representation, "list")
+			if err != nil {
+				return resourcev2.SourcePage{}, err
+			}
+			return NativeEnumerate(ctx, client.DynamicClient, served.GVR, served.API.Namespaced, request, representation)
+		}
+		registration.NativeQuery = func(ctx context.Context, client *clients.ClientSet, request resourcev2.NativeQueryRequest) (resourcev2.SourcePage, error) {
+			served, representation, err := nativeRepresentation(binding, request.Target.Representation, "list")
+			if err != nil {
+				return resourcev2.SourcePage{}, err
+			}
+			return NativeQuery(ctx, client.DynamicClient, served.GVR, served.API.Namespaced, request, representation)
 		}
 	}
 	if verbSliceContains(binding.API.Verbs, "create") || verbSliceContains(binding.API.Verbs, "update") || verbSliceContains(binding.API.Verbs, "delete") {
@@ -268,6 +267,24 @@ func (p *kubernetesProvider) nativeRegistration(route resourcev2.AccessRoute, bi
 		}
 	}
 	return registration
+}
+
+func nativeRepresentation(binding nativeType, id, verb string) (nativeServedType, resourcev2.Representation, error) {
+	for _, representation := range binding.Descriptor.Representations {
+		if representation.ID != id {
+			continue
+		}
+		for _, served := range nativeServedVersions(binding) {
+			gv := served.GVR.GroupVersion().String()
+			if len(binding.Served) == 0 || id == nativeRepresentationVersion+"/"+gv || id == nativeModelRepresentationVersion+"/"+gv {
+				if !verbSliceContains(served.API.Verbs, verb) {
+					return nativeServedType{}, resourcev2.Representation{}, resourcev2.NewError("UNSUPPORTED", "The served Kubernetes API version does not support this operation")
+				}
+				return served, representation, nil
+			}
+		}
+	}
+	return nativeServedType{}, resourcev2.Representation{}, resourcev2.NewError("INVALID_REQUEST", "The requested Kubernetes representation is not declared")
 }
 
 func (p *kubernetesProvider) checkConnection(ctx context.Context, connection types.Connection, client *clients.ClientSet) (types.ConnectionStatus, error) {

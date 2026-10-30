@@ -31,6 +31,40 @@ func nativeObject(value resource.Value) (map[string]interface{}, error) {
 func actionParams(request resource.ActionRequest) (map[string]interface{}, error) {
 	return nativeObject(request.Input)
 }
+
+func actionNamespace(request resource.ActionRequest) (string, error) {
+	if request.TypeTarget == nil {
+		return namespaceOf(request.Reference), nil
+	}
+	target := request.TypeTarget
+	if err := resource.ValidateScope(target.Scope); err != nil {
+		return "", err
+	}
+	dimension := "domain"
+	if target.Type == ReleaseType {
+		dimension = "namespace"
+	}
+	if len(target.Scope) != 1 {
+		return "", resource.NewError("INVALID_REQUEST", "Helm type action requires exactly one scope dimension")
+	}
+	constraint := target.Scope[0]
+	if constraint.Dimension != dimension || constraint.Match != resource.ScopeOneOf || constraint.Values == nil || len(*constraint.Values) != 1 || (*constraint.Values)[0] == "" {
+		return "", resource.NewError("INVALID_REQUEST", "Helm type action requires one exact native scope")
+	}
+	value := (*constraint.Values)[0]
+	if dimension == "domain" && value != helmLocalDomain {
+		return "", resource.NewError("INVALID_REQUEST", "Helm client domain required")
+	}
+	if request.Input.Kind == "map" {
+		if observed, present := request.Input.Map[dimension]; present && (observed.Kind != "string" || observed.String != value) {
+			return "", resource.NewError("INVALID_REQUEST", "Helm input scope does not match its exact type target")
+		}
+	}
+	if dimension == "namespace" {
+		return value, nil
+	}
+	return "", nil
+}
 func validateReference(ref resource.ResourceReference) error {
 	a := ref.Address
 	if len(a.Scope) != 1 {

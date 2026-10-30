@@ -1,13 +1,6 @@
 import { Text } from '@omniviewdev/base-ui';
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import type { metric } from '@omniviewdev/runtime/models';
-import { MetricsPanel } from '../../../components/shared/charts';
-import type {
-  TimeSeriesDef,
-  ChartTimeRange,
-  MetricFormat,
-  ChartAnnotation,
-} from '../../../components/shared/charts';
 import React, { useMemo } from 'react';
 import {
   LuCpu,
@@ -18,10 +11,19 @@ import {
   LuRotateCcw,
   LuTriangleAlert,
 } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 
+import type {
+  TimeSeriesDef,
+  ChartTimeRange,
+  MetricFormat,
+  ChartAnnotation,
+} from '../../../components/shared/charts';
+import { MetricsPanel } from '../../../components/shared/charts';
 import { useClusterPreferences } from '../../../hooks/useClusterPreferences';
 import { metricQueryParams } from '../../../utils/metricParams';
+
+import { PLUGIN_ID } from '@/pluginId';
 
 const emptyStateStyle: React.CSSProperties = { padding: 24, textAlign: 'center' };
 
@@ -95,7 +97,7 @@ function toTimeSeriesDef(
     id: ts.metric_id,
     label,
     data: (ts.data_points ?? []).map((dp) => ({
-      timestamp: new Date(dp.timestamp as unknown as string).getTime(),
+      timestamp: new Date(dp.timestamp).getTime(),
       value: dp.value,
     })),
     color,
@@ -253,7 +255,7 @@ const ClusterDashboardMetricsPage: React.FC = () => {
     to: new Date(),
   }));
 
-  const { connectionOverrides } = useClusterPreferences('kubernetes');
+  const { connectionOverrides } = useClusterPreferences(PLUGIN_ID);
   const metricConfig = connectionOverrides[id]?.metricConfig;
 
   const params = useMemo(() => metricQueryParams(metricConfig), [metricConfig]);
@@ -284,7 +286,7 @@ const ClusterDashboardMetricsPage: React.FC = () => {
     providers,
     isLoading,
   } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID: id,
     resourceKey: 'cluster::metrics',
     resourceID: '',
@@ -301,7 +303,7 @@ const ClusterDashboardMetricsPage: React.FC = () => {
 
   // Instant data for annotations
   const { data: instantData } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID: id,
     resourceKey: 'cluster::metrics',
     resourceID: '',

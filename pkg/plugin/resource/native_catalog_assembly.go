@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"sort"
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
@@ -15,33 +16,44 @@ func (p *kubernetesProvider) assembleNativeCatalog(ctx context.Context, connecti
 	registrations := make(map[string]resourcev2.Registration[clients.ClientSet], len(bindings))
 	documents := make(map[resourcev2.SchemaDocumentReference]resourcev2.SchemaDocument)
 	for token, binding := range bindings {
-		representation := resourcev2.Representation{
-			ID:       nativeRepresentationVersion + "/" + binding.GVR.GroupVersion().String(),
-			Revision: nativeRepresentationVersion + "/" + binding.GVR.GroupVersion().String(),
-			Schema:   resourcev2.SchemaBinding{State: "unavailable", Validation: "none", Unvalidated: []string{}},
-		}
-		if document, ok := schemas[token]; ok {
-			ref := resourcev2.SchemaDocumentReference{ID: "kubernetes.openapi.v3/" + binding.GVR.GroupVersion().String(), Revision: document.Revision}
-			revision := document.Revision
-			representation.Schema = resourcev2.SchemaBinding{
-				State: "available", Revision: &revision, Dialect: "openapi-3.0", Root: document.Root,
-				DocumentRef: &ref, Validation: "none", Unvalidated: []string{},
+		versions := nativeServedVersions(binding)
+		binding.Descriptor.Representations = make([]resourcev2.Representation, 0, 2*len(versions))
+		for _, served := range versions {
+			gv := served.GVR.GroupVersion().String()
+			representation := resourcev2.Representation{
+				ID:       nativeRepresentationVersion + "/" + gv,
+				Revision: nativeRepresentationVersion + "/" + gv,
+				Schema:   resourcev2.SchemaBinding{State: "unavailable", Validation: "none", Unvalidated: []string{}},
 			}
-			documents[ref] = resourcev2.SchemaDocument{Reference: ref, Dialect: "openapi-3.0", Document: document.Document}
-		} else if failures[token] != nil {
-			p.logger.Debugw("native schema unavailable", "type", token)
+			key := nativeSchemaKey(token, binding.GVR, served.GVR)
+			if document, ok := schemas[key]; ok {
+				ref := resourcev2.SchemaDocumentReference{ID: "kubernetes.openapi.v3/" + gv, Revision: document.Revision}
+				revision := document.Revision
+				representation.Schema = resourcev2.SchemaBinding{
+					State: "available", Revision: &revision, Dialect: "openapi-3.0", Root: document.Root,
+					DocumentRef: &ref, Validation: "none", Unvalidated: []string{},
+				}
+				documents[ref] = resourcev2.SchemaDocument{Reference: ref, Dialect: "openapi-3.0", Document: document.Document}
+			} else if failures[key] != nil {
+				p.logger.Debugw("native schema unavailable", "type", token, "apiVersion", gv)
+			}
+			model := representation
+			model.ID = nativeModelRepresentationVersion + "/" + gv
+			model.Revision = nativeModelRepresentationVersion + "/" + gv
+			binding.Descriptor.Representations = append(binding.Descriptor.Representations, representation, model)
 		}
-		binding.Descriptor.Representations = []resourcev2.Representation{representation}
 		if actions, ok := p.helpers[token].(nativeActionHelper); ok {
 			descriptors, err := actions.GetActions(ctx, client)
 			if err != nil {
 				return nil, err
 			}
+			binding.Actions = descriptors
 			if len(descriptors) != 0 {
 				binding.Descriptor.Capabilities = append(binding.Descriptor.Capabilities, resourcev2.Capability{Operation: resourcev2.OperationAction, Scope: nativeTypeScope(binding)})
 			}
 		}
-		binding.Descriptor.DefaultRepresentation = representation.ID
+		binding.Descriptor.DefaultRepresentation = nativeRepresentationVersion + "/" + binding.GVR.GroupVersion().String()
+		binding.Descriptor.ModelRepresentation = nativeModelRepresentationVersion + "/" + binding.GVR.GroupVersion().String()
 		binding.Descriptor.NativeAuthorityHint = identityHint
 		if verbSliceContains(binding.API.Verbs, "list") && verbSliceContains(binding.API.Verbs, "watch") {
 			scope := nativeTypeScope(binding)
@@ -49,6 +61,11 @@ func (p *kubernetesProvider) assembleNativeCatalog(ctx context.Context, connecti
 				scope = watchScope
 			}
 			binding.Descriptor.Capabilities = append(binding.Descriptor.Capabilities, resourcev2.Capability{Operation: resourcev2.OperationUpdate, Scope: scope, Guarantee: resourcev2.BestEffortGuarantee})
+		}
+		if binding.API.Namespaced {
+			for index := range binding.Descriptor.Capabilities {
+				binding.Descriptor.Capabilities[index].Scope = watchScope
+			}
 		}
 		bindings[token] = binding
 		registrations[token] = p.nativeRegistration(resourcev2.AccessRoute{Connection: connectionID}, binding)
@@ -75,4 +92,24 @@ func (p *kubernetesProvider) assembleNativeCatalog(ctx context.Context, connecti
 		return nil, err
 	}
 	return &nativeCatalogSnapshot{catalog: catalog, bindings: bindings, registrations: registrations, documents: documents, identityHint: identityHint}, nil
+}
+
+// Keep the preferred raw representation first for existing UI/watch consumers.
+func nativeServedVersions(binding nativeType) []nativeServedType {
+	if len(binding.Served) == 0 {
+		return []nativeServedType{{GVR: binding.GVR, API: binding.API}}
+	}
+	versions := make([]string, 0, len(binding.Served))
+	for version := range binding.Served {
+		versions = append(versions, version)
+	}
+	sort.Strings(versions)
+	result := make([]nativeServedType, 0, len(versions))
+	result = append(result, binding.Served[binding.GVR.GroupVersion().String()])
+	for _, version := range versions {
+		if version != binding.GVR.GroupVersion().String() {
+			result = append(result, binding.Served[version])
+		}
+	}
+	return result
 }

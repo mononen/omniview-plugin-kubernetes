@@ -47,7 +47,7 @@ func TestNativeDiscoveryMergesVersionsUsingPreferredRepresentation(t *testing.T)
 			binding := bindings["k8s:apps/deployments"]
 			require.Equal(t, schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}, binding.GVR)
 			require.Equal(t, "k8s:apps/deployments", binding.Descriptor.Type)
-			require.Len(t, binding.Descriptor.Capabilities, 2)
+			require.Len(t, binding.Descriptor.Capabilities, 3)
 		})
 	}
 }

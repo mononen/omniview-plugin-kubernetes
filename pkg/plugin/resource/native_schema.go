@@ -37,13 +37,19 @@ type nativeSchemaBudget struct {
 	staging chan struct{}
 	limit   int
 	used    int
+	documents map[string]*nativeRetainedSchema
+}
+
+type nativeRetainedSchema struct {
+	data json.RawMessage
+	references int
 }
 
 // nativeSchemaLease belongs to one catalog snapshot. Release it on failed
 // publication, replacement, or connection teardown, after dropping its cache.
 type nativeSchemaLease struct {
 	budget *nativeSchemaBudget
-	bytes  int
+	documents map[string]struct{}
 }
 
 func (l *nativeSchemaLease) Release() {
@@ -52,8 +58,70 @@ func (l *nativeSchemaLease) Release() {
 	}
 	l.budget.mu.Lock()
 	defer l.budget.mu.Unlock()
-	l.budget.used -= l.bytes
-	l.bytes = 0
+	for revision := range l.documents {
+		document := l.budget.documents[revision]
+		document.references--
+		if document.references == 0 {
+			l.budget.used -= len(document.data)
+			delete(l.budget.documents, revision)
+		}
+	}
+	l.documents = nil
+}
+
+// Identical schema content can be held by old and replacement snapshots without
+// double-charging the provider budget. Staging remains separately bounded.
+func (b *nativeSchemaBudget) retain(data json.RawMessage, revision string, lease *nativeSchemaLease) (json.RawMessage, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	document := b.documents[revision]
+	if document == nil {
+		limit := b.limit
+		if limit == 0 {
+			limit = maxNativeRetainedSchemaBytes
+		}
+		if len(data) > limit-b.used {
+			return nil, fmt.Errorf("native OpenAPI retained schema budget exhausted (%d bytes)", limit)
+		}
+		if cap(data) != len(data) {
+			exact := make([]byte, len(data))
+			copy(exact, data)
+			data = exact
+		}
+		document = &nativeRetainedSchema{data: data}
+		if b.documents == nil {
+			b.documents = make(map[string]*nativeRetainedSchema)
+		}
+		b.documents[revision] = document
+		b.used += len(data)
+	}
+	if lease.documents == nil {
+		lease.documents = make(map[string]struct{})
+	}
+	if _, held := lease.documents[revision]; !held {
+		lease.documents[revision] = struct{}{}
+		document.references++
+	}
+	return document.data, nil
+}
+
+// Preferred-version schema keys retain the established token lookup. Other
+// served endpoints get distinct keys while retaining the same logical type.
+func nativeSchemaKey(token string, preferred, served schema.GroupVersionResource) string {
+	if preferred == served {
+		return token
+	}
+	return token + "@" + served.GroupVersion().String()
+}
+
+func nativeSchemaBindings(bindings map[string]nativeType) map[string]nativeType {
+	result := make(map[string]nativeType)
+	for token, binding := range bindings {
+		for _, served := range nativeServedVersions(binding) {
+			result[nativeSchemaKey(token, binding.GVR, served.GVR)] = nativeType{GVR: served.GVR, API: served.API}
+		}
+	}
+	return result
 }
 
 func fetchNativeSchemas(ctx context.Context, client rest.Interface, bindings map[string]nativeType, budget *nativeSchemaBudget) (map[string]nativeSchemaDocument, map[string]error, *nativeSchemaLease) {
@@ -62,10 +130,6 @@ func fetchNativeSchemas(ctx context.Context, client rest.Interface, bindings map
 		budget.staging = make(chan struct{}, 1)
 	}
 	staging := budget.staging
-	limit := budget.limit
-	if limit == 0 {
-		limit = maxNativeRetainedSchemaBytes
-	}
 	budget.mu.Unlock()
 	lease := &nativeSchemaLease{budget: budget}
 	select {
@@ -102,18 +166,7 @@ func fetchNativeSchemas(ctx context.Context, client rest.Interface, bindings map
 		if gv.Group == "" {
 			path = "/openapi/v3/api/" + gv.Version
 		}
-		budget.mu.Lock()
-		// Staging excludes other fetches. Concurrent releases can only increase
-		// this allowance before the document is charged.
-		remaining := limit - budget.used
-		budget.mu.Unlock()
-		if remaining <= 0 {
-			for _, token := range tokens {
-				failures[token] = fmt.Errorf("native OpenAPI retained schema budget exhausted (%d bytes)", limit)
-			}
-			continue
-		}
-		data, err := readNativeSchema(ctx, client, path, remaining)
+		data, err := readNativeSchema(ctx, client, path)
 		if err != nil {
 			for _, token := range tokens {
 				failures[token] = err
@@ -175,17 +228,13 @@ func fetchNativeSchemas(ctx context.Context, client rest.Interface, bindings map
 				continue
 			}
 			if !retained {
-				// ReadAll may leave spare capacity. Keep exactly the charged bytes;
-				// all type entries below share this single document allocation.
-				if cap(data) != len(data) {
-					exact := make([]byte, len(data))
-					copy(exact, data)
-					data = exact
+				data, err = budget.retain(data, revision, lease)
+				if err != nil {
+					for _, token := range tokens {
+						failures[token] = err
+					}
+					break
 				}
-				budget.mu.Lock()
-				budget.used += len(data)
-				lease.bytes += len(data)
-				budget.mu.Unlock()
 				retained = true
 			}
 			result[token] = nativeSchemaDocument{Document: data, Root: root, Revision: revision}
@@ -194,24 +243,18 @@ func fetchNativeSchemas(ctx context.Context, client rest.Interface, bindings map
 	return result, failures, lease
 }
 
-func readNativeSchema(ctx context.Context, client rest.Interface, path string, remaining int) ([]byte, error) {
+func readNativeSchema(ctx context.Context, client rest.Interface, path string) ([]byte, error) {
 	stream, err := client.Get().AbsPath(path).Stream(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer stream.Close()
 	limit := maxNativeSchemaBytes
-	if remaining < limit {
-		limit = remaining
-	}
 	data, err := io.ReadAll(io.LimitReader(stream, int64(limit)+1))
 	if err != nil {
 		return nil, err
 	}
 	if len(data) > limit {
-		if remaining < maxNativeSchemaBytes {
-			return nil, fmt.Errorf("native OpenAPI retained schema budget exhausted (%d bytes available)", remaining)
-		}
 		return nil, fmt.Errorf("native OpenAPI document exceeds %d bytes", maxNativeSchemaBytes)
 	}
 	return data, ctx.Err()

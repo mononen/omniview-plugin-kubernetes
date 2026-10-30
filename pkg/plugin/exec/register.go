@@ -13,6 +13,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 
+	"github.com/omniview/kubernetes/pkg/pluginid"
 	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/sdk"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
@@ -23,21 +24,9 @@ func Register(plugin *sdk.Plugin) {
 	// Register the capabilities
 	if err := exec.RegisterPlugin(plugin, exec.PluginOpts{
 		Handlers: []exec.Handler{
+			podExecHandler(),
 			{
-				Plugin:         "kubernetes",
-				Resource:       "k8s:/pods",
-				TTYHandler:     PodHandler,
-				DefaultCommand: []string{"/bin/bash"},
-				TargetBuilder: exec.ActionTargetBuilder{
-					Paths: []string{"$.spec.containers[*]"},
-					Selectors: map[string]string{
-						"container": "$.name",
-					},
-					LabelSelector: "container",
-				},
-			},
-			{
-				Plugin:         "kubernetes",
+				Plugin:         pluginid.ResourceProvider,
 				Resource:       "k8s:/nodes",
 				TTYHandler:     NodeHandler,
 				DefaultCommand: []string{"/bin/bash"},
@@ -45,6 +34,23 @@ func Register(plugin *sdk.Plugin) {
 		},
 	}); err != nil {
 		panic(err)
+	}
+}
+
+func podExecHandler() exec.Handler {
+	return exec.Handler{
+		Plugin:         pluginid.ResourceProvider,
+		Resource:       "k8s:/pods",
+		TTYHandler:     PodHandler,
+		HandlesResize:  true,
+		DefaultCommand: []string{"/bin/bash"},
+		TargetBuilder: exec.ActionTargetBuilder{
+			Paths: []string{"$.spec.containers[*]"},
+			Selectors: map[string]string{
+				"container": "$.name",
+			},
+			LabelSelector: "container",
+		},
 	}
 }
 
@@ -80,6 +86,17 @@ func podHandlerWithProvider(
 		container = ""
 	}
 
+	switch opts.Params["mode"] {
+	case "attach":
+		if err := waitForDebugContainer(ctx.Context, clients.Clientset, namespace, pod, opts.Params["pod_uid"], container); err != nil {
+			return err
+		}
+		return streamPod(ctx.Context, clients.Clientset, clients.RestConfig, namespace, pod, container, nil, true, tty, stopCh, resize)
+	case "", "exec":
+	default:
+		return fmt.Errorf("unsupported session mode %q", opts.Params["mode"])
+	}
+
 	return ExecCmd(
 		ctx.Context,
 		clients.Clientset,
@@ -98,7 +115,7 @@ func podHandlerWithProvider(
 // Native exec authorization remains the selected client's Kubernetes credentials;
 // neither body metadata nor reference/route strings grant access or trigger Get.
 func nativeExecTarget(ctx *types.PluginContext, opts exec.SessionOptions, resourceType string, namespaced bool) (name, namespace string, err error) {
-	if opts.ResourcePlugin != "" && opts.ResourcePlugin != "kubernetes" {
+	if opts.ResourcePlugin != "" && opts.ResourcePlugin != pluginid.ResourceProvider {
 		return "", "", resourcev2.NewError("INVALID_REQUEST", "exec resource belongs to another provider")
 	}
 	if opts.ResourceKey != "" && opts.ResourceKey != resourceType {
@@ -127,7 +144,7 @@ func nativeExecTarget(ctx *types.PluginContext, opts exec.SessionOptions, resour
 		if opts.Route == nil {
 			return "", "", resourcev2.NewError("INVALID_REQUEST", "a canonical exec reference requires an explicit route")
 		}
-		if reference.Address.Provider != "kubernetes" || reference.Address.Type != resourceType {
+		if reference.Address.Provider != pluginid.ResourceProvider || reference.Address.Type != resourceType {
 			return "", "", resourcev2.NewError("INVALID_REQUEST", "exec reference does not match its native handler")
 		}
 		name = reference.Address.ID
@@ -176,16 +193,6 @@ func nativeExecTarget(ctx *types.PluginContext, opts exec.SessionOptions, resour
 	return name, namespace, nil
 }
 
-type sizeQueue chan remotecommand.TerminalSize
-
-func (s *sizeQueue) Next() *remotecommand.TerminalSize {
-	size, ok := <-*s
-	if !ok {
-		return nil
-	}
-	return &size
-}
-
 // ExecCmd exec command on specific pod and wait the command's output.
 func ExecCmd(
 	ctx context.Context,
@@ -199,29 +206,30 @@ func ExecCmd(
 	stopChan chan error,
 	resize <-chan exec.SessionResizeInput,
 ) error {
-	req := client.
-		CoreV1().
-		RESTClient().
-		Post().
-		Resource("pods").
-		Name(pod).
-		Namespace(namespace).
-		SubResource("exec")
+	return streamPod(ctx, client, config, namespace, pod, container, command, false, tty, stopChan, resize)
+}
 
-	option := &v1.PodExecOptions{
-		Command:   command,
-		Container: container,
-		Stdin:     true,
-		Stdout:    true,
-		Stderr:    true,
-		TTY:       true,
+func streamPod(
+	ctx context.Context,
+	client kubernetes.Interface,
+	config *restclient.Config,
+	namespace, pod, container string,
+	command []string,
+	attach bool,
+	tty *os.File,
+	stopChan chan error,
+	resize <-chan exec.SessionResizeInput,
+) error {
+	subresource := "exec"
+	if attach {
+		subresource = "attach"
 	}
-
-	req.VersionedParams(
-		option,
-		scheme.ParameterCodec,
-	)
-
+	req := client.CoreV1().RESTClient().Post().Resource("pods").Name(pod).Namespace(namespace).SubResource(subresource)
+	if attach {
+		req.VersionedParams(&v1.PodAttachOptions{Container: container, Stdin: true, Stdout: true, Stderr: true, TTY: true}, scheme.ParameterCodec)
+	} else {
+		req.VersionedParams(&v1.PodExecOptions{Command: command, Container: container, Stdin: true, Stdout: true, Stderr: true, TTY: true}, scheme.ParameterCodec)
+	}
 	spdy, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
 		return err
@@ -234,21 +242,21 @@ func ExecCmd(
 	if err != nil {
 		return err
 	}
-
-	go func(tty *os.File, stopCh chan error) {
-		err = executor.StreamWithContext(ctx, remotecommand.StreamOptions{
-			Stdin:  tty,
-			Stdout: tty,
-			Stderr: tty,
-			Tty:    true,
+	go func() {
+		streamCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		queue := &terminalSizeQueue{ctx: streamCtx, resize: resize}
+		streamErr := executor.StreamWithContext(streamCtx, remotecommand.StreamOptions{
+			Stdin: tty, Stdout: tty, Stderr: tty, Tty: true, TerminalSizeQueue: queue,
 		})
-		if err != nil {
-			stopCh <- classifyExecError(err, command)
-		} else {
-			stopCh <- nil
+		if streamErr != nil && !attach {
+			streamErr = classifyExecError(streamErr, command)
 		}
-	}(tty, stopChan)
-
+		select {
+		case stopChan <- streamErr:
+		case <-ctx.Done():
+		}
+	}()
 	return nil
 }
 

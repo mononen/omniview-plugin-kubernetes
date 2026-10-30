@@ -8,6 +8,8 @@ import type { OwnerReference } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuCopy, LuLayers, LuDatabase, LuPlay, LuClock, LuServer, LuUser } from 'react-icons/lu';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 type KindConfig = {
   color: ComponentColor;
   icon: React.ReactElement;
@@ -66,7 +68,7 @@ const ResourceLinkChip: React.FC<Props> = (props) => {
   const resourceKey = canonical?.reference.address.type ?? native?.resourceKey;
   const resourceID = canonical?.reference.address.id ?? native?.resourceID ?? owner?.name;
   const resourceName = props.resourceName;
-  const pluginID = canonical?.pluginId ?? native?.pluginID ?? 'kubernetes';
+  const pluginID = canonical?.pluginId ?? native?.pluginID ?? PLUGIN_ID;
   const route = canonical?.route ?? { connection: 'connectionID' in props ? props.connectionID : '' };
   const { resourceTypes } = useResourceTypes({ pluginID, route });
 

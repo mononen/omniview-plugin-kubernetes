@@ -2,11 +2,13 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useKubernetesResources } from './useKubernetesResources';
 
+vi.mock('@/pluginId', () => ({ PLUGIN_ID: 'kubernetes-preview' }));
+
 const mocks = vi.hoisted(() => ({
   types: vi.fn(), resolve: vi.fn(), resources: vi.fn(), decode: vi.fn(),
 }));
 vi.mock('@omniviewdev/runtime', () => ({
-  useResourceTypes: () => ({ resourceTypes: mocks.types() }),
+  useResourceTypes: (options: unknown) => ({ resourceTypes: mocks.types(options) }),
   useResolvedResourceTarget: mocks.resolve,
   useResources: (options: { request?: unknown }) => {
     const result = mocks.resources(options);
@@ -38,14 +40,19 @@ describe('useKubernetesResources', () => {
       connectionID: 'selected-cluster', resourceType: 'k8s:/pods', namespaces: ['team'],
     }));
     expect(mocks.resolve).toHaveBeenCalledWith(expect.objectContaining({
+      pluginID: 'kubernetes-preview',
       route: { connection: 'selected-cluster' }, type: 'k8s:/pods', representation: 'native',
       scope: [{ dimension: 'namespace', match: 'oneOf', values: ['team'] }],
     }));
     expect(mocks.resources).toHaveBeenCalledWith(expect.objectContaining({
+      pluginID: 'kubernetes-preview',
       request: { targetId: 'host-membership', request: { target: { authority: 'host-authority' }, pageSize: 200, cursor: undefined } },
       live: true,
     }));
     expect(result.current.bodies).toEqual([9007199254740993n]);
+    expect(mocks.types).toHaveBeenCalledWith({
+      pluginID: 'kubernetes-preview', route: { connection: 'selected-cluster' },
+    });
     expect(result.current.records[0].key).toBe('host-key');
   });
 
@@ -59,6 +66,30 @@ describe('useKubernetesResources', () => {
     }));
     expect(mocks.resolve).toHaveBeenCalledWith(expect.objectContaining({ scope: [] }));
     expect(mocks.resources).toHaveBeenCalledWith(expect.objectContaining({ live: false }));
+  });
+
+  it('uses an unconstrained namespace dimension when no namespaces are selected', () => {
+    renderHook(() => useKubernetesResources({
+      connectionID: 'selected-cluster', resourceType: 'k8s:/pods',
+    }));
+    expect(mocks.resolve).toHaveBeenCalledWith(expect.objectContaining({
+      route: { connection: 'selected-cluster' },
+      scope: [{ dimension: 'namespace', match: 'any' }],
+    }));
+  });
+
+  it('exposes catalog failure rather than presenting an empty successful page', () => {
+    const error = new Error('Catalog unavailable');
+    mocks.types.mockReturnValue({ data: undefined, isLoading: false, error });
+    mocks.resolve.mockReturnValue({ data: undefined, isLoading: false });
+    const { result } = renderHook(() => useKubernetesResources({
+      connectionID: 'selected-cluster', resourceType: 'k8s:/pods',
+    }));
+    expect(result.current.error).toBe(error);
+    expect(result.current.pageControls.error).toBe(error);
+    expect(mocks.resources).toHaveBeenCalledWith(expect.objectContaining({
+      request: undefined, enabled: false,
+    }));
   });
 
   it('does not admit a request before catalog and host resolution', () => {

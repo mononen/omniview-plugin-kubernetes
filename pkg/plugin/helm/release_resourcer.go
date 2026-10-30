@@ -70,27 +70,29 @@ func (r *ReleaseResourcer) GetActions(
 			"chart":        {Type: resource.SchemaString, Description: "Chart reference (e.g. repo/chart)"},
 			"values":       {Type: resource.SchemaObject, Description: "Override values"},
 			"version":      {Type: resource.SchemaString, Description: "Chart version constraint"},
-			"reuse_values": {Type: resource.SchemaBoolean, Default: false, Description: "Reuse existing values from the release"},
+			"reuse_values": {Type: resource.SchemaBoolean, Description: "Reuse existing values from the release"},
 		},
 		Required: []string{"chart"},
 	}
 
 	installParams := &resource.Schema{
 		Properties: map[string]resource.SchemaProperty{
+			"name":    {Type: resource.SchemaString, Description: "New release name"},
 			"chart":   {Type: resource.SchemaString, Description: "Chart reference (e.g. repo/chart)"},
 			"values":  {Type: resource.SchemaObject, Description: "Override values"},
 			"version": {Type: resource.SchemaString, Description: "Chart version constraint"},
 		},
-		Required: []string{"chart"},
+		Required: []string{"name", "chart"},
 	}
 
 	dryRunInstallParams := &resource.Schema{
 		Properties: map[string]resource.SchemaProperty{
+			"name":    {Type: resource.SchemaString, Description: "New release name"},
 			"chart":   {Type: resource.SchemaString, Description: "Chart reference (e.g. repo/chart)"},
 			"values":  {Type: resource.SchemaObject, Description: "Override values"},
 			"version": {Type: resource.SchemaString, Description: "Chart version constraint"},
 		},
-		Required: []string{"chart"},
+		Required: []string{"name", "chart"},
 	}
 
 	return []resource.ActionDescriptor{
@@ -124,7 +126,7 @@ func (r *ReleaseResourcer) GetActions(
 			Scope:       resource.ActionScopeInstance,
 			ParamsSchema: &resource.Schema{
 				Properties: map[string]resource.SchemaProperty{
-					"all": {Type: resource.SchemaBoolean, Default: false, Description: "Return all computed values (including defaults)"},
+					"all": {Type: resource.SchemaBoolean, Description: "Return all computed values (including defaults)"},
 				},
 			},
 		},
@@ -219,7 +221,11 @@ func (r *ReleaseResourcer) Action(
 	client *clients.ClientSet,
 	input resource.ActionRequest,
 ) (resource.Value, error) {
-	cfg, err := r.getConfig(ctx, client, namespaceOf(input.Reference))
+	namespace, err := actionNamespace(input)
+	if err != nil {
+		return resource.Value{}, err
+	}
+	cfg, err := r.getConfig(ctx, client, namespace)
 	if err != nil {
 		return resource.Value{}, err
 	}
@@ -545,8 +551,11 @@ func (r *ReleaseResourcer) executeInstall(
 		return resource.Value{}, err
 	}
 	chartRef, _ := params["chart"].(string)
-	releaseName := input.Reference.Address.ID
-	namespace := namespaceOf(input.Reference)
+	releaseName, _ := params["name"].(string)
+	namespace, err := actionNamespace(input)
+	if err != nil {
+		return resource.Value{}, err
+	}
 	values, _ := params["values"].(map[string]interface{})
 	version, _ := params["version"].(string)
 
@@ -602,13 +611,19 @@ func (r *ReleaseResourcer) executeDryRunInstall(
 		return resource.Value{}, err
 	}
 	chartRef, _ := params["chart"].(string)
-	releaseName := input.Reference.Address.ID
-	namespace := namespaceOf(input.Reference)
+	releaseName, _ := params["name"].(string)
+	namespace, err := actionNamespace(input)
+	if err != nil {
+		return resource.Value{}, err
+	}
 	values, _ := params["values"].(map[string]interface{})
 	version, _ := params["version"].(string)
 
 	if chartRef == "" {
 		return resource.Value{}, fmt.Errorf("chart reference is required")
+	}
+	if releaseName == "" {
+		return resource.Value{}, fmt.Errorf("release name is required")
 	}
 
 	settings := cli.New()

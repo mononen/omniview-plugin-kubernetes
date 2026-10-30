@@ -115,10 +115,10 @@ func (n *NodeResourcer) GetActions(
 			Dangerous:   true,
 			ParamsSchema: &resource.Schema{
 				Properties: map[string]resource.SchemaProperty{
-					"gracePeriodSeconds": {Type: resource.SchemaInteger, Default: 30, Description: "Seconds to wait for graceful termination; -1 uses each pod's native termination grace period"},
-					"ignoreDaemonSets":   {Type: resource.SchemaBoolean, Default: true, Description: "Ignore DaemonSet-managed pods"},
-					"deleteEmptyDirData": {Type: resource.SchemaBoolean, Default: true, Description: "Delete pods using emptyDir volumes"},
-					"force":              {Type: resource.SchemaBoolean, Default: false, Description: "Force-delete pods that fail eviction"},
+					"gracePeriodSeconds": {Type: resource.SchemaInteger, Description: "Seconds to wait for graceful termination (handler default 30); -1 uses each pod's native termination grace period"},
+					"ignoreDaemonSets":   {Type: resource.SchemaBoolean, Description: "Ignore DaemonSet-managed pods (handler default true)"},
+					"deleteEmptyDirData": {Type: resource.SchemaBoolean, Description: "Delete pods using emptyDir volumes (handler default true)"},
+					"force":              {Type: resource.SchemaBoolean, Description: "Force-delete pods that fail eviction (handler default false)"},
 				},
 			},
 		},

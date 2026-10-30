@@ -1,5 +1,3 @@
-import React, { useEffect } from 'react';
-import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
   ErrorTypes, isCancelledError, parseAppError, valueToJSON, useExtensionRegistry,
   type ExtensionPointRegistryContract, type SearchActionReferenceV1, type SearchExecutionContextV1,
@@ -7,6 +5,9 @@ import {
   type SearchProviderV1, type SearchScopeV1,
 } from '@omniviewdev/runtime';
 import { DataClient, ResourceClient } from '@omniviewdev/runtime/api';
+import { ConnectionStatusCode } from '@omniviewdev/runtime/models';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import React, { useEffect } from 'react';
 import KubernetesSearchActionContext, {
   searchActions, executeSearchAction, validateSearchAction, freshTarget,
 } from '../components/kubernetes/KubernetesSearchActionContext';
@@ -16,13 +17,16 @@ import {
 } from '../pages/extension';
 import type { NavSection } from '../types/navigation';
 import { plural } from '../utils/language';
+
 import { destinationPath, destinationScore, prependRecent, searchDestinations, type SearchDestination } from './navigation';
 
-const PLUGIN = 'kubernetes';
-const OPEN_TYPE = 'kubernetes:open-type:';
-const OPEN_LIST = 'kubernetes:open-list';
-const OPEN_RESOURCE = 'kubernetes:open-resource';
-const CONNECT = 'kubernetes:connect';
+import { PLUGIN_ID } from '@/pluginId';
+
+const PLUGIN = PLUGIN_ID;
+const OPEN_TYPE = `${PLUGIN}:open-type:`;
+const OPEN_LIST = `${PLUGIN}:open-list`;
+const OPEN_RESOURCE = `${PLUGIN}:open-resource`;
+const CONNECT = `${PLUGIN}:connect`;
 const layouts = new Map<string, SearchDestination[]>();
 let extensionRegistry: ExtensionPointRegistryContract | undefined;
 let queryClient: QueryClient | undefined;
@@ -89,8 +93,8 @@ async function ready(scope: SearchScopeV1, signal: AbortSignal, fresh = false): 
       queryFn: ({ signal: cacheSignal }) => read(ResourceClient.CheckConnection(PLUGIN, connectionID(scope)), cacheSignal),
     });
   signal.throwIfAborted();
-  if (status.status === 'UNAUTHORIZED' || status.status === 'FORBIDDEN') {
-    const unauthorized = status.status === 'UNAUTHORIZED';
+  if (status.status === ConnectionStatusCode.ConnectionStatusUnauthorized || status.status === ConnectionStatusCode.ConnectionStatusForbidden) {
+    const unauthorized = status.status === ConnectionStatusCode.ConnectionStatusUnauthorized;
     throw Object.assign(new Error(unauthorized ? 'Authentication required.' : 'Access denied.'), {
       type: unauthorized ? ErrorTypes.RESOURCE_UNAUTHORIZED : ErrorTypes.RESOURCE_FORBIDDEN,
       status: unauthorized ? 401 : 403,
@@ -98,17 +102,17 @@ async function ready(scope: SearchScopeV1, signal: AbortSignal, fresh = false): 
       detail: unauthorized ? 'Refresh connection credentials before searching.' : 'Current credentials cannot access these resources.',
     });
   }
-  if (status.status === 'PENDING') {
+  if (status.status === ConnectionStatusCode.ConnectionStatusPending) {
     throw Object.assign(new Error('Connection is starting.'), {
       type: ErrorTypes.CONNECTION_FAILED, status: 503, title: 'Connecting', detail: 'Connection is starting.',
       code: 'CONNECTION_PENDING',
     });
   }
-  if (status.status === 'ERROR' && status.error === 'client is required') return false;
-  if (status.status !== 'CONNECTED' && status.status !== 'DISCONNECTED') {
+  if (status.status === ConnectionStatusCode.ConnectionStatusError && status.error === 'client is required') return false;
+  if (status.status !== ConnectionStatusCode.ConnectionStatusConnected && status.status !== ConnectionStatusCode.ConnectionStatusDisconnected) {
     throw new Error(status.details || 'Connection is unavailable. Review its status before retrying.');
   }
-  return status.status === 'CONNECTED';
+  return status.status === ConnectionStatusCode.ConnectionStatusConnected;
 }
 
 async function destinations(connectionID: string, signal: AbortSignal): Promise<SearchDestination[]> {
@@ -177,9 +181,11 @@ async function search(request: SearchProviderRequestV1): Promise<SearchProviderR
         let child: SearchScopeV1 = scope;
         if (item.resourceKey) {
           const type = catalog.types.find(type => type.type === item.resourceKey);
-          if (!type || type.representations.length !== 1) throw new Error('Resource representation requires an explicit catalog choice.');
+          const representation = type?.defaultRepresentation
+            ?? (type?.representations.length === 1 ? type.representations[0].id : undefined);
+          if (!representation) throw new Error('Resource representation requires an explicit catalog choice.');
           const resolved = await read(ResourceClient.ResolveTarget(PLUGIN, {
-            route: { connection: scope.connectionId }, type: item.resourceKey, representation: type.representations[0].id,
+            route: { connection: scope.connectionId }, type: item.resourceKey, representation,
           }), signal);
           child = { kind: 'resource-type', pluginId: PLUGIN, target: resolved.target, targetId: resolved.targetId,
             label: item.label, scopeLabel: 'Namespace' };
@@ -292,7 +298,7 @@ async function executeAction(action: SearchActionReferenceV1, context: SearchExe
     try { status = await ResourceClient.StartConnection(PLUGIN, target.connectionId); }
     finally { void cache().invalidateQueries({ queryKey: ['search-connection-status', PLUGIN, target.connectionId] }); }
     context.signal.throwIfAborted();
-    if (status.status !== 'CONNECTED') throw new Error('Connection is not ready. Review credentials and retry.');
+    if (status.status !== ConnectionStatusCode.ConnectionStatusConnected) throw new Error('Connection is not ready. Review credentials and retry.');
     return { keepOpen: true };
   }
   if (id === OPEN_RESOURCE && target.kind === 'resource') {

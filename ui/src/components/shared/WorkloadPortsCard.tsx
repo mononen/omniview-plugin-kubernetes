@@ -15,6 +15,8 @@ import { Browser } from '@omniviewdev/runtime/runtime';
 import type { ContainerPort, PodSpec } from 'kubernetes-types/core/v1';
 import React from 'react';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 import Icon from './Icon';
 import SimpleTooltip from './SimpleTooltip';
 
@@ -169,17 +171,10 @@ interface ForwardConfigPopoverProps {
 function ForwardConfigPopover({ anchorEl, port, onClose, onConfirm }: ForwardConfigPopoverProps) {
   const [localPort, setLocalPort] = React.useState('');
   const [portError, setPortError] = React.useState('');
-  const [protocol, setProtocol] = React.useState<'TCP' | 'UDP'>('TCP');
+  const [protocol, setProtocol] = React.useState<'TCP' | 'UDP'>(() =>
+    (port?.protocol as 'TCP' | 'UDP') || 'TCP',
+  );
   const [openInBrowser, setOpenInBrowser] = React.useState(true);
-
-  React.useEffect(() => {
-    if (anchorEl && port) {
-      setLocalPort('');
-      setPortError('');
-      setProtocol((port.protocol as 'TCP' | 'UDP') || 'TCP');
-      setOpenInBrowser(true);
-    }
-  }, [anchorEl, port]);
 
   const handleConfirm = () => {
     if (localPort) {
@@ -302,7 +297,7 @@ const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
   const [configPort, setConfigPort] = React.useState<ContainerPort | null>(null);
 
   const { sessions, forward, close } = useResourcePortForwarder({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceID,
   });
@@ -331,11 +326,17 @@ const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
         openInBrowser: opts?.openInBrowser ?? true,
         parameters: {},
       },
+    }).catch((error: unknown) => {
+      // The runtime hook reports mutation failures through its snackbar.
+      console.error('Port forward request failed', error);
     });
   };
 
   const handleStopPortForward = (sessionID: string) => {
-    void close({ opts: { sessionID } });
+    close({ opts: { sessionID } }).catch((error: unknown) => {
+      // The runtime hook reports mutation failures through its snackbar.
+      console.error('Port forward close request failed', error);
+    });
   };
 
   const handleOpenConfig = (e: React.MouseEvent<HTMLElement>, port: ContainerPort) => {
@@ -393,7 +394,11 @@ const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
                         size="sm"
                         clickable
                         style={chipStyle}
-                        onClick={() => void Browser.OpenURL(`http://localhost:${existing.local_port}`)}
+                        onClick={() => {
+                          Browser.OpenURL(`http://localhost:${existing.local_port}`).catch(
+                            (error: unknown) => console.error('Failed to open port in browser', error),
+                          );
+                        }}
                       >
                         {`localhost:${existing.local_port}`}
                       </Chip>
@@ -421,16 +426,17 @@ const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
         })}
       </div>
 
-      <ForwardConfigPopover
-        anchorEl={configAnchor}
-        port={configPort}
-        onClose={handleCloseConfig}
-        onConfirm={(opts) => {
-          if (configPort) {
+      {configAnchor && configPort && (
+        <ForwardConfigPopover
+          key={`${connectionID}/${resourceID}/${configPort.containerPort}/${configPort.protocol}`}
+          anchorEl={configAnchor}
+          port={configPort}
+          onClose={handleCloseConfig}
+          onConfirm={(opts) => {
             handleStartPortForward(Number(configPort.containerPort), opts);
-          }
-        }}
-      />
+          }}
+        />
+      )}
     </>
   );
 };

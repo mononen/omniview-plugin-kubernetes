@@ -49,6 +49,7 @@ func TestNativeCatalogIndependentOperations(t *testing.T) {
 	require.Equal(t, []resourcev2.Capability{
 		{Operation: resourcev2.OperationGet, Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}},
 		{Operation: resourcev2.OperationEnumerate, Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}},
+		{Operation: resourcev2.OperationNativeQuery, Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}},
 		{Operation: resourcev2.OperationCreate, Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}},
 		{Operation: resourcev2.OperationMutationUpdate, Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}},
 		{Operation: resourcev2.OperationDelete, Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}},
@@ -61,7 +62,10 @@ func TestNativeCatalogIndependentOperations(t *testing.T) {
 	report, ok := bindings["k8s:example.k8s.io/reports"]
 	require.True(t, ok, "custom groups must not be collapsed to a guessed short group")
 	require.Equal(t, "example.k8s.io", report.GVR.Group)
-	require.Equal(t, []resourcev2.Capability{{Operation: resourcev2.OperationEnumerate, Scope: resourcev2.QueryScope{}}}, report.Descriptor.Capabilities)
+	require.Equal(t, []resourcev2.Capability{
+		{Operation: resourcev2.OperationEnumerate, Scope: resourcev2.QueryScope{}},
+		{Operation: resourcev2.OperationNativeQuery, Scope: resourcev2.QueryScope{}},
+	}, report.Descriptor.Capabilities)
 }
 
 func TestNativeCatalogCancellation(t *testing.T) {

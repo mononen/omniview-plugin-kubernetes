@@ -2,6 +2,7 @@ import { jsonToValue, type DrawerComponentAction, type DrawerContext } from '@om
 import type { Node } from 'kubernetes-types/core/v1';
 import { LuArrowDownToLine, LuShieldBan, LuShieldCheck, LuTerminal, LuTrash } from 'react-icons/lu';
 
+
 import { drawerActionDeps } from '../../../../shared/drawer/actionDeps';
 
 const resourceKey = 'k8s:/nodes';
@@ -92,7 +93,7 @@ export const drawerActions: Array<DrawerComponentAction<Node>> = [
         label: `node/${ctx.data?.metadata?.name}`,
         icon: 'LuTerminal',
         opts: {
-          resource_plugin: 'kubernetes',
+          resource_plugin: ctx.resource!.reference.address.provider,
           resource_data: ctx.resource!.record!.record.body,
           reference: ctx.resource!.reference,
           route: ctx.resource!.route,

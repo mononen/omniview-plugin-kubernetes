@@ -138,10 +138,14 @@ func TestNativeSchemaBudgetAcrossGroupsAndConnections(t *testing.T) {
 
 func TestNativeSchemaBudgetExactBoundaryAndFailedReplacement(t *testing.T) {
 	document := schemaBudgetFixture("a")
-	var invalid atomic.Bool
+	var invalid, changed atomic.Bool
 	client := nativeSchemaRESTClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if invalid.Load() {
 			_, _ = w.Write([]byte(`{"components":{},"components":{}}`))
+			return
+		}
+		if changed.Load() {
+			_, _ = w.Write([]byte(strings.ReplaceAll(document, "native.Spec", "native.Other")))
 			return
 		}
 		_, _ = w.Write([]byte(document))
@@ -152,12 +156,32 @@ func TestNativeSchemaBudgetExactBoundaryAndFailedReplacement(t *testing.T) {
 	require.Empty(t, failures)
 	require.Len(t, result, 1)
 	require.Equal(t, budget.limit, budget.used)
+	duplicate, duplicateFailures, duplicateLease := fetchNativeSchemas(context.Background(), client, bindings, budget)
+	require.Empty(t, duplicateFailures)
+	require.Equal(t, document, string(duplicate["a"].Document))
+	require.True(t, &result["a"].Document[0] == &duplicate["a"].Document[0], "duplicate leases share cached allocation")
+	require.Equal(t, budget.limit, budget.used, "identical content must fit a full budget")
+	changed.Store(true)
 	blocked, blockedFailures, blockedLease := fetchNativeSchemas(context.Background(), client, bindings, budget)
 	require.Empty(t, blocked)
 	require.ErrorContains(t, blockedFailures["a"], "budget exhausted")
 	blockedLease.Release()
+	blockedLease.Release()
+	require.Equal(t, budget.limit, budget.used, "failed leases cannot release cached content")
 	result = nil
 	lease.Release()
+	lease.Release()
+	require.Equal(t, budget.limit, budget.used, "duplicate lease must retain cached bytes after original release")
+	require.Equal(t, document, string(duplicate["a"].Document))
+	stillBlocked, stillBlockedFailures, stillBlockedLease := fetchNativeSchemas(context.Background(), client, bindings, budget)
+	require.Empty(t, stillBlocked)
+	require.ErrorContains(t, stillBlockedFailures["a"], "budget exhausted")
+	stillBlockedLease.Release()
+	duplicate = nil
+	duplicateLease.Release()
+	duplicateLease.Release()
+	require.Zero(t, budget.used, "only the final lease releases cached bytes; release is idempotent")
+	changed.Store(false)
 	invalid.Store(true)
 	failed, failedErrors, failedLease := fetchNativeSchemas(context.Background(), client, bindings, budget)
 	require.Empty(t, failed)

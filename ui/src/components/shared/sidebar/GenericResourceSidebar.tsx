@@ -7,6 +7,8 @@ import type { Condition, ObjectMeta } from 'kubernetes-types/meta/v1';
 import get from 'lodash.get';
 import React from 'react';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 import ConditionChip from '../ConditionChip';
 import KVCard from '../KVCard';
 import LabeledEntry from '../LabeledEntry';
@@ -28,7 +30,7 @@ function extractValue(data: Record<string, unknown>, accessor: string): string {
       val = get(data, trimmed);
     }
     if (val !== undefined && val !== null && val !== '') {
-      return typeof val === 'object' ? JSON.stringify(val) : String(val as string | number | boolean);
+      return typeof val === 'string' || typeof val === 'bigint' ? String(val) : JSON.stringify(val);
     }
   }
   return '';
@@ -46,7 +48,7 @@ interface Props {
 const GenericResourceSidebar: React.FC<Props> = ({ ctx }) => {
   const data = ctx.data as Record<string, unknown> | undefined;
   const resourceKey = ctx.resource?.reference.address.type || '';
-  const pluginID = ctx.resource?.pluginID || 'kubernetes';
+  const pluginID = ctx.resource?.pluginID || PLUGIN_ID;
 
   const { data: definition } = useQuery({
     queryKey: [pluginID, 'resource_definition', ctx.resource?.route, resourceKey],

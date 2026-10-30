@@ -12,6 +12,8 @@ import {
 import React from 'react';
 import { LuRefreshCw, LuLink, LuShieldCheck, LuShieldOff } from 'react-icons/lu';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 import NamedAvatar from '../../shared/NamedAvatar';
 
 import styles from './RepoSidebar.module.css';
@@ -116,9 +118,9 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
   const repoName = ctx.resource?.reference.address.id ?? '';
   const [chartFilter, setChartFilter] = React.useState('');
 
-  const { executeAction, isExecuting } = useExecuteAction({ pluginID: 'kubernetes' });
+  const { executeAction, isExecuting } = useExecuteAction({ pluginID: PLUGIN_ID });
   const target = useResolvedResourceTarget({
-    pluginID: 'kubernetes', route: { connection: connectionID }, type: 'helm:charts',
+    pluginID: PLUGIN_ID, route: { connection: connectionID }, type: 'helm:charts',
     scope: [
       { dimension: 'domain', match: 'oneOf', values: ['helm-client'] },
       { dimension: 'repository', match: 'oneOf', values: [repoName] },
@@ -127,7 +129,7 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
   });
   const navigation = useSourcePageNavigation(JSON.stringify([connectionID, repoName, target.data]));
   const { resources: chartsQuery, acquired, refreshAcquiredPage } = useResources({
-    pluginID: 'kubernetes', live: false,
+    pluginID: PLUGIN_ID, live: false,
     request: target.data ? {
       targetId: target.data.targetId, request: { target: target.data.target, pageSize: 256, cursor: navigation.cursor },
     } : undefined,
@@ -255,8 +257,8 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
               onClick={() => {
                 const row = chartRecords.get(chart);
                 if (!row) return;
-                showResourceSidebar({
-                  pluginID: 'kubernetes', reference: row.record.reference, route: row.route,
+                void showResourceSidebar({
+                  pluginID: PLUGIN_ID, reference: row.record.reference, route: row.route,
                   representation: row.record.representation.id, targetId: row.targetId,
                   record: row, resourceName: chart.name,
                 });

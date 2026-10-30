@@ -111,16 +111,17 @@ func (r *RepoResourcerWithActions) GetActions(
 			Scope:       resource.ActionScopeType,
 			ParamsSchema: &resource.Schema{
 				Properties: map[string]resource.SchemaProperty{
+					"name":            {Type: resource.SchemaString, Description: "New repository name"},
 					"url":             {Type: resource.SchemaString, Description: "Repository URL"},
 					"username":        {Type: resource.SchemaString, Description: "Auth username"},
 					"password":        {Type: resource.SchemaString, Description: "Auth password"},
 					"certFile":        {Type: resource.SchemaString, Description: "TLS client certificate file"},
 					"keyFile":         {Type: resource.SchemaString, Description: "TLS client key file"},
 					"caFile":          {Type: resource.SchemaString, Description: "TLS CA certificate file"},
-					"insecureSkipTLS": {Type: resource.SchemaBoolean, Default: false, Description: "Skip TLS verification"},
-					"plainHTTP":       {Type: resource.SchemaBoolean, Default: false, Description: "Use plain HTTP for OCI registries"},
+					"insecureSkipTLS": {Type: resource.SchemaBoolean, Description: "Skip TLS verification"},
+					"plainHTTP":       {Type: resource.SchemaBoolean, Description: "Use plain HTTP for OCI registries"},
 				},
-				Required: []string{"url"},
+				Required: []string{"name", "url"},
 			},
 		},
 	}, nil
@@ -239,7 +240,7 @@ func (r *RepoResourcerWithActions) executeAdd(input resource.ActionRequest) (res
 	if err != nil {
 		return resource.Value{}, err
 	}
-	name := input.Reference.Address.ID
+	name, _ := params["name"].(string)
 	url, _ := params["url"].(string)
 
 	if name == "" || url == "" {

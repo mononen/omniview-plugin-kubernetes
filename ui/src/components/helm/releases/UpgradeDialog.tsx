@@ -4,6 +4,8 @@ import { ResourceClient } from '@omniviewdev/runtime/api';
 import React from 'react';
 import { stringify } from 'yaml';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 import CodeEditor from '../../shared/CodeEditor';
 import { helmActionData, helmValues } from '../values';
 
@@ -48,9 +50,9 @@ const UpgradeDialog: React.FC<Props> = ({
   const [dryRunManifest, setDryRunManifest] = React.useState<string | null>(null);
   const [valuesLoaded, setValuesLoaded] = React.useState(false);
 
-  const { executeAction, isExecuting } = useExecuteAction({ pluginID: 'kubernetes' });
+  const { executeAction, isExecuting } = useExecuteAction({ pluginID: PLUGIN_ID });
   const runAction = async (action: string, input = jsonToValue({})) => {
-    const resolved = await ResourceClient.ResolveReference('kubernetes', {
+    const resolved = await ResourceClient.ResolveReference(PLUGIN_ID, {
       route: { connection: connectionID }, type: 'helm:releases', id: releaseName,
       scope: [{ dimension: 'namespace', value: namespace }],
     });

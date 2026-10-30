@@ -2,13 +2,13 @@ package logs
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 
 	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
@@ -64,7 +64,7 @@ func TestPodLogHandlerRejectsCanonicalMismatchBeforeClientAccess(t *testing.T) {
 		{"namespace", "selected", map[string]string{"namespace": "other"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := PodLogHandler(ctx, sdklogs.LogStreamRequest{ResourceData: data, Reference: ref, Route: &resourcev2.AccessRoute{Connection: tc.route}, Labels: tc.labels})
+			_, err := PodLogHandler(nil, ctx, sdklogs.LogStreamRequest{ResourceData: data, Reference: ref, Route: &resourcev2.AccessRoute{Connection: tc.route}, Labels: tc.labels})
 			require.ErrorContains(t, err, "does not match")
 		})
 	}
@@ -85,12 +85,15 @@ func TestPodLogHandlerUsesNativeStreamWithoutTargetGet(t *testing.T) {
 		_, _ = io.WriteString(w, "2026-10-28T00:00:00Z native log\n")
 	}))
 	defer server.Close()
-	configPath := filepath.Join(t.TempDir(), "config")
-	config := fmt.Sprintf("apiVersion: v1\nkind: Config\nclusters:\n- name: local\n  cluster:\n    server: %s\ncontexts:\n- name: selected\n  context:\n    cluster: local\n    user: local\ncurrent-context: selected\nusers:\n- name: local\n  user: {}\n", server.URL)
-	require.NoError(t, os.WriteFile(configPath, []byte(config), 0600))
-	ctx := &types.PluginContext{Context: context.Background(), Connection: &types.Connection{ID: "selected", Data: map[string]any{"kubeconfig": configPath}}}
+	client, err := kubernetes.NewForConfig(&rest.Config{Host: server.URL})
+	require.NoError(t, err)
+	borrow := func(ctx context.Context, route resourcev2.AccessRoute, use func(context.Context, *clients.ClientSet) error) error {
+		require.Equal(t, "selected", route.Connection)
+		return use(ctx, &clients.ClientSet{Clientset: client})
+	}
+	ctx := &types.PluginContext{Context: context.Background(), Connection: &types.Connection{ID: "selected"}}
 	ref := &resourcev2.ResourceReference{Address: resourcev2.ResourceAddress{Provider: "kubernetes", Authority: "host-owned", Type: "k8s:/pods", Scope: []resourcev2.ScopeEntry{{Dimension: "namespace", Value: "ns"}}, ID: "pod"}}
-	stream, err := PodLogHandler(ctx, sdklogs.LogStreamRequest{
+	stream, err := nativeHandler(borrow)(ctx, sdklogs.LogStreamRequest{
 		Reference: ref, Route: &resourcev2.AccessRoute{Connection: "selected"},
 		Labels: map[string]string{"container": "app"},
 	})
@@ -106,7 +109,7 @@ func TestPodLogHandlerUsesNativeStreamWithoutTargetGet(t *testing.T) {
 func TestPodSourceBuilderConsumesReferenceAndRejectsMismatch(t *testing.T) {
 	data := taggedFixture(map[string]any{"spec": map[string]any{"containers": []any{map[string]any{"name": "app"}}}})
 	ref := &resourcev2.ResourceReference{Address: resourcev2.ResourceAddress{Provider: "kubernetes", Authority: "host-owned", Type: "k8s:/pods", Scope: []resourcev2.ScopeEntry{{Dimension: "namespace", Value: "ns"}}, ID: "pod"}}
-	opts := sdklogs.LogSessionOptions{Reference: ref, Route: &resourcev2.AccessRoute{Connection: "selected"}}
+	opts := sdklogs.LogSessionOptions{Reference: ref, Route: &resourcev2.AccessRoute{Connection: "selected"}, Follow: true}
 	sources := PodSourceBuilder("pod", data, opts)
 	require.Len(t, sources, 1)
 	require.Equal(t, "pod/app", sources[0].ID)

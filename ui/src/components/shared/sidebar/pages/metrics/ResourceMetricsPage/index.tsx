@@ -2,6 +2,9 @@ import { Progress, Spinner, Stack, Text } from '@omniviewdev/base-ui';
 import { DrawerComponentView, DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
 import React, { useState, useMemo } from 'react';
 import { LuActivity } from 'react-icons/lu';
+
+import { PLUGIN_ID } from '@/pluginId';
+
 import { useClusterPreferences } from '../../../../../../hooks/useClusterPreferences';
 import { metricQueryParams } from '../../../../../../utils/metricParams';
 
@@ -50,7 +53,7 @@ const ResourceMetricsPage: React.FC<Props> = ({ ctx }) => {
   const resourceID = ctx.resource?.reference.address.id || '';
   const metadata = (ctx.data)?.metadata as Record<string, unknown> | undefined;
   const resourceNamespace = (metadata?.namespace as string) ?? '';
-  const { connectionOverrides } = useClusterPreferences('kubernetes');
+  const { connectionOverrides } = useClusterPreferences(PLUGIN_ID);
   const metricConfig = connectionOverrides[connectionID]?.metricConfig;
   const params = useMemo(() => metricQueryParams(metricConfig), [metricConfig]);
 
@@ -68,7 +71,7 @@ const ResourceMetricsPage: React.FC<Props> = ({ ctx }) => {
     isLoading: currentLoading,
     error,
   } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceKey,
     resourceID,
@@ -86,7 +89,7 @@ const ResourceMetricsPage: React.FC<Props> = ({ ctx }) => {
 
   // Time-series query (shape=1) - only if descriptors declare time-series support
   const { data: tsData, isLoading: tsLoading, error: tsError } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceKey,
     resourceID,

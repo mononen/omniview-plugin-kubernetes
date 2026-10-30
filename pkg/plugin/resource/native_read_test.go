@@ -316,7 +316,6 @@ func TestNativeEnumerateRejectsInvalidScopeAndPageSize(t *testing.T) {
 		scope      resourcev2.QueryScope
 		pageSize   uint32
 	}{
-		{"missing", true, nil, 2},
 		{"unknown", true, resourcev2.QueryScope{{Dimension: "region", Match: resourcev2.ScopeAny}}, 2},
 		{"duplicate", true, append(nativeTestAny(), nativeTestAny()...), 2},
 		{"missing values", true, resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeOneOf}}, 2},

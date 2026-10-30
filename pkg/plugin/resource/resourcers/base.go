@@ -159,7 +159,30 @@ func makeEventHandler(ctx context.Context, target resource.ReadTarget, represent
 			sink.OnDelete(resource.WatchDeletePayload{Route: target.Route, Reference: record.Reference, LastKnown: &record, Guarantee: resource.BestEffortGuarantee})
 		}
 	}
-	return cache.ResourceEventHandlerFuncs{AddFunc: func(obj interface{}) { emit(obj, "add") }, UpdateFunc: func(_, obj interface{}) { emit(obj, "update") }, DeleteFunc: func(obj interface{}) { emit(obj, "delete") }}
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) { emit(obj, "add") },
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			u, ok := newObj.(*unstructured.Unstructured)
+			if !ok || u == nil {
+				return
+			}
+			// Informer resyncs can replay the same version without changing the object.
+			// Keep empty versions and replacement objects: neither proves a no-op.
+			if old, ok := oldObj.(*unstructured.Unstructured); ok && old != nil {
+				if version := u.GetResourceVersion(); version != "" &&
+					version == old.GetResourceVersion() &&
+					u.GetUID() == old.GetUID() &&
+					u.GetName() == old.GetName() &&
+					u.GetNamespace() == old.GetNamespace() &&
+					u.GetAPIVersion() == old.GetAPIVersion() &&
+					u.GetKind() == old.GetKind() {
+					return
+				}
+			}
+			emit(u, "update")
+		},
+		DeleteFunc: func(obj interface{}) { emit(obj, "delete") },
+	}
 }
 
 func watchNamespaces(scope resource.QueryScope) ([]string, error) {

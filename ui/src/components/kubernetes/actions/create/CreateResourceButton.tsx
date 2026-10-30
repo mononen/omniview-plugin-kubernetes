@@ -5,6 +5,7 @@ import React from 'react';
 import { LuPlus } from 'react-icons/lu';
 import { parse } from 'yaml';
 
+import { PLUGIN_ID } from '@/pluginId';
 import { resolveKubernetesReference } from '../../../../utils/kubernetesReference';
 import CreateResourceModal from './CreateResourceModal';
 import { getTemplate, templateIdentity } from './templates';
@@ -20,10 +21,10 @@ const CreateResourceButton: React.FC<Props> = ({ connectionID, resourceKey }) =>
   const [isPreparing, setIsPreparing] = React.useState(false);
   const [template, setTemplate] = React.useState(getTemplate());
   const route = { connection: connectionID };
-  const { resourceTypes } = useResourceTypes({ pluginID: 'kubernetes', route });
+  const { resourceTypes } = useResourceTypes({ pluginID: PLUGIN_ID, route });
   const descriptor = resourceTypes.data?.find((entry) => entry.type === resourceKey);
   const label = descriptor?.displayName ?? resourceKey;
-  const { mutate } = useResourceMutations({ pluginID: 'kubernetes' });
+  const { mutate } = useResourceMutations({ pluginID: PLUGIN_ID });
 
   const handleOpen = async () => {
     setIsPreparing(true);
@@ -32,7 +33,7 @@ const CreateResourceButton: React.FC<Props> = ({ connectionID, resourceKey }) =>
       const representation = descriptor?.representations.find((entry) => entry.id === descriptor.defaultRepresentation);
       const binding = representation?.schema;
       if (binding?.documentRef) {
-        const schema = await ResourceClient.GetSchemaDocument('kubernetes', route, binding.documentRef);
+        const schema = await ResourceClient.GetSchemaDocument(PLUGIN_ID, route, binding.documentRef);
         nextTemplate = getTemplate(templateIdentity(schema.document, binding.root,
           descriptor?.identityDimensions.some(({ name }) => name === 'namespace') ?? false));
       }

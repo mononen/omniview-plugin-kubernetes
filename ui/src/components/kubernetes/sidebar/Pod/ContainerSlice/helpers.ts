@@ -8,7 +8,6 @@ import type {
 } from 'kubernetes-types/core/v1';
 
 import type { DetailsCardEntry } from '../../../../shared/DetailsCard';
-
 import { getStatus } from '../utils';
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -173,7 +172,7 @@ export function resolveFieldRef(pod: Pod, fieldPath: string): string | undefined
       }
       if (current == null) return undefined;
     }
-    return typeof current === 'object' ? JSON.stringify(current) : String(current as string | number | boolean);
+    return typeof current === 'string' ? current : JSON.stringify(current);
   } catch {
     return undefined;
   }

@@ -6,18 +6,23 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"maps"
 	"sort"
+	"strings"
 
 	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/dynamic"
 )
 
 const (
 	nativeReadMaxPageSize    = resourcev2.MaxPageRecords
 	nativeReadMaxCursorBytes = 64 * 1024
+	nativeLabelSelectorLanguage = "kubernetes-label-selector.v1"
+	nativeModelRepresentationVersion = "kubernetes.model.v1"
 )
 
 // NativeGet reads directly from the API server. The caller resolves the opaque
@@ -69,6 +74,32 @@ func NativeGet(ctx context.Context, client dynamic.Interface, gvr schema.GroupVe
 // cursor resumes source acquisition only; it is never a host query cursor.
 // Separate namespace lists do not establish a shared point-in-time snapshot.
 func NativeEnumerate(ctx context.Context, client dynamic.Interface, gvr schema.GroupVersionResource, namespaced bool, request resourcev2.EnumerateRequest, representation resourcev2.Representation) (resourcev2.SourcePage, error) {
+	return nativeEnumerate(ctx, client, gvr, namespaced, request, representation, "")
+}
+
+// NativeQuery executes Kubernetes label selection without adding a second query
+// engine. Selection remains inside the admitted namespace and representation.
+func NativeQuery(ctx context.Context, client dynamic.Interface, gvr schema.GroupVersionResource, namespaced bool, request resourcev2.NativeQueryRequest, representation resourcev2.Representation) (resourcev2.SourcePage, error) {
+	if request.Language != nativeLabelSelectorLanguage {
+		return resourcev2.SourcePage{}, resourcev2.NewError("UNSUPPORTED", "The native query language is not supported")
+	}
+	if request.Query.Kind != "map" || len(request.Query.Map) != 1 {
+		return resourcev2.SourcePage{}, resourcev2.NewError("INVALID_REQUEST", "A Kubernetes label query requires only labelSelector")
+	}
+	value, ok := request.Query.Map["labelSelector"]
+	if !ok || value.Kind != "string" {
+		return resourcev2.SourcePage{}, resourcev2.NewError("INVALID_REQUEST", "Kubernetes labelSelector must be a string")
+	}
+	selector, err := labels.Parse(value.String)
+	if err != nil {
+		return resourcev2.SourcePage{}, resourcev2.NewError("INVALID_REQUEST", "Kubernetes labelSelector is invalid")
+	}
+	return nativeEnumerate(ctx, client, gvr, namespaced, resourcev2.EnumerateRequest{
+		Target: request.Target, PageSize: request.PageSize, Cursor: request.Cursor,
+	}, representation, selector.String())
+}
+
+func nativeEnumerate(ctx context.Context, client dynamic.Interface, gvr schema.GroupVersionResource, namespaced bool, request resourcev2.EnumerateRequest, representation resourcev2.Representation, selector string) (resourcev2.SourcePage, error) {
 	if err := ctx.Err(); err != nil {
 		return resourcev2.SourcePage{}, err
 	}
@@ -82,7 +113,7 @@ func NativeEnumerate(ctx context.Context, client dynamic.Interface, gvr schema.G
 	if err != nil {
 		return resourcev2.SourcePage{}, err
 	}
-	binding, err := nativeCursorBinding(request, gvr, namespaced, namespaces)
+	binding, err := nativeCursorBinding(request, gvr, namespaced, namespaces, selector)
 	if err != nil {
 		return resourcev2.SourcePage{}, err
 	}
@@ -93,7 +124,7 @@ func NativeEnumerate(ctx context.Context, client dynamic.Interface, gvr schema.G
 	page := resourcev2.SourcePage{
 		Records:     []resourcev2.Record{},
 		Count:       resourcev2.Count{Kind: "unknown"},
-		Coverage:    nativeCompleteCoverage(),
+		Coverage:    nativeRepresentationCoverage(representation),
 		Consistency: "bestEffort",
 	}
 	if len(namespaces) == 0 {
@@ -103,6 +134,7 @@ func NativeEnumerate(ctx context.Context, client dynamic.Interface, gvr schema.G
 	list, err := nativeResourceClient(client, gvr, namespaced, namespace).List(ctx, metav1.ListOptions{
 		Limit:    int64(request.PageSize),
 		Continue: cursor.Continue,
+		LabelSelector: selector,
 	})
 	if err != nil {
 		return resourcev2.SourcePage{}, err
@@ -195,6 +227,9 @@ func nativeQueryNamespaces(scope resourcev2.QueryScope, namespaced bool) ([]stri
 		}
 		return []string{""}, nil
 	}
+	if len(scope) == 0 {
+		return []string{metav1.NamespaceAll}, nil
+	}
 	if len(scope) != 1 || scope[0].Dimension != "namespace" {
 		return nil, resourcev2.NewError("INVALID_REQUEST", "Namespaced Kubernetes queries require exactly one namespace constraint")
 	}
@@ -241,7 +276,19 @@ func nativeRecord(object *unstructured.Unstructured, address resourcev2.Resource
 	if namespaced {
 		address.Scope = []resourcev2.ScopeEntry{{Dimension: "namespace", Value: actualNamespace}}
 	}
-	body, err := resourcev2.ValueFromNative(object.Object)
+	// Copy only the two maps changed by projection, never the resource body.
+	bodyObject := object.Object
+	if strings.HasPrefix(representation.ID, nativeModelRepresentationVersion+"/") {
+		if metadata, ok := bodyObject["metadata"].(map[string]any); ok {
+			if _, present := metadata["managedFields"]; present {
+				bodyObject = maps.Clone(bodyObject)
+				projectedMetadata := maps.Clone(metadata)
+				delete(projectedMetadata, "managedFields")
+				bodyObject["metadata"] = projectedMetadata
+			}
+		}
+	}
+	body, err := resourcev2.ValueFromNative(bodyObject)
 	if err != nil {
 		return resourcev2.Record{}, err
 	}
@@ -249,9 +296,16 @@ func nativeRecord(object *unstructured.Unstructured, address resourcev2.Resource
 		Reference:      resourcev2.ResourceReference{Address: address, Incarnation: nativeOptionalToken(string(object.GetUID()))},
 		Body:           body,
 		Representation: representation,
-		Coverage:       nativeCompleteCoverage(),
+		Coverage:       nativeRepresentationCoverage(representation),
 		SourceRevision: nativeOptionalToken(object.GetResourceVersion()),
 	}, nil
+}
+
+func nativeRepresentationCoverage(representation resourcev2.Representation) resourcev2.Coverage {
+	if strings.HasPrefix(representation.ID, nativeModelRepresentationVersion+"/") {
+		return resourcev2.Coverage{Kind: "partial", Paths: []string{}, Reason: "Kubernetes model projection omits metadata.managedFields"}
+	}
+	return nativeCompleteCoverage()
 }
 
 func nativeCompleteCoverage() resourcev2.Coverage {
@@ -272,11 +326,11 @@ type nativeReadCursor struct {
 	Continue  string `json:"continue"`
 }
 
-func nativeCursorBinding(request resourcev2.EnumerateRequest, gvr schema.GroupVersionResource, namespaced bool, namespaces []string) (string, error) {
+func nativeCursorBinding(request resourcev2.EnumerateRequest, gvr schema.GroupVersionResource, namespaced bool, namespaces []string, selector string) (string, error) {
 	// Normalize only the adapter's namespace selection. Type and ID are opaque;
 	// the caller's discovered GVR, not a parsed type, determines the API endpoint.
 	target := request.Target
-	if namespaced && target.Scope[0].Match == resourcev2.ScopeOneOf {
+	if namespaced && len(target.Scope) != 0 && target.Scope[0].Match == resourcev2.ScopeOneOf {
 		target.Scope = resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeOneOf, Values: &namespaces}}
 	}
 	encoded, err := json.Marshal(struct {
@@ -284,7 +338,8 @@ func nativeCursorBinding(request resourcev2.EnumerateRequest, gvr schema.GroupVe
 		GVR        schema.GroupVersionResource `json:"gvr"`
 		Namespaced bool                        `json:"namespaced"`
 		PageSize   uint32                      `json:"pageSize"`
-	}{target, gvr, namespaced, request.PageSize})
+		Selector   string                      `json:"labelSelector"`
+	}{target, gvr, namespaced, request.PageSize, selector})
 	if err != nil {
 		return "", err
 	}

@@ -8,9 +8,11 @@ import {
   type HomepageCardMeta,
   type SearchRouteHandleV1,
 } from '@omniviewdev/runtime';
-import { SiKubernetes } from 'react-icons/si';
 import React from 'react';
-import { RouteObject } from 'react-router-dom';
+import { SiKubernetes } from 'react-icons/si';
+import { RouteObject } from 'react-router';
+
+import { PLUGIN_ID } from '@/pluginId';
 
 import ChartSidebar from './components/helm/charts/ChartSidebar';
 import HelmChartTable from './components/helm/charts/Table';
@@ -18,6 +20,7 @@ import ReleaseSidebar from './components/helm/releases/ReleaseSidebar';
 import HelmReleaseTable from './components/helm/releases/Table';
 import RepoSidebar from './components/helm/repos/RepoSidebar';
 import HelmRepoTable from './components/helm/repos/Table';
+import KubernetesHomepageCard from './components/homepage/KubernetesHomepageCard';
 import { resourceDrawerActions } from './components/kubernetes/drawerActions';
 import NodeSidebar from './components/kubernetes/sidebar/NodeSidebar';
 import PodSidebar from './components/kubernetes/sidebar/Pod';
@@ -112,22 +115,21 @@ import VolumeAttachmentSidebar from './components/kubernetes/table/storagev1/Vol
 import VolumeAttachmentTable from './components/kubernetes/table/storagev1/VolumeAttachment/Table';
 import { createStandardViews } from './components/shared/sidebar/createDrawerViews';
 import GenericResourceSidebar from './components/shared/sidebar/GenericResourceSidebar';
-import KubernetesHomepageCard from './components/homepage/KubernetesHomepageCard';
+import { kubernetesResourceIconSet } from './icons/resourceIcons';
 import ClusterEditPage from './pages/ClusterEditPage';
-import ClusterResourcesPage from './pages/ClusterResourcesPage';
+import ClusterResourcesRoute from './pages/ClusterResourcesRoute';
 import ClustersPage from './pages/ClustersPage';
-import ClusterExtensionPage, { CLUSTER_PAGE_EXTENSION_POINT_ID } from './pages/extension';
 import ClusterDashboardPage from './pages/dashboard';
 import ClusterDashboardBenchmarksPage from './pages/dashboard/benchmarks';
 import ClusterDashboardExtensionPage from './pages/dashboard/extension';
 import ClusterDashboardMetricsPage from './pages/dashboard/metrics';
 import ClusterDashboardOverviewPage from './pages/dashboard/overview';
+import ClusterExtensionPage, { CLUSTER_PAGE_EXTENSION_POINT_ID } from './pages/extension';
 import { kubernetesSearchProvider } from './search/provider';
-import { kubernetesResourceIconSet } from './icons/resourceIcons';
 
 const connectionSearchHandle: SearchRouteHandleV1 = {
   searchScope: ({ params }) => params.id
-    ? { kind: 'connection', pluginId: 'kubernetes', connectionId: params.id, label: params.id }
+    ? { kind: 'connection', pluginId: PLUGIN_ID, connectionId: params.id, label: params.id }
     : undefined,
 };
 
@@ -264,7 +266,7 @@ export const routes: Array<RouteObject> = [
       },
       {
         path: 'resources',
-        Component: ClusterResourcesPage,
+        Component: ClusterResourcesRoute,
         handle: connectionSearchHandle,
         children: [
           {
@@ -390,27 +392,27 @@ export const extensionRegistrations: ExtensionRegistration[] = [
     extensionPointId: 'omniview/resource/sidebar/infopanel',
     registration: {
       id: `sidebar/${resourceKey}`,
-      plugin: 'kubernetes',
+      plugin: PLUGIN_ID,
       label: `Kubernetes sidebar for ${resourceKey}`,
       value: Component,
-      meta: { pluginId: 'kubernetes', resourceKey },
+      meta: { pluginId: PLUGIN_ID, resourceKey },
     },
   })),
   ...Object.entries(drawers).map(([resourceKey, factory]): ExtensionRegistration => ({
     extensionPointId: 'omniview/resource/drawer',
     registration: {
       id: `drawer/${resourceKey}`,
-      plugin: 'kubernetes',
+      plugin: PLUGIN_ID,
       label: `Kubernetes drawer for ${resourceKey}`,
       value: factory,
-      meta: { pluginId: 'kubernetes', resourceKey },
+      meta: { pluginId: PLUGIN_ID, resourceKey },
     },
   })),
   {
     extensionPointId: 'omniview/resource/icons',
     registration: {
       id: 'resource-icons',
-      plugin: 'kubernetes',
+      plugin: PLUGIN_ID,
       label: 'Kubernetes resource icons',
       value: kubernetesResourceIconSet,
     },
@@ -418,8 +420,8 @@ export const extensionRegistrations: ExtensionRegistration[] = [
   {
     extensionPointId: 'omniview/global-search',
     registration: {
-      id: 'kubernetes/global-search',
-      plugin: 'kubernetes',
+      id: `${PLUGIN_ID}/global-search`,
+      plugin: PLUGIN_ID,
       label: 'Kubernetes',
       value: kubernetesSearchProvider,
     },
@@ -427,8 +429,8 @@ export const extensionRegistrations: ExtensionRegistration[] = [
   {
     extensionPointId: 'omniview/home/card',
     registration: {
-      id: 'kubernetes/home/card',
-      plugin: 'kubernetes',
+      id: `${PLUGIN_ID}/home/card`,
+      plugin: PLUGIN_ID,
       label: 'Kubernetes',
       value: KubernetesHomepageCard,
       meta: {

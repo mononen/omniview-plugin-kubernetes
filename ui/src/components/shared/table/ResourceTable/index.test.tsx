@@ -1,19 +1,25 @@
-import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import React, { type PropsWithChildren } from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as BaseUI from '@omniviewdev/base-ui';
+import type { ColumnDef } from '@tanstack/react-table';
 import ResourceTable from './index';
+import { usePodMetricsBatch } from '@/hooks/usePodMetricsBatch';
 
 const mocks = vi.hoisted(() => {
   const first = { key: 'host-first', record: { body: { name: 'First row' } } };
   const second = { key: 'host-second', record: { body: { name: 'Second row' } } };
   return {
     resources: vi.fn(),
+    query: vi.fn(async () => ({})),
     loading: false,
     firstData: { records: [first], sourcePage: { nextCursor: 'native-next' } },
     secondData: { records: [second], sourcePage: { nextCursor: undefined } },
   };
 });
-vi.mock('@omniviewdev/base-ui', () => ({
+vi.mock('@omniviewdev/base-ui', async (importOriginal) => ({
+  ...await importOriginal<typeof BaseUI>(),
   Button: ({ children, disabled, onClick }: React.PropsWithChildren<{ disabled?: boolean; onClick?: () => void }>) => <button disabled={disabled} onClick={onClick}>{children}</button>,
   Stack: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
   Text: ({ children }: React.PropsWithChildren) => <span>{children}</span>,
@@ -26,6 +32,7 @@ vi.mock('@omniviewdev/base-ui', () => ({
     VirtualBody: () => <tbody />,
   },
 }));
+vi.mock('@omniviewdev/runtime/api', () => ({ MetricClient: { QueryAll: mocks.query } }));
 vi.mock('@omniviewdev/runtime', () => ({
   useResourceType: () => ({ resourceType: { data: { displayName: 'Charts', capabilities: [] } } }),
   useResolvedResourceTarget: () => ({ data: { targetId: 'host-target', target: { type: 'helm:charts' } } }),
@@ -34,10 +41,11 @@ vi.mock('@omniviewdev/runtime', () => ({
   useRightDrawer: () => ({ openDrawer: vi.fn() }),
 }));
 vi.mock('../../../tables/ColumnFilter/useDynamicResourceColumns', () => ({ useDynamicResourceColumns: () => ({ labels: {}, annotations: {}, columnDefs: [], setLabels: vi.fn(), setAnnotations: vi.fn() }) }));
-vi.mock('@/hooks/useStoredState', () => ({ useStoredState: (_key: string, initial: unknown) => React.useState(initial) }));
 vi.mock('@/hooks/useConnectionNamespaces', () => ({ useConnectionNamespaces: () => ({ namespaces: [], setNamespaces: vi.fn() }) }));
 vi.mock('../../drawer/DrawerActionsBridge', () => ({ default: () => null }));
-vi.mock('./ResourceTableToolbar', () => ({ default: () => null }));
+vi.mock('./ResourceTableToolbar', () => ({ default: ({ allFlatColumns }: { allFlatColumns: Array<{ id: string; toggleVisibility: (visible: boolean) => void }> }) => (
+  <button onClick={() => allFlatColumns.find((column) => column.id === 'cpuUsage')?.toggleVisibility(true)}>Show CPU</button>
+) }));
 vi.mock('./ResourceTableErrorState', () => ({ default: () => <div>Page failed</div> }));
 vi.mock('./rows', () => ({ decodeResourceTableRows: (records: Array<{ key: string; record: { body: { name: string } } }>) => ({
   rows: records.map(({ record }) => record.body),
@@ -45,20 +53,32 @@ vi.mock('./rows', () => ({ decodeResourceTableRows: (records: Array<{ key: strin
   rowKeys: records.map(({ key }) => key),
 }) }));
 
-const columns = [{ id: 'name', accessorKey: 'name' }];
-describe('resource source-page selections', () => {
-  beforeEach(() => {
-    mocks.loading = false;
-    mocks.resources.mockImplementation(({ request }) => {
-      const second = request?.request.cursor !== undefined;
-      const data = mocks.loading ? undefined : second ? mocks.secondData : mocks.firstData;
-      return { acquired: data ? { request, page: data } : undefined, resources: {
-        data,
-        isLoading: mocks.loading, isFetching: mocks.loading, isSuccess: !mocks.loading, refetch: vi.fn(),
-      } };
-    });
-  });
+const client = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
+const columns: Array<ColumnDef<BaseUI.DataTableFeatures, { name: string }>> = [
+  { id: 'name', accessorKey: 'name', header: 'Name' },
+  { id: 'cpuUsage', accessorKey: 'name', header: 'CPU' },
+  { id: 'memUsage', accessorKey: 'name', header: 'Memory' },
+];
+function MetricsConsumer({ columnVisibility, children }: PropsWithChildren<{ columnVisibility: Record<string, boolean> }>) {
+  usePodMetricsBatch({ connectionID: 'test', enabled: columnVisibility.cpuUsage !== false || columnVisibility.memUsage !== false });
+  return <>{children}</>;
+}
 
+beforeEach(() => {
+  mocks.loading = false;
+  mocks.resources.mockReset();
+  mocks.resources.mockImplementation(({ request }) => {
+    const second = request?.request.cursor !== undefined;
+    const data = mocks.loading ? undefined : second ? mocks.secondData : mocks.firstData;
+    return { acquired: data ? { request, page: data } : undefined, resources: {
+      data,
+      isLoading: mocks.loading, isFetching: mocks.loading, isSuccess: !mocks.loading, refetch: vi.fn(),
+    } };
+  });
+});
+afterEach(() => { client.clear(); localStorage.clear(); mocks.query.mockClear(); });
+
+describe('resource source-page selections', () => {
   it('retains host-key selections per page without selecting another page or clearing during acquisition', () => {
     const view = render(<ResourceTable connectionID="connection" resourceKey="helm:charts" columns={columns} />);
     fireEvent.click(screen.getByRole('button', { name: 'host-first' }));
@@ -71,5 +91,21 @@ describe('resource source-page selections', () => {
     mocks.loading = false;
     view.rerender(<ResourceTable connectionID="connection" resourceKey="helm:charts" columns={columns} />);
     expect(screen.getByRole('button', { name: 'host-first' }).getAttribute('aria-pressed')).toBe('true');
+    expect(mocks.resources).toHaveBeenLastCalledWith({
+      pluginID: 'kubernetes',
+      request: { targetId: 'host-target', request: { target: { type: 'helm:charts' }, pageSize: 256, cursor: undefined } },
+      live: false,
+    });
   });
+});
+
+it('reads persisted hidden metric columns before mounting the query consumer', async () => {
+  localStorage.setItem('kubernetes-test-k8s:/pods-column-visibility', JSON.stringify({ cpuUsage: false, memUsage: false }));
+  render(<QueryClientProvider client={client}>
+    <ResourceTable columns={columns} connectionID="test" resourceKey="k8s:/pods" contentWrapper={MetricsConsumer} />
+  </QueryClientProvider>);
+  expect(mocks.query).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Show CPU' }));
+  await waitFor(() => expect(mocks.query).toHaveBeenCalledTimes(1));
+  expect(JSON.parse(localStorage.getItem('kubernetes-test-k8s:/pods-column-visibility')!)).toMatchObject({ cpuUsage: true, memUsage: false });
 });

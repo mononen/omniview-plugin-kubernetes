@@ -1,24 +1,26 @@
 import type { DrawerContext, DrawerComponentAction } from '@omniviewdev/runtime';
 
+import { PLUGIN_ID } from '@/pluginId';
 import { bindDrawerActionDeps, type DrawerActionDeps } from '../shared/drawer/actionDeps';
+
 import { resourceDrawerActions } from './drawerActions';
 
 export type KubernetesActionTarget = {
-  pluginID: 'kubernetes';
+  pluginID: string;
   resource: NonNullable<DrawerContext['resource']>;
   data: Record<string, unknown> & {
     metadata?: { name?: string; namespace?: string; uid?: string };
   };
 };
 
-const actionID = (key: string, title: string) => `kubernetes:${key}:${encodeURIComponent(title)}`;
+const actionID = (key: string, title: string) => `${PLUGIN_ID}:${key}:${encodeURIComponent(title)}`;
 
 /** Resolve only existing actions, against exact object identity and fresh data. */
 export function resolveKubernetesActions(target: KubernetesActionTarget, deps?: DrawerActionDeps) {
   const metadata = target.data.metadata;
   const { reference, route } = target.resource;
   const namespace = reference.address.scope.find((entry) => entry.dimension === 'namespace')?.value ?? '';
-  if (target.pluginID !== 'kubernetes' || !route.connection || !reference.address.id
+  if (target.pluginID !== PLUGIN_ID || !route.connection || !reference.address.id
     || !metadata || metadata.name !== reference.address.id || (metadata.namespace ?? '') !== namespace
     || (reference.incarnation !== undefined && metadata.uid !== reference.incarnation)) {
     throw new Error('Kubernetes action target identity no longer matches the resource');
@@ -58,6 +60,7 @@ export function executeKubernetesAction(
   const action = resolveKubernetesActions(target, deps).find((candidate) => candidate.id === id);
   if (!action) throw new Error('Kubernetes action is no longer available');
   if (action.items) {
+    if (!itemID && action.items.length === 1 && action.execute) return action.execute();
     const item = action.items.find((candidate) => candidate.id === itemID);
     if (!item) throw new Error('Choose an available Kubernetes action target');
     return item.execute();

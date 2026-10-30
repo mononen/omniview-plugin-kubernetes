@@ -1,11 +1,13 @@
-import { DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
 import { Stack } from '@omniviewdev/base-ui';
+import { DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
 import { Node } from 'kubernetes-types/core/v1';
 import React from 'react';
 
 // types
 
 // sections
+import { PLUGIN_ID } from '@/pluginId';
+
 import MetadataSection from '../../shared/sidebar/pages/overview/sections/MetadataSection';
 
 import NodeImagesSection from './Node/NodeImagesSection';
@@ -25,7 +27,7 @@ export const NodeSidebar: React.FC<Props> = ({ ctx }) => {
 
   // Fetch live CPU/memory metrics for this node.
   const { data: metricsData } = useResourceMetrics({
-    pluginID: 'kubernetes',
+    pluginID: PLUGIN_ID,
     connectionID,
     resourceKey: 'k8s:/nodes',
     resourceID,

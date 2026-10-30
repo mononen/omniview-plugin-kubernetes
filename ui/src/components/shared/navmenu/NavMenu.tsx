@@ -2,7 +2,7 @@ import { Chip, IconButton, Stack, Text } from '@omniviewdev/base-ui';
 import { usePluginRouter } from '@omniviewdev/runtime';
 import React from 'react';
 import { LuChevronDown } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 
 import { IsImage } from '../../../utils/url';
 import Icon from '../Icon';
@@ -39,14 +39,14 @@ const getInitialOpenState = (
  * Render a navigation menu in a sidebar layout
  */
 const NavMenu: React.FC<SidebarProps> = ({ header, size, items, sections }) => {
-  const { id } = useParams<{ id: string }>();
+  const { id = '' } = useParams<{ id: string }>();
   const { location, navigate } = usePluginRouter();
 
   const selected = location.pathname.split('/').pop();
 
   const onSelect = React.useCallback(
     (resourceID: string) => {
-      navigate(`/cluster/${id}/resources/${resourceID}`);
+      navigate(`/cluster/${encodeURIComponent(id)}/resources/${resourceID}`);
     },
     [navigate, id],
   );
@@ -59,12 +59,16 @@ const NavMenu: React.FC<SidebarProps> = ({ header, size, items, sections }) => {
     throw new Error('You can only pass items or sections, not both');
   }
 
-  const [open, setOpen] = React.useState<Record<string, boolean>>({});
-
-  React.useLayoutEffect(() => {
-    const initialOpen = getInitialOpenState(items, sections);
-    setOpen(initialOpen);
-  }, [items, sections]);
+  const [menuState, setMenuState] = React.useState(() => ({
+    connectionID: id,
+    items,
+    sections,
+    open: getInitialOpenState(items, sections),
+  }));
+  if (menuState.connectionID !== id || menuState.items !== items || menuState.sections !== sections) {
+    setMenuState({ connectionID: id, items, sections, open: getInitialOpenState(items, sections) });
+  }
+  const { open } = menuState;
 
   /**
    * Handle the selection of a sidebar item
@@ -81,12 +85,12 @@ const NavMenu: React.FC<SidebarProps> = ({ header, size, items, sections }) => {
    */
   const toggleOpenState = React.useCallback(
     (id: string) => {
-      setOpen((prev) => ({
+      setMenuState((prev) => ({
         ...prev,
-        [id]: !prev[id],
+        open: { ...prev.open, [id]: !prev.open[id] },
       }));
     },
-    [setOpen],
+    [],
   );
 
   return (
