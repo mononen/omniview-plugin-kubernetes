@@ -23,6 +23,34 @@ Resource icons come from the upstream [Kubernetes Icons Set](https://github.com/
 
 Native artwork is adapted to monochrome resource glyphs without blue badges and uses inherited `currentColor` in every theme. Trusted bundled SVG geometry is imported inline, so sidebar and search icons need no image requests or cross-origin asset URLs. Sanitized assets contain no scripts, embedded HTML, external references, or style URLs; regression tests enforce the geometry and attribute allowlists. Modification details remain in `NOTICE`.
 
+## Candidate frontend CI
+
+PRs explicitly labeled `resource-v2-candidate` use `hack/candidate-ui.mjs`, not
+the last published runtime. Unlabeled PRs retain the frozen published install.
+Repository administrators must set
+`OMNIVIEW_RESOURCE_V2_REVIEWED_HOST_REVISION` to an independently approved full
+host commit and `OMNIVIEW_RESOURCE_V2_REVIEWED_SDK_REVISION` to the independently
+approved SDK commit. The selected host's checked-in `e2e/source-cohort.json`
+owns the exact SDK, UI, and Kubernetes commits. Its Kubernetes gitlink and the
+actual PR head must match that cohort. Missing approval fails closed.
+
+The helper reuses the approved host's admission checks, unchanged isolation
+baseline, real native-pnpm protocol probe, and canonical cohort preparation CLI.
+The CLI creates and links an isolated managed workspace and supplies its package
+launcher and producer graph. Lint, native typechecking, behavior tests, New York
+age-clock tests, and production UI builds run against that selected source
+workspace. No package files or `node_modules` exports are patched. PR execution
+uses read-only permissions without persisted checkout credentials.
+The helper persists the constructed cohort before building producers. An always-run
+cleanup step retires that cohort through the host's canonical unlink/remove
+transaction, including after producer or check failures. Failed preparation before
+cohort construction retains its private failure artifacts without claiming a
+stopped process or deleting unrelated data.
+
+This candidate-only validation does not change published dependency manifests,
+stable-main installs, or release packaging. After publication, ordinary registry
+validation must use the reviewed published cohort and its frozen lockfile.
+
 ## Resource v2 boundary
 
 The resource provider uses one `resourcev2` domain and transport. Catalog operations are qualified by an explicit connection, type, and declared scope. Get, bounded enumeration, native queries, create, update, delete, actions, and advisory updates remain independent capabilities. Native label queries declare their language and input schema in the catalog.
