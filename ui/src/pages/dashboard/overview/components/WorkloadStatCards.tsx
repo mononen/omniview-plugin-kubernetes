@@ -94,7 +94,7 @@ export const DeploymentStatCard = React.memo(function DeploymentStatCard({
   const deployments = useKubernetesResources<Deployment>({ connectionID, resourceType: 'k8s:apps/deployments', namespaces });
 
   const stats = React.useMemo(() => {
-    const all = filterByNamespace((deployments.bodies ?? []) as Deployment[], namespaces);
+    const all = filterByNamespace(deployments.bodies ?? [], namespaces);
     let ready = 0;
     let unavailable = 0;
     for (const d of all) {
@@ -136,7 +136,7 @@ export const StatefulSetStatCard = React.memo(function StatefulSetStatCard({
   const statefulSets = useKubernetesResources<StatefulSet>({ connectionID, resourceType: 'k8s:apps/statefulsets', namespaces });
 
   const stats = React.useMemo(() => {
-    const all = filterByNamespace((statefulSets.bodies ?? []) as StatefulSet[], namespaces);
+    const all = filterByNamespace(statefulSets.bodies ?? [], namespaces);
     let ready = 0;
     let notReady = 0;
     for (const s of all) {
@@ -178,7 +178,7 @@ export const DaemonSetStatCard = React.memo(function DaemonSetStatCard({
   const daemonSets = useKubernetesResources<DaemonSet>({ connectionID, resourceType: 'k8s:apps/daemonsets', namespaces });
 
   const stats = React.useMemo(() => {
-    const all = filterByNamespace((daemonSets.bodies ?? []) as DaemonSet[], namespaces);
+    const all = filterByNamespace(daemonSets.bodies ?? [], namespaces);
     let ready = 0;
     let notReady = 0;
     for (const d of all) {
@@ -220,7 +220,7 @@ export const JobStatCard = React.memo(function JobStatCard({
   const jobs = useKubernetesResources<Job>({ connectionID, resourceType: 'k8s:batch/jobs', namespaces });
 
   const stats = React.useMemo(() => {
-    const all = filterByNamespace((jobs.bodies ?? []) as Job[], namespaces);
+    const all = filterByNamespace(jobs.bodies ?? [], namespaces);
     let complete = 0;
     let active = 0;
     let failed = 0;
@@ -267,7 +267,7 @@ export const CronJobStatCard = React.memo(function CronJobStatCard({
   const cronJobs = useKubernetesResources<CronJob>({ connectionID, resourceType: 'k8s:batch/cronjobs', namespaces });
 
   const stats = React.useMemo(() => {
-    const all = filterByNamespace((cronJobs.bodies ?? []) as CronJob[], namespaces);
+    const all = filterByNamespace(cronJobs.bodies ?? [], namespaces);
     let activeCount = 0;
     let suspended = 0;
     for (const cj of all) {

@@ -56,7 +56,7 @@ const CreateResourceButton: React.FC<Props> = ({ connectionID, resourceKey }) =>
       if (metadata.namespace !== undefined && typeof metadata.namespace !== 'string') throw new Error('metadata.namespace must be a string');
       const resolved = await resolveKubernetesReference({
         connectionID, resourceType: resourceKey, name: metadata.name,
-        namespace: metadata.namespace as string | undefined,
+        namespace: metadata.namespace,
       });
       await mutate({
         route: resolved.route,
@@ -75,7 +75,7 @@ const CreateResourceButton: React.FC<Props> = ({ connectionID, resourceKey }) =>
         disabled={isPreparing} onClick={() => void handleOpen()}>
         {isPreparing ? 'Preparing...' : `Create ${label}`}
       </Button>
-      <CreateResourceModal open={open} onClose={() => setOpen(false)} resourceKey={resourceKey}
+      <CreateResourceModal key={JSON.stringify([connectionID, resourceKey])} open={open} onClose={() => setOpen(false)} resourceKey={resourceKey}
         resourceName={label} template={template} onCreate={handleCreate} isCreating={isCreating} />
     </>
   );

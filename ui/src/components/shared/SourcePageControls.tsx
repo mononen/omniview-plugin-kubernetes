@@ -13,6 +13,16 @@ export interface SourcePageControlsProps {
   compact?: boolean;
 }
 
+function pageErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (typeof error === 'number' || typeof error === 'bigint' || typeof error === 'boolean') return String(error);
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+  return 'Unable to acquire this source page';
+}
+
 /** Source navigation never treats page length as a total or drains continuation. */
 export function SourcePageControls({ pagination, nextCursor, loading, refresh, membershipStale, error, retry, compact = false, label = 'Resources' }: SourcePageControlsProps) {
   return (
@@ -26,7 +36,7 @@ export function SourcePageControls({ pagination, nextCursor, loading, refresh, m
       <Button size="sm" variant="outline" aria-label={`${label}: previous page`} title="Previous page" disabled={!pagination.canPrevious} onClick={pagination.previousPage}>{compact ? '‹' : 'Previous'}</Button>
       <Button size="sm" variant="outline" aria-label={`${label}: next page`} title="Next page" disabled={loading || !!error || nextCursor === undefined} onClick={() => pagination.nextPage(nextCursor)}>{compact ? '›' : 'Next'}</Button>
       {refresh && <Button size="sm" variant="outline" aria-label={`${label}: refresh acquired page`} title="Refresh acquired page" disabled={loading} onClick={refresh}>{compact ? '↻' : 'Refresh page'}</Button>}
-      {!!error && <Text role="alert" size="xs">Page request failed: {error instanceof Error ? error.message : String(error)}</Text>}
+      {!!error && <Text role="alert" size="xs">Page request failed: {pageErrorMessage(error)}</Text>}
       {!!error && retry && <Button size="sm" variant="outline" disabled={loading} onClick={retry}>Retry page</Button>}
       {membershipStale && <Text role="status" size="xs">Page membership may have changed. Refresh this page.</Text>}
     </Stack>

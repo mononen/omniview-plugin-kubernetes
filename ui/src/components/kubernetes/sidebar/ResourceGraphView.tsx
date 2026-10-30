@@ -259,7 +259,7 @@ const ResourceGraph: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
               key={n.key}
               node={n}
               dimmed={hovered !== null && !neighbours.has(n.key)}
-              onOpen={open}
+              onOpen={(node) => { void open(node); }}
               onHover={setHovered}
             />
           ))}

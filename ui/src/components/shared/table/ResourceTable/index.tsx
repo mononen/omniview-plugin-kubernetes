@@ -338,7 +338,7 @@ const ResourceTableContainer = <T extends RowData,>({
       {drawer && <DrawerActionsBridge connectionID={connectionID} resourceKey={resourceKey} />}
       <div className={styles.outer}>
         {watchError && <div role="status">Live updates unavailable. Showing the last acquired resources.</div>}
-        <SourcePageControls pagination={pagination} nextCursor={acquired?.page.sourcePage.nextCursor} loading={target.isLoading || resources.isFetching} error={resources.error} retry={() => { void resources.refetch(); }} refresh={target.data ? refreshAcquiredPage : undefined} membershipStale={membershipStale} label={resourceType.data?.displayName ?? resourceKey} />
+        <SourcePageControls pagination={pagination} nextCursor={acquired?.page.sourcePage.nextCursor} loading={target.isLoading || resources.isFetching} error={resources.error} retry={() => { void resources.refetch(); }} refresh={target.data ? () => { void refreshAcquiredPage(); } : undefined} membershipStale={membershipStale} label={resourceType.data?.displayName ?? resourceKey} />
         <div role="status">Bounded source page. Visible-row updates are best effort, not a complete live collection. Refresh to check page membership.</div>
         <DataTable.Root
           table={table}

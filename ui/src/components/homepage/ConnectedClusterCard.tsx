@@ -91,8 +91,8 @@ const ConnectedClusterCard: React.FC<Props> = ({
   });
 
   const { failedCount, pendingCount, warningCount, podCount, nodeCount, deploymentCount } = React.useMemo(() => {
-    const pods = (podsQuery.bodies ?? []) as Pod[];
-    const events = (eventsQuery.bodies ?? []) as unknown as K8sEvent[];
+    const pods = podsQuery.bodies ?? [];
+    const events = eventsQuery.bodies ?? [];
     return {
       failedCount: pods.filter((p) => p.status?.phase === 'Failed').length,
       pendingCount: pods.filter((p) => p.status?.phase === 'Pending').length,
@@ -110,25 +110,19 @@ const ConnectedClusterCard: React.FC<Props> = ({
 
   const hasIssues = hasErrors || failedCount > 0 || pendingCount > 0 || warningCount > 0;
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onClick();
-    }
-  };
-
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={handleKeyDown}
-      className={styles.Card}
-    >
+    <div className={styles.Card}>
+      <button
+        type="button"
+        aria-label={`Open ${displayName}`}
+        onClick={onClick}
+        style={openButtonStyle}
+      />
       {/* Disconnect button — top right */}
       <SimpleTooltip content="Disconnect">
         <IconButton
           className={styles.DisconnectButton}
+          style={disconnectButtonStyle}
           size="xs"
           variant="ghost"
           color="neutral"
@@ -196,7 +190,7 @@ const ConnectedClusterCard: React.FC<Props> = ({
           <CountBadge icon={<LuServer size={11} />} count={nodeCount} />
           <CountBadge icon={<LuLayers size={11} />} count={deploymentCount} />
         </div>
-        <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+        <div style={pageControlsStyle}>
           <SourcePageControls {...podsQuery.pageControls} label="Pods" />
           <SourcePageControls {...nodesQuery.pageControls} label="Nodes" />
           <SourcePageControls {...eventsQuery.pageControls} label="Events" />
@@ -209,6 +203,17 @@ const ConnectedClusterCard: React.FC<Props> = ({
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
+const openButtonStyle: React.CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  zIndex: 1,
+  border: 0,
+  borderRadius: 'inherit',
+  background: 'transparent',
+  cursor: 'pointer',
+};
+const disconnectButtonStyle: React.CSSProperties = { zIndex: 2 };
+const pageControlsStyle: React.CSSProperties = { position: 'relative', zIndex: 2 };
 const avatarColumnStyle: React.CSSProperties = { flexShrink: 0, display: 'flex', alignItems: 'center' };
 const avatarImageStyle: React.CSSProperties = { width: 52, height: 52, borderRadius: 8, objectFit: 'cover' };
 const rightColumnStyle: React.CSSProperties = {

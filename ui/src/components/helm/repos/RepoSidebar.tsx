@@ -234,7 +234,7 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
             Charts in this repository · {allCharts.length} on this page
           </Text>
         </Stack>
-        <SourcePageControls pagination={pagination} nextCursor={acquired?.page.sourcePage.nextCursor} loading={target.isLoading || chartsQuery.isFetching} error={target.error ?? chartsQuery.error} retry={target.data ? () => { void chartsQuery.refetch(); } : undefined} refresh={target.data ? refreshAcquiredPage : undefined} label="Charts" />
+        <SourcePageControls pagination={pagination} nextCursor={acquired?.page.sourcePage.nextCursor} loading={target.isLoading || chartsQuery.isFetching} error={target.error ?? chartsQuery.error} retry={target.data ? () => { void chartsQuery.refetch(); } : undefined} refresh={target.data ? () => { void refreshAcquiredPage(); } : undefined} label="Charts" />
 
         {/* Search */}
         <Input.Control

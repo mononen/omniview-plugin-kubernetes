@@ -261,7 +261,7 @@ const EventsTable: React.FC<Props> = ({ events, loading, connectionID, namespace
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search);
   const { showResourceSidebar } = useRightDrawer();
-  const { showSnackbar } = useSnackbar();
+  const snackbar = useSnackbar();
 
   const deduped = useMemo(() => deduplicateEvents(events), [events]);
 
@@ -350,22 +350,22 @@ const EventsTable: React.FC<Props> = ({ events, loading, connectionID, namespace
     (event: DedupedEvent) => {
       const resourceType = KIND_TO_KEY[event.kind];
       if (!resourceType || !connectionID) return;
-      void resolveKubernetesReference({
+      resolveKubernetesReference({
         connectionID,
         resourceType,
         name: event.name,
         namespace: event.namespace || undefined,
-      }).then((resolved) => {
-        showResourceSidebar({ ...resolved, pluginID: PLUGIN_ID, resourceName: event.name });
+      }).then(async (resolved) => {
+        await showResourceSidebar({ ...resolved, pluginID: PLUGIN_ID, resourceName: event.name });
       }).catch((error: unknown) => {
-        showSnackbar({
+        snackbar.showSnackbar({
           status: 'error',
           message: error instanceof Error ? error.message : 'Unable to open resource',
           icon: 'LuCircleAlert',
         });
       });
     },
-    [connectionID, showResourceSidebar, showSnackbar],
+    [connectionID, showResourceSidebar, snackbar],
   );
 
   if (loading) {

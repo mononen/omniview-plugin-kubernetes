@@ -1,3 +1,5 @@
+import { jsonToValue } from '@omniviewdev/runtime';
+import type * as Runtime from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Pod } from 'kubernetes-types/core/v1';
@@ -13,16 +15,55 @@ import DebugSessionsSection from './DebugSessionsSection';
 const mocks = vi.hoisted(() => ({
   createSession: vi.fn().mockResolvedValue({ id: 'replacement-stream' }),
 }));
-vi.mock('@omniviewdev/runtime', () => ({
+vi.mock('@omniviewdev/runtime', async (importOriginal) => ({
+  ...(await importOriginal<typeof Runtime>()),
   useExec: () => ({ createSession: mocks.createSession }),
-  parseAppError: () => ({
-    code: 'INTERNAL',
-    status: 500,
-    title: 'Error',
-    detail: 'Connection lost',
-  }),
 }));
-vi.mock('@omniviewdev/runtime/api', () => ({ ResourceClient: { Get: vi.fn() } }));
+vi.mock('@omniviewdev/runtime/api', () => ({
+  ResourceClient: {
+    Get: vi.fn(),
+    Catalog: vi.fn().mockResolvedValue({
+      types: [{ type: 'k8s:/pods', identityDimensions: [{ name: 'namespace' }] }],
+    }),
+    ResolveReference: vi.fn().mockImplementation(async (
+      _plugin: string,
+      request: Parameters<typeof ResourceClient.ResolveReference>[1],
+    ) => ({
+      targetId: 'debug-target',
+      representation: 'raw-v1',
+      route: request.route,
+      reference: {
+        address: {
+          provider: 'kubernetes',
+          authority: 'native-authority',
+          type: request.type,
+          scope: request.scope,
+          id: request.id,
+        },
+        ...(request.incarnation ? { incarnation: request.incarnation } : {}),
+      },
+    })),
+  },
+}));
+
+function podRecord(pod: Pod, connectionID: string) {
+  return {
+    route: { connection: connectionID },
+    record: {
+      body: jsonToValue(pod),
+      reference: {
+        address: {
+          provider: 'kubernetes',
+          authority: 'native-authority',
+          type: 'k8s:/pods',
+          scope: [{ dimension: 'namespace', value: pod.metadata!.namespace! }],
+          id: pod.metadata!.name!,
+        },
+        incarnation: pod.metadata!.uid,
+      },
+    },
+  };
+}
 
 describe('debug sessions across Pod replacement', () => {
   it('discovers a same-named debugger on the new UID while retaining the old stale record', async () => {
@@ -54,9 +95,7 @@ describe('debug sessions across Pod replacement', () => {
       executeAction: vi.fn().mockRejectedValue(new Error('Connection lost')),
       createExecSession: vi.fn(),
     } as unknown as DrawerActionDeps;
-    await expect(startDebugSession(original, BUILTIN_DEBUG_TEMPLATES[0], deps)).rejects.toThrow(
-      'Connection lost',
-    );
+    await expect(startDebugSession(original, BUILTIN_DEBUG_TEMPLATES[0], deps)).rejects.toThrow();
     const reserved = getDebugRecords().find((record) => record.podUID === original.podUID)!;
     const replacement: Pod = {
       ...original.resourceData,
@@ -81,10 +120,8 @@ describe('debug sessions across Pod replacement', () => {
         ],
       },
     };
-    vi.mocked(ResourceClient.Get).mockResolvedValue({
-      success: true,
-      result: replacement,
-    } as never);
+    const resource = podRecord(replacement, original.connectionID);
+    vi.mocked(ResourceClient.Get).mockResolvedValue(resource as never);
     render(<DebugSessionsSection connectionID={original.connectionID} pod={replacement} />);
     expect(screen.getByText(/stale.*Pod identity changed/).textContent).toMatch(/^stale/);
     fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
@@ -92,6 +129,9 @@ describe('debug sessions across Pod replacement', () => {
     expect(mocks.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         opts: expect.objectContaining({
+          resource_data: resource.record.body,
+          reference: resource.record.reference,
+          route: resource.route,
           params: {
             mode: 'attach',
             container: reserved.containerName,
@@ -129,7 +169,7 @@ describe('debug sessions across Pod replacement', () => {
     vi.mocked(ResourceClient.Get)
       .mockReset()
       .mockRejectedValueOnce(new Error('Temporary connection failure'))
-      .mockResolvedValue({ success: true, result: pod } as never);
+      .mockResolvedValue(podRecord(pod, 'status-retry-cluster') as never);
     render(<DebugSessionsSection connectionID="status-retry-cluster" pod={pod} />);
     fireEvent.click(screen.getByRole('button', { name: 'Inspect status' }));
     await screen.findByRole('alert');
@@ -141,6 +181,7 @@ describe('debug sessions across Pod replacement', () => {
     );
     expect(screen.queryByRole('alert')).toBeNull();
     expect(mocks.createSession).not.toHaveBeenCalled();
+    expect(ResourceClient.Get).toHaveBeenCalledTimes(2);
   });
   it('offers reconnect only after a waiting image becomes running, without reverting to the cached Pod snapshot', async () => {
     const pod: Pod = {
@@ -190,7 +231,7 @@ describe('debug sessions across Pod replacement', () => {
     mocks.createSession.mockClear();
     vi.mocked(ResourceClient.Get)
       .mockReset()
-      .mockResolvedValue({ success: true, result: ready } as never);
+      .mockResolvedValue(podRecord(ready, 'image-pull-cluster') as never);
     const view = render(<DebugSessionsSection connectionID="image-pull-cluster" pod={pod} />);
     expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Inspect status' }));

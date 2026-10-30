@@ -28,10 +28,10 @@ beforeEach(() => {
   visibility = 'visible';
   vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
   transport.query.mockReset();
-  transport.query.mockImplementation(async (connectionID: string, _key: string, _id: string, namespace: string) => ({
+  transport.query.mockImplementation(async (connectionID: string, request: { resource_namespace: string }) => ({
     fixture: { success: true, results: [
-      { current_value: { metric_id: 'cpu_usage', value: connectionID === 'a' ? 12 : 27, labels: { namespace: namespace || 'default', pod: 'pod' } } },
-      { current_value: { metric_id: 'memory_usage', value: 4096, labels: { namespace: namespace || 'default', pod: 'pod' } } },
+      { current_value: { metric_id: 'cpu_usage', value: connectionID === 'a' ? 12 : 27, labels: { namespace: request.resource_namespace || 'default', pod: 'pod' } } },
+      { current_value: { metric_id: 'memory_usage', value: 4096, labels: { namespace: request.resource_namespace || 'default', pod: 'pod' } } },
     ] },
   }));
 });

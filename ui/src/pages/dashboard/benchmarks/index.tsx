@@ -50,7 +50,7 @@ const ClusterDashboardBenchmarksPage: React.FC = () => {
     );
   }
 
-  const results = (resources.bodies ?? []) as ClusterBenchmarkResult[];
+  const results = resources.bodies ?? [];
   const firstResult: ClusterBenchmarkResult | undefined = results[0];
 
   return (

@@ -125,12 +125,12 @@ const ClusterDashboardOverviewPage: React.FC = () => {
 
   // --- Filtered data for health banner and events ---
   const allPods = React.useMemo(
-    () => filterByNamespace((pods.bodies ?? []) as Pod[], namespaces),
+    () => filterByNamespace(pods.bodies ?? [], namespaces),
     [pods.bodies, namespaces],
   );
   const allNodes = nodes.bodies;
   const allEvents = React.useMemo(
-    () => filterByNamespace((events.bodies ?? []) as K8sEvent[], namespaces),
+    () => filterByNamespace(events.bodies ?? [], namespaces),
     [events.bodies, namespaces],
   );
 

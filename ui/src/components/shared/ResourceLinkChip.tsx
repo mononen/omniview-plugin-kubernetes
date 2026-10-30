@@ -61,7 +61,7 @@ type Props = NativeLinkProps | {
  */
 const ResourceLinkChip: React.FC<Props> = (props) => {
   const { showResourceSidebar } = useRightDrawer();
-  const { showSnackbar } = useSnackbar();
+  const snackbar = useSnackbar();
   const canonical = 'target' in props ? props.target : undefined;
   const native = 'resourceKey' in props ? props : undefined;
   const owner = 'ownerReference' in props ? props.ownerReference : undefined;
@@ -121,7 +121,7 @@ const ResourceLinkChip: React.FC<Props> = (props) => {
         resourceName: resourceID,
       });
     } catch (error) {
-      showSnackbar(parseAppError(error).detail, 'error');
+      snackbar.showSnackbar(parseAppError(error).detail, 'error');
     }
   };
 
@@ -135,7 +135,7 @@ const ResourceLinkChip: React.FC<Props> = (props) => {
       color={config.color}
       startDecorator={config.icon}
       clickable
-      onClick={handleClick}
+      onClick={() => { void handleClick(); }}
       style={chipStyle}
     >
       {resourceName}

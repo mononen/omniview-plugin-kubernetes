@@ -328,9 +328,7 @@ export async function startDebugSession(
     }
     if (response?.success !== true)
       throw new Error('DEBUG_CREATION_UNKNOWN: response did not confirm acceptance');
-    const data = response.data as
-      | { pod?: Pod; podUID?: string; containerName?: string }
-      | undefined;
+    const data = response.data;
     if (
       data?.podUID !== input.podUID ||
       data?.containerName !== record.containerName ||

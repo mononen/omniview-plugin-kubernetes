@@ -34,9 +34,9 @@ interface Props {
 }
 
 const CreateResourceModal: React.FC<Props> = (props) =>
-  props.open ? <CreateResourceForm key={props.resourceKey} {...props} /> : null;
+  props.open ? <CreateResourceForm key={JSON.stringify([props.resourceKey, props.template])} {...props} /> : null;
 
-// Reopening or selecting another resource kind starts a new template draft.
+// Reopening or changing the resource target or template starts a new draft.
 const CreateResourceForm: React.FC<Props> = ({
   open,
   onClose,
@@ -57,10 +57,6 @@ const CreateResourceForm: React.FC<Props> = ({
     };
   }, []);
 
-  React.useEffect(() => {
-    setValue(template);
-    setError(null);
-  }, [template]);
 
   const handleSubmit = async () => {
     setError(null);

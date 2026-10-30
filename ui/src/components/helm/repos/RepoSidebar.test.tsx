@@ -6,7 +6,7 @@ import { RepoSidebar } from './RepoSidebar';
 
 const mocks = vi.hoisted(() => ({ resolve: vi.fn(), resources: vi.fn(), sidebar: vi.fn(), refresh: vi.fn() }));
 vi.mock('@omniviewdev/base-ui', () => ({
-  Card: ({ children, onClick }: React.PropsWithChildren<{ onClick?: () => void }>) => <div onClick={onClick}>{children}</div>,
+  Card: ({ children, onClick }: React.PropsWithChildren<{ onClick?: () => void }>) => onClick ? <button type="button" onClick={onClick}>{children}</button> : <div>{children}</div>,
   Chip: ({ children }: React.PropsWithChildren) => <span>{children}</span>,
   Button: ({ children, onClick, disabled }: React.PropsWithChildren<{ onClick?: () => void; disabled?: boolean }>) => <button onClick={onClick} disabled={disabled}>{children}</button>,
   IconButton: ({ children, onClick }: React.PropsWithChildren<{ onClick?: () => void }>) => <button onClick={onClick}>{children}</button>,

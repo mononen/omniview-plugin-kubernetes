@@ -206,9 +206,22 @@ describe('shared create and attach transitions', () => {
         pod_uid: launch.podUID,
       });
     }
-    expect(ResourceClient.Get).toHaveBeenCalledWith('alternate-kube', expect.objectContaining({
+    expect(ResourceClient.Get).toHaveBeenCalledWith('alternate-kube', {
       targetId: 'debug-target',
-    }));
+      request: {
+        route: { connection: launch.connectionID },
+        representation: 'raw-v1',
+        reference: {
+          address: {
+            provider: 'kubernetes',
+            authority: 'host-authority',
+            type: 'k8s:/pods',
+            scope: [{ dimension: 'namespace', value: launch.namespace }],
+            id: launch.resourceID,
+          },
+        },
+      },
+    });
   });
 
   it.each([
@@ -286,6 +299,14 @@ describe('shared create and attach transitions', () => {
         status: 500,
         detail: 'Submission interrupted',
         code: 'INTERNAL',
+      },
+    ],
+    [
+      'postdispatch-provider-error',
+      {
+        type: 'omniview:resource/provider-error', code: 'PROVIDER_ERROR',
+        title: 'Provider error', status: 409,
+        detail: 'The provider lost confirmation after dispatch.',
       },
     ],
     [

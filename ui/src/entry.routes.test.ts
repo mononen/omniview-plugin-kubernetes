@@ -1,4 +1,4 @@
-import { matchRoutes } from 'react-router-dom';
+import { matchRoutes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { routes } from './entry';
 import PodTable from './components/kubernetes/table/corev1/Pod/Table';

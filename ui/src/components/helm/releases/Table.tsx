@@ -77,7 +77,7 @@ const HelmReleaseTable: React.FC = () => {
         id: 'revision',
         header: 'Revision',
         accessorKey: 'version',
-        cell: ({ getValue }) => String(getValue() ?? ''),
+        cell: ({ row }) => String(row.original.version ?? ''),
         size: 80,
       },
       {
