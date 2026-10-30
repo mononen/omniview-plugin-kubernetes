@@ -122,7 +122,12 @@ jobs:
         run: TZ=America/New_York $UI_COMMAND exec vitest run src/utils/ageClock.test.tsx
 
       - name: Production UI build
-        run: $UI_COMMAND run build
+        run: |
+          if [[ "$CANDIDATE_MODE" == true ]]; then
+            node ../hack/candidate-ui.mjs build
+          else
+            pnpm run build
+          fi
 
       - name: Retire canonical candidate workspace
         if: always() && env.CANDIDATE_MODE == 'true'

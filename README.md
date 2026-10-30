@@ -41,6 +41,10 @@ launcher and producer graph. Lint, native typechecking, behavior tests, New York
 age-clock tests, and production UI builds run against that selected source
 workspace. No package files or `node_modules` exports are patched. PR execution
 uses read-only permissions without persisted checkout credentials.
+Shared producer preparation and the final production build use the canonical
+`build-plugin-ui` operation, which owns dependency order, staged outputs,
+publication, and generated shims. Consumer checks use the supplied supervised
+package launcher; they do not overwrite producer distributions.
 The helper persists the constructed cohort before building producers. An always-run
 cleanup step retires that cohort through the host's canonical unlink/remove
 transaction, including after producer or check failures. Failed preparation before
