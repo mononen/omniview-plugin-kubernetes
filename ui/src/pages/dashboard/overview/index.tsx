@@ -13,6 +13,7 @@ import type { ChartTimeRange } from '../../../components/shared/charts';
 import NamespaceSelect from '../../../components/tables/NamespaceSelect';
 import { useClusterPreferences } from '../../../hooks/useClusterPreferences';
 import { SourcePageControls } from '../../../components/shared/SourcePageControls';
+import { destinationPath } from '../../../search/navigation';
 
 import ClusterInfoCard from './components/ClusterInfoCard';
 import ClusterMetricsSection from './components/ClusterMetricsSection';
@@ -95,24 +96,24 @@ const ClusterDashboardOverviewPage: React.FC = () => {
 
   const goToResource = React.useCallback(
     (resourceKey: string) => {
-      navigate(`/cluster/${id}/resources/${resourceKey}`);
+      navigate(destinationPath(id, resourceKey));
     },
     [navigate, id],
   );
 
   // Stable onClick callbacks per resource type
-  const goToPods = React.useCallback(() => goToResource('core_v1_Pod'), [goToResource]);
+  const goToPods = React.useCallback(() => goToResource('k8s:/pods'), [goToResource]);
   const goToDeployments = React.useCallback(
-    () => goToResource('apps_v1_Deployment'),
+    () => goToResource('k8s:apps/deployments'),
     [goToResource],
   );
   const goToStatefulSets = React.useCallback(
-    () => goToResource('apps_v1_StatefulSet'),
+    () => goToResource('k8s:apps/statefulsets'),
     [goToResource],
   );
-  const goToDaemonSets = React.useCallback(() => goToResource('apps_v1_DaemonSet'), [goToResource]);
-  const goToJobs = React.useCallback(() => goToResource('batch_v1_Job'), [goToResource]);
-  const goToCronJobs = React.useCallback(() => goToResource('batch_v1_CronJob'), [goToResource]);
+  const goToDaemonSets = React.useCallback(() => goToResource('k8s:apps/daemonsets'), [goToResource]);
+  const goToJobs = React.useCallback(() => goToResource('k8s:batch/jobs'), [goToResource]);
+  const goToCronJobs = React.useCallback(() => goToResource('k8s:batch/cronjobs'), [goToResource]);
 
   const { connection } = useConnection({ pluginID: 'kubernetes', connectionID: id });
   const { connectionOverrides } = useClusterPreferences('kubernetes');
