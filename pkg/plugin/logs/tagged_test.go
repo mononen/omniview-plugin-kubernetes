@@ -2,13 +2,13 @@ package logs
 
 import (
 	"context"
+	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 	"io"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 
 	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"

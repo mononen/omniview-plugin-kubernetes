@@ -132,8 +132,8 @@ func discoverNativeTypes(ctx context.Context, client discovery.DiscoveryInterfac
 				}
 			}
 			result[token] = nativeType{
-				GVR: gvr,
-				API: api,
+				GVR:    gvr,
+				API:    api,
 				Served: served,
 				Descriptor: resourcev2.ResourceType{
 					Type:               token,
@@ -147,7 +147,7 @@ func discoverNativeTypes(ctx context.Context, client discovery.DiscoveryInterfac
 			if verbSliceContains(api.Verbs, "list") {
 				binding := result[token]
 				binding.Descriptor.NativeQueries = []resourcev2.NativeQueryDescriptor{{
-					Language: nativeLabelSelectorLanguage,
+					Language:    nativeLabelSelectorLanguage,
 					Description: "Select resources using native Kubernetes label selectors within the admitted scope; returns one bounded source page",
 					InputSchema: resourcev2.Schema{
 						Properties: map[string]resourcev2.SchemaProperty{"labelSelector": {

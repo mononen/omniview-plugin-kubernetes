@@ -39,7 +39,11 @@ func awaitReleased(t *testing.T, released <-chan struct{}) {
 }
 
 func TestNativeFiniteBoundsAndOptions(t *testing.T) {
-	for _, tc := range []struct { name string; tail, limit int64; wantTail, wantLimit string }{
+	for _, tc := range []struct {
+		name                string
+		tail, limit         int64
+		wantTail, wantLimit string
+	}{
 		{"defaults", 0, 0, "200", "1048576"},
 		{"clamped", 6000, 2000000, "5000", "1048576"},
 		{"explicit", 12, 64, "12", "64"},
@@ -58,15 +62,21 @@ func TestNativeFiniteBoundsAndOptions(t *testing.T) {
 			released := make(chan struct{})
 			ctx := &types.PluginContext{Context: context.Background(), Connection: &types.Connection{ID: "selected"}}
 			stream, err := nativeHandler(testBorrower(t, server, released))(ctx, sdklogs.LogStreamRequest{
-				Labels: map[string]string{"pod": "pod", "namespace": "ns"},
+				Labels:    map[string]string{"pod": "pod", "namespace": "ns"},
 				TailLines: tc.tail, LimitBytes: tc.limit, IncludePrevious: true, SinceSeconds: 30,
 			})
 			require.NoError(t, err)
-			select { case <-released: t.Fatal("released before consumption"); default: }
+			select {
+			case <-released:
+				t.Fatal("released before consumption")
+			default:
+			}
 			body, err := io.ReadAll(stream)
 			require.NoError(t, err)
 			limit := 1 << 20
-			if tc.limit > 0 && tc.limit < int64(limit) { limit = int(tc.limit) }
+			if tc.limit > 0 && tc.limit < int64(limit) {
+				limit = int(tc.limit)
+			}
 			require.Len(t, body, limit)
 			require.NoError(t, stream.Close())
 			awaitReleased(t, released)
@@ -85,7 +95,10 @@ func TestNativeFollowLeaseCloseAndCancel(t *testing.T) {
 	for _, cancelRequest := range []bool{false, true} {
 		t.Run(map[bool]string{false: "close", true: "cancel"}[cancelRequest], func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path != "/api/v1/namespaces/ns/pods/pod/log" { http.Error(w, "unexpected GET", 403); return }
+				if r.URL.Path != "/api/v1/namespaces/ns/pods/pod/log" {
+					http.Error(w, "unexpected GET", 403)
+					return
+				}
 				query := r.URL.Query()
 				if query.Get("follow") != "true" || query.Get("tailLines") != "" || query.Get("limitBytes") != "" {
 					http.Error(w, "follow options changed", http.StatusBadRequest)
@@ -104,8 +117,16 @@ func TestNativeFollowLeaseCloseAndCancel(t *testing.T) {
 				Labels: map[string]string{"pod": "pod", "namespace": "ns"}, Follow: true,
 			})
 			require.NoError(t, err)
-			select { case <-released: t.Fatal("released live reader"); default: }
-			if cancelRequest { cancel() } else { require.NoError(t, stream.Close()) }
+			select {
+			case <-released:
+				t.Fatal("released live reader")
+			default:
+			}
+			if cancelRequest {
+				cancel()
+			} else {
+				require.NoError(t, stream.Close())
+			}
 			awaitReleased(t, released)
 			require.NoError(t, stream.Close())
 		})
@@ -141,8 +162,16 @@ func TestNativeResolverLeaseSpansWatcher(t *testing.T) {
 	result, err := nativeResolver(testBorrower(t, server, released), DeploymentSourceResolver)(ctx,
 		taggedFixture(map[string]any{"metadata": map[string]any{"name": "deploy", "namespace": "ns"}}), sdklogs.SourceResolverOptions{Watch: true})
 	require.NoError(t, err)
-	select { case <-watchStarted: case <-time.After(5*time.Second): t.Fatal("watch not started") }
-	select { case <-released: t.Fatal("released running producer"); default: }
+	select {
+	case <-watchStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("watch not started")
+	}
+	select {
+	case <-released:
+		t.Fatal("released running producer")
+	default:
+	}
 	cancel()
 	awaitReleased(t, released)
 	_, open := <-result.Events

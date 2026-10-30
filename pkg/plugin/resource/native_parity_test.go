@@ -24,7 +24,7 @@ import (
 
 func parityQuery(selector string) resourcev2.NativeQueryRequest {
 	return resourcev2.NativeQueryRequest{
-		Target: nativeTestEnumerate(nil).Target,
+		Target:   nativeTestEnumerate(nil).Target,
 		Language: "kubernetes-label-selector.v1",
 		Query: resourcev2.Value{Kind: "map", Map: map[string]resourcev2.Value{
 			"labelSelector": {Kind: "string", String: selector},
@@ -287,7 +287,9 @@ func TestNativeParityConfiguredNamespaceScopeBoundsFiniteAdmission(t *testing.T)
 		return resourcev2.SourcePage{}, nil
 	}
 	controller, err := resourcev2.NewController(resourcev2.Config[clients.ClientSet]{
-		Catalog: func(context.Context, resourcev2.CatalogRequest) (resourcev2.Catalog, error) { return snapshot.catalog, nil },
+		Catalog: func(context.Context, resourcev2.CatalogRequest) (resourcev2.Catalog, error) {
+			return snapshot.catalog, nil
+		},
 		Registrations: []resourcev2.Registration[clients.ClientSet]{registration},
 	})
 	require.NoError(t, err)

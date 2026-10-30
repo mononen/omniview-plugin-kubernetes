@@ -12,13 +12,13 @@ import (
 )
 
 const (
-	nativeCatalogRefreshInterval = 30 * time.Second
+	nativeCatalogRefreshInterval    = 30 * time.Second
 	nativeCatalogAcquisitionTimeout = 10 * time.Second
 )
 
 type nativeCatalogRefresh struct {
 	done chan struct{}
-	err error
+	err  error
 }
 
 // Catalog acquisition is demand-driven, not a CRD watcher. Each active cluster
@@ -105,9 +105,9 @@ func (p *kubernetesProvider) acquireNativeCatalog(ctx context.Context, connectio
 		return nil, false, err
 	}
 	encoded, err := json.Marshal(struct {
-		Bindings map[string]nativeType
-		Coverage resourcev2.Coverage
-		Identity *resourcev2.NativeAuthorityHint
+		Bindings   map[string]nativeType
+		Coverage   resourcev2.Coverage
+		Identity   *resourcev2.NativeAuthorityHint
 		WatchScope resourcev2.QueryScope
 	}{bindings, coverage, hint, watchScope})
 	if err != nil {

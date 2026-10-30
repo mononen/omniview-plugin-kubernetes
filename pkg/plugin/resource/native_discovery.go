@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	maxNativeDiscoveryVersions = 256
-	maxNativeDiscoveryBytes = 16 << 20
+	maxNativeDiscoveryVersions      = 256
+	maxNativeDiscoveryBytes         = 16 << 20
 	maxNativeDiscoveryDocumentBytes = 4 << 20
 )
 

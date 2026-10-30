@@ -57,7 +57,7 @@ func TestHelmInstallHandlersRequireExplicitName(t *testing.T) {
 	values := []string{"team"}
 	request := resource.ActionRequest{
 		TypeTarget: &resource.TypeActionTarget{Type: ReleaseType, Scope: resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeOneOf, Values: &values}}},
-		Input: resource.Value{Kind: "map", Map: map[string]resource.Value{"chart": {Kind: "string", String: "unused"}}},
+		Input:      resource.Value{Kind: "map", Map: map[string]resource.Value{"chart": {Kind: "string", String: "unused"}}},
 	}
 	_, err := r.executeInstall(&action.Configuration{}, request)
 	require.EqualError(t, err, "release name is required")
@@ -75,11 +75,11 @@ func TestHelmTypeActionInputCannotWidenNativeScope(t *testing.T) {
 		values := []string{selected}
 		request := resource.ActionRequest{
 			TypeTarget: &resource.TypeActionTarget{Type: typ, Scope: resource.QueryScope{{Dimension: dimension, Match: resource.ScopeOneOf, Values: &values}}},
-			Action: action,
+			Action:     action,
 			Input: resource.Value{Kind: "map", Map: map[string]resource.Value{
-				"name": {Kind: "string", String: "native-name"},
-				"chart": {Kind: "string", String: "unused"},
-				"url": {Kind: "string", String: "https://unused.example"},
+				"name":    {Kind: "string", String: "native-name"},
+				"chart":   {Kind: "string", String: "unused"},
+				"url":     {Kind: "string", String: "https://unused.example"},
 				dimension: {Kind: "string", String: "other"},
 			}},
 		}

@@ -33,22 +33,22 @@ const maxNativeRetainedSchemaBytes = 32 << 20
 // decoded at a time. The zero value uses the production limit.
 type nativeSchemaBudget struct {
 	// Accounting never holds mu during network reads or decoding.
-	mu      sync.Mutex
-	staging chan struct{}
-	limit   int
-	used    int
+	mu        sync.Mutex
+	staging   chan struct{}
+	limit     int
+	used      int
 	documents map[string]*nativeRetainedSchema
 }
 
 type nativeRetainedSchema struct {
-	data json.RawMessage
+	data       json.RawMessage
 	references int
 }
 
 // nativeSchemaLease belongs to one catalog snapshot. Release it on failed
 // publication, replacement, or connection teardown, after dropping its cache.
 type nativeSchemaLease struct {
-	budget *nativeSchemaBudget
+	budget    *nativeSchemaBudget
 	documents map[string]struct{}
 }
 

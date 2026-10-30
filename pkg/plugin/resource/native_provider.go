@@ -16,15 +16,15 @@ import (
 const nativeRepresentationVersion = "kubernetes.object.v1"
 
 type nativeCatalogSnapshot struct {
-	catalog       resourcev2.Catalog
-	bindings      map[string]nativeType
-	registrations map[string]resourcev2.Registration[clients.ClientSet]
-	documents     map[resourcev2.SchemaDocumentReference]resourcev2.SchemaDocument
-	identityHint  *resourcev2.NativeAuthorityHint
-	schemaLease   *nativeSchemaLease
+	catalog           resourcev2.Catalog
+	bindings          map[string]nativeType
+	registrations     map[string]resourcev2.Registration[clients.ClientSet]
+	documents         map[resourcev2.SchemaDocumentReference]resourcev2.SchemaDocument
+	identityHint      *resourcev2.NativeAuthorityHint
+	schemaLease       *nativeSchemaLease
 	discoveryRevision string
-	nextRefresh time.Time
-	refreshError error
+	nextRefresh       time.Time
+	refreshError      error
 }
 
 type nativeCatalogLoad struct {
@@ -33,18 +33,18 @@ type nativeCatalogLoad struct {
 
 type kubernetesProvider struct {
 	*resourcev2.Controller[clients.ClientSet]
-	connections     *kubeConnectionProvider
-	mu              sync.RWMutex
-	catalogs        map[string]*nativeCatalogSnapshot
-	catalogLoads    map[string]*nativeCatalogLoad
+	connections      *kubeConnectionProvider
+	mu               sync.RWMutex
+	catalogs         map[string]*nativeCatalogSnapshot
+	catalogLoads     map[string]*nativeCatalogLoad
 	catalogRefreshes map[string]*nativeCatalogRefresh
-	schemaBudget    nativeSchemaBudget
-	helpers         map[string]any
-	relationships   map[string][]resourcev2.RelationshipDescriptor
-	helmTypes       []resourcev2.ResourceType
-	helmDefinitions map[string]resourcev2.ResourceDefinition
-	helmAncillary   *helm.HelmAncillary
-	logger          *zap.SugaredLogger
+	schemaBudget     nativeSchemaBudget
+	helpers          map[string]any
+	relationships    map[string][]resourcev2.RelationshipDescriptor
+	helmTypes        []resourcev2.ResourceType
+	helmDefinitions  map[string]resourcev2.ResourceDefinition
+	helmAncillary    *helm.HelmAncillary
+	logger           *zap.SugaredLogger
 }
 
 func newKubernetesProvider(logger *zap.SugaredLogger, retireMetrics func(string)) (*kubernetesProvider, error) {

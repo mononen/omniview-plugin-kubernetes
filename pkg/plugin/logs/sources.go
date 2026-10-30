@@ -78,7 +78,7 @@ func PodSourceBuilder(
 	// native API. It needs no Pod Get or fabricated container observation.
 	if opts.Reference != nil && !opts.Follow {
 		return []logs.LogSource{{
-			ID: name + "/" + opts.Target,
+			ID:     name + "/" + opts.Target,
 			Labels: map[string]string{"pod": name, "namespace": namespace, "container": opts.Target},
 		}}
 	}

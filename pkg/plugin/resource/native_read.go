@@ -13,15 +13,15 @@ import (
 	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 )
 
 const (
-	nativeReadMaxPageSize    = resourcev2.MaxPageRecords
-	nativeReadMaxCursorBytes = 64 * 1024
-	nativeLabelSelectorLanguage = "kubernetes-label-selector.v1"
+	nativeReadMaxPageSize            = resourcev2.MaxPageRecords
+	nativeReadMaxCursorBytes         = 64 * 1024
+	nativeLabelSelectorLanguage      = "kubernetes-label-selector.v1"
 	nativeModelRepresentationVersion = "kubernetes.model.v1"
 )
 
@@ -132,8 +132,8 @@ func nativeEnumerate(ctx context.Context, client dynamic.Interface, gvr schema.G
 	}
 	namespace := namespaces[cursor.Namespace]
 	list, err := nativeResourceClient(client, gvr, namespaced, namespace).List(ctx, metav1.ListOptions{
-		Limit:    int64(request.PageSize),
-		Continue: cursor.Continue,
+		Limit:         int64(request.PageSize),
+		Continue:      cursor.Continue,
 		LabelSelector: selector,
 	})
 	if err != nil {

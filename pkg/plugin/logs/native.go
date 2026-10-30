@@ -7,11 +7,11 @@ import (
 	"log"
 	"sync"
 
+	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
+	"github.com/omniview/kubernetes/pkg/utils/kubeauth"
 	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
 	sdklogs "github.com/omniviewdev/plugin-sdk/pkg/v1/logs"
-	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	"github.com/omniview/kubernetes/pkg/utils/kubeauth"
 )
 
 // ClientBorrower holds the selected native client until its callback returns.
@@ -43,11 +43,11 @@ func safeLogError(err error) error {
 
 type borrowedReader struct {
 	reader io.Reader
-	body io.ReadCloser
-	stop chan struct{}
-	done chan struct{}
-	once sync.Once
-	err error
+	body   io.ReadCloser
+	stop   chan struct{}
+	done   chan struct{}
+	once   sync.Once
+	err    error
 }
 
 func (r *borrowedReader) Read(p []byte) (int, error) {
@@ -72,7 +72,10 @@ func (r *borrowedReader) Close() error {
 
 func nativeHandler(borrow ClientBorrower) sdklogs.LogHandlerFunc {
 	return func(ctx *types.PluginContext, req sdklogs.LogStreamRequest) (io.ReadCloser, error) {
-		type opened struct { reader io.ReadCloser; err error }
+		type opened struct {
+			reader io.ReadCloser
+			err    error
+		}
 		ready := make(chan opened, 1)
 		done := make(chan struct{})
 		go func() {
@@ -82,7 +85,9 @@ func nativeHandler(borrow ClientBorrower) sdklogs.LogHandlerFunc {
 				local := *ctx
 				local.Context = nativeCtx
 				body, err := PodLogHandler(&kubeauth.KubeClientBundle{Clientset: client.Clientset}, &local, req)
-				if err != nil { return err }
+				if err != nil {
+					return err
+				}
 				r := &borrowedReader{reader: body, body: body, stop: make(chan struct{}), done: done}
 				if !req.Follow {
 					limit := int64(1 << 20)
@@ -100,7 +105,9 @@ func nativeHandler(borrow ClientBorrower) sdklogs.LogHandlerFunc {
 				}
 				return nil
 			})
-			if !sent { ready <- opened{err: safeLogError(err)} }
+			if !sent {
+				ready <- opened{err: safeLogError(err)}
+			}
 		}()
 		result := <-ready
 		return result.reader, result.err
@@ -111,7 +118,10 @@ type nativeResolverFunc func(*kubeauth.KubeClientBundle, *types.PluginContext, *
 
 func nativeResolver(borrow ClientBorrower, resolve nativeResolverFunc) sdklogs.SourceResolver {
 	return func(ctx *types.PluginContext, data *resourcev2.Value, opts sdklogs.SourceResolverOptions) (*sdklogs.SourceResolverResult, error) {
-		type resolved struct { result *sdklogs.SourceResolverResult; err error }
+		type resolved struct {
+			result *sdklogs.SourceResolverResult
+			err    error
+		}
 		ready := make(chan resolved, 1)
 		go func() {
 			sent := false
@@ -119,9 +129,15 @@ func nativeResolver(borrow ClientBorrower, resolve nativeResolverFunc) sdklogs.S
 				local := *ctx
 				local.Context = nativeCtx
 				result, err := resolve(&kubeauth.KubeClientBundle{Clientset: client.Clientset}, &local, data, opts)
-				if err != nil { return err }
+				if err != nil {
+					return err
+				}
 				events := result.Events
-				if events == nil { ready <- resolved{result: result}; sent = true; return nil }
+				if events == nil {
+					ready <- resolved{result: result}
+					sent = true
+					return nil
+				}
 				forward := make(chan sdklogs.SourceEvent, 16)
 				result.Events = forward
 				ready <- resolved{result: result}
@@ -129,11 +145,16 @@ func nativeResolver(borrow ClientBorrower, resolve nativeResolverFunc) sdklogs.S
 				defer close(forward)
 				// Drain through producer shutdown before releasing the native lease.
 				for event := range events {
-					select { case forward <- event: case <-nativeCtx.Done(): }
+					select {
+					case forward <- event:
+					case <-nativeCtx.Done():
+					}
 				}
 				return nil
 			})
-			if !sent { ready <- resolved{err: safeLogError(err)} }
+			if !sent {
+				ready <- resolved{err: safeLogError(err)}
+			}
 		}()
 		result := <-ready
 		return result.result, result.err

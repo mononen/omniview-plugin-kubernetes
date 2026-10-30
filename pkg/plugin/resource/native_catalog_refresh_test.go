@@ -28,11 +28,11 @@ import (
 // refreshHTTPFixture serves actual discovery documents, not FakeDiscovery's
 // preassembled response. OpenAPI is unavailable unless a test installs it.
 type refreshHTTPFixture struct {
-	mu sync.Mutex
+	mu        sync.Mutex
 	documents map[string]string
-	requests map[string]int
-	fail string
-	hook func(http.ResponseWriter, *http.Request) bool
+	requests  map[string]int
+	fail      string
+	hook      func(http.ResponseWriter, *http.Request) bool
 }
 
 func newRefreshHTTPFixture(t *testing.T) (*refreshHTTPFixture, *clients.ClientSet) {
@@ -45,9 +45,17 @@ func newRefreshHTTPFixture(t *testing.T) (*refreshHTTPFixture, *clients.ClientSe
 		body, ok := f.documents[r.URL.Path]
 		fail, hook := f.fail, f.hook
 		f.mu.Unlock()
-		if hook != nil && hook(w, r) { return }
-		if r.URL.Path == fail { http.Error(w, "discovery unavailable", http.StatusServiceUnavailable); return }
-		if !ok { http.NotFound(w, r); return }
+		if hook != nil && hook(w, r) {
+			return
+		}
+		if r.URL.Path == fail {
+			http.Error(w, "discovery unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(body))
 	}))
@@ -62,7 +70,7 @@ func (f *refreshHTTPFixture) setVersions(t *testing.T, versions ...string) {
 	encode := func(value any) string { data, err := json.Marshal(value); require.NoError(t, err); return string(data) }
 	group := metav1.APIGroup{Name: "refresh.example"}
 	documents := map[string]string{
-		"/api": encode(metav1.APIVersions{Versions: []string{"v1"}}),
+		"/api":    encode(metav1.APIVersions{Versions: []string{"v1"}}),
 		"/api/v1": encode(metav1.APIResourceList{GroupVersion: "v1", APIResources: []metav1.APIResource{{Name: "pods", Kind: "Pod", Namespaced: true, Verbs: metav1.Verbs{"get", "list"}}}}),
 	}
 	for _, version := range versions {
@@ -70,16 +78,25 @@ func (f *refreshHTTPFixture) setVersions(t *testing.T, versions ...string) {
 		group.Versions = append(group.Versions, metav1.GroupVersionForDiscovery{GroupVersion: gv, Version: version})
 		documents["/apis/"+gv] = encode(metav1.APIResourceList{GroupVersion: gv, APIResources: []metav1.APIResource{{Name: "widgets", Kind: "Widget", Namespaced: true, Verbs: metav1.Verbs{"get", "list"}}}})
 	}
-	if len(group.Versions) != 0 { group.PreferredVersion = group.Versions[0] }
+	if len(group.Versions) != 0 {
+		group.PreferredVersion = group.Versions[0]
+	}
 	documents["/apis"] = encode(metav1.APIGroupList{Groups: []metav1.APIGroup{group}})
-	f.mu.Lock(); f.documents = documents; f.mu.Unlock()
+	f.mu.Lock()
+	f.documents = documents
+	f.mu.Unlock()
 }
 
 func (f *refreshHTTPFixture) count(path string) int {
-	f.mu.Lock(); defer f.mu.Unlock()
-	if path != "" { return f.requests[path] }
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if path != "" {
+		return f.requests[path]
+	}
 	total := 0
-	for _, count := range f.requests { total += count }
+	for _, count := range f.requests {
+		total += count
+	}
 	return total
 }
 
@@ -93,7 +110,9 @@ func refreshTestContext(id string) (context.Context, sdktypes.Connection) {
 }
 
 func expireRefresh(p *kubernetesProvider, id string) {
-	p.mu.Lock(); p.catalogs[id].nextRefresh = time.Now().Add(-time.Second); p.mu.Unlock()
+	p.mu.Lock()
+	p.catalogs[id].nextRefresh = time.Now().Add(-time.Second)
+	p.mu.Unlock()
 }
 
 func TestNativeHTTPRefreshObservesServedVersionsOnlyWhenEligible(t *testing.T) {
@@ -104,7 +123,9 @@ func TestNativeHTTPRefreshObservesServedVersionsOnlyWhenEligible(t *testing.T) {
 	t.Cleanup(func() { p.retireNativeCatalog(connection.ID) })
 	original := p.catalogs[connection.ID]
 	ids := []string{}
-	for _, rep := range original.bindings["k8s:refresh.example/widgets"].Descriptor.Representations { ids = append(ids, rep.ID) }
+	for _, rep := range original.bindings["k8s:refresh.example/widgets"].Descriptor.Representations {
+		ids = append(ids, rep.ID)
+	}
 	require.ElementsMatch(t, []string{"kubernetes.object.v1/refresh.example/v1", "kubernetes.model.v1/refresh.example/v1", "kubernetes.object.v1/refresh.example/v2", "kubernetes.model.v1/refresh.example/v2"}, ids)
 	require.WithinDuration(t, time.Now().Add(30*time.Second), original.nextRefresh, 2*time.Second)
 	before := f.count("")
@@ -122,7 +143,9 @@ func TestNativeHTTPRefreshObservesServedVersionsOnlyWhenEligible(t *testing.T) {
 	require.NotSame(t, original, updated)
 	require.Contains(t, updated.bindings, "k8s:refresh.example/gadgets")
 	ids = nil
-	for _, rep := range updated.bindings["k8s:refresh.example/widgets"].Descriptor.Representations { ids = append(ids, rep.ID) }
+	for _, rep := range updated.bindings["k8s:refresh.example/widgets"].Descriptor.Representations {
+		ids = append(ids, rep.ID)
+	}
 	require.ElementsMatch(t, []string{"kubernetes.object.v1/refresh.example/v2", "kubernetes.model.v1/refresh.example/v2", "kubernetes.object.v1/refresh.example/v3", "kubernetes.model.v1/refresh.example/v3"}, ids)
 	openAPI := f.count("/openapi/v3/apis/refresh.example/v2")
 	expireRefresh(p, connection.ID)
@@ -236,14 +259,18 @@ func TestNativeHTTPDiscoveryFailureRetainsCatalogAndError(t *testing.T) {
 			require.NoError(t, p.startNativeConnection(ctx, connection, client))
 			t.Cleanup(func() { p.retireNativeCatalog("cluster") })
 			original := p.catalogs["cluster"]
-			f.mu.Lock(); f.fail = path; f.mu.Unlock()
+			f.mu.Lock()
+			f.fail = path
+			f.mu.Unlock()
 			expireRefresh(p, "cluster")
 			require.Error(t, p.refreshNativeCatalog(ctx, "cluster", client))
 			require.Same(t, original, p.catalogs["cluster"])
 			before := f.count("")
 			require.Error(t, p.refreshNativeCatalog(ctx, "cluster", client))
 			require.Equal(t, before, f.count(""))
-			f.mu.Lock(); f.fail = ""; f.mu.Unlock()
+			f.mu.Lock()
+			f.fail = ""
+			f.mu.Unlock()
 			expireRefresh(p, "cluster")
 			require.NoError(t, p.refreshNativeCatalog(ctx, "cluster", client))
 		})
@@ -255,7 +282,9 @@ func TestNativeHTTPDiscoveryCancellationReachesRequest(t *testing.T) {
 	entered, canceled := make(chan struct{}), make(chan struct{})
 	f.mu.Lock()
 	f.hook = func(w http.ResponseWriter, r *http.Request) bool {
-		if r.URL.Path != "/api" { return false }
+		if r.URL.Path != "/api" {
+			return false
+		}
 		close(entered)
 		<-r.Context().Done()
 		close(canceled)
@@ -266,17 +295,32 @@ func TestNativeHTTPDiscoveryCancellationReachesRequest(t *testing.T) {
 	defer cancel()
 	done := make(chan error, 1)
 	go func() { _, _, err := discoverNativeResources(ctx, client.DiscoveryClient); done <- err }()
-	select { case <-entered: case <-time.After(5*time.Second): t.Fatal("HTTP discovery did not start") }
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("HTTP discovery did not start")
+	}
 	cancel()
-	select { case <-canceled: case <-time.After(5*time.Second): t.Fatal("HTTP request did not receive cancellation") }
-	select { case err := <-done: require.ErrorIs(t, err, context.Canceled); case <-time.After(5*time.Second): t.Fatal("discovery did not return") }
+	select {
+	case <-canceled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("HTTP request did not receive cancellation")
+	}
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(5 * time.Second):
+		t.Fatal("discovery did not return")
+	}
 }
 
 func TestNativeHTTPDiscoveryBudgets(t *testing.T) {
 	t.Run("served versions", func(t *testing.T) {
 		f, client := newRefreshHTTPFixture(t)
 		versions := make([]string, maxNativeDiscoveryVersions)
-		for i := range versions { versions[i] = fmt.Sprintf("v%d", i+1) }
+		for i := range versions {
+			versions[i] = fmt.Sprintf("v%d", i+1)
+		}
 		f.setVersions(t, versions...)
 		_, _, err := discoverNativeResources(context.Background(), client.DiscoveryClient)
 		require.ErrorContains(t, err, "served-version budget")
@@ -284,7 +328,9 @@ func TestNativeHTTPDiscoveryBudgets(t *testing.T) {
 	})
 	t.Run("document bytes", func(t *testing.T) {
 		f, client := newRefreshHTTPFixture(t)
-		f.mu.Lock(); f.documents["/api"] = strings.Repeat(" ", maxNativeDiscoveryDocumentBytes+1); f.mu.Unlock()
+		f.mu.Lock()
+		f.documents["/api"] = strings.Repeat(" ", maxNativeDiscoveryDocumentBytes+1)
+		f.mu.Unlock()
 		_, _, err := discoverNativeResources(context.Background(), client.DiscoveryClient)
 		require.ErrorContains(t, err, "byte budget")
 		require.Equal(t, 0, f.count("/apis"))
@@ -294,7 +340,9 @@ func TestNativeHTTPDiscoveryBudgets(t *testing.T) {
 		f.setVersions(t, "v1", "v2", "v3", "v4", "v5", "v6")
 		f.mu.Lock()
 		for path, document := range f.documents {
-			if strings.HasPrefix(path, "/apis/refresh.example/") { f.documents[path] = document + strings.Repeat(" ", 3<<20) }
+			if strings.HasPrefix(path, "/apis/refresh.example/") {
+				f.documents[path] = document + strings.Repeat(" ", 3<<20)
+			}
 		}
 		f.mu.Unlock()
 		_, _, err := discoverNativeResources(context.Background(), client.DiscoveryClient)
@@ -316,9 +364,14 @@ func TestNativeHTTPRefreshCoalescesAndFencesRetiredPublication(t *testing.T) {
 			defer once.Do(func() { close(release) })
 			f.mu.Lock()
 			f.hook = func(w http.ResponseWriter, r *http.Request) bool {
-				if r.URL.Path != "/api" { return false }
+				if r.URL.Path != "/api" {
+					return false
+				}
 				close(entered)
-				select { case <-release: case <-r.Context().Done(): }
+				select {
+				case <-release:
+				case <-r.Context().Done():
+				}
 				return false
 			}
 			f.mu.Unlock()
@@ -326,19 +379,34 @@ func TestNativeHTTPRefreshCoalescesAndFencesRetiredPublication(t *testing.T) {
 			before := f.count("/api")
 			done := make(chan error, 16)
 			go func() { done <- p.refreshNativeCatalog(ctx, "cluster", client) }()
-			select { case <-entered: case <-time.After(5*time.Second): t.Fatal("refresh did not reach HTTP") }
-			for i := 1; i < 16; i++ { go func() { done <- p.refreshNativeCatalog(ctx, "cluster", client) }() }
-			if retire { p.retireNativeCatalog("cluster") }
+			select {
+			case <-entered:
+			case <-time.After(5 * time.Second):
+				t.Fatal("refresh did not reach HTTP")
+			}
+			for i := 1; i < 16; i++ {
+				go func() { done <- p.refreshNativeCatalog(ctx, "cluster", client) }()
+			}
+			if retire {
+				p.retireNativeCatalog("cluster")
+			}
 			once.Do(func() { close(release) })
 			for range 16 {
 				select {
 				case err := <-done:
-					if retire { require.Error(t, err) } else { require.NoError(t, err) }
-				case <-time.After(5*time.Second): t.Fatal("refresh caller did not finish")
+					if retire {
+						require.Error(t, err)
+					} else {
+						require.NoError(t, err)
+					}
+				case <-time.After(5 * time.Second):
+					t.Fatal("refresh caller did not finish")
 				}
 			}
 			require.Equal(t, before+1, f.count("/api"), "callers must share one discovery acquisition")
-			if retire { require.NotContains(t, p.catalogs, "cluster") }
+			if retire {
+				require.NotContains(t, p.catalogs, "cluster")
+			}
 		})
 	}
 }
