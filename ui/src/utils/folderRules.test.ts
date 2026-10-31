@@ -3,6 +3,7 @@ import { type types } from '@omniviewdev/runtime/models';
 import type { EnrichedConnection, FolderRuleSet } from '../types/clusters';
 
 import { compileRuleSet, matchConnections, computeEffectiveMembers } from './folderRules';
+import { migrateFolderMetadataRules } from './migrateFolderMetadataRules';
 
 /** Helper to build a minimal EnrichedConnection with controlled props. */
 function makeConn(overrides: {
@@ -13,9 +14,11 @@ function makeConn(overrides: {
   tags?: string[];
   labels?: Record<string, string>;
   data?: Record<string, unknown>;
+  metadata?: Record<string, string>;
 }): EnrichedConnection {
   const id = overrides.id ?? 'conn-1';
   return {
+    metadata: overrides.metadata,
     connection: {
       id,
       name: overrides.name ?? 'test-cluster',
@@ -77,16 +80,63 @@ describe('field resolution', () => {
     expect(matchConnections(compileRuleSet(rs), conns)).toEqual(new Set(['a']));
   });
 
-  it('matches by data field', () => {
+  it('migrates observed data rules to current metadata, never persisted facts', () => {
     const conns = [
-      makeConn({ id: 'a', data: { k8s_version: '1.28' } }),
-      makeConn({ id: 'b', data: { k8s_version: '1.27' } }),
+      makeConn({ id: 'a', metadata: { 'kubernetes.server_version': '1.28' } }),
+      makeConn({ id: 'b', data: { k8s_version: '1.28' } }),
     ];
     const rs: FolderRuleSet = {
       logic: 'and',
       rules: [{ id: '1', field: 'data:k8s_version', operator: 'equals', value: '1.28' }],
     };
-    expect(matchConnections(compileRuleSet(rs), conns)).toEqual(new Set(['a']));
+    const migrated = migrateFolderMetadataRules([{ id: 'group', name: 'Version', connectionIds: [], ruleSet: rs }]);
+    expect(migrated[0].ruleSet!.rules[0].field).toBe('metadata:kubernetes.server_version');
+    expect(matchConnections(compileRuleSet(migrated[0].ruleSet!), conns)).toEqual(new Set(['a']));
+    expect(matchConnections(compileRuleSet(rs), conns).size).toBe(0);
+  });
+
+  it('does not treat missing metadata as evidence for negative rules', () => {
+    for (const operator of ['not_exists', 'not_equals', 'not_contains'] as const) {
+      for (const field of ['metadata:kubernetes.server_version', 'data:node_count', 'data:api_groups', 'data:last_checked'] as const) {
+        const rs: FolderRuleSet = { logic: 'and', rules: [{ id: '1', field, operator, value: '1.28' }] };
+        expect(matchConnections(compileRuleSet(rs), [makeConn({ data: { node_count: 10, api_groups: 20, last_checked: 'old' } })]).size).toBe(0);
+      }
+    }
+  });
+
+  it('treats inherited and nonstring metadata as unknown for every operator', () => {
+    const operators = ['equals', 'not_equals', 'contains', 'not_contains', 'matches_regex', 'exists', 'not_exists'] as const;
+    const invalidMetadata: Record<string, unknown>[] = [
+      {},
+      Object.create({ constructor: 'valid', toString: 'valid', 'custom.fact': 'valid' }),
+      { constructor: 42, toString: false, 'custom.fact': ['valid'] },
+      { constructor: null, toString: {}, 'custom.fact': undefined },
+    ];
+    for (const metadata of invalidMetadata) {
+      for (const key of ['constructor', 'toString', 'custom.fact']) {
+        for (const operator of operators) {
+          const rs: FolderRuleSet = {
+            logic: 'and',
+            rules: [{ id: '1', field: `metadata:${key}`, operator, value: 'valid' }],
+          };
+          const conn = makeConn({ metadata: metadata as Record<string, string> });
+          expect(matchConnections(compileRuleSet(rs), [conn]).size).toBe(0);
+        }
+      }
+    }
+  });
+
+  it('matches legitimate own metadata strings, including literal dotted keys', () => {
+    const metadata = { constructor: 'valid', toString: 'valid', 'custom.fact': 'valid' };
+    for (const key of Object.keys(metadata)) {
+      for (const operator of ['equals', 'contains', 'matches_regex', 'exists', 'not_equals', 'not_contains'] as const) {
+        const rs: FolderRuleSet = {
+          logic: 'and',
+          rules: [{ id: '1', field: `metadata:${key}`, operator, value: operator.startsWith('not_') ? 'other' : 'valid' }],
+        };
+        expect(matchConnections(compileRuleSet(rs), [makeConn({ metadata })])).toEqual(new Set(['conn-1']));
+      }
+    }
   });
 
   it('matches by tag (any element)', () => {

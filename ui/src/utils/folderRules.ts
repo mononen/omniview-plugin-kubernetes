@@ -5,6 +5,7 @@ import type {
   RuleOperator,
   EnrichedConnection,
 } from '../types/clusters';
+import { isRetiredConnectionDataKey } from './migrateFolderMetadataRules';
 
 // ── Compiled types ────────────────────────────────────────────────────────────
 
@@ -28,6 +29,12 @@ function resolveField(conn: EnrichedConnection, field: RuleField): string | stri
   if (field === 'provider') return conn.provider;
   if (field === 'isConnected') return conn.isConnected;
   if (field === 'tag') return conn.tags; // returns array — tested per-element
+  if (field.startsWith('metadata:')) {
+    const key = field.slice(9);
+    if (!conn.metadata || !Object.prototype.hasOwnProperty.call(conn.metadata, key)) return undefined;
+    const value: unknown = conn.metadata[key];
+    return typeof value === 'string' ? value : undefined;
+  }
   if (field.startsWith('label:')) {
     const key = field.slice(6);
     const val: unknown = conn.connection.labels?.[key];
@@ -35,6 +42,7 @@ function resolveField(conn: EnrichedConnection, field: RuleField): string | stri
   }
   if (field.startsWith('data:')) {
     const key = field.slice(5);
+    if (isRetiredConnectionDataKey(key)) return undefined;
     const val: unknown = conn.connection.data?.[key];
     return (typeof val === 'string' || typeof val === 'number') ? String(val) : undefined;
   }
@@ -71,6 +79,8 @@ function testValue(value: string, operator: RuleOperator, target: string, regex:
 
 function evaluateRule(conn: EnrichedConnection, rule: CompiledRule): boolean {
   const resolved = resolveField(conn, rule.field);
+  // Missing or stale metadata is unknown, not evidence for negative rules.
+  if ((rule.field.startsWith('metadata:') || (rule.field.startsWith('data:') && isRetiredConnectionDataKey(rule.field.slice(5)))) && resolved === undefined) return false;
 
   // Handle exists/not_exists for undefined
   if (resolved === undefined) {
