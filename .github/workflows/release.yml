@@ -106,7 +106,7 @@ jobs:
         env:
           OMNIVIEW_API_URL: ${{ vars.OMNIVIEW_API_URL }}
         run: |
-          # Without api-url the publish action falls back to the retired upstream marketplace.
+          # Releases must use this repository's explicitly configured marketplace.
           if [ -z "$OMNIVIEW_API_URL" ]; then
             echo "::error::Repository variable OMNIVIEW_API_URL is not set"
             exit 1
@@ -131,13 +131,14 @@ jobs:
           exit 1
 
       - name: Publish to marketplace
-        uses: omniviewdev/publish-plugin-action@v1
+        uses: omniviewdev/publish-plugin-action@da971a73161a4ddd5fcd80bd2b0cb7438ba78530 # v1.1.0
         with:
           api-key: ${{ secrets.OMNIVIEW_API_KEY }}
           api-url: ${{ vars.OMNIVIEW_API_URL }}
           publisher-slug: omniview
           plugin-id: kubernetes
           version: ${{ needs.build.outputs.version }}
+          min-ide-version: "0.11.0"
           artifact-path: dist/
           architectures: ${{ needs.build.outputs.platforms }}
 
