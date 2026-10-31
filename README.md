@@ -41,6 +41,12 @@ launcher and producer graph. Lint, native typechecking, behavior tests, New York
 age-clock tests, and production UI builds run against that selected source
 workspace. No package files or `node_modules` exports are patched. PR execution
 uses read-only permissions without persisted checkout credentials.
+
+Candidate preparation compiles the real native host cohort tool. Linux therefore
+needs the same GTK 4, WebKitGTK 6.0, Wayland, compiler and pkg-config development
+prerequisites as the host CI image; the labeled workflow installs them explicitly.
+The unlabeled published dependency lane does not run this native setup.
+
 Shared producer preparation and the final production build use the canonical
 `build-plugin-ui` operation, which owns dependency order, staged outputs,
 publication, and generated shims. Consumer checks use the supplied supervised
