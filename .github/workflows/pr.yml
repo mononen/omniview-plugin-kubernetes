@@ -99,6 +99,14 @@ jobs:
           path: .tools/candidate-sources/ui
           persist-credentials: false
 
+      - name: Install canonical native build prerequisites
+        if: env.CANDIDATE_MODE == 'true'
+        working-directory: .
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-dev libwebkitgtk-6.0-dev libwayland-dev build-essential pkg-config
+
       - name: Prepare canonical native source workspace
         if: env.CANDIDATE_MODE == 'true'
         working-directory: .
