@@ -2,7 +2,6 @@ package resource
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -15,23 +14,12 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	"github.com/omniview/kubernetes/pkg/utils"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
 	sdkutils "github.com/omniviewdev/plugin-sdk/pkg/utils"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
-)
-
-// Compile-time interface checks.
-var (
-	_ resource.ConnectionProvider[clients.ClientSet] = (*kubeConnectionProvider)(nil)
-	_ resource.ConnectionWatcher                     = (*kubeConnectionProvider)(nil)
-	_ resource.ClientRefresher[clients.ClientSet]    = (*kubeConnectionProvider)(nil)
-	_ resource.SchemaProvider[clients.ClientSet]      = (*kubeConnectionProvider)(nil)
-	_ resource.ScopeProvider[clients.ClientSet]       = (*kubeConnectionProvider)(nil)
 )
 
 type kubeConnectionProvider struct {
@@ -40,44 +28,39 @@ type kubeConnectionProvider struct {
 
 // CreateClient creates a new ClientSet from the connection in context.
 func (p *kubeConnectionProvider) CreateClient(ctx context.Context) (*clients.ClientSet, error) {
-	session := resource.SessionFromContext(ctx)
-	if session == nil || session.Connection == nil {
+	session, ok := resource.SessionFromContext(ctx)
+	if !ok || session.Connection == nil {
 		return nil, fmt.Errorf("no session/connection in context")
 	}
 
-	bundle, err := utils.KubeClientsFromConnection(session.Connection)
+	bundle, err := LoadBoundedResourceClients(ctx, session.Connection)
 	if err != nil {
 		return nil, err
 	}
 
 	return &clients.ClientSet{
-		Clientset:              bundle.Clientset,
-		KubeClient:             bundle.Clientset,
-		DiscoveryClient:        bundle.Discovery,
-		DynamicClient:          bundle.Dynamic,
-		DynamicInformerFactory: bundle.InformerFactory,
-		RESTConfig:             bundle.RestConfig,
+		Clientset:       bundle.Clientset,
+		KubeClient:      bundle.Clientset,
+		DiscoveryClient: bundle.Discovery,
+		DynamicClient:   bundle.Dynamic,
+		RESTConfig:      bundle.RestConfig,
+		HTTPClient:      bundle.HTTPClient,
 	}, nil
 }
 
-// DestroyClient shuts down all informer factories (main + per-namespace).
+// DestroyClient stops and evicts every leased native informer source.
 func (p *kubeConnectionProvider) DestroyClient(_ context.Context, client *clients.ClientSet) error {
 	if client == nil {
 		return nil
 	}
-	// Signal the main factory to stop first, then shut down all factories.
-	client.StopFactory()
-	client.ShutdownNamespaceFactories()
-	if client.DynamicInformerFactory != nil {
-		client.DynamicInformerFactory.Shutdown()
-	}
+	client.ShutdownInformers()
 	return nil
 }
 
 // LoadConnections loads all available kubeconfig connections.
 func (p *kubeConnectionProvider) LoadConnections(ctx context.Context) ([]types.Connection, error) {
-	session := resource.SessionFromContext(ctx)
-	if session == nil || session.PluginConfig == nil {
+	session, ok := resource.SessionFromContext(ctx)
+	if !ok || session.PluginConfig == nil {
 		return nil, fmt.Errorf("no session in context")
 	}
 
@@ -103,7 +86,7 @@ func (p *kubeConnectionProvider) LoadConnections(ctx context.Context) ([]types.C
 }
 
 // CheckConnection validates connectivity to the cluster.
-func (p *kubeConnectionProvider) CheckConnection(_ context.Context, conn *types.Connection, client *clients.ClientSet) (types.ConnectionStatus, error) {
+func (p *kubeConnectionProvider) CheckConnection(ctx context.Context, conn *types.Connection, client *clients.ClientSet) (types.ConnectionStatus, error) {
 	if conn == nil {
 		return types.ConnectionStatus{
 			Connection: conn,
@@ -129,12 +112,12 @@ func (p *kubeConnectionProvider) CheckConnection(_ context.Context, conn *types.
 			Error:      "DiscoveryClient is nil",
 		}, nil
 	}
-	if client.DynamicInformerFactory == nil {
+	if client.DynamicClient == nil {
 		return types.ConnectionStatus{
 			Connection: conn,
 			Status:     types.ConnectionStatusError,
-			Details:    "DynamicInformerFactory is not initialized",
-			Error:      "DynamicInformerFactory is nil",
+			Details:    "DynamicClient is not initialized",
+			Error:      "DynamicClient is nil",
 		}, nil
 	}
 
@@ -143,8 +126,12 @@ func (p *kubeConnectionProvider) CheckConnection(_ context.Context, conn *types.
 		Status:     types.ConnectionStatusUnknown,
 	}
 
-	groups, err := client.DiscoveryClient.ServerGroups()
+	groups := &metav1.APIGroupList{}
+	err := client.DiscoveryClient.RESTClient().Get().AbsPath("/apis").Do(ctx).Into(groups)
 	if err != nil {
+		if ctx.Err() != nil {
+			return result, ctx.Err()
+		}
 		switch {
 		case k8serrors.IsUnauthorized(err):
 			result.Status = types.ConnectionStatusUnauthorized
@@ -186,7 +173,9 @@ func (p *kubeConnectionProvider) CheckConnection(_ context.Context, conn *types.
 		return result, nil
 	}
 
-	enrichConnectionData(conn, client, groups)
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
 
 	result.Status = types.ConnectionStatusConnected
 	result.Details = "Connection is valid"
@@ -199,23 +188,31 @@ func (p *kubeConnectionProvider) GetNamespaces(ctx context.Context, client *clie
 		return nil, fmt.Errorf("client is required")
 	}
 
-	nsList, err := client.KubeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list namespaces: %w", err)
+	namespaces := []string{}
+	continuation, bytes := "", 2
+	for {
+		page, err := client.KubeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{Limit: resource.MaxPageRecords, Continue: continuation})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list namespaces: %w", err)
+		}
+		for _, namespace := range page.Items {
+			bytes += len(namespace.Name) + 3
+			if len(namespaces) >= resource.MaxValueNodes || bytes > resource.MaxDocumentBytes {
+				return nil, resource.NewError("RESOURCE_LIMIT", "Namespace discovery exceeds the finite output policy")
+			}
+			namespaces = append(namespaces, namespace.Name)
+		}
+		continuation = page.Continue
+		if continuation == "" {
+			return namespaces, ctx.Err()
+		}
 	}
-
-	namespaces := make([]string, 0, len(nsList.Items))
-	for _, ns := range nsList.Items {
-		namespaces = append(namespaces, ns.Name)
-	}
-
-	return namespaces, nil
 }
 
 // WatchConnections watches kubeconfig files for changes.
 func (p *kubeConnectionProvider) WatchConnections(ctx context.Context) (<-chan []types.Connection, error) {
-	session := resource.SessionFromContext(ctx)
-	if session == nil || session.PluginConfig == nil {
+	session, ok := resource.SessionFromContext(ctx)
+	if !ok || session.PluginConfig == nil {
 		return nil, fmt.Errorf("no session in context")
 	}
 
@@ -346,95 +343,65 @@ func (p *kubeConnectionProvider) RefreshClient(ctx context.Context, client *clie
 	if client == nil {
 		return fmt.Errorf("nil client passed to RefreshClient")
 	}
-	session := resource.SessionFromContext(ctx)
-	if session == nil || session.Connection == nil {
+	session, ok := resource.SessionFromContext(ctx)
+	if !ok || session.Connection == nil {
 		return fmt.Errorf("no session/connection in context")
 	}
 
-	fresh, err := utils.KubeClientsFromConnection(session.Connection)
+	fresh, err := LoadBoundedResourceClients(ctx, session.Connection)
 	if err != nil {
 		return fmt.Errorf("failed to refresh client: %w", err)
 	}
 
-	// Stop and shut down old informer factories before replacing clients.
-	client.StopFactory()
-	client.ShutdownNamespaceFactories()
-	if client.DynamicInformerFactory != nil {
-		client.DynamicInformerFactory.Shutdown()
-	}
+	// Stop old native sources before replacing clients.
+	client.ShutdownInformers()
 
 	client.Clientset = fresh.Clientset
 	client.KubeClient = fresh.Clientset
 	client.DiscoveryClient = fresh.Discovery
 	client.DynamicClient = fresh.Dynamic
 	client.RESTConfig = fresh.RestConfig
-	client.DynamicInformerFactory = dynamicinformer.NewDynamicSharedInformerFactory(
-		fresh.Dynamic,
-		clients.DefaultResyncPeriod,
-	)
-	client.ResetFactoryLifecycle()
+	client.HTTPClient = fresh.HTTPClient
+	client.ResetInformerLifecycle()
 	return nil
 }
 
-// ResolveScope implements resource.ScopeProvider[clients.ClientSet].
-// Reads scope configuration from the Connection.Data map:
-//   - watchScopeMode: "all" (default), "explicit", or "auto"
-//   - watchPartitions: list of namespace names (for "explicit" mode)
-//
-// For "auto" mode, discovers accessible namespaces via the K8s API.
-func (p *kubeConnectionProvider) ResolveScope(ctx context.Context, client *clients.ClientSet) (resource.ScopeMode, []string, error) {
-	session := resource.SessionFromContext(ctx)
-	if session == nil || session.Connection == nil {
-		return resource.ScopeModeAll, nil, nil
+// ResolveScope makes the configured namespace selection explicit. Failed
+// discovery and an empty selection never widen acquisition to all namespaces.
+func (p *kubeConnectionProvider) ResolveScope(ctx context.Context, client *clients.ClientSet) (resource.QueryScope, error) {
+	session, ok := resource.SessionFromContext(ctx)
+	if !ok || session.Connection == nil {
+		return nil, resource.NewError("INVALID_REQUEST", "An explicit connection is required for namespace scope")
 	}
-
-	data := session.Connection.Data
-	if data == nil {
-		return resource.ScopeModeAll, nil, nil
-	}
-
-	modeStr, _ := data["watchScopeMode"].(string)
-	switch strings.ToLower(modeStr) {
+	mode, _ := session.Connection.Data["watchScopeMode"].(string)
+	switch mode {
+	case "", "all":
+		return resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeAny}}, nil
 	case "explicit":
-		partitions := extractStringSlice(data, "watchPartitions")
-		if len(partitions) == 0 {
-			log.Printf("[k8s-scope] explicit mode but no watchPartitions, falling back to all")
-			return resource.ScopeModeAll, nil, nil
+		values := extractStringSlice(session.Connection.Data, "watchPartitions")
+		if values == nil {
+			values = []string{}
 		}
-		log.Printf("[k8s-scope] explicit mode: %d namespaces", len(partitions))
-		return resource.ScopeModeExplicit, partitions, nil
-
+		return resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeOneOf, Values: &values}}, nil
 	case "auto":
-		namespaces, err := p.discoverAccessibleNamespaces(ctx, client)
+		values, err := p.discoverAccessibleNamespaces(ctx, client)
 		if err != nil {
-			log.Printf("[k8s-scope] auto-discover failed, falling back to all: %v", err)
-			return resource.ScopeModeAll, nil, nil
+			return nil, err
 		}
-		if len(namespaces) == 0 {
-			log.Printf("[k8s-scope] auto-discover found 0 namespaces, falling back to all")
-			return resource.ScopeModeAll, nil, nil
+		if values == nil {
+			values = []string{}
 		}
-		log.Printf("[k8s-scope] auto-discover: %d namespaces", len(namespaces))
-		return resource.ScopeModeAutoDiscover, namespaces, nil
-
+		return resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeOneOf, Values: &values}}, nil
 	default:
-		return resource.ScopeModeAll, nil, nil
+		return nil, resource.NewError("INVALID_REQUEST", "Unknown Kubernetes namespace scope mode")
 	}
 }
 
 // discoverAccessibleNamespaces lists namespaces the current user can access.
 func (p *kubeConnectionProvider) discoverAccessibleNamespaces(ctx context.Context, client *clients.ClientSet) ([]string, error) {
-	if client == nil || client.KubeClient == nil {
-		return nil, fmt.Errorf("client is required for namespace discovery")
-	}
-	nsList, err := client.KubeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	namespaces, err := p.GetNamespaces(ctx, client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list namespaces: %w", err)
-	}
-
-	namespaces := make([]string, 0, len(nsList.Items))
-	for _, ns := range nsList.Items {
-		namespaces = append(namespaces, ns.Name)
+		return nil, err
 	}
 	sort.Strings(namespaces)
 	return namespaces, nil
@@ -464,24 +431,6 @@ func extractStringSlice(data map[string]any, key string) []string {
 	}
 }
 
-// GetEditorSchemas returns OpenAPI schemas from the cluster for editor validation.
-func (p *kubeConnectionProvider) GetEditorSchemas(ctx context.Context, client *clients.ClientSet) ([]resource.EditorSchema, error) {
-	session := resource.SessionFromContext(ctx)
-	if session == nil || session.Connection == nil {
-		return nil, fmt.Errorf("no connection in context")
-	}
-	if client == nil || client.Clientset == nil {
-		return nil, fmt.Errorf("client is required for schema fetching")
-	}
-
-	registeredKeys := make([]string, 0, len(resourceMap))
-	for key := range resourceMap {
-		registeredKeys = append(registeredKeys, key)
-	}
-
-	return fetchOpenAPISchemasV1(session.Connection.ID, client, registeredKeys)
-}
-
 // loadConnectionsFromPaths loads connections from a set of kubeconfig paths (no session needed).
 func (p *kubeConnectionProvider) loadConnectionsFromPaths(kubeconfigs []string) ([]types.Connection, error) {
 	connections := make([]types.Connection, 0, len(kubeconfigs)*EstimatedContexts)
@@ -498,128 +447,3 @@ func (p *kubeConnectionProvider) loadConnectionsFromPaths(kubeconfigs []string) 
 	})
 	return connections, nil
 }
-
-// fetchOpenAPISchemasV1 fetches schemas using v1 SDK types.
-func fetchOpenAPISchemasV1(connectionID string, client *clients.ClientSet, registeredKeys []string) ([]resource.EditorSchema, error) {
-	log.Printf("[FetchOpenAPISchemas] fetching schemas for %d keys, connection=%s",
-		len(registeredKeys), connectionID)
-
-	openapiv3Client := client.Clientset.Discovery().OpenAPIV3()
-	paths, err := openapiv3Client.Paths()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get OpenAPI v3 paths: %w", err)
-	}
-
-	type gvKey struct {
-		group   string
-		version string
-	}
-	gvToKeys := make(map[gvKey][]string)
-	for _, key := range registeredKeys {
-		meta := resource.ResourceMetaFromString(key)
-		if meta.Group == "" || meta.Version == "" || meta.Kind == "" {
-			continue
-		}
-		gv := gvKey{group: meta.Group, version: meta.Version}
-		gvToKeys[gv] = append(gvToKeys[gv], key)
-	}
-
-	var schemas []resource.EditorSchema
-
-	for gv, keys := range gvToKeys {
-		var openAPIPath string
-		if gv.group == "core" {
-			openAPIPath = fmt.Sprintf("api/%s", gv.version)
-		} else {
-			found := false
-			for pathKey := range paths {
-				if matchesGroupVersion(pathKey, gv.group, gv.version) {
-					openAPIPath = pathKey
-					found = true
-					break
-				}
-			}
-			if !found {
-				continue
-			}
-		}
-
-		pathItem, ok := paths[openAPIPath]
-		if !ok {
-			continue
-		}
-
-		schemaBytes, err := pathItem.Schema("application/json")
-		if err != nil {
-			continue
-		}
-
-		var schemaDoc map[string]interface{}
-		if err := json.Unmarshal(schemaBytes, &schemaDoc); err != nil {
-			continue
-		}
-
-		components, _ := schemaDoc["components"].(map[string]interface{})
-		if components == nil {
-			continue
-		}
-		defs, _ := components["schemas"].(map[string]interface{})
-		if defs == nil {
-			continue
-		}
-
-		for _, key := range keys {
-			meta := resource.ResourceMetaFromString(key)
-			defKey := findDefinitionKeyV1(defs, meta)
-			if defKey == "" {
-				continue
-			}
-
-			def, ok := defs[defKey]
-			if !ok {
-				continue
-			}
-
-			defBytes, err := json.Marshal(def)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal schema definition for %s: %w", key, err)
-			}
-
-			schemas = append(schemas, resource.EditorSchema{
-				ResourceKey: key,
-				FileMatch:   fmt.Sprintf("**/%s/*.yaml", key),
-				URI:         fmt.Sprintf("k8s://%s/%s/%s/%s", connectionID, meta.Group, meta.Version, meta.Kind),
-				Content:     defBytes,
-				Language:    "yaml",
-			})
-		}
-	}
-
-	return schemas, nil
-}
-
-func findDefinitionKeyV1(defs map[string]interface{}, meta resource.ResourceMeta) string {
-	group := meta.Group
-	if group == "core" {
-		group = "core"
-	}
-	primary := fmt.Sprintf("io.k8s.api.%s.%s.%s", group, meta.Version, meta.Kind)
-	if _, ok := defs[primary]; ok {
-		return primary
-	}
-
-	suffix := "." + meta.Kind
-	versionSegment := "." + meta.Version + "."
-	for key := range defs {
-		if strings.HasSuffix(key, suffix) && strings.Contains(key, versionSegment) {
-			return key
-		}
-	}
-	return ""
-}
-
-// The following functions are reused from connections.go (kept as-is for backward compat):
-// - connectionsFromKubeconfig
-// - enrichConnectionLabels
-// - enrichConnectionData
-// - enrichEKSLabels, enrichGKELabels, enrichAKSLabels

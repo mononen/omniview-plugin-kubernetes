@@ -18,13 +18,13 @@ export const ResourceQuotaSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) return null;
 
   const rq = ctx.data;
-  const hard = rq.status?.hard as Record<string, string> | undefined;
-  const used = rq.status?.used as Record<string, string> | undefined;
+  const hard = rq.status?.hard;
+  const used = rq.status?.used;
   const scopes = rq.spec?.scopes;
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
-      <ObjectMetaSection data={rq.metadata} connectionID={ctx.resource?.connectionID} />
+      <ObjectMetaSection data={rq.metadata} connectionID={ctx.resource?.route.connection} />
 
       <QuotaUsageTable hard={hard} used={used} />
 

@@ -359,10 +359,10 @@ func TestExtractTimeSeries(t *testing.T) {
 					{
 						Metric: map[string]string{},
 						Values: [][2]interface{}{
-							{"bad_timestamp", "10"},      // skipped: string timestamp
-							{float64(1000), "20"},        // kept
-							{nil, "30"},                  // skipped: nil timestamp
-							{float64(1060), "40"},        // kept
+							{"bad_timestamp", "10"}, // skipped: string timestamp
+							{float64(1000), "20"},   // kept
+							{nil, "30"},             // skipped: nil timestamp
+							{float64(1060), "40"},   // kept
 						},
 					},
 				},
@@ -461,7 +461,7 @@ func TestExtractTimeSeries(t *testing.T) {
 						Metric: map[string]string{"container": "a"},
 						Values: [][2]interface{}{
 							{float64(1000), "10"},
-							{"bad", "999"},            // skipped
+							{"bad", "999"}, // skipped
 						},
 					},
 					{
@@ -620,7 +620,7 @@ func TestExtractResourceName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, extractResourceName(tt.data, tt.fallback))
+			assert.Equal(t, tt.want, extractResourceName(metricValue(t, tt.data), tt.fallback))
 		})
 	}
 }
@@ -684,34 +684,7 @@ func TestExtractResourceNamespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, extractResourceNamespace(tt.data, tt.fallback))
+			assert.Equal(t, tt.want, extractResourceNamespace(metricValue(t, tt.data), tt.fallback))
 		})
 	}
-}
-
-// ---------------------------------------------------------------------------
-// mapKeys
-// ---------------------------------------------------------------------------
-
-func TestMapKeys(t *testing.T) {
-	t.Run("returns keys of map", func(t *testing.T) {
-		m := map[string]interface{}{
-			"cpu":    100,
-			"memory": 200,
-			"disk":   300,
-		}
-		keys := mapKeys(m)
-		assert.Len(t, keys, 3)
-		assert.ElementsMatch(t, []string{"cpu", "memory", "disk"}, keys)
-	})
-
-	t.Run("empty map returns empty slice", func(t *testing.T) {
-		keys := mapKeys(map[string]interface{}{})
-		assert.Empty(t, keys)
-	})
-
-	t.Run("nil map returns empty slice", func(t *testing.T) {
-		keys := mapKeys(nil)
-		assert.Empty(t, keys)
-	})
 }

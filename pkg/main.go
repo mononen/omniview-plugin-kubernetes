@@ -55,11 +55,12 @@ func main() {
 		ID: pluginid.ID,
 		Settings: []settings.Setting{
 			{
-				ID:          "kubeconfigs",
-				Label:       "Kubeconfigs",
-				Description: "A list of available Kubeconfigs to use",
-				Type:        settings.Text,
-				Default:     []string{"~/.kube/config"},
+				ID:              "kubeconfigs",
+				Label:           "Kubeconfigs",
+				Description:     "A list of available Kubeconfigs to use",
+				Type:            settings.Text,
+				Default:         []string{"~/.kube/config"},
+				RequiresRestart: true,
 				FileSelection: &settings.SettingFileSelection{
 					Enabled:      true,
 					AllowFolders: false,
@@ -118,16 +119,18 @@ func main() {
 		},
 	})
 
-	if err := klogconfig.ApplyFromProvider(klogFS, plugin.SettingsProvider); err != nil {
+	if err := klogconfig.ApplyAndWatch(klogFS, plugin.SettingsProvider, func(err error) {
+		log.Printf("failed to apply client log level setting: %v", err)
+	}); err != nil {
 		log.Printf("failed to apply client log level setting: %v", err)
 	}
 
 	// Register the capabilities
-	resource.Register(plugin)
+	retireMetrics := pluginmetric.Register(plugin)
+	borrowNativeClient := resource.Register(plugin, retireMetrics)
 	exec.Register(plugin)
 	networker.Register(plugin)
-	pluginlogs.Register(plugin)
-	pluginmetric.Register(plugin)
+	pluginlogs.Register(plugin, borrowNativeClient)
 
 	// Serve the plugin
 	plugin.Serve()

@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -5,7 +6,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { LimitRange } from 'kubernetes-types/core/v1';
 import React from 'react';
 import { LuTextSelect } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -14,13 +15,13 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import LimitRangeSidebar from './Sidebar';
 
-const resourceKey = 'core::v1::LimitRange';
+const resourceKey = 'k8s:/limitranges';
 
 const LimitRangeTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<LimitRange>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, LimitRange>>>(
     () =>
       withNamespacedResourceColumns(
         [
@@ -107,7 +108,6 @@ const LimitRangeTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

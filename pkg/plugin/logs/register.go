@@ -7,13 +7,13 @@ import (
 )
 
 // Register registers the log capability with the Kubernetes plugin.
-func Register(plugin *sdk.Plugin) {
+func Register(plugin *sdk.Plugin, borrow ClientBorrower) {
 	logs.RegisterPlugin(plugin, logs.PluginOpts{
 		Handlers: map[string]logs.Handler{
-			"core::v1::Pod": {
+			"k8s:/pods": {
 				Plugin:        pluginid.ID,
-				Resource:      "core::v1::Pod",
-				Handler:       PodLogHandler,
+				Resource:      "k8s:/pods",
+				Handler:       nativeHandler(borrow),
 				SourceBuilder: PodSourceBuilder,
 				TargetBuilder: logs.ActionTargetBuilder{
 					Paths: []string{
@@ -27,12 +27,12 @@ func Register(plugin *sdk.Plugin) {
 			},
 		},
 		SourceResolvers: map[string]logs.SourceResolver{
-			"apps::v1::Deployment":  DeploymentSourceResolver,
-			"apps::v1::StatefulSet": StatefulSetSourceResolver,
-			"apps::v1::DaemonSet":   DaemonSetSourceResolver,
-			"apps::v1::ReplicaSet":  ReplicaSetSourceResolver,
-			"batch::v1::Job":        JobSourceResolver,
-			"batch::v1::CronJob":    CronJobSourceResolver,
+			"k8s:apps/deployments":  nativeResolver(borrow, DeploymentSourceResolver),
+			"k8s:apps/statefulsets": nativeResolver(borrow, StatefulSetSourceResolver),
+			"k8s:apps/daemonsets":   nativeResolver(borrow, DaemonSetSourceResolver),
+			"k8s:apps/replicasets":  nativeResolver(borrow, ReplicaSetSourceResolver),
+			"k8s:batch/jobs":        nativeResolver(borrow, JobSourceResolver),
+			"k8s:batch/cronjobs":    nativeResolver(borrow, CronJobSourceResolver),
 		},
 	})
 }

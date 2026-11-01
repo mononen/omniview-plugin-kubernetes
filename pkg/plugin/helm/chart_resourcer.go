@@ -2,7 +2,6 @@ package helm
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,7 +9,7 @@ import (
 	"time"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -18,16 +17,11 @@ import (
 	"helm.sh/helm/v3/pkg/repo"
 )
 
-// ChartResourcer implements a read-only Resourcer for helm::v1::Chart.
+// ChartResourcer reads chart metadata independently of mutation support.
 // It reads chart metadata from Helm's local repo index cache files.
 type ChartResourcer struct {
 	log *zap.SugaredLogger
 }
-
-var (
-	_ resource.Resourcer[clients.ClientSet]       = (*ChartResourcerWithActions)(nil)
-	_ resource.ActionResourcer[clients.ClientSet] = (*ChartResourcerWithActions)(nil)
-)
 
 // NewChartResourcer creates a new ChartResourcer.
 func NewChartResourcer(logger *zap.SugaredLogger) *ChartResourcer {
@@ -46,15 +40,29 @@ func loadAllIndexes() (map[string]*repo.IndexFile, error) {
 	settings := cli.New()
 	cachePath := settings.RepositoryCache
 
+	var totalBytes int64
+	for _, entry := range f.Repositories {
+		info, err := os.Stat(filepath.Join(cachePath, entry.Name+"-index.yaml"))
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if info.Size() > (16<<20)-totalBytes {
+			return nil, fmt.Errorf("Helm cached indexes exceed 16 MiB")
+		}
+		totalBytes += info.Size()
+	}
 	indexes := make(map[string]*repo.IndexFile, len(f.Repositories))
 	for _, entry := range f.Repositories {
 		indexPath := filepath.Join(cachePath, entry.Name+"-index.yaml")
 		if _, statErr := os.Stat(indexPath); os.IsNotExist(statErr) {
 			continue
 		}
-		idx, loadErr := repo.LoadIndexFile(indexPath)
+		idx, loadErr := loadIndex(entry.Name)
 		if loadErr != nil {
-			continue
+			return nil, loadErr
 		}
 		indexes[entry.Name] = idx
 	}
@@ -63,7 +71,7 @@ func loadAllIndexes() (map[string]*repo.IndexFile, error) {
 }
 
 // chartVersionToMap converts a ChartVersion into a flat map suitable for the SDK.
-// All slice values must use []interface{} (not typed slices) for structpb compatibility.
+// Values remain native until the canonical SDK codec preserves their scalar intent.
 func chartVersionToMap(repoName string, cv *repo.ChartVersion) map[string]interface{} {
 	m := map[string]interface{}{
 		"id":          repoName + "/" + cv.Name,
@@ -110,143 +118,6 @@ func chartVersionToMap(repoName string, cv *repo.ChartVersion) map[string]interf
 	return m
 }
 
-func (r *ChartResourcer) Get(
-	_ context.Context,
-	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	input resource.GetInput,
-) (*resource.GetResult, error) {
-	parts := strings.SplitN(input.ID, "/", 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("chart ID must be in the form repo/chart, got %q", input.ID)
-	}
-	repoName, chartName := parts[0], parts[1]
-
-	indexes, err := loadAllIndexes()
-	if err != nil {
-		return nil, err
-	}
-
-	idx, ok := indexes[repoName]
-	if !ok {
-		return nil, fmt.Errorf("repository %s not found in local cache", repoName)
-	}
-
-	versions, found := idx.Entries[chartName]
-	if !found || len(versions) == 0 {
-		return nil, fmt.Errorf("chart %s not found in repository %s", chartName, repoName)
-	}
-
-	// Return the latest version as the main entry, plus all versions.
-	result := chartVersionToMap(repoName, versions[0])
-
-	allVersions := make([]interface{}, 0, len(versions))
-	for _, v := range versions {
-		entry := map[string]interface{}{
-			"version":    v.Version,
-			"appVersion": v.AppVersion,
-			"created":    v.Created.Format(time.RFC3339),
-			"deprecated": v.Deprecated,
-		}
-		if v.Description != "" {
-			entry["description"] = v.Description
-		}
-		if v.KubeVersion != "" {
-			entry["kubeVersion"] = v.KubeVersion
-		}
-		if v.Home != "" {
-			entry["home"] = v.Home
-		}
-		if v.Icon != "" {
-			entry["icon"] = v.Icon
-		}
-		if v.Type != "" {
-			entry["type"] = v.Type
-		}
-		allVersions = append(allVersions, entry)
-	}
-	result["versions"] = allVersions
-	result["totalVersions"] = len(allVersions)
-
-	data, err := marshalMap(result)
-	if err != nil {
-		return nil, err
-	}
-	return &resource.GetResult{Result: data, Success: true}, nil
-}
-
-func (r *ChartResourcer) List(
-	_ context.Context,
-	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	_ resource.ListInput,
-) (*resource.ListResult, error) {
-	indexes, err := loadAllIndexes()
-	if err != nil {
-		return nil, err
-	}
-
-	var charts []json.RawMessage
-	for repoName, idx := range indexes {
-		for _, versions := range idx.Entries {
-			if len(versions) == 0 {
-				continue
-			}
-			// Use the latest (first) version for list display.
-			data, err := marshalMap(chartVersionToMap(repoName, versions[0]))
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal chart %s/%s: %w", repoName, versions[0].Name, err)
-			}
-			charts = append(charts, data)
-		}
-	}
-
-	return &resource.ListResult{Result: charts, Success: true}, nil
-}
-
-func (r *ChartResourcer) Find(
-	ctx context.Context,
-	client *clients.ClientSet,
-	meta resource.ResourceMeta,
-	_ resource.FindInput,
-) (*resource.FindResult, error) {
-	listResult, err := r.List(ctx, client, meta, resource.ListInput{})
-	if err != nil {
-		return nil, err
-	}
-	return &resource.FindResult{
-		Result:  listResult.Result,
-		Success: listResult.Success,
-	}, nil
-}
-
-func (r *ChartResourcer) Create(
-	_ context.Context,
-	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	_ resource.CreateInput,
-) (*resource.CreateResult, error) {
-	return nil, fmt.Errorf("creating charts is not supported")
-}
-
-func (r *ChartResourcer) Update(
-	_ context.Context,
-	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	_ resource.UpdateInput,
-) (*resource.UpdateResult, error) {
-	return nil, fmt.Errorf("updating charts is not supported")
-}
-
-func (r *ChartResourcer) Delete(
-	_ context.Context,
-	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	_ resource.DeleteInput,
-) (*resource.DeleteResult, error) {
-	return nil, fmt.Errorf("deleting charts is not supported")
-}
-
 // ChartResourcerWithActions combines ChartResourcer with action support.
 type ChartResourcerWithActions struct {
 	ChartResourcer
@@ -262,7 +133,6 @@ func NewChartResourcerWithActions(logger *zap.SugaredLogger) *ChartResourcerWith
 func (r *ChartResourcerWithActions) GetActions(
 	_ context.Context,
 	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
 ) ([]resource.ActionDescriptor, error) {
 	versionParams := &resource.Schema{
 		Properties: map[string]resource.SchemaProperty{
@@ -305,20 +175,18 @@ func (r *ChartResourcerWithActions) GetActions(
 	}, nil
 }
 
-func (r *ChartResourcerWithActions) ExecuteAction(
+func (r *ChartResourcerWithActions) Action(
 	_ context.Context,
 	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	actionID string,
-	input resource.ActionInput,
-) (*resource.ActionResult, error) {
-	parts := strings.SplitN(input.ID, "/", 2)
+	input resource.ActionRequest,
+) (resource.Value, error) {
+	parts := strings.SplitN(input.Reference.Address.ID, "/", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("chart ID must be in the form repo/chart, got %q", input.ID)
+		return resource.Value{}, fmt.Errorf("chart ID must be in the form repo/chart, got %q", input.Reference.Address.ID)
 	}
 	repoName, chartName := parts[0], parts[1]
 
-	switch actionID {
+	switch input.Action {
 	case "get-values":
 		return r.executeGetValues(repoName, chartName, input)
 	case "get-readme":
@@ -328,25 +196,29 @@ func (r *ChartResourcerWithActions) ExecuteAction(
 	case "get-chart-detail":
 		return r.executeGetChartDetail(repoName, chartName, input)
 	default:
-		return nil, fmt.Errorf("unknown action: %s", actionID)
+		return resource.Value{}, fmt.Errorf("unknown action: %s", input.Action)
 	}
 }
 
-func (r *ChartResourcerWithActions) executeGetValues(repoName, chartName string, input resource.ActionInput) (*resource.ActionResult, error) {
+func (r *ChartResourcerWithActions) executeGetValues(repoName, chartName string, input resource.ActionRequest) (resource.Value, error) {
+	params, err := actionParams(input)
+	if err != nil {
+		return resource.Value{}, err
+	}
 	chartRef := repoName + "/" + chartName
 
 	settings := cli.New()
-	version, _ := input.Params["version"].(string)
+	version, _ := params["version"].(string)
 
 	chartPathOpts := &action.ChartPathOptions{Version: version}
 	chartPath, err := chartPathOpts.LocateChart(chartRef, settings)
 	if err != nil {
-		return nil, fmt.Errorf("failed to locate chart %s: %w", chartRef, err)
+		return resource.Value{}, fmt.Errorf("failed to locate chart %s: %w", chartRef, err)
 	}
 
 	ch, err := loader.Load(chartPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load chart %s: %w", chartPath, err)
+		return resource.Value{}, fmt.Errorf("failed to load chart %s: %w", chartPath, err)
 	}
 
 	values := ""
@@ -357,29 +229,33 @@ func (r *ChartResourcerWithActions) executeGetValues(repoName, chartName string,
 		}
 	}
 
-	return &resource.ActionResult{
-		Success: true,
-		Data: map[string]interface{}{
+	return resource.ValueFromNative(map[string]interface{}{
+		"success": true,
+		"data": map[string]interface{}{
 			"values": values,
 		},
-	}, nil
+	})
 }
 
-func (r *ChartResourcerWithActions) executeGetReadme(repoName, chartName string, input resource.ActionInput) (*resource.ActionResult, error) {
+func (r *ChartResourcerWithActions) executeGetReadme(repoName, chartName string, input resource.ActionRequest) (resource.Value, error) {
+	params, err := actionParams(input)
+	if err != nil {
+		return resource.Value{}, err
+	}
 	chartRef := repoName + "/" + chartName
 
 	settings := cli.New()
-	version, _ := input.Params["version"].(string)
+	version, _ := params["version"].(string)
 
 	chartPathOpts := &action.ChartPathOptions{Version: version}
 	chartPath, err := chartPathOpts.LocateChart(chartRef, settings)
 	if err != nil {
-		return nil, fmt.Errorf("failed to locate chart %s: %w", chartRef, err)
+		return resource.Value{}, fmt.Errorf("failed to locate chart %s: %w", chartRef, err)
 	}
 
 	ch, err := loader.Load(chartPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load chart %s: %w", chartPath, err)
+		return resource.Value{}, fmt.Errorf("failed to load chart %s: %w", chartPath, err)
 	}
 
 	readme := ""
@@ -390,30 +266,33 @@ func (r *ChartResourcerWithActions) executeGetReadme(repoName, chartName string,
 		}
 	}
 
-	return &resource.ActionResult{
-		Success: true,
-		Data: map[string]interface{}{
+	return resource.ValueFromNative(map[string]interface{}{
+		"success": true,
+		"data": map[string]interface{}{
 			"readme": readme,
 		},
-	}, nil
+	})
 }
 
-func (r *ChartResourcerWithActions) executeGetVersions(repoName, chartName string) (*resource.ActionResult, error) {
+func (r *ChartResourcerWithActions) executeGetVersions(repoName, chartName string) (resource.Value, error) {
 	indexes, err := loadAllIndexes()
 	if err != nil {
-		return nil, err
+		return resource.Value{}, err
 	}
 
 	idx, ok := indexes[repoName]
 	if !ok {
-		return nil, fmt.Errorf("repository %s not found in local cache", repoName)
+		return resource.Value{}, fmt.Errorf("repository %s not found in local cache", repoName)
 	}
 
 	versions, found := idx.Entries[chartName]
 	if !found {
-		return nil, fmt.Errorf("chart %s not found in repository %s", chartName, repoName)
+		return resource.Value{}, fmt.Errorf("chart %s not found in repository %s", chartName, repoName)
 	}
 
+	if len(versions) > 256 {
+		return resource.Value{}, fmt.Errorf("chart versions exceed finite action limit of 256")
+	}
 	allVersions := make([]interface{}, 0, len(versions))
 	for _, v := range versions {
 		entry := map[string]interface{}{
@@ -443,31 +322,35 @@ func (r *ChartResourcerWithActions) executeGetVersions(repoName, chartName strin
 		allVersions = append(allVersions, entry)
 	}
 
-	return &resource.ActionResult{
-		Success: true,
-		Data: map[string]interface{}{
+	return resource.ValueFromNative(map[string]interface{}{
+		"success": true,
+		"data": map[string]interface{}{
 			"versions": allVersions,
 			"total":    len(allVersions),
 		},
-	}, nil
+	})
 }
 
-func (r *ChartResourcerWithActions) executeGetChartDetail(repoName, chartName string, input resource.ActionInput) (*resource.ActionResult, error) {
+func (r *ChartResourcerWithActions) executeGetChartDetail(repoName, chartName string, input resource.ActionRequest) (resource.Value, error) {
+	params, err := actionParams(input)
+	if err != nil {
+		return resource.Value{}, err
+	}
 	chartRef := repoName + "/" + chartName
 
 	settings := cli.New()
-	version, _ := input.Params["version"].(string)
+	version, _ := params["version"].(string)
 
 	// Load the chart archive to get values and readme.
 	chartPathOpts := &action.ChartPathOptions{Version: version}
 	chartPath, err := chartPathOpts.LocateChart(chartRef, settings)
 	if err != nil {
-		return nil, fmt.Errorf("failed to locate chart %s: %w", chartRef, err)
+		return resource.Value{}, fmt.Errorf("failed to locate chart %s: %w", chartRef, err)
 	}
 
 	ch, err := loader.Load(chartPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load chart %s: %w", chartPath, err)
+		return resource.Value{}, fmt.Errorf("failed to load chart %s: %w", chartPath, err)
 	}
 
 	// Extract values.yaml
@@ -491,6 +374,9 @@ func (r *ChartResourcerWithActions) executeGetChartDetail(repoName, chartName st
 	// Extract dependencies
 	var deps []interface{}
 	if ch.Metadata != nil && len(ch.Metadata.Dependencies) > 0 {
+		if len(ch.Metadata.Dependencies) > 256 {
+			return resource.Value{}, fmt.Errorf("chart dependencies exceed finite action limit of 256")
+		}
 		deps = make([]interface{}, 0, len(ch.Metadata.Dependencies))
 		for _, d := range ch.Metadata.Dependencies {
 			entry := map[string]interface{}{
@@ -510,28 +396,21 @@ func (r *ChartResourcerWithActions) executeGetChartDetail(repoName, chartName st
 	// Get all versions from the index
 	versionsResult, err := r.executeGetVersions(repoName, chartName)
 	if err != nil {
-		return nil, err
+		return resource.Value{}, err
 	}
 
-	return &resource.ActionResult{
-		Success: true,
-		Data: map[string]interface{}{
+	versionData, err := nativeObject(versionsResult.Map["data"])
+	if err != nil {
+		return resource.Value{}, err
+	}
+	return resource.ValueFromNative(map[string]interface{}{
+		"success": true,
+		"data": map[string]interface{}{
 			"values":       values,
 			"readme":       readme,
-			"versions":     versionsResult.Data["versions"],
-			"total":        versionsResult.Data["total"],
+			"versions":     versionData["versions"],
+			"total":        versionData["total"],
 			"dependencies": deps,
 		},
-	}, nil
-}
-
-func (r *ChartResourcerWithActions) StreamAction(
-	_ context.Context,
-	_ *clients.ClientSet,
-	_ resource.ResourceMeta,
-	_ string,
-	_ resource.ActionInput,
-	_ chan<- resource.ActionEvent,
-) error {
-	return &resource.ResourceOperationError{Code: "UNSUPPORTED", Title: "Unsupported operation", Message: "Streaming actions are not supported for this resource."}
+	})
 }

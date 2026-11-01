@@ -1,6 +1,10 @@
-import { Card, Chip, IconButton, Input, Separator, Stack, Text } from '@omniviewdev/base-ui';
+import { Button, Card, Chip, IconButton, Input, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import {
   DrawerContext,
+  jsonToValue,
+  valueToJSON,
+  useResolvedResourceTarget,
+  type HostRecord,
   useExecuteAction,
   useResources,
   useRightDrawer,
@@ -105,48 +109,51 @@ const ChartIcon: React.FC<{ icon?: string; name: string }> = ({ icon, name }) =>
 
 /**
  * Renders a sidebar for a Helm Repository resource.
- * Uses the Chart resource list (cached by React Query) filtered by repository
- * instead of making a separate action call each time.
+ * Resolves repository as a query dimension before acquiring its complete chart collection.
  */
 export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
-  const connectionID = ctx.resource?.connectionID ?? '';
-  const repoName = ctx.data?.name ?? ctx.resource?.id ?? '';
+  const connectionID = ctx.resource?.route.connection ?? '';
+  const repoName = ctx.resource?.reference.address.id ?? '';
   const [chartFilter, setChartFilter] = React.useState('');
 
-  const { executeAction, isExecuting } = useExecuteAction({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'helm::v1::Repository',
+  const { executeAction, isExecuting } = useExecuteAction({ pluginID: PLUGIN_ID });
+  const target = useResolvedResourceTarget({
+    pluginID: PLUGIN_ID, route: { connection: connectionID }, type: 'helm:charts',
+    scope: [
+      { dimension: 'domain', match: 'oneOf', values: ['helm-client'] },
+      { dimension: 'repository', match: 'oneOf', values: [repoName] },
+    ],
+    enabled: !!connectionID && !!repoName,
   });
-
-  // Use the existing Chart resource list — cached by React Query
-  const { resources: chartsQuery } = useResources({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'helm::v1::Chart',
-    idAccessor: 'id',
+  const { resources: chartsQuery, acquired } = useResources({
+    pluginID: PLUGIN_ID, live: false, collection: true,
+    request: target.data ? {
+      targetId: target.data.targetId, request: { target: target.data.target, pageSize: 256 },
+    } : undefined,
   });
 
   const { showResourceSidebar } = useRightDrawer();
 
-  if (!ctx.data) {
+  if (!ctx.data || !ctx.resource) {
     return null;
   }
 
   const data = ctx.data;
 
-  // Filter charts by this repository
-  // chartsQuery.data?.result is typed as unknown[] from the runtime; cast to expected shape
-  const allCharts = (chartsQuery.data?.result ?? []) as ChartListEntry[];
-  const repoCharts = allCharts.filter((c) => c.repository === repoName);
+  const chartRecords = new WeakMap<ChartListEntry, HostRecord>();
+  const allCharts = (acquired?.page.records ?? []).map((record) => {
+    const chart = valueToJSON(record.record.body) as ChartListEntry;
+    chartRecords.set(chart, record);
+    return chart;
+  });
 
   const filteredCharts = chartFilter
-    ? repoCharts.filter((c) => {
+    ? allCharts.filter((c) => {
         const name = (c.name ?? '').toLowerCase();
         const desc = (c.description ?? '').toLowerCase();
         return name.includes(chartFilter.toLowerCase()) || desc.includes(chartFilter.toLowerCase());
       })
-    : repoCharts;
+    : allCharts;
 
   return (
     <Stack direction="column" style={rootStyle}>
@@ -171,8 +178,8 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
               disabled={isExecuting}
               onClick={() =>
                 void executeAction({
-                  actionID: 'refresh',
-                  id: repoName,
+                  route: ctx.resource!.route, reference: ctx.resource!.reference,
+                  action: 'refresh', input: jsonToValue({}),
                 })
               }
               title="Refresh Repository"
@@ -220,9 +227,10 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
       <Stack direction="column" spacing={2} style={chartsSectionStyle}>
         <Stack direction="row" justify="between" align="center" style={chartsHeaderStyle}>
           <Text weight="semibold" size="sm">
-            Charts in this repository ({repoCharts.length})
+            Charts in this repository · {allCharts.length}
           </Text>
         </Stack>
+        {!!(target.error ?? chartsQuery.error) && <div role="alert">Could not load charts. <Button size="sm" variant="outline" onClick={() => { void (target.error ? target.refetch() : chartsQuery.refetch()); }}>Retry</Button></div>}
 
         {/* Search */}
         <Input.Control
@@ -239,17 +247,18 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
         <Stack direction="column" spacing={1} style={chartListContainerStyle}>
           {filteredCharts.map((chart) => (
             <Card
-              key={chart.id ?? chart.name ?? ''}
+              key={chartRecords.get(chart)?.key}
               className={styles.chartCard}
               variant="outline"
-              onClick={() =>
-                showResourceSidebar({
-                  pluginID: PLUGIN_ID,
-                  connectionID,
-                  resourceKey: 'helm::v1::Chart',
-                  resourceID: chart.id ?? '',
-                })
-              }
+              onClick={() => {
+                const row = chartRecords.get(chart);
+                if (!row) return;
+                void showResourceSidebar({
+                  pluginID: PLUGIN_ID, reference: row.record.reference, route: row.route,
+                  representation: row.record.representation.id, targetId: row.targetId,
+                  record: row, resourceName: chart.name,
+                });
+              }}
             >
               <Stack direction="row" spacing={3} align="start">
                 <ChartIcon icon={chart.icon} name={chart.name ?? ''} />
@@ -273,10 +282,10 @@ export const RepoSidebar: React.FC<Props> = ({ ctx }) => {
           {chartsQuery.isSuccess && filteredCharts.length === 0 && (
             <Text as="p" size="sm" tone="muted" style={noChartsStyle}>
               {chartFilter
-                ? 'No charts match the filter'
+                ? 'No charts match the filter.'
                 : data.type === 'oci'
                   ? 'OCI registries do not provide a chart index. Reference charts directly by their OCI URL.'
-                  : 'No charts found. Try refreshing the repository.'}
+                  : 'No charts in this repository.'}
             </Text>
           )}
           {chartsQuery.isLoading && (

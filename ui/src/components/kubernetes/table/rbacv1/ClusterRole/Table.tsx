@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -5,7 +6,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { ClusterRole } from 'kubernetes-types/rbac/v1';
 import React from 'react';
 import { LuShieldQuestion } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -14,13 +15,13 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import ClusterRoleSidebar from './Sidebar';
 
-const resourceKey = 'rbac::v1::ClusterRole';
+const resourceKey = 'k8s:rbac.authorization.k8s.io/clusterroles';
 
 const ClusterRoleTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<ClusterRole>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, ClusterRole>>>(
     () =>
       withClusterResourceColumns(
         [
@@ -64,7 +65,6 @@ const ClusterRoleTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );

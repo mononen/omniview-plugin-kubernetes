@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -6,48 +7,42 @@ import { Pod } from 'kubernetes-types/core/v1';
 import { Condition, OwnerReference } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuContainer } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { PLUGIN_ID } from '@/pluginId';
+import { sumIntegerValues } from '@/utils/convert';
 
-import { usePodMetricsBatch } from '../../../../../hooks/usePodMetricsBatch';
+
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
+import ResourceLinkChip from '../../../../shared/ResourceLinkChip';
 import PodSidebar from '../../../sidebar/Pod';
 import ConditionsCell from '../../shared/cells/ConditionsCell';
 import { CopyableCell } from '../../shared/cells/CopyableCell';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 import { inclusionFilter, ownerRefFilter } from '../../shared/filters';
 
-import { drawerActions, editorSubmit } from './actions';
+import { drawerActions } from './actions';
 import ContainerPhaseCell from './cells/ContainerPhaseCell';
 import ContainerStatusCell from './cells/ContainerStatusCell';
-import MetricUsageCell, { PodMetricsContext } from './cells/MetricUsageCell';
+import MetricUsageCell from './cells/MetricUsageCell';
 import ResourceLinkCell from './cells/ResourceLinkCell';
+import PodMetricsProvider from './PodMetricsProvider';
 
 
-const resourceKey = 'core::v1::Pod';
+const resourceKey = 'k8s:/pods';
 
-const ownerRefKeyMap: Record<string, string> = {
-  ReplicaSet: 'apps::v1::ReplicaSet',
-  ReplicationController: 'core::v1::ReplicationController',
-  StatefulSet: 'apps::v1::StatefulSet',
-  DaemonSet: 'apps::v1::DaemonSet',
-  Job: 'batch::v1::Job',
-  CronJob: 'batch::v1::CronJob',
-  Node: 'core::v1::Node',
-};
+
 
 const PodTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { metricsMap } = usePodMetricsBatch({ connectionID: id });
 
   /**
    * Handler to go ahead and submit a resource change
    */
 
-  const columns = React.useMemo<Array<ColumnDef<Pod>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, Pod>>>(
     () =>
       withNamespacedResourceColumns(
         [
@@ -86,33 +81,17 @@ const PodTable: React.FC = () => {
             id: 'controlledBy',
             header: 'Controlled By',
             accessorKey: 'metadata.ownerReferences',
-            filterFn: ownerRefFilter as FilterFn<Pod>,
+            filterFn: ownerRefFilter as FilterFn<DataTableFeatures, Pod>,
             cell: ({ getValue, row }) => {
               const refs = getValue() as Array<OwnerReference> | undefined;
               if (refs == null || refs.length === 0) {
                 return null;
               }
-              const ownerKind = refs[0].kind;
-              const ownerKey = ownerRefKeyMap[ownerKind];
-              if (!ownerKey) {
-                return (
-                  <ResourceLinkCell
-                    pluginID={PLUGIN_ID}
-                    connectionId={id}
-                    resourceId={refs[0].name}
-                    resourceKey={`${refs[0].apiVersion?.replace('/', '::')}::${ownerKind}`}
-                    resourceName={ownerKind}
-                    namespace={row.original.metadata?.namespace}
-                  />
-                );
-              }
               return (
-                <ResourceLinkCell
-                  pluginID={PLUGIN_ID}
-                  connectionId={id}
-                  resourceId={refs[0].name}
-                  resourceKey={ownerKey}
-                  resourceName={ownerKind}
+                <ResourceLinkChip
+                  connectionID={id}
+                  ownerReference={refs[0]}
+                  resourceName={refs[0].kind}
                   namespace={row.original.metadata?.namespace}
                 />
               );
@@ -123,14 +102,14 @@ const PodTable: React.FC = () => {
             id: 'node',
             header: 'Node',
             accessorKey: 'spec.nodeName',
-            filterFn: inclusionFilter as FilterFn<Pod>,
+            filterFn: inclusionFilter as FilterFn<DataTableFeatures, Pod>,
             size: 150,
             cell: ({ getValue }) => (
               <ResourceLinkCell
                 pluginID={PLUGIN_ID}
                 connectionId={id}
                 resourceId={getValue() as string}
-                resourceKey="core::v1::Node"
+                resourceKey="k8s:/nodes"
                 resourceName={getValue() as string}
               />
             ),
@@ -177,7 +156,7 @@ const PodTable: React.FC = () => {
                 pluginID={PLUGIN_ID}
                 connectionId={id}
                 resourceId={getValue() as string}
-                resourceKey={'core::v1::ServiceAccount'}
+                resourceKey={'k8s:/serviceaccounts'}
                 resourceName={getValue() as string}
                 namespace={row.original.metadata?.namespace}
               />
@@ -229,11 +208,10 @@ const PodTable: React.FC = () => {
             id: 'restarts',
             header: 'Restarts',
             accessorFn: (row) => {
-              let count = 0;
-              for (const container of row.status?.containerStatuses ?? []) {
-                count += container.restartCount ?? 0;
-              }
-              return count;
+              const count = sumIntegerValues(
+                (row.status?.containerStatuses ?? []).map((container) => container.restartCount),
+              );
+              return typeof count === 'bigint' ? count.toString() : count;
             },
             size: 80,
             meta: {
@@ -278,27 +256,26 @@ const PodTable: React.FC = () => {
     () => ({
       title: resourceKey, // TODO: change runtime sdk to accept a function
       icon: <LuContainer />,
-      views: createStandardViews({ SidebarComponent: PodSidebar, onEditorSubmit: editorSubmit }),
+      views: createStandardViews({ SidebarComponent: PodSidebar }),
       actions: drawerActions,
     }),
     [],
   );
 
   return (
-    <PodMetricsContext.Provider value={metricsMap}>
       <ResourceTable
+        key={id}
         columns={columns}
         connectionID={id}
         resourceKey={resourceKey}
-        idAccessor="metadata.uid"
         drawer={drawer}
+        contentWrapper={PodMetricsProvider}
         toolbarFilters={[
           { columnId: 'node', placeholder: 'All Nodes', accessor: (r: Pod) => r?.spec?.nodeName },
           { columnId: 'controlledBy', placeholder: 'All Controllers', accessor: (r: Pod) => r?.metadata?.ownerReferences?.[0]?.name },
           { columnId: 'namespace', placeholder: 'All Namespaces', accessor: (r: Pod) => r?.metadata?.namespace },
         ]}
       />
-    </PodMetricsContext.Provider>
   );
 };
 

@@ -1,11 +1,13 @@
 import { Button, Checkbox, Dialog, Stack, Text } from '@omniviewdev/base-ui';
-import { useExecuteAction } from '@omniviewdev/runtime';
+import { jsonToValue, useExecuteAction } from '@omniviewdev/runtime';
+import { ResourceClient } from '@omniviewdev/runtime/api';
 import React from 'react';
 import { stringify } from 'yaml';
 
 import { PLUGIN_ID } from '@/pluginId';
 
 import CodeEditor from '../../shared/CodeEditor';
+import { helmActionData, helmValues } from '../values';
 
 const dialogStyle: React.CSSProperties = { width: '80%', maxWidth: 800, maxHeight: '85vh' };
 const valuesEditorStyle: React.CSSProperties = {
@@ -48,25 +50,23 @@ const UpgradeDialog: React.FC<Props> = ({
   const [dryRunManifest, setDryRunManifest] = React.useState<string | null>(null);
   const [valuesLoaded, setValuesLoaded] = React.useState(false);
 
-  const { executeAction, isExecuting } = useExecuteAction({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'helm::v1::Release',
-  });
+  const { executeAction, isExecuting } = useExecuteAction({ pluginID: PLUGIN_ID });
+  const runAction = async (action: string, input = jsonToValue({})) => {
+    const resolved = await ResourceClient.ResolveReference(PLUGIN_ID, {
+      route: { connection: connectionID }, type: 'helm:releases', id: releaseName,
+      scope: [{ dimension: 'namespace', value: namespace }],
+    });
+    return executeAction({ route: resolved.route, reference: resolved.reference, action, input });
+  };
 
   // Load current values on open
   React.useEffect(() => {
     if (!open || !releaseName || valuesLoaded) return;
 
-    void executeAction({
-      actionID: 'get-values',
-      id: releaseName,
-      namespace,
-      params: { all: true },
-    })
+    void runAction('get-values', jsonToValue({ all: true }))
       .then((result) => {
-        // result?.data is Record<string, any> (the values object); stringify it for the editor
-        setValues(result?.data ? stringify(result?.data as Record<string, unknown>) : '');
+        const data = helmActionData(result) as { values?: unknown } | undefined;
+        setValues(data?.values ? stringify(data.values) : '');
         setValuesLoaded(true);
       })
       .catch(() => {
@@ -77,16 +77,10 @@ const UpgradeDialog: React.FC<Props> = ({
 
   const handleDryRun = async () => {
     try {
-      const result = await executeAction({
-        actionID: 'dry-run-upgrade',
-        id: releaseName,
-        namespace,
-        params: {
-          chart: chartRef,
-          reuse_values: reuseValues,
-        },
-      });
-      const dryRunData = result?.data as DryRunUpgradeData | undefined;
+      const result = await runAction('dry-run-upgrade', jsonToValue({
+        chart: chartRef, reuse_values: reuseValues, values: helmValues(values),
+      }));
+      const dryRunData = helmActionData(result) as DryRunUpgradeData | undefined;
       setDryRunManifest(dryRunData?.manifest ?? 'No manifest generated');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Dry run failed';
@@ -96,18 +90,12 @@ const UpgradeDialog: React.FC<Props> = ({
 
   const handleUpgrade = async () => {
     try {
-      await executeAction({
-        actionID: 'upgrade',
-        id: releaseName,
-        namespace,
-        params: {
-          chart: chartRef,
-          reuse_values: reuseValues,
-        },
-      });
+      await runAction('upgrade', jsonToValue({
+        chart: chartRef, reuse_values: reuseValues, values: helmValues(values),
+      }));
       onClose();
-    } catch {
-      // Error handling is done by the runtime
+    } catch (error: unknown) {
+      setDryRunManifest(`Error: ${error instanceof Error ? error.message : 'Upgrade failed'}`);
     }
   };
 

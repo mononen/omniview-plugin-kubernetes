@@ -1,5 +1,6 @@
 import { IconButton } from '@omniviewdev/base-ui';
-import { useResources, useResourceMetrics } from '@omniviewdev/runtime';
+import { useResourceMetrics } from '@omniviewdev/runtime';
+import { useKubernetesResources } from '../../hooks/useKubernetesResources';
 import type { metric, types  } from '@omniviewdev/runtime/models';
 import type { Pod, Event as K8sEvent } from 'kubernetes-types/core/v1';
 import React from 'react';
@@ -13,6 +14,8 @@ import NamedAvatar from '../shared/NamedAvatar';
 import SimpleTooltip from '../shared/SimpleTooltip';
 
 import styles from './ConnectedClusterCard.module.css';
+import { CollectionStatus } from '../shared/CollectionStatus';
+import { metricQueryParams } from '../../utils/metricParams';
 
 
 const METRIC_IDS = [
@@ -71,72 +74,34 @@ const ConnectedClusterCard: React.FC<Props> = ({
   const avatar = override?.avatar ?? conn?.avatar;
   const avatarColor = override?.avatarColor;
 
-  const { resources: podsQuery } = useResources({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'core::v1::Pod',
-    idAccessor: 'metadata.uid',
-  });
-
-  const { resources: eventsQuery } = useResources({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'core::v1::Event',
-    idAccessor: 'metadata.uid',
-  });
-
-  const { resources: nodesQuery } = useResources({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'core::v1::Node',
-    idAccessor: 'metadata.uid',
-  });
-
-  const { resources: deploymentsQuery } = useResources({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'apps::v1::Deployment',
-    idAccessor: 'metadata.uid',
-  });
-
-  const metricConfig = override?.metricConfig;
-
-  const resourceData = React.useMemo(() => {
-    if (!metricConfig?.prometheusService && !metricConfig?.prometheusNamespace && !metricConfig?.prometheusPort) {
-      return {};
-    }
-    return {
-      __metric_config__: {
-        service: metricConfig.prometheusService ?? '',
-        namespace: metricConfig.prometheusNamespace ?? '',
-        port: metricConfig.prometheusPort ?? 0,
-      },
-    };
-  }, [metricConfig]);
+  const podsQuery = useKubernetesResources<Pod>({ connectionID, resourceType: 'k8s:/pods' });
+  const eventsQuery = useKubernetesResources<K8sEvent>({ connectionID, resourceType: 'k8s:/events' });
+  const nodesQuery = useKubernetesResources({ connectionID, resourceType: 'k8s:/nodes' });
+  const deploymentsQuery = useKubernetesResources({ connectionID, resourceType: 'k8s:apps/deployments' });
 
   const { data: metricsData, providers } = useResourceMetrics({
     pluginID: PLUGIN_ID,
     connectionID,
     resourceKey: 'cluster::metrics',
     resourceID: '',
-    resourceData,
+    params: metricQueryParams(override?.metricConfig),
     shape: 0,
     metricIDs: METRIC_IDS,
     refreshInterval: 30_000,
   });
 
   const { failedCount, pendingCount, warningCount, podCount, nodeCount, deploymentCount } = React.useMemo(() => {
-    const pods = (podsQuery.data?.result ?? []) as Pod[];
-    const events = (eventsQuery.data?.result ?? []) as unknown as K8sEvent[];
+    const pods = podsQuery.bodies ?? [];
+    const events = eventsQuery.bodies ?? [];
     return {
       failedCount: pods.filter((p) => p.status?.phase === 'Failed').length,
       pendingCount: pods.filter((p) => p.status?.phase === 'Pending').length,
       warningCount: events.filter((e) => e.type === 'Warning').length,
       podCount: pods.length,
-      nodeCount: (nodesQuery.data?.result ?? []).length,
-      deploymentCount: (deploymentsQuery.data?.result ?? []).length,
+      nodeCount: (nodesQuery.bodies ?? []).length,
+      deploymentCount: (deploymentsQuery.bodies ?? []).length,
     };
-  }, [podsQuery.data, eventsQuery.data, nodesQuery.data, deploymentsQuery.data]);
+  }, [podsQuery.bodies, eventsQuery.bodies, nodesQuery.bodies, deploymentsQuery.bodies]);
 
   const values = React.useMemo(() => extractCurrentValues(metricsData), [metricsData]);
   const hasMetrics = providers.length > 0 && values.size > 0;
@@ -145,25 +110,19 @@ const ConnectedClusterCard: React.FC<Props> = ({
 
   const hasIssues = hasErrors || failedCount > 0 || pendingCount > 0 || warningCount > 0;
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onClick();
-    }
-  };
-
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={handleKeyDown}
-      className={styles.Card}
-    >
+    <div className={styles.Card}>
+      <button
+        type="button"
+        aria-label={`Open ${displayName}`}
+        onClick={onClick}
+        style={openButtonStyle}
+      />
       {/* Disconnect button — top right */}
       <SimpleTooltip content="Disconnect">
         <IconButton
           className={styles.DisconnectButton}
+          style={disconnectButtonStyle}
           size="xs"
           variant="ghost"
           color="neutral"
@@ -212,7 +171,7 @@ const ConnectedClusterCard: React.FC<Props> = ({
                 )}
               </>
             ) : (
-              <StatLine icon={null} label="Healthy" color="var(--ov-color-success)" />
+              <StatLine icon={null} label="No issues observed" color="var(--ov-color-success)" />
             )}
           </div>
 
@@ -230,6 +189,12 @@ const ConnectedClusterCard: React.FC<Props> = ({
           <CountBadge icon={<LuServer size={11} />} count={nodeCount} />
           <CountBadge icon={<LuLayers size={11} />} count={deploymentCount} />
         </div>
+        <div style={requestStatusStyle}>
+          <CollectionStatus {...podsQuery} label="Pods" />
+          <CollectionStatus {...nodesQuery} label="Nodes" />
+          <CollectionStatus {...eventsQuery} label="Events" />
+          <CollectionStatus {...deploymentsQuery} label="Deployments" />
+        </div>
       </div>
     </div>
   );
@@ -237,6 +202,17 @@ const ConnectedClusterCard: React.FC<Props> = ({
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
+const openButtonStyle: React.CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  zIndex: 1,
+  border: 0,
+  borderRadius: 'inherit',
+  background: 'transparent',
+  cursor: 'pointer',
+};
+const disconnectButtonStyle: React.CSSProperties = { zIndex: 2 };
+const requestStatusStyle: React.CSSProperties = { position: 'relative', zIndex: 2 };
 const avatarColumnStyle: React.CSSProperties = { flexShrink: 0, display: 'flex', alignItems: 'center' };
 const avatarImageStyle: React.CSSProperties = { width: 52, height: 52, borderRadius: 8, objectFit: 'cover' };
 const rightColumnStyle: React.CSSProperties = {

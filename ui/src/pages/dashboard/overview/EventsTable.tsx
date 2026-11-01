@@ -1,10 +1,11 @@
 import { Chip, SearchInput, Spinner, Stack, Text } from '@omniviewdev/base-ui';
-import { useRightDrawer } from '@omniviewdev/runtime';
-import React, { useState, useMemo, useDeferredValue, useCallback } from 'react';
+import { useRightDrawer, useSnackbar } from '@omniviewdev/runtime';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import React, { useState, useMemo, useDeferredValue, useCallback, useRef, useLayoutEffect } from 'react';
 
 import { PLUGIN_ID } from '@/pluginId';
-
 import { formatTimeDifference } from '../../../utils/time';
+import { resolveKubernetesReference } from '../../../utils/kubernetesReference';
 
 import styles from './EventsTable.module.css';
 
@@ -34,7 +35,7 @@ const toolbarStyle: React.CSSProperties = {
 };
 
 // Rows truncate rather than scroll sideways; only the list scrolls vertically.
-const eventListStyle: React.CSSProperties = { flex: 1, minHeight: 0, overflowX: 'hidden', overflowY: 'auto' };
+const eventListStyle: React.CSSProperties = { flex: 1, minHeight: 0, overflowX: 'hidden', overflowY: 'auto', overflowAnchor: 'none' };
 
 const emptyStateStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBlock: 32 };
 
@@ -72,6 +73,7 @@ type KubeEvent = {
 };
 
 type DedupedEvent = {
+  key: string;
   type: string;
   kind: string;
   name: string;
@@ -89,6 +91,7 @@ type Props = {
   events: KubeEvent[];
   loading?: boolean;
   connectionID: string;
+  namespaceScope?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -96,27 +99,27 @@ type Props = {
 // ---------------------------------------------------------------------------
 
 const KIND_TO_KEY: Record<string, string> = {
-  Pod: 'core::v1::Pod',
-  Node: 'core::v1::Node',
-  Service: 'core::v1::Service',
-  Deployment: 'apps::v1::Deployment',
-  StatefulSet: 'apps::v1::StatefulSet',
-  DaemonSet: 'apps::v1::DaemonSet',
-  ReplicaSet: 'apps::v1::ReplicaSet',
-  Job: 'batch::v1::Job',
-  CronJob: 'batch::v1::CronJob',
-  ConfigMap: 'core::v1::ConfigMap',
-  Secret: 'core::v1::Secret',
-  Ingress: 'networking.k8s.io::v1::Ingress',
-  PersistentVolumeClaim: 'core::v1::PersistentVolumeClaim',
-  PersistentVolume: 'core::v1::PersistentVolume',
-  Namespace: 'core::v1::Namespace',
-  ServiceAccount: 'core::v1::ServiceAccount',
-  Endpoints: 'core::v1::Endpoints',
-  ReplicationController: 'core::v1::ReplicationController',
-  HorizontalPodAutoscaler: 'autoscaling::v1::HorizontalPodAutoscaler',
-  Lease: 'coordination.k8s.io::v1::Lease',
-  EndpointSlice: 'discovery.k8s.io::v1::EndpointSlice',
+  Pod: 'k8s:/pods',
+  Node: 'k8s:/nodes',
+  Service: 'k8s:/services',
+  Deployment: 'k8s:apps/deployments',
+  StatefulSet: 'k8s:apps/statefulsets',
+  DaemonSet: 'k8s:apps/daemonsets',
+  ReplicaSet: 'k8s:apps/replicasets',
+  Job: 'k8s:batch/jobs',
+  CronJob: 'k8s:batch/cronjobs',
+  ConfigMap: 'k8s:/configmaps',
+  Secret: 'k8s:/secrets',
+  Ingress: 'k8s:networking.k8s.io/ingresses',
+  PersistentVolumeClaim: 'k8s:/persistentvolumeclaims',
+  PersistentVolume: 'k8s:/persistentvolumes',
+  Namespace: 'k8s:/namespaces',
+  ServiceAccount: 'k8s:/serviceaccounts',
+  Endpoints: 'k8s:/endpoints',
+  ReplicationController: 'k8s:/replicationcontrollers',
+  HorizontalPodAutoscaler: 'k8s:autoscaling/horizontalpodautoscalers',
+  Lease: 'k8s:coordination.k8s.io/leases',
+  EndpointSlice: 'k8s:discovery.k8s.io/endpointslices',
 };
 
 // ---------------------------------------------------------------------------
@@ -169,6 +172,7 @@ function deduplicateEvents(events: KubeEvent[]): DedupedEvent[] {
       }
     } else {
       map.set(key, {
+        key,
         type: ev.type ?? 'Normal',
         kind,
         name,
@@ -252,11 +256,12 @@ EventRow.displayName = 'EventRow';
 // EventsTable
 // ---------------------------------------------------------------------------
 
-const EventsTable: React.FC<Props> = ({ events, loading, connectionID }) => {
+const EventsTable: React.FC<Props> = ({ events, loading, connectionID, namespaceScope }) => {
   const [filter, setFilter] = useState<EventFilter>('all');
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search);
   const { showResourceSidebar } = useRightDrawer();
+  const snackbar = useSnackbar();
 
   const deduped = useMemo(() => deduplicateEvents(events), [events]);
 
@@ -284,20 +289,83 @@ const EventsTable: React.FC<Props> = ({ events, loading, connectionID }) => {
     return result;
   }, [deduped, filter, deferredSearch]);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const getItemKey = useCallback(
+    (index: number) => JSON.stringify([connectionID, filtered[index].key]),
+    [connectionID, filtered],
+  );
+  const virtualizer = useVirtualizer({
+    count: loading ? 0 : filtered.length,
+    getScrollElement: () => scrollRef.current,
+    getItemKey,
+    estimateSize: () => 58,
+    overscan: 6,
+  });
+
+  const measureMountedRows = useCallback(() => {
+    const list = listRef.current;
+    if (!list) return;
+    for (const row of list.children) {
+      if (row instanceof HTMLDivElement) virtualizer.measureElement(row);
+    }
+  }, [virtualizer]);
+
+  // Reused keyed rows can move without remounting or changing their height.
+  useLayoutEffect(() => {
+    measureMountedRows();
+  }, [filtered, loading, measureMountedRows]);
+
+  // A new query must expose its first match, even when the old list was scrolled.
+  useLayoutEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [filter, deferredSearch, connectionID, namespaceScope]);
+
+  // Width changes invalidate estimates for offscreen rows as well as visible rows.
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    let width = element.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (element.clientWidth === width) return;
+      width = element.clientWidth;
+      virtualizer.measure();
+      // Unchanged-height rows do not emit another ResizeObserver notification.
+      // Repopulate their cleared measurements from the bounded mounted range.
+      measureMountedRows();
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [loading, virtualizer, measureMountedRows]);
+
+  // Resource removal can leave an old offset past the end of the new list.
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const maxOffset = Math.max(0, virtualizer.getTotalSize() - element.clientHeight);
+    if (element.scrollTop > maxOffset) element.scrollTop = maxOffset;
+  }, [filtered, loading, virtualizer]);
+
   const handleObjectClick = useCallback(
     (event: DedupedEvent) => {
-      const resourceKey = KIND_TO_KEY[event.kind];
-      if (!resourceKey || !connectionID) return;
-
-      showResourceSidebar({
-        pluginID: PLUGIN_ID,
+      const resourceType = KIND_TO_KEY[event.kind];
+      if (!resourceType || !connectionID) return;
+      resolveKubernetesReference({
         connectionID,
-        resourceKey,
-        resourceID: event.name,
+        resourceType,
+        name: event.name,
         namespace: event.namespace || undefined,
+      }).then(async (resolved) => {
+        await showResourceSidebar({ ...resolved, pluginID: PLUGIN_ID, resourceName: event.name });
+      }).catch((error: unknown) => {
+        snackbar.showSnackbar({
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Unable to open resource',
+          icon: 'LuCircleAlert',
+        });
       });
     },
-    [connectionID, showResourceSidebar],
+    [connectionID, showResourceSidebar, snackbar],
   );
 
   if (loading) {
@@ -338,7 +406,7 @@ const EventsTable: React.FC<Props> = ({ events, loading, connectionID }) => {
           size="sm"
           placeholder="Search events..."
           aria-label="Search events"
-          // eslint-disable-next-line jsx-a11y/no-autofocus
+          // eslint-disable-next-line jsx-a11y-x/no-autofocus
           autoFocus
           value={search}
           onValueChange={setSearch}
@@ -347,7 +415,9 @@ const EventsTable: React.FC<Props> = ({ events, loading, connectionID }) => {
       </Stack>
 
       {/* Event list */}
-      <div style={eventListStyle}>
+      {/* Native keyboard scrolling needs a focusable region; the list itself is not a widget. */}
+      {/* eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex */}
+      <div ref={scrollRef} style={eventListStyle} role="region" aria-label="Scrollable events" tabIndex={0}>
         {filtered.length === 0 ? (
           <div style={emptyStateStyle}>
             <Text size="sm" tone="subtle">
@@ -355,13 +425,23 @@ const EventsTable: React.FC<Props> = ({ events, loading, connectionID }) => {
             </Text>
           </div>
         ) : (
-          filtered.map((event) => (
-            <EventRow
-              key={`${event.kind}/${event.namespace}/${event.name}::${event.reason}`}
-              event={event}
-              onObjectClick={handleObjectClick}
-            />
-          ))
+          <div ref={listRef} role="list" aria-label="Events" className={styles.virtualList} style={{ height: virtualizer.getTotalSize() }}>
+            {virtualizer.getVirtualItems().map((item) => (
+              <div
+                key={item.key}
+                ref={virtualizer.measureElement}
+                data-index={item.index}
+                data-last={item.index === filtered.length - 1}
+                role="listitem"
+                aria-setsize={filtered.length}
+                aria-posinset={item.index + 1}
+                className={styles.virtualRow}
+                style={{ transform: `translateY(${item.start}px)` }}
+              >
+                <EventRow event={filtered[item.index]} onObjectClick={handleObjectClick} />
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </Stack>

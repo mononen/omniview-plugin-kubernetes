@@ -1,4 +1,4 @@
-.PHONY: prepare generate build build-ui update lint install package storybook storybook-build
+.PHONY: build build-ui update lint install package storybook storybook-build
 
 # Every Go subprocess uses this module, never an enclosing go.work or GOFLAGS.
 override export GOWORK := off
@@ -10,14 +10,6 @@ STORYBOOK_HOST ?= 127.0.0.1
 # Extract version from git tag
 VERSION := $(shell git describe --tags --abbrev=0 | sed 's/^v//')
 PLATFORMS := linux/amd64 windows/amd64 darwin/amd64 darwin/arm64
-
-prepare:
-	pip install openapi2jsonschema
-
-generate:
-	cd generators && go run .
-	go mod tidy
-	golangci-lint run --fix ./pkg/plugin/resource/register_gen.go
 
 build:
 	rm -rf bin && rm -f kubernetes.tar.gz

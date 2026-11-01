@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -6,7 +7,7 @@ import { Job } from 'kubernetes-types/batch/v1';
 import { Condition, OwnerReference } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuClock } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -19,17 +20,17 @@ import { ownerRefFilter } from '../../shared/filters';
 import { drawerActions } from './actions';
 import JobSidebar from './Sidebar';
 
-const resourceKey = 'batch::v1::Job';
+const resourceKey = 'k8s:batch/jobs';
 
 const ownerRefKeyMap: Record<string, string> = {
-  CronJob: 'batch::v1::CronJob',
+  CronJob: 'k8s:batch/cronjobs',
 };
 
 const JobTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<Job>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, Job>>>(
     () =>
       withNamespacedResourceColumns(
         [
@@ -160,7 +161,7 @@ This field is beta-level. It can be used when the \`JobPodFailurePolicy\` featur
             id: 'controlledBy',
             header: 'Controlled By',
             accessorKey: 'metadata.ownerReferences',
-            filterFn: ownerRefFilter as FilterFn<Job>,
+            filterFn: ownerRefFilter as FilterFn<DataTableFeatures, Job>,
             size: 150,
             cell: ({ getValue }) => {
               const refs = getValue() as Array<OwnerReference> | undefined;
@@ -216,7 +217,6 @@ This field is beta-level. It can be used when the \`JobPodFailurePolicy\` featur
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
       toolbarFilters={[
         { columnId: 'controlledBy', placeholder: 'All Controllers', accessor: (r: Job) => r?.metadata?.ownerReferences?.[0]?.name },

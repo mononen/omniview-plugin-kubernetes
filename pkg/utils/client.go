@@ -28,5 +28,5 @@ func KubeClientsFromContext(ctx *types.PluginContext) (*kubeauth.KubeClientBundl
 	// 	ctx.Connection.ID,
 	// )
 
-	return kubeauth.LoadKubeClients(kubeconfigPath, ctx.Connection.ID)
+	return kubeauth.LoadKubeClients(ctx.Context, kubeconfigPath, ctx.Connection.ID)
 }

@@ -1,10 +1,13 @@
 import React from 'react';
-import type { SearchActionReferenceV1, SearchExecutionContextV1, SearchProviderItemV1, SearchScopeV1 } from '@omniviewdev/runtime';
+import { valueToJSON, type SearchActionReferenceV1, type SearchExecutionContextV1, type SearchProviderItemV1, type SearchScopeV1 } from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
-import { PLUGIN_ID } from '@/pluginId';
-import { useDrawerActionExecution } from '../shared/drawer/DrawerActionsBridge';
+
 import type { DrawerActionDeps } from '../shared/drawer/actionDeps';
+import { useDrawerActionExecution } from '../shared/drawer/DrawerActionsBridge';
+
 import { executeKubernetesAction, resolveKubernetesActions, type KubernetesActionTarget } from './resourceActions';
+
+import { PLUGIN_ID } from '@/pluginId';
 
 type ResourceScope = Extract<SearchScopeV1, { kind: 'resource' }>;
 type ContextTarget = { connectionID: string; resourceKey: string };
@@ -15,12 +18,12 @@ const keyOf = (target: ContextTarget) => JSON.stringify([target.connectionID, ta
 const abortError = () => new DOMException('Kubernetes action request cancelled', 'AbortError');
 let discovered: { scope: string; ids: Set<string> } | undefined;
 
-async function freshTarget(scope: ResourceScope, signal: AbortSignal): Promise<KubernetesActionTarget> {
+export async function freshTarget(scope: ResourceScope, signal: AbortSignal): Promise<KubernetesActionTarget> {
   if (scope.pluginId !== PLUGIN_ID) throw new Error('Kubernetes action target belongs to another plugin');
   if (signal.aborted) throw abortError();
-  const request = ResourceClient.Get(PLUGIN_ID, scope.connectionId, scope.resourceKey, {
-    id: scope.resourceId, namespace: scope.namespace,
-  });
+  const request = ResourceClient.Get(PLUGIN_ID, { targetId: scope.targetId, request: {
+    reference: scope.reference, route: scope.route, representation: scope.representation,
+  } });
   const cancel = () => { void request.cancel?.(); };
   signal.addEventListener('abort', cancel, { once: true });
   let result;
@@ -30,23 +33,35 @@ async function freshTarget(scope: ResourceScope, signal: AbortSignal): Promise<K
     signal.removeEventListener('abort', cancel);
   }
   if (signal.aborted) throw abortError();
-  if (!result?.success || !result.result || typeof result.result !== 'object') {
-    throw new Error('Kubernetes resource is no longer available');
+  const expected = scope.reference.address;
+  const actual = result.record.reference.address;
+  if (result.targetId !== scope.targetId || result.route.connection !== scope.route.connection
+    || result.record.representation.id !== scope.representation
+    || actual.provider !== expected.provider || actual.authority !== expected.authority
+    || actual.type !== expected.type || actual.id !== expected.id
+    || actual.scope.length !== expected.scope.length
+    || !expected.scope.every(entry => actual.scope.some(candidate => candidate.dimension === entry.dimension && candidate.value === entry.value))
+    || (scope.reference.incarnation !== undefined && result.record.reference.incarnation !== scope.reference.incarnation)) {
+    throw new Error('Kubernetes action target identity no longer matches the resource');
   }
-  return targetFromData(scope, result.result);
+  const target = targetFromData(scope, valueToJSON(result.record.body));
+  target.resource = { ...target.resource, key: result.key, record: result };
+  return target;
 }
 
 function targetFromData(scope: ResourceScope, data: unknown): KubernetesActionTarget {
   if (!data || typeof data !== 'object') throw new Error('Kubernetes resource is no longer available');
   const metadata = (data as KubernetesActionTarget['data']).metadata;
-  if (!scope.connectionId || !scope.resourceId || !metadata || metadata.name !== scope.resourceId
-    || (metadata.namespace ?? '') !== scope.namespace
-    || (scope.uid !== undefined && metadata.uid !== scope.uid)) {
+  const namespace = scope.reference.address.scope.find(entry => entry.dimension === 'namespace')?.value ?? '';
+  if (!scope.route.connection || !scope.reference.address.id || !metadata || metadata.name !== scope.reference.address.id
+    || (metadata.namespace ?? '') !== namespace
+    || (scope.reference.incarnation !== undefined && metadata.uid !== scope.reference.incarnation)) {
     throw new Error('Kubernetes action target identity no longer matches the resource');
   }
   return {
-    pluginID: PLUGIN_ID, connectionID: scope.connectionId, resourceKey: scope.resourceKey,
-    resourceID: scope.resourceId, namespace: scope.namespace, uid: scope.uid,
+    pluginID: PLUGIN_ID,
+    resource: { pluginID: PLUGIN_ID, reference: scope.reference, route: scope.route,
+      representation: scope.representation, targetId: scope.targetId, name: scope.label },
     data: data as KubernetesActionTarget['data'],
   };
 }
@@ -55,7 +70,7 @@ async function prepare(scope: ResourceScope, signal: AbortSignal) {
   const resolver = resolveContext;
   if (!resolver) throw new Error('Kubernetes search action context is unavailable');
   const target = await freshTarget(scope, signal);
-  const deps = await resolver({ connectionID: scope.connectionId, resourceKey: scope.resourceKey }, signal);
+  const deps = await resolver({ connectionID: scope.route.connection, resourceKey: scope.reference.address.type }, signal);
   if (signal.aborted || resolver !== resolveContext) throw abortError();
   return { target, deps };
 }
@@ -69,7 +84,8 @@ export async function searchActions(scope: ResourceScope, signal: AbortSignal, d
     const choices = descriptor.items ?? (descriptor.execute ? [descriptor] : []);
     return choices.map((choice) => ({
       id: choice.id,
-      label: descriptor.items ? `${descriptor.title}: ${choice.title}` : descriptor.title,
+      label: descriptor.items && !(descriptor.execute && descriptor.items.length === 1)
+        ? `${descriptor.title}: ${choice.title}` : descriptor.title,
       value: { schemaVersion: 1 as const, kind: 'action' as const, scope, action: { id: choice.id, target: scope } },
     }));
   });
@@ -77,7 +93,7 @@ export async function searchActions(scope: ResourceScope, signal: AbortSignal, d
   return items;
 }
 
-export async function validateSearchAction(action: SearchActionReferenceV1, context: SearchExecutionContextV1): Promise<boolean> {
+export function validateSearchAction(action: SearchActionReferenceV1, context: SearchExecutionContextV1): boolean {
   if (action.target.kind !== 'resource' || action.target.pluginId !== PLUGIN_ID) return false;
   context.signal.throwIfAborted();
   return Boolean(resolveContext && discovered?.scope === JSON.stringify(action.target) && discovered.ids.has(action.id));
@@ -98,36 +114,42 @@ export async function executeSearchAction(action: SearchActionReferenceV1, conte
   }
 }
 
-type Registration = { key: string; deps: DrawerActionDeps; busy: boolean };
+type Registration = { key: string; deps: DrawerActionDeps; ready: boolean; busy: boolean };
 
 function ActionContext({ target, register }: {
   target: ContextTarget;
   register: (value?: Registration) => void;
 }) {
-  const { deps, dialogs, isBusy } = useDrawerActionExecution(target);
+  const { deps, dialogs, isReady, isBusy } = useDrawerActionExecution(target);
   const latest = React.useRef(deps);
+  const latestReady = React.useRef(isReady);
   React.useLayoutEffect(() => {
     latest.current = deps;
-  }, [deps]);
+    latestReady.current = isReady;
+  }, [deps, isReady]);
   const stable = React.useMemo<DrawerActionDeps>(() => ({
     show: (...args) => latest.current.show(...args),
-    remove: (...args) => latest.current.remove(...args),
-    update: (...args) => latest.current.update(...args),
+    mutate: (...args) => latest.current.mutate(...args),
     createLogSession: (...args) => latest.current.createLogSession(...args),
     createExecSession: (...args) => latest.current.createExecSession(...args),
     executeAction: (...args) => latest.current.executeAction(...args),
     startStreamAction: (...args) => latest.current.startStreamAction(...args),
+    startDebug: (...args) => latest.current.startDebug(...args),
+    openDebugOptions: (...args) => {
+      register({ key: keyOf(target), deps: stable, ready: latestReady.current, busy: true });
+      latest.current.openDebugOptions(...args);
+    },
     closeDrawer: () => latest.current.closeDrawer(),
     openScale: (value) => {
-      register({ key: keyOf(target), deps: stable, busy: true });
+      register({ key: keyOf(target), deps: stable, ready: latestReady.current, busy: true });
       latest.current.openScale(value);
     },
     get nodeShellConfig() { return latest.current.nodeShellConfig; },
   }), [target, register]);
   React.useEffect(() => {
-    register({ key: keyOf(target), deps: stable, busy: Boolean(isBusy) });
+    register({ key: keyOf(target), deps: stable, ready: isReady, busy: Boolean(isBusy) });
     return () => register();
-  }, [target, stable, isBusy, register]);
+  }, [target, stable, isReady, isBusy, register]);
   return dialogs;
 }
 
@@ -138,7 +160,7 @@ export default function KubernetesSearchActionContext() {
   const pending = React.useRef<{ key: string; finish: (deps?: DrawerActionDeps) => void } | undefined>(undefined);
   const register = React.useCallback((value?: Registration) => {
     current.current = value;
-    if (value && pending.current?.key === value.key) {
+    if (value?.ready && pending.current?.key === value.key) {
       const finish = pending.current.finish;
       pending.current = undefined;
       finish(value.deps);
@@ -151,8 +173,8 @@ export default function KubernetesSearchActionContext() {
         return Promise.reject(new Error('Finish the current Kubernetes action before starting another'));
       }
       const key = keyOf(next);
-      if (current.current?.key === key) return Promise.resolve(current.current.deps);
-      return new Promise((resolve, reject) => {
+      if (current.current?.key === key && current.current.ready) return Promise.resolve(current.current.deps);
+      return new Promise<DrawerActionDeps>((resolve, reject) => {
         const finish = (deps?: DrawerActionDeps) => {
           signal.removeEventListener('abort', abort);
           if (deps) resolve(deps);

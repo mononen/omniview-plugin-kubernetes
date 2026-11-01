@@ -2,9 +2,12 @@ package resourcers
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
+	k8stesting "k8s.io/client-go/testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -12,22 +15,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 )
-
-func stsMeta() resource.ResourceMeta {
-	return resource.ResourceMeta{
-		Group:   "apps",
-		Version: "v1",
-		Kind:    "StatefulSet",
-	}
-}
 
 func TestStatefulSetResourcer_ResolveRelationships(t *testing.T) {
 	replicas := int32(2)
@@ -77,43 +70,52 @@ func TestStatefulSetResourcer_ResolveRelationships(t *testing.T) {
 
 	fakeKube := fake.NewSimpleClientset(sts, pod)
 	fakeDynamic := dynamicfake.NewSimpleDynamicClient(scheme, sts)
-	factory := dynamicinformer.NewDynamicSharedInformerFactory(fakeDynamic, 0)
 
 	cs := &clients.ClientSet{
-		KubeClient:             fakeKube,
-		DynamicClient:          fakeDynamic,
-		DynamicInformerFactory: factory,
+		KubeClient:    fakeKube,
+		DynamicClient: fakeDynamic,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
-	factory.ForResource(gvr).Informer()
-	factory.Start(ctx.Done())
-	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
-	resourcer := NewStatefulSetResourcer(logger, WithRelationships(RelationshipTable()["apps::v1::StatefulSet"]))
+	resourcer := NewStatefulSetResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/statefulsets"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, stsMeta(), "my-sts", "default")
+	request := relationshipRequest(workloadGetRequest("my-sts", "default"), "k8s:/pods", "k8s:/persistentvolumeclaims", "k8s:/configmaps")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, request)
 	require.NoError(t, err)
 	require.Len(t, rels, 3) // Pod, PVC, ConfigMap
 
 	// Pod
-	assert.Equal(t, "core::v1::Pod", rels[0].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/pods", rels[0].Descriptor.TargetType)
 	require.Len(t, rels[0].Targets, 1)
-	assert.Equal(t, "my-sts-0", rels[0].Targets[0].ID)
+	assert.Equal(t, "my-sts-0", rels[0].Targets[0].Reference.Address.ID)
+	assert.Equal(t, request.Targets[0].Authority, rels[0].Targets[0].Reference.Address.Authority)
+	assert.NotEqual(t, request.Source.Reference.Address.Authority, rels[0].Targets[0].Reference.Address.Authority)
 
 	// PVC — names follow <template>-<sts>-<ordinal> pattern
-	assert.Equal(t, "core::v1::PersistentVolumeClaim", rels[1].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/persistentvolumeclaims", rels[1].Descriptor.TargetType)
 	require.Len(t, rels[1].Targets, 2)
-	assert.Equal(t, "data-my-sts-0", rels[1].Targets[0].ID)
-	assert.Equal(t, "data-my-sts-1", rels[1].Targets[1].ID)
+	assert.Equal(t, "data-my-sts-0", rels[1].Targets[0].Reference.Address.ID)
+	assert.Equal(t, "data-my-sts-1", rels[1].Targets[1].Reference.Address.ID)
 
 	// ConfigMap
-	assert.Equal(t, "core::v1::ConfigMap", rels[2].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/configmaps", rels[2].Descriptor.TargetType)
 	require.Len(t, rels[2].Targets, 1)
-	assert.Equal(t, "db-config", rels[2].Targets[0].ID)
+	assert.Equal(t, "db-config", rels[2].Targets[0].Reference.Address.ID)
+
+	request.Targets = nil
+	rels, err = resourcer.ResolveRelationships(ctx, cs, request)
+	assert.Empty(t, rels)
+	assert.Equal(t, "UNSUPPORTED", resource.ErrorCode(err))
+
+	fakeKube.PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("pod list denied")
+	})
+	rels, err = resourcer.ResolveRelationships(ctx, cs, request)
+	assert.Empty(t, rels)
+	require.ErrorContains(t, err, "pod list denied")
 }
 
 func TestStatefulSetResourcer_ResolveRelationships_Empty(t *testing.T) {
@@ -144,25 +146,19 @@ func TestStatefulSetResourcer_ResolveRelationships_Empty(t *testing.T) {
 
 	fakeKube := fake.NewSimpleClientset(sts)
 	fakeDynamic := dynamicfake.NewSimpleDynamicClient(scheme, sts)
-	factory := dynamicinformer.NewDynamicSharedInformerFactory(fakeDynamic, 0)
 
 	cs := &clients.ClientSet{
-		KubeClient:             fakeKube,
-		DynamicClient:          fakeDynamic,
-		DynamicInformerFactory: factory,
+		KubeClient:    fakeKube,
+		DynamicClient: fakeDynamic,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
-	factory.ForResource(gvr).Informer()
-	factory.Start(ctx.Done())
-	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
-	resourcer := NewStatefulSetResourcer(logger, WithRelationships(RelationshipTable()["apps::v1::StatefulSet"]))
+	resourcer := NewStatefulSetResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/statefulsets"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, stsMeta(), "bare-sts", "default")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, relationshipRequest(workloadGetRequest("bare-sts", "default"), "k8s:/pods"))
 	require.NoError(t, err)
 	assert.Empty(t, rels)
 }

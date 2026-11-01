@@ -11,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
 // ====================== POD HEALTH ====================== //
@@ -21,9 +21,11 @@ func TestPodHealth_Running(t *testing.T) {
 	pod := corev1.Pod{
 		Status: corev1.PodStatus{Phase: corev1.PodRunning},
 	}
-	data, _ := json.Marshal(pod)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthHealthy, health.Status)
 	assert.Equal(t, "Running", health.Reason)
@@ -34,9 +36,11 @@ func TestPodHealth_Succeeded(t *testing.T) {
 	pod := corev1.Pod{
 		Status: corev1.PodStatus{Phase: corev1.PodSucceeded},
 	}
-	data, _ := json.Marshal(pod)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthHealthy, health.Status)
 	assert.Equal(t, "Succeeded", health.Reason)
@@ -47,9 +51,11 @@ func TestPodHealth_Pending(t *testing.T) {
 	pod := corev1.Pod{
 		Status: corev1.PodStatus{Phase: corev1.PodPending},
 	}
-	data, _ := json.Marshal(pod)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthPending, health.Status)
 	assert.Equal(t, "Pending", health.Reason)
@@ -63,9 +69,11 @@ func TestPodHealth_Failed(t *testing.T) {
 			Message: "OOMKilled",
 		},
 	}
-	data, _ := json.Marshal(pod)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthUnhealthy, health.Status)
 	assert.Equal(t, "Failed", health.Reason)
@@ -87,9 +95,11 @@ func TestPodHealth_CrashLoopBackOff(t *testing.T) {
 			},
 		},
 	}
-	data, _ := json.Marshal(pod)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthUnhealthy, health.Status)
 	assert.Equal(t, "CrashLoopBackOff", health.Reason)
@@ -114,9 +124,11 @@ func TestPodHealth_ImagePullBackOff(t *testing.T) {
 			},
 		},
 	}
-	data, _ := json.Marshal(pod)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthUnhealthy, health.Status)
 	assert.Equal(t, "ImagePullBackOff", health.Reason)
@@ -138,9 +150,11 @@ func TestPodHealth_HighRestarts(t *testing.T) {
 			},
 		},
 	}
-	data, _ := json.Marshal(pod)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthDegraded, health.Status)
 	assert.Equal(t, "HighRestarts", health.Reason)
@@ -162,9 +176,11 @@ func TestPodHealth_ContainerCreating(t *testing.T) {
 			},
 		},
 	}
-	data, _ := json.Marshal(pod)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthPending, health.Status)
 	assert.Equal(t, "ContainerCreating", health.Reason)
@@ -179,16 +195,18 @@ func TestPodHealth_StartTime(t *testing.T) {
 			StartTime: &now,
 		},
 	}
-	data, _ := json.Marshal(pod)
+	body, err := json.Marshal(pod)
+	require.NoError(t, err)
+	data := mustTestValue(t, body)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, data)
 	require.NoError(t, err)
 	assert.NotNil(t, health.Since)
 }
 
 func TestPodHealth_InvalidJSON(t *testing.T) {
 	r := NewPodResourcer(zap.NewNop().Sugar())
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, json.RawMessage(`{bad}`))
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, resource.Value{})
 	assert.Error(t, err)
 	assert.Nil(t, health)
 }
@@ -196,30 +214,30 @@ func TestPodHealth_InvalidJSON(t *testing.T) {
 // ====================== POD RELATIONSHIPS ====================== //
 
 func TestPodRelationships(t *testing.T) {
-	r := NewPodResourcer(zap.NewNop().Sugar(), WithRelationships(RelationshipTable()["core::v1::Pod"]))
+	r := NewPodResourcer(zap.NewNop().Sugar(), WithRelationships(RelationshipTable()["k8s:/pods"]))
 	rels := r.DeclareRelationships()
 	assert.Len(t, rels, 11)
 }
 
 func TestPodRelationships_Types(t *testing.T) {
-	r := NewPodResourcer(zap.NewNop().Sugar(), WithRelationships(RelationshipTable()["core::v1::Pod"]))
+	r := NewPodResourcer(zap.NewNop().Sugar(), WithRelationships(RelationshipTable()["k8s:/pods"]))
 	rels := r.DeclareRelationships()
 
 	// Verify all expected target keys are present.
 	expectedTargets := map[string]bool{
-		"apps::v1::ReplicaSet":            false,
-		"apps::v1::DaemonSet":             false,
-		"apps::v1::StatefulSet":           false,
-		"batch::v1::Job":                  false,
-		"core::v1::Node":                  false,
-		"core::v1::ServiceAccount":        false,
-		"core::v1::PersistentVolumeClaim": false,
-		"core::v1::ConfigMap":             false,
-		"core::v1::Secret":                false,
+		"k8s:apps/replicasets":        false,
+		"k8s:apps/daemonsets":         false,
+		"k8s:apps/statefulsets":       false,
+		"k8s:batch/jobs":              false,
+		"k8s:/nodes":                  false,
+		"k8s:/serviceaccounts":        false,
+		"k8s:/persistentvolumeclaims": false,
+		"k8s:/configmaps":             false,
+		"k8s:/secrets":                false,
 	}
 	for _, rel := range rels {
-		expectedTargets[rel.TargetResourceKey] = true
-		assert.NotNil(t, rel.Extractor, "extractor should be set for %s", rel.TargetResourceKey)
+		expectedTargets[rel.TargetType] = true
+		assert.NotNil(t, rel.Extractor, "extractor should be set for %s", rel.TargetType)
 		assert.Equal(t, "fieldPath", rel.Extractor.Method)
 		assert.NotEmpty(t, rel.Extractor.FieldPath)
 	}

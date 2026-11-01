@@ -19,11 +19,11 @@ export const EndpointsSidebar: React.FC<Props> = ({ ctx }) => {
   }
 
   const endpoints = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
-      <ObjectMetaSection data={endpoints.metadata} connectionID={ctx.resource?.connectionID} />
+      <ObjectMetaSection data={endpoints.metadata} connectionID={ctx.resource?.route.connection} />
       <EndpointSubsetsSection subsets={endpoints.subsets} connectionID={connectionID} />
     </Stack>
   );

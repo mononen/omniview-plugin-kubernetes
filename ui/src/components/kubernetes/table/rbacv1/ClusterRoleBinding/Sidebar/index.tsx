@@ -18,14 +18,14 @@ export const ClusterRoleBindingSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) return null;
 
   const crb = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
   const roleRef = crb.roleRef;
   const subjects = crb.subjects;
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={crb.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={crb.metadata} connectionID={ctx.resource?.route.connection} />
 
         {roleRef && (
           <SidebarSection title="Role Reference">
@@ -35,7 +35,7 @@ export const ClusterRoleBindingSidebar: React.FC<Props> = ({ ctx }) => {
                   <ResourceLinkChip
                     connectionID={connectionID}
                     resourceID={roleRef.name || ''}
-                    resourceKey="rbac::v1::ClusterRole"
+                    resourceKey="k8s:rbac.authorization.k8s.io/clusterroles"
                     resourceName={roleRef.name}
                   />
                 }
@@ -55,7 +55,7 @@ export const ClusterRoleBindingSidebar: React.FC<Props> = ({ ctx }) => {
                         connectionID={connectionID}
                         namespace={subj.namespace}
                         resourceID={subj.name || ''}
-                        resourceKey="core::v1::ServiceAccount"
+                        resourceKey="k8s:/serviceaccounts"
                         resourceName={subj.name}
                       />
                     ) : (

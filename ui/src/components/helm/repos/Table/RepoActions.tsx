@@ -10,7 +10,8 @@ import {
   Text,
   TextField,
 } from '@omniviewdev/base-ui';
-import { useExecuteAction } from '@omniviewdev/runtime';
+import { jsonToValue, useExecuteAction } from '@omniviewdev/runtime';
+import { ResourceClient } from '@omniviewdev/runtime/api';
 import React from 'react';
 import { LuCheck, LuPackage, LuChevronDown, LuChevronRight, LuLock } from 'react-icons/lu';
 import { SiHelm } from 'react-icons/si';
@@ -20,7 +21,7 @@ import { PLUGIN_ID } from '@/pluginId';
 import { stringToColor } from '../../../../utils/color';
 
 import styles from './RepoActions.module.css';
-import type { ChartEntry, DialogStep, ListChartsData } from './types';
+import { helmActionData } from '../../values';
 import {
   dialogStyle,
   validatingContainerStyle,
@@ -36,6 +37,7 @@ import {
   miniChartImgStyle,
   miniChartFallbackStyle,
 } from './styles';
+import type { ChartEntry, DialogStep, ListChartsData } from './types';
 
 const fullWidthStyle: React.CSSProperties = { width: '100%' };
 
@@ -176,11 +178,7 @@ const AddRepoDialog: React.FC<{
   const [charts, setCharts] = React.useState<ChartEntry[]>([]);
   const [chartFilter, setChartFilter] = React.useState('');
 
-  const { executeAction } = useExecuteAction({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'helm::v1::Repository',
-  });
+  const { executeAction } = useExecuteAction({ pluginID: PLUGIN_ID });
 
   const isOCI = url.trim().startsWith('oci://');
 
@@ -227,28 +225,33 @@ const AddRepoDialog: React.FC<{
     try {
       // Build params with auth fields.
       const params: Record<string, unknown> = {
-        name: trimmedName,
-        url: trimmedUrl,
+        name: trimmedName, url: trimmedUrl,
       };
       if (username) params.username = username;
       if (password) params.password = password;
       if (insecureSkipTLS) params.insecureSkipTLS = true;
       if (plainHTTP) params.plainHTTP = true;
 
+      const resolved = await ResourceClient.ResolveTarget(PLUGIN_ID, {
+        route: { connection: connectionID }, type: 'helm:repositories',
+        scope: [{ dimension: 'domain', match: 'oneOf', values: ['helm-client'] }],
+      });
+      const { provider, authority, type, scope, route } = resolved.target;
       await executeAction({
-        actionID: 'add',
-        id: trimmedName,
-        params,
+        route, typeTarget: { provider, authority, type, scope }, action: 'add', input: jsonToValue(params),
       });
 
       // For non-OCI repos, fetch the chart list for the success preview.
       if (!trimmedUrl.startsWith('oci://')) {
         try {
-          const listResult = await executeAction({
-            actionID: 'list-charts',
-            id: trimmedName,
+          const reference = await ResourceClient.ResolveReference(PLUGIN_ID, {
+            route, type: 'helm:repositories', id: trimmedName,
+            scope: [{ dimension: 'domain', value: 'helm-client' }],
           });
-          const chartsData = listResult?.data as ListChartsData | undefined;
+          const listResult = await executeAction({
+            route: reference.route, reference: reference.reference, action: 'list-charts', input: jsonToValue({}),
+          });
+          const chartsData = helmActionData(listResult) as ListChartsData | undefined;
           const loaded = chartsData?.charts ?? [];
           setCharts(loaded);
         } catch {

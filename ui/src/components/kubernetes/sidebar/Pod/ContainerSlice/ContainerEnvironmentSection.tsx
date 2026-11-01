@@ -35,7 +35,7 @@ function formatEnvEntry(
           connectionID && cmName !== '?' ? (
             <ResourceLinkChip
               connectionID={connectionID}
-              resourceKey="core::v1::ConfigMap"
+              resourceKey="k8s:/configmaps"
               resourceID={cmName}
               resourceName="ConfigMap"
               namespace={ns}
@@ -59,7 +59,7 @@ function formatEnvEntry(
           connectionID && secretName !== '?' ? (
             <ResourceLinkChip
               connectionID={connectionID}
-              resourceKey="core::v1::Secret"
+              resourceKey="k8s:/secrets"
               resourceID={secretName}
               resourceName="Secret"
               namespace={ns}

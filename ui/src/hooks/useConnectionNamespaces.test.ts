@@ -113,7 +113,7 @@ describe('useConnectionNamespaces', () => {
   describe('migration', () => {
     it('promotes namespace filter from per-resource column-filters', () => {
       localStorage.setItem(
-        'kubernetes-cluster-1-core::v1::Pod-column-filters',
+        'kubernetes-cluster-1-k8s:/pods-column-filters',
         JSON.stringify([{ id: 'namespace', value: ['default', 'kube-system'] }]),
       );
 
@@ -123,7 +123,7 @@ describe('useConnectionNamespaces', () => {
 
     it('strips namespace entry from per-resource column-filters after migration', () => {
       localStorage.setItem(
-        'kubernetes-cluster-1-core::v1::Pod-column-filters',
+        'kubernetes-cluster-1-k8s:/pods-column-filters',
         JSON.stringify([
           { id: 'namespace', value: ['default'] },
           { id: 'status', value: ['Running'] },
@@ -133,18 +133,18 @@ describe('useConnectionNamespaces', () => {
       renderHook(() => useConnectionNamespaces('cluster-1'));
 
       const filters = JSON.parse(
-        localStorage.getItem('kubernetes-cluster-1-core::v1::Pod-column-filters')!,
+        localStorage.getItem('kubernetes-cluster-1-k8s:/pods-column-filters')!,
       );
       expect(filters).toEqual([{ id: 'status', value: ['Running'] }]);
     });
 
     it('uses the largest namespace selection when multiple resources exist', () => {
       localStorage.setItem(
-        'kubernetes-cluster-1-core::v1::Pod-column-filters',
+        'kubernetes-cluster-1-k8s:/pods-column-filters',
         JSON.stringify([{ id: 'namespace', value: ['default'] }]),
       );
       localStorage.setItem(
-        'kubernetes-cluster-1-core::v1::Service-column-filters',
+        'kubernetes-cluster-1-k8s:/services-column-filters',
         JSON.stringify([{ id: 'namespace', value: ['default', 'kube-system', 'monitoring'] }]),
       );
 
@@ -155,7 +155,7 @@ describe('useConnectionNamespaces', () => {
     it('does not re-migrate after shared key already exists', () => {
       localStorage.setItem('kubernetes-cluster-1-namespaces', JSON.stringify(['existing']));
       localStorage.setItem(
-        'kubernetes-cluster-1-core::v1::Pod-column-filters',
+        'kubernetes-cluster-1-k8s:/pods-column-filters',
         JSON.stringify([{ id: 'namespace', value: ['default', 'kube-system'] }]),
       );
 
@@ -166,7 +166,7 @@ describe('useConnectionNamespaces', () => {
 
     it('handles per-resource keys with no namespace filter', () => {
       localStorage.setItem(
-        'kubernetes-cluster-1-core::v1::Pod-column-filters',
+        'kubernetes-cluster-1-k8s:/pods-column-filters',
         JSON.stringify([{ id: 'status', value: ['Running'] }]),
       );
 
@@ -175,7 +175,7 @@ describe('useConnectionNamespaces', () => {
     });
 
     it('handles malformed localStorage entries gracefully', () => {
-      localStorage.setItem('kubernetes-cluster-1-core::v1::Pod-column-filters', 'not-valid-json');
+      localStorage.setItem('kubernetes-cluster-1-k8s:/pods-column-filters', 'not-valid-json');
 
       const { result } = renderHook(() => useConnectionNamespaces('cluster-1'));
       expect(result.current.namespaces).toEqual([]);
@@ -184,7 +184,7 @@ describe('useConnectionNamespaces', () => {
     it('only migrates keys matching the connection ID', () => {
       // cluster-2 key should not affect cluster-1 migration
       localStorage.setItem(
-        'kubernetes-cluster-2-core::v1::Pod-column-filters',
+        'kubernetes-cluster-2-k8s:/pods-column-filters',
         JSON.stringify([{ id: 'namespace', value: ['other-ns'] }]),
       );
 
@@ -194,11 +194,11 @@ describe('useConnectionNamespaces', () => {
 
     it('strips namespace from all per-resource keys during migration', () => {
       localStorage.setItem(
-        'kubernetes-cluster-1-core::v1::Pod-column-filters',
+        'kubernetes-cluster-1-k8s:/pods-column-filters',
         JSON.stringify([{ id: 'namespace', value: ['default'] }]),
       );
       localStorage.setItem(
-        'kubernetes-cluster-1-apps::v1::Deployment-column-filters',
+        'kubernetes-cluster-1-k8s:apps/deployments-column-filters',
         JSON.stringify([
           { id: 'namespace', value: ['default', 'staging'] },
           { id: 'replicas', value: [3] },
@@ -208,10 +208,10 @@ describe('useConnectionNamespaces', () => {
       renderHook(() => useConnectionNamespaces('cluster-1'));
 
       const podFilters = JSON.parse(
-        localStorage.getItem('kubernetes-cluster-1-core::v1::Pod-column-filters')!,
+        localStorage.getItem('kubernetes-cluster-1-k8s:/pods-column-filters')!,
       );
       const deployFilters = JSON.parse(
-        localStorage.getItem('kubernetes-cluster-1-apps::v1::Deployment-column-filters')!,
+        localStorage.getItem('kubernetes-cluster-1-k8s:apps/deployments-column-filters')!,
       );
 
       expect(podFilters).toEqual([]);

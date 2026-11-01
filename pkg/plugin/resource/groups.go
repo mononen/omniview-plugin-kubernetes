@@ -1,8 +1,8 @@
 package resource
 
-import resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+import resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 
-//nolint:gochecknoglobals // this is a map of resources to their GVK
+//nolint:gochecknoglobals // provider presentation metadata
 var ResourceGroups = []resource.ResourceGroup{
 	{
 		ID:   "admissionregistration",

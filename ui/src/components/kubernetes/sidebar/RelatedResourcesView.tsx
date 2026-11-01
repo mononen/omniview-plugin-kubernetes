@@ -6,12 +6,8 @@ import { LuWaypoints } from 'react-icons/lu';
 
 import ResourceLinkChip from '../../shared/ResourceLinkChip';
 import SidebarSection from '../../shared/SidebarSection';
+import { graphKind, useGraphDisplayNames } from './resourceGraphLayout';
 
-/**
- * Hosts older than the relationship graph hooks resolve these imports to
- * undefined (shared modules are provided by the host at load time).
- */
-const graphSupported = typeof useRelatedResources === 'function';
 
 /** Group order: what controls this resource first, then what it points at. */
 const groupOrder = [
@@ -37,21 +33,17 @@ type RelatedGroup = {
   items: RelatedResource[];
 };
 
-function kindFromKey(resourceKey: string): string {
-  const parts = resourceKey.split('::');
-  return parts[parts.length - 1];
-}
 
 /** Groups related resources by relationship type and direction, sorted for display. */
 // eslint-disable-next-line react-refresh/only-export-components
-export function groupRelated(related: RelatedResource[]): RelatedGroup[] {
+export function groupRelated(related: RelatedResource[], displayNames: ReadonlyMap<string, string> = new Map()): RelatedGroup[] {
   const groups = new Map<string, RelatedGroup>();
   const seen = new Set<string>();
 
   for (const item of related) {
     const key = `${item.direction}:${item.type}`;
     const r = item.resource;
-    const id = `${key}/${r.resourceKey}/${r.namespace ?? ''}/${r.id}`;
+    const id = `${key}/${r.key}`;
     if (seen.has(id)) continue;
     seen.add(id);
 
@@ -74,9 +66,10 @@ export function groupRelated(related: RelatedResource[]): RelatedGroup[] {
       ...group,
       items: group.items.sort(
         (a, b) =>
-          kindFromKey(a.resource.resourceKey).localeCompare(kindFromKey(b.resource.resourceKey)) ||
-          (a.resource.namespace ?? '').localeCompare(b.resource.namespace ?? '') ||
-          a.resource.id.localeCompare(b.resource.id),
+          graphKind(a.resource, displayNames).localeCompare(graphKind(b.resource, displayNames)) ||
+          (a.resource.reference.address.scope.find((entry) => entry.dimension === 'namespace')?.value ?? '')
+            .localeCompare(b.resource.reference.address.scope.find((entry) => entry.dimension === 'namespace')?.value ?? '') ||
+          a.resource.reference.address.id.localeCompare(b.resource.reference.address.id),
       ),
     }));
 }
@@ -95,13 +88,15 @@ const centeredStyle: React.CSSProperties = {
   padding: '32px 0',
 };
 
-const RelatedRow: React.FC<{ item: RelatedResource; namespace: string }> = ({
+const RelatedRow: React.FC<{ item: RelatedResource; namespace: string; displayNames: ReadonlyMap<string, string> }> = ({
   item,
   namespace,
+  displayNames,
 }) => {
   const r = item.resource;
-  const kind = kindFromKey(r.resourceKey);
-  const otherNamespace = r.namespace && r.namespace !== namespace ? r.namespace : undefined;
+  const kind = graphKind(r, displayNames);
+  const targetNamespace = r.reference.address.scope.find((entry) => entry.dimension === 'namespace')?.value;
+  const otherNamespace = targetNamespace && targetNamespace !== namespace ? targetNamespace : undefined;
 
   return (
     <div style={rowStyle}>
@@ -109,12 +104,8 @@ const RelatedRow: React.FC<{ item: RelatedResource; namespace: string }> = ({
         {kind}
       </Text>
       <ResourceLinkChip
-        pluginID={r.pluginId}
-        connectionID={r.connectionId}
-        namespace={r.namespace || undefined}
-        resourceID={r.id}
-        resourceKey={r.resourceKey}
-        resourceName={otherNamespace ? `${otherNamespace}/${r.id}` : r.id}
+        target={r}
+        resourceName={otherNamespace ? `${otherNamespace}/${r.reference.address.id}` : r.reference.address.id}
       />
     </div>
   );
@@ -123,15 +114,11 @@ const RelatedRow: React.FC<{ item: RelatedResource; namespace: string }> = ({
 const RelatedResourcesList: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
   const data = (ctx.data ?? {}) as { metadata?: { name?: string; namespace?: string } };
   const namespace = data.metadata?.namespace ?? '';
-  // Graph nodes are keyed by name; ctx.resource.id can be the object's UID.
-  const name = data.metadata?.name ?? ctx.resource?.id ?? '';
-
+  const catalog = useGraphDisplayNames(ctx);
   const { related, isLoading, error } = useRelatedResources({
-    pluginID: ctx.resource?.pluginID,
-    connectionID: ctx.resource?.connectionID ?? '',
-    resourceKey: ctx.resource?.key ?? '',
-    resourceID: name,
-    namespace,
+    pluginID: ctx.resource!.pluginID,
+    reference: ctx.resource!.reference,
+    route: ctx.resource!.route,
   });
 
   if (isLoading) {
@@ -153,7 +140,8 @@ const RelatedResourcesList: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
     );
   }
 
-  const groups = groupRelated(related);
+  const displayNames = catalog.data ?? new Map<string, string>();
+  const groups = groupRelated(related, displayNames);
 
   if (groups.length === 0) {
     return (
@@ -173,9 +161,10 @@ const RelatedResourcesList: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
           <Stack direction="column" spacing={1}>
             {group.items.map((item) => (
               <RelatedRow
-                key={`${item.resource.resourceKey}/${item.resource.namespace ?? ''}/${item.resource.id}`}
+                key={`${item.direction}/${item.type}/${item.resource.key}`}
                 item={item}
                 namespace={namespace}
+                displayNames={displayNames}
               />
             ))}
           </Stack>
@@ -191,15 +180,8 @@ const RelatedResourcesList: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
  * "Selected by", ...). Each entry opens that resource's sidebar.
  */
 const RelatedResourcesView: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
-  if (!graphSupported) {
-    return (
-      <EmptyState
-        size="sm"
-        icon={<LuWaypoints />}
-        title="Update Omniview to see related resources"
-        description="This version of Omniview does not expose the relationship graph to plugins."
-      />
-    );
+  if (!ctx.resource) {
+    return <EmptyState size="sm" icon={<LuWaypoints />} title="Resource target is unavailable" />;
   }
 
   return <RelatedResourcesList ctx={ctx} />;

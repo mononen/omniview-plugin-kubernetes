@@ -1,11 +1,10 @@
 import { Spinner, Stack } from '@omniviewdev/base-ui';
-import { useResources } from '@omniviewdev/runtime';
+import { useKubernetesResources } from '../../../hooks/useKubernetesResources';
 import React from 'react';
-import { useParams } from 'react-router-dom';
-
-import { PLUGIN_ID } from '@/pluginId';
+import { useParams } from 'react-router';
 
 import CodeEditor from '../../../components/shared/editor/Editor';
+import { CollectionStatus } from '../../../components/shared/CollectionStatus';
 
 import ClusterOverviewCard from './components/ClusterOverviewCard';
 import ScorecardChart from './components/ScorecardChart';
@@ -38,10 +37,9 @@ const pageStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column
 const ClusterDashboardBenchmarksPage: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const { resources } = useResources({
-    pluginID: PLUGIN_ID,
+  const resources = useKubernetesResources<ClusterBenchmarkResult>({
     connectionID: id,
-    resourceKey: 'extras::v1::ClusterBenchmark',
+    resourceType: 'audit:polaris',
   });
 
   if (resources.isLoading) {
@@ -52,12 +50,12 @@ const ClusterDashboardBenchmarksPage: React.FC = () => {
     );
   }
 
-  // runtime ListResult.result is typed as any[]; cast to the known benchmark shape
-  const results = (resources.data?.result ?? []) as ClusterBenchmarkResult[];
+  const results = resources.bodies ?? [];
   const firstResult: ClusterBenchmarkResult | undefined = results[0];
 
   return (
     <div style={pageStyle}>
+      <CollectionStatus {...resources} label="Benchmarks" />
       <div>
         <ClusterOverviewCard
           cluster={id}

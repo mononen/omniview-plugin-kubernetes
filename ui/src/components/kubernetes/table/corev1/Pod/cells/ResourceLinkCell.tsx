@@ -15,7 +15,7 @@ type Props = {
   /** ID of the resource being referenced */
   resourceId: string;
 
-  /** The key identifying the resource (e.g. core::v1::Node) */
+  /** The opaque canonical resource Type (e.g. k8s:/nodes). */
   resourceKey: string;
 
   /** The readable name of the resource (e.g. Node) */

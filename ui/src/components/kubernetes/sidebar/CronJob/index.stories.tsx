@@ -29,7 +29,7 @@ Primary.decorators = [
   (Story, c) => (
     <ResourceDrawerContainer
       icon="LuFileCog"
-      type="core::v1::CronJob"
+      type="k8s:batch/cronjobs"
       // @ts-expect-error - arbitrary json
       title={c.args.ctx.data.metadata.name}
       open

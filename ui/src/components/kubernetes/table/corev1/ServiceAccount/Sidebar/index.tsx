@@ -18,13 +18,13 @@ export const ServiceAccountSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) return null;
 
   const sa = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
   const namespace = sa.metadata?.namespace;
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={sa.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={sa.metadata} connectionID={ctx.resource?.route.connection} />
 
         <SidebarSection title="Configuration">
           <LabeledEntry
@@ -42,7 +42,7 @@ export const ServiceAccountSidebar: React.FC<Props> = ({ ctx }) => {
                   connectionID={connectionID}
                   namespace={namespace}
                   resourceID={ref.name || ''}
-                  resourceKey="core::v1::Secret"
+                  resourceKey="k8s:/secrets"
                   resourceName={ref.name}
                 />
               ))}
@@ -59,7 +59,7 @@ export const ServiceAccountSidebar: React.FC<Props> = ({ ctx }) => {
                   connectionID={connectionID}
                   namespace={namespace}
                   resourceID={ref.name || ''}
-                  resourceKey="core::v1::Secret"
+                  resourceKey="k8s:/secrets"
                   resourceName={ref.name}
                 />
               ))}

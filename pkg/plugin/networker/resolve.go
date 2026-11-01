@@ -4,8 +4,11 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"github.com/omniview/kubernetes/pkg/utils"
+	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -16,34 +19,34 @@ import (
 // extractPodSelector reads the label selector from the resource data based on
 // the resource type key. Service and ReplicationController use spec.selector
 // directly; all other workload types use spec.selector.matchLabels.
-func extractPodSelector(resourceKey string, resourceData map[string]any) (map[string]string, error) {
-	spec, ok := resourceData["spec"].(map[string]any)
-	if !ok {
+func extractPodSelector(resourceKey string, resourceData *resourcev2.Value) (map[string]string, error) {
+	spec, ok := utils.TaggedField(resourceData, "spec")
+	if !ok || spec.Kind != "map" {
 		return nil, fmt.Errorf("resource %q has no spec", resourceKey)
 	}
 
 	switch resourceKey {
-	case "core::v1::Service", "core::v1::ReplicationController":
-		raw, ok := spec["selector"].(map[string]any)
-		if !ok {
+	case "k8s:/services", "k8s:/replicationcontrollers":
+		raw, ok := spec.Map["selector"]
+		if !ok || raw.Kind != "map" {
 			return nil, fmt.Errorf("resource %q has no spec.selector", resourceKey)
 		}
-		return toStringMap(raw), nil
+		return toStringMap(raw.Map), nil
 
-	case "apps::v1::Deployment",
-		"apps::v1::ReplicaSet",
-		"apps::v1::StatefulSet",
-		"apps::v1::DaemonSet",
-		"batch::v1::Job":
-		sel, ok := spec["selector"].(map[string]any)
-		if !ok {
+	case "k8s:apps/deployments",
+		"k8s:apps/replicasets",
+		"k8s:apps/statefulsets",
+		"k8s:apps/daemonsets",
+		"k8s:batch/jobs":
+		sel, ok := spec.Map["selector"]
+		if !ok || sel.Kind != "map" {
 			return nil, fmt.Errorf("resource %q has no spec.selector", resourceKey)
 		}
-		ml, ok := sel["matchLabels"].(map[string]any)
-		if !ok {
+		ml, ok := sel.Map["matchLabels"]
+		if !ok || ml.Kind != "map" {
 			return nil, fmt.Errorf("resource %q has no spec.selector.matchLabels", resourceKey)
 		}
-		return toStringMap(ml), nil
+		return toStringMap(ml.Map), nil
 
 	default:
 		return nil, fmt.Errorf("unsupported resource type for pod resolution: %q", resourceKey)
@@ -109,35 +112,36 @@ func resolveBackingPod(ctx context.Context, clientset kubernetes.Interface, name
 // resolveServiceTargetPort maps a service port to the container targetPort
 // using the service's spec.ports array. If no matching port is found or
 // targetPort is absent, the original port is returned.
-func resolveServiceTargetPort(servicePorts []any, remotePort int32) int32 {
-	for _, raw := range servicePorts {
-		portEntry, ok := raw.(map[string]any)
-		if !ok {
+func resolveServiceTargetPort(servicePorts []resourcev2.Value, remotePort int32) int32 {
+	for _, entry := range servicePorts {
+		if entry.Kind != "map" {
 			continue
 		}
-		var portNum float64
-		switch v := portEntry["port"].(type) {
-		case float64:
-			portNum = v
-		case int:
-			portNum = float64(v)
-		default:
+		port, ok := nativePort(entry.Map["port"])
+		if !ok || port != remotePort {
 			continue
 		}
-		if int32(portNum) != remotePort {
-			continue
+		if target, ok := nativePort(entry.Map["targetPort"]); ok {
+			return target
 		}
-		switch tp := portEntry["targetPort"].(type) {
-		case float64:
-			return int32(tp)
-		case int:
-			return int32(tp)
-		default:
-			// Named port string — can't resolve without pod spec.
-			return remotePort
-		}
+		// Named target ports still require pod spec resolution.
+		return remotePort
 	}
 	return remotePort
+}
+
+func nativePort(value resourcev2.Value) (int32, bool) {
+	var text string
+	switch value.Kind {
+	case "int64":
+		text = value.Int
+	case "uint64":
+		text = value.Uint
+	default:
+		return 0, false
+	}
+	port, err := strconv.ParseInt(text, 10, 32)
+	return int32(port), err == nil && port > 0 && port <= 65535
 }
 
 // selectorToString converts a label map to a comma-separated key=value string
@@ -151,13 +155,12 @@ func selectorToString(selector map[string]string) string {
 	return strings.Join(parts, ",")
 }
 
-// toStringMap converts map[string]any to map[string]string, keeping only
-// entries whose values are strings.
-func toStringMap(m map[string]any) map[string]string {
+// toStringMap extracts only tagged strings from a label selector.
+func toStringMap(m map[string]resourcev2.Value) map[string]string {
 	out := make(map[string]string, len(m))
 	for k, v := range m {
-		if s, ok := v.(string); ok {
-			out[k] = s
+		if v.Kind == "string" {
+			out[k] = v.String
 		}
 	}
 	return out

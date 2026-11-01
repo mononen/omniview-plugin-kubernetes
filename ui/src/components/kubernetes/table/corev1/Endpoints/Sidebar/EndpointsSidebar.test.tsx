@@ -1,4 +1,5 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { DrawerContext } from '@omniviewdev/runtime';
 import { render, screen } from '@testing-library/react';
 import type { Endpoints, EndpointSubset } from 'kubernetes-types/core/v1';
@@ -85,7 +86,7 @@ function makeEndpoints(overrides: Partial<Endpoints> = {}): Endpoints {
 function makeDrawerCtx(data: Endpoints | undefined): DrawerContext<Endpoints> {
   return {
     data,
-    resource: { connectionID: 'conn-1', id: 'my-svc' },
+    resource: fixtureResource('k8s:/endpoints', data, 'conn-1', data?.metadata?.name ?? 'fixture-object'),
   } as DrawerContext<Endpoints>;
 }
 
@@ -148,7 +149,7 @@ describe('EndpointSubsetsSection', () => {
       {
         addresses: [{
           ip: '10.244.0.5',
-          targetRef: { kind: 'Pod', name: 'my-pod', namespace: 'default' },
+          targetRef: { apiVersion: 'v1', kind: 'Pod', name: 'my-pod', namespace: 'default', uid: 'observed-pod-uid' },
         }],
       },
     ];

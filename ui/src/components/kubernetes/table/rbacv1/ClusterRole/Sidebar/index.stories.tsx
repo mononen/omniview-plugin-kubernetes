@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ClusterRole } from 'kubernetes-types/rbac/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="rbac::v1::ClusterRole"
+        type="k8s:rbac.authorization.k8s.io/clusterroles"
         icon="LuShieldCheck"
         title={title}
         open
@@ -36,10 +37,7 @@ function withDrawer(title: string) {
 
 export const WithRules: Story = {
   args: {
-    ctx: {
-      data: data as unknown as ClusterRole,
-      resource: { connectionID: 'ctx-1', id: 'monitoring-reader', key: 'rbac::v1::ClusterRole' },
-    },
+    ctx: { data: data as unknown as ClusterRole, resource: fixtureResource('k8s:rbac.authorization.k8s.io/clusterroles', data, 'ctx-1', 'monitoring-reader') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -68,10 +66,7 @@ const aggregatedData: ClusterRole = {
 
 export const WithAggregation: Story = {
   args: {
-    ctx: {
-      data: aggregatedData,
-      resource: { connectionID: 'ctx-1', id: 'aggregate-monitoring', key: 'rbac::v1::ClusterRole' },
-    },
+    ctx: { data: aggregatedData, resource: fixtureResource('k8s:rbac.authorization.k8s.io/clusterroles', aggregatedData, 'ctx-1', 'aggregate-monitoring') },
   },
   decorators: withDrawer('aggregate-monitoring'),
 };

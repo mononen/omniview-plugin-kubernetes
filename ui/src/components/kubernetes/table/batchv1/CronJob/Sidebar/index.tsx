@@ -22,14 +22,14 @@ export const CronJobSidebar: React.FC<Props> = ({ ctx }) => {
   const cj = ctx.data;
   const spec = cj.spec;
   const status = cj.status;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
   const namespace = cj.metadata?.namespace;
   const now = new Date();
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={cj.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={cj.metadata} connectionID={ctx.resource?.route.connection} />
 
         <SidebarSection
           title="Schedule"
@@ -70,7 +70,7 @@ export const CronJobSidebar: React.FC<Props> = ({ ctx }) => {
                   connectionID={connectionID}
                   namespace={ref.namespace || namespace}
                   resourceID={ref.name || ''}
-                  resourceKey="batch::v1::Job"
+                  resourceKey="k8s:batch/jobs"
                   resourceName={ref.name}
                 />
               ))}

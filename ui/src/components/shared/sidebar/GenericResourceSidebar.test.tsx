@@ -1,14 +1,17 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
+import { fixtureResource } from '@/stories/resourceFixture';
 import { render, screen } from '@testing-library/react';
 import type React from 'react';
 import { vi, describe, it, expect } from 'vitest';
+
+const { useQueryMock } = vi.hoisted(() => ({ useQueryMock: vi.fn() }));
 
 vi.mock('@omniviewdev/runtime/api', () => ({
   ResourceClient: { GetResourceDefinition: vi.fn() },
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: undefined }),
+  useQuery: () => useQueryMock() ?? { data: undefined },
 }));
 
 vi.mock('../ObjectMetaSection', () => ({
@@ -46,7 +49,7 @@ import GenericResourceSidebar from './GenericResourceSidebar';
 function makeCtx(data?: Record<string, unknown>) {
   return {
     data,
-    resource: { connectionID: 'conn-1', id: 'test', key: 'core::v1::ConfigMap', pluginID: 'kubernetes' },
+    resource: fixtureResource('k8s:/configmaps', data, 'conn-1', 'test'),
   };
 }
 
@@ -75,5 +78,34 @@ describe('GenericResourceSidebar', () => {
       spec: { selector: { matchLabels: { app: 'web' } } },
     })} />);
     expect(screen.getByTestId('kv-card')).toHaveAttribute('data-title', 'Selector');
+  });
+
+  it('renders CRD wide integer columns without losing precision', () => {
+    useQueryMock.mockReturnValueOnce({
+      data: {
+        columnDefs: [
+          { id: 'signed', header: 'Signed', accessor: '$.status.signed' },
+          { id: 'unsigned', header: 'Unsigned', accessor: 'status.unsigned' },
+          { id: 'zero', header: 'Zero', accessor: 'status.zero' },
+        ],
+      },
+    });
+    const data = {
+      metadata: { name: 'wide-widget' },
+      status: {
+        signed: BigInt('-9223372036854775808'),
+        unsigned: BigInt('18446744073709551615'),
+        zero: BigInt('0'),
+      },
+    };
+
+    render(<GenericResourceSidebar ctx={{
+      data,
+      resource: fixtureResource('example.io/v1/Widget', data, 'conn-1', 'test'),
+    }} />);
+
+    expect(screen.getByText('-9223372036854775808')).toHaveAttribute('data-label', 'Signed');
+    expect(screen.getByText('18446744073709551615')).toHaveAttribute('data-label', 'Unsigned');
+    expect(screen.getByText('0')).toHaveAttribute('data-label', 'Zero');
   });
 });

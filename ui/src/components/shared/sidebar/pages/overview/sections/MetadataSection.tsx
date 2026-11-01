@@ -4,7 +4,7 @@ import { ObjectMeta } from 'kubernetes-types/meta/v1';
 import React from 'react';
 
 import KVCard from '../../../../KVCard';
-import ResourceLinkChip, { ownerRefToResourceKey } from '../../../../ResourceLinkChip';
+import ResourceLinkChip from '../../../../ResourceLinkChip';
 
 // ---------------------------------------------------------------------------
 // Static styles
@@ -93,8 +93,7 @@ const MetadataSection: React.FC<Props> = ({ data, connectionID }) => {
                       <ResourceLinkChip
                         key={ref.uid}
                         connectionID={connectionID}
-                        resourceKey={ownerRefToResourceKey(ref)}
-                        resourceID={ref.name}
+                        ownerReference={ref}
                         resourceName={ref.kind}
                         namespace={data.namespace}
                       />

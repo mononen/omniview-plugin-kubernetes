@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -5,7 +6,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { PodDisruptionBudget } from 'kubernetes-types/policy/v1';
 import React from 'react';
 import { LuShieldCheck } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -14,13 +15,13 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import PodDisruptionBudgetSidebar from './Sidebar';
 
-const resourceKey = 'policy::v1::PodDisruptionBudget';
+const resourceKey = 'k8s:policy/poddisruptionbudgets';
 
 const PodDisruptionBudgetTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<PodDisruptionBudget>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, PodDisruptionBudget>>>(
     () =>
       withNamespacedResourceColumns(
         [
@@ -95,7 +96,6 @@ const PodDisruptionBudgetTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

@@ -9,18 +9,9 @@ import (
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
-)
-
-// Compile-time checks.
-var (
-	_ resource.Resourcer[clients.ClientSet]           = (*PodResourcer)(nil)
-	_ resource.Watcher[clients.ClientSet]             = (*PodResourcer)(nil)
-	_ resource.HealthAssessor[clients.ClientSet]       = (*PodResourcer)(nil)
-	_ resource.EventRetriever[clients.ClientSet]       = (*PodResourcer)(nil)
-	_ resource.RelationshipDeclarer                    = (*PodResourcer)(nil)
-	_ resource.RelationshipResolver[clients.ClientSet] = (*PodResourcer)(nil)
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
 // PodResourcer wraps KubernetesResourcerBase for Pods with health, events, and relationships.
@@ -29,7 +20,7 @@ type PodResourcer struct {
 	log *zap.SugaredLogger
 }
 
-// NewPodResourcer creates a PodResourcer for core::v1::Pod.
+// NewPodResourcer creates a PodResourcer for k8s:/pods.
 func NewPodResourcer(logger *zap.SugaredLogger, opts ...Option) *PodResourcer {
 	base := NewKubernetesResourcerBase[MetaAccessor](
 		logger,
@@ -46,72 +37,122 @@ func NewPodResourcer(logger *zap.SugaredLogger, opts ...Option) *PodResourcer {
 func (p *PodResourcer) ResolveRelationships(
 	ctx context.Context,
 	client *clients.ClientSet,
-	meta resource.ResourceMeta,
-	id string,
-	namespace string,
+	request resource.RelationshipResolutionRequest,
 ) ([]resource.ResolvedRelationship, error) {
-	result, err := p.Get(ctx, client, meta, resource.GetInput{ID: id, Namespace: namespace})
+	namespace, err := nativeRequestNamespace(request.Source.Reference.Address.Scope)
+	if err != nil {
+		return nil, err
+	}
+	id := request.Source.Reference.Address.ID
+	pod, err := client.KubeClient.CoreV1().Pods(namespace).Get(ctx, id, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pod %s: %w", id, err)
 	}
 
-	var pod corev1.Pod
-	if err := json.Unmarshal(result.Result, &pod); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal pod: %w", err)
-	}
-
 	var rels []resource.ResolvedRelationship
 	byTarget := descriptorByTarget(p.DeclareRelationships())
+	for _, owner := range pod.OwnerReferences {
+		if owner.Name == "" {
+			return nil, resource.NewError("INVALID_REQUEST", "pod owner reference requires a name")
+		}
+		gv, err := schema.ParseGroupVersion(owner.APIVersion)
+		if err != nil || gv.Version == "" {
+			return nil, resource.NewError("UNSUPPORTED", "pod owner reference has an unsupported API version")
+		}
+		targetType := ""
+		switch gv.Group + "/" + owner.Kind {
+		case "apps/ReplicaSet":
+			targetType = "k8s:apps/replicasets"
+		case "apps/DaemonSet":
+			targetType = "k8s:apps/daemonsets"
+		case "apps/StatefulSet":
+			targetType = "k8s:apps/statefulsets"
+		case "batch/Job":
+			targetType = "k8s:batch/jobs"
+		default:
+			return nil, resource.NewError("UNSUPPORTED", "pod owner reference target is unsupported")
+		}
+		descriptor, ok := byTarget[targetType]
+		if !ok {
+			return nil, resource.NewError("UNSUPPORTED", "pod owner relationship descriptor is unavailable")
+		}
+		target, err := makeRef(request, targetType, owner.Name, namespace, string(owner.UID))
+		if err != nil {
+			return nil, err
+		}
+		rels = append(rels, resource.ResolvedRelationship{Descriptor: descriptor,
+			Targets: []resource.RelationshipTarget{target}})
+	}
 
 	// Node relationship.
 	if pod.Spec.NodeName != "" {
+		target, err := makeRef(request, "k8s:/nodes", pod.Spec.NodeName, "")
+		if err != nil {
+			return nil, err
+		}
 		rels = append(rels, resource.ResolvedRelationship{
-			Descriptor: byTarget["core::v1::Node"],
-			Targets:    []resource.ResourceRef{makeRef("core::v1::Node", pod.Spec.NodeName, "")},
+			Descriptor: byTarget["k8s:/nodes"],
+			Targets:    []resource.RelationshipTarget{target},
 		})
 	}
 
 	// PVC relationships.
 	if pvcs := extractVolumePVCs(pod.Spec); len(pvcs) > 0 {
-		targets := make([]resource.ResourceRef, 0, len(pvcs))
+		targets := make([]resource.RelationshipTarget, 0, len(pvcs))
 		for _, name := range pvcs {
-			targets = append(targets, makeRef("core::v1::PersistentVolumeClaim", name, namespace))
+			target, err := makeRef(request, "k8s:/persistentvolumeclaims", name, namespace)
+			if err != nil {
+				return nil, err
+			}
+			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
-			Descriptor: byTarget["core::v1::PersistentVolumeClaim"],
+			Descriptor: byTarget["k8s:/persistentvolumeclaims"],
 			Targets:    targets,
 		})
 	}
 
 	// ConfigMap relationships.
 	if cms := extractVolumeConfigMaps(pod.Spec); len(cms) > 0 {
-		targets := make([]resource.ResourceRef, 0, len(cms))
+		targets := make([]resource.RelationshipTarget, 0, len(cms))
 		for _, name := range cms {
-			targets = append(targets, makeRef("core::v1::ConfigMap", name, namespace))
+			target, err := makeRef(request, "k8s:/configmaps", name, namespace)
+			if err != nil {
+				return nil, err
+			}
+			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
-			Descriptor: byTarget["core::v1::ConfigMap"],
+			Descriptor: byTarget["k8s:/configmaps"],
 			Targets:    targets,
 		})
 	}
 
 	// Secret relationships.
 	if secrets := extractVolumeSecrets(pod.Spec); len(secrets) > 0 {
-		targets := make([]resource.ResourceRef, 0, len(secrets))
+		targets := make([]resource.RelationshipTarget, 0, len(secrets))
 		for _, name := range secrets {
-			targets = append(targets, makeRef("core::v1::Secret", name, namespace))
+			target, err := makeRef(request, "k8s:/secrets", name, namespace)
+			if err != nil {
+				return nil, err
+			}
+			targets = append(targets, target)
 		}
 		rels = append(rels, resource.ResolvedRelationship{
-			Descriptor: byTarget["core::v1::Secret"],
+			Descriptor: byTarget["k8s:/secrets"],
 			Targets:    targets,
 		})
 	}
 
 	// ServiceAccount relationship.
 	if pod.Spec.ServiceAccountName != "" {
+		target, err := makeRef(request, "k8s:/serviceaccounts", pod.Spec.ServiceAccountName, namespace)
+		if err != nil {
+			return nil, err
+		}
 		rels = append(rels, resource.ResolvedRelationship{
-			Descriptor: byTarget["core::v1::ServiceAccount"],
-			Targets:    []resource.ResourceRef{makeRef("core::v1::ServiceAccount", pod.Spec.ServiceAccountName, namespace)},
+			Descriptor: byTarget["k8s:/serviceaccounts"],
+			Targets:    []resource.RelationshipTarget{target},
 		})
 	}
 
@@ -119,9 +160,17 @@ func (p *PodResourcer) ResolveRelationships(
 }
 
 // AssessHealth determines the health status of a Pod.
-func (p *PodResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ resource.ResourceMeta, data json.RawMessage) (*resource.ResourceHealth, error) {
+func (p *PodResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ resource.GetRequest, data resource.Value) (*resource.ResourceHealth, error) {
 	var pod corev1.Pod
-	if err := json.Unmarshal(data, &pod); err != nil {
+	raw, err := resource.NativeFromValue(data)
+	if err != nil {
+		return nil, err
+	}
+	body, err := json.Marshal(raw)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(body, &pod); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal pod: %w", err)
 	}
 
@@ -213,7 +262,12 @@ func (p *PodResourcer) AssessHealth(_ context.Context, _ *clients.ClientSet, _ r
 
 // GetEvents returns Kubernetes events for a Pod, filtered by UID to avoid
 // matching events from previous pod instances with the same name.
-func (p *PodResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, _ resource.ResourceMeta, id string, namespace string, limit int32) ([]resource.ResourceEvent, error) {
+func (p *PodResourcer) GetEvents(ctx context.Context, client *clients.ClientSet, request resource.GetRequest, limit uint32) ([]resource.ResourceEvent, error) {
+	namespace, err := nativeRequestNamespace(request.Reference.Address.Scope)
+	if err != nil {
+		return nil, err
+	}
+	id := request.Reference.Address.ID
 	if client == nil || client.KubeClient == nil {
 		return nil, fmt.Errorf("client is required for event retrieval")
 	}
@@ -228,7 +282,7 @@ func (p *PodResourcer) GetEvents(ctx context.Context, client *clients.ClientSet,
 }
 
 // getK8sEvents is a shared helper for fetching Kubernetes events.
-func getK8sEvents(ctx context.Context, client *clients.ClientSet, namespace, fieldSelector string, limit int32) ([]resource.ResourceEvent, error) {
+func getK8sEvents(ctx context.Context, client *clients.ClientSet, namespace, fieldSelector string, limit uint32) ([]resource.ResourceEvent, error) {
 	if client == nil || client.KubeClient == nil {
 		return nil, fmt.Errorf("client is required for event retrieval")
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -180,8 +181,41 @@ func TestListPodsByOwner_Empty(t *testing.T) {
 }
 
 func TestMakeRef(t *testing.T) {
-	ref := makeRef("core::v1::Pod", "my-pod", "default")
-	assert.Equal(t, "core::v1::Pod", ref.ResourceKey)
-	assert.Equal(t, "my-pod", ref.ID)
-	assert.Equal(t, "default", ref.Namespace)
+	source := podRequest("source-pod", "default")
+	request := relationshipRequest(source, "k8s:/configmaps")
+	ref, err := makeRef(request, "k8s:/configmaps", "my-config", "default", "config-uid")
+	require.NoError(t, err)
+	assert.Equal(t, "k8s:/configmaps", ref.Reference.Address.Type)
+	assert.Equal(t, "my-config", ref.Reference.Address.ID)
+	assert.Equal(t, source.Reference.Address.Scope, ref.Reference.Address.Scope)
+	assert.Equal(t, source.Reference.Address.Provider, ref.Reference.Address.Provider)
+	assert.Equal(t, request.Targets[0].Authority, ref.Reference.Address.Authority)
+	assert.NotEqual(t, source.Reference.Address.Authority, ref.Reference.Address.Authority)
+	assert.Equal(t, source.Route, ref.Route)
+	require.NotNil(t, ref.Reference.Incarnation)
+	assert.Equal(t, "config-uid", *ref.Reference.Incarnation)
+}
+
+func TestMakeRefRequiresAdmittedTargetBinding(t *testing.T) {
+	source := podRequest("source-pod", "default")
+	request := relationshipRequest(source, "k8s:/configmaps")
+	allowed := []string{"other"}
+	request.Targets[0].Scope = resource.QueryScope{{Dimension: "namespace", Match: resource.ScopeOneOf, Values: &allowed}}
+	for _, test := range []struct {
+		name    string
+		request resource.RelationshipResolutionRequest
+		code    string
+	}{
+		{"missing", relationshipRequest(source), "UNSUPPORTED"},
+		{"outside scope", request, "UNSUPPORTED"},
+		{"ambiguous", resource.RelationshipResolutionRequest{Source: source, Targets: []resource.ReadTarget{
+			relationshipRequest(source, "k8s:/configmaps").Targets[0],
+			relationshipRequest(source, "k8s:/configmaps").Targets[0],
+		}}, "INVALID_REQUEST"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := makeRef(test.request, "k8s:/configmaps", "config", "default")
+			require.Equal(t, test.code, resource.ErrorCode(err))
+		})
+	}
 }

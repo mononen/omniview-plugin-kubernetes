@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ValidatingAdmissionPolicyBinding } from 'kubernetes-types/admissionregistration/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="admissionregistration::v1::ValidatingAdmissionPolicyBinding"
+        type="k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings"
         icon="LuLink"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: {
-      data: data as unknown as ValidatingAdmissionPolicyBinding,
-      resource: { connectionID: 'ctx-1', id: 'deny-privileged-binding', key: 'admissionregistration::v1::ValidatingAdmissionPolicyBinding' },
-    },
+    ctx: { data: data as unknown as ValidatingAdmissionPolicyBinding, resource: fixtureResource('k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings', data, 'ctx-1', 'deny-privileged-binding') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -58,10 +56,7 @@ const minimalData: ValidatingAdmissionPolicyBinding = {
 
 export const Minimal: Story = {
   args: {
-    ctx: {
-      data: minimalData,
-      resource: { connectionID: 'ctx-1', id: 'minimal-binding', key: 'admissionregistration::v1::ValidatingAdmissionPolicyBinding' },
-    },
+    ctx: { data: minimalData, resource: fixtureResource('k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings', minimalData, 'ctx-1', 'minimal-binding') },
   },
   decorators: withDrawer('minimal-binding'),
 };

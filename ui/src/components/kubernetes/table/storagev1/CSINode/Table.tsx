@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -5,7 +6,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { CSINode } from 'kubernetes-types/storage/v1';
 import React from 'react';
 import { LuHardDrive } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -15,13 +16,13 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import CSINodeSidebar from './Sidebar';
 
-const resourceKey = 'storage::v1::CSINode';
+const resourceKey = 'k8s:storage.k8s.io/csinodes';
 
 const CSINodeTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<CSINode>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, CSINode>>>(
     () =>
       withClusterResourceColumns(
         [
@@ -72,7 +73,6 @@ const CSINodeTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );

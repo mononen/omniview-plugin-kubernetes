@@ -9,3 +9,7 @@ package pluginid
 
 // ID defaults to the id in plugin.yaml.
 var ID = "kubernetes"
+
+// ResourceProvider is the stable canonical resource provider, independent of the
+// installation ID. SDK exec resource selectors use this provider, not ID.
+const ResourceProvider = "kubernetes"

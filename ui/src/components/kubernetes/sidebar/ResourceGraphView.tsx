@@ -1,17 +1,13 @@
-import { EmptyState, Spinner, Stack, Text } from '@omniviewdev/base-ui';
+import { EmptyState, Spinner, Text } from '@omniviewdev/base-ui';
 import type { DrawerContext } from '@omniviewdev/runtime';
-import { relationshipLabel, useResourceGraph, useRightDrawer } from '@omniviewdev/runtime';
+import { parseAppError, relationshipLabel, useResourceGraph, useRightDrawer } from '@omniviewdev/runtime';
+import { ResourceClient } from '@omniviewdev/runtime/api';
 import React, { useMemo, useState } from 'react';
 import { LuNetwork } from 'react-icons/lu';
 
 import type { LayoutEdge, LayoutNode } from './resourceGraphLayout';
-import { NODE_HEIGHT, NODE_WIDTH, layoutGraph, truncateMiddle } from './resourceGraphLayout';
+import { NODE_HEIGHT, NODE_WIDTH, layoutGraph, truncateMiddle, useGraphDisplayNames } from './resourceGraphLayout';
 
-/**
- * Hosts older than the subgraph hook resolve this import to undefined
- * (shared modules are provided by the host at load time).
- */
-const graphSupported = typeof useResourceGraph === 'function';
 
 const edgeColors: Record<string, string> = {
   owns: 'var(--ov-color-brand-500)',
@@ -46,7 +42,6 @@ const toolbarStyle: React.CSSProperties = {
 };
 const legendItemStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6 };
 const countStyle: React.CSSProperties = { marginLeft: 'auto' };
-const fallbackStyle: React.CSSProperties = { padding: 12 };
 const nodeStyles = {
   root: { cursor: 'default', opacity: 1 },
   normal: { cursor: 'pointer', opacity: 1 },
@@ -66,7 +61,8 @@ const GraphNodeBox: React.FC<{
   onHover: (key: string | null) => void;
 }> = ({ node, dimmed, onOpen, onHover }) => {
   const { kind, isRoot } = node;
-  const { id, namespace } = node.node;
+  const { id } = node.node.reference.address;
+  const namespace = node.node.reference.address.scope.find((entry) => entry.dimension === 'namespace')?.value;
   const label = `${kind} ${namespace ? `${namespace}/` : ''}${id}`;
   const open = () => {
     if (!isRoot) onOpen(node);
@@ -122,33 +118,29 @@ const GraphEdgePath: React.FC<{ edge: LayoutEdge; state: 'normal' | 'active' | '
     strokeOpacity={state === 'dimmed' ? 0.15 : state === 'active' ? 1 : 0.6}
     markerEnd={`url(#ov-graph-arrow-${edge.edge.type})`}
   >
-    <title>{`${edge.from.node.id} → ${edge.to.node.id}: ${relationshipLabel(edge.edge.type, 'outgoing')}`}</title>
+    <title>{`${edge.from.node.reference.address.id} → ${edge.to.node.reference.address.id}: ${relationshipLabel(edge.edge.type, 'outgoing')}`}</title>
   </path>
 );
 
 const ResourceGraph: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
   const { showResourceSidebar } = useRightDrawer();
   const [hovered, setHovered] = useState<string | null>(null);
-
-  const data = (ctx.data ?? {}) as { metadata?: { name?: string; namespace?: string } };
-  // Graph nodes are keyed by name; ctx.resource.id can be the object's UID.
-  const name = data.metadata?.name ?? ctx.resource?.id ?? '';
+  const [pivotError, setPivotError] = useState<string | null>(null);
+  const catalog = useGraphDisplayNames(ctx);
 
   const { graph, isLoading, error } = useResourceGraph({
     pluginID: ctx.resource?.pluginID,
-    connectionID: ctx.resource?.connectionID ?? '',
-    resourceKey: ctx.resource?.key ?? '',
-    resourceID: name,
-    namespace: data.metadata?.namespace ?? '',
+    reference: ctx.resource!.reference,
+    route: ctx.resource!.route,
   });
 
-  const layout = useMemo(() => (graph ? layoutGraph(graph) : null), [graph]);
+  const layout = useMemo(() => (graph ? layoutGraph(graph, catalog.data) : null), [graph, catalog.data]);
   const edgeTypes = useMemo(
     () => [...new Set(layout?.edges.map((e) => e.edge.type) ?? [])].sort(),
     [layout],
   );
 
-  if (isLoading) {
+  if (isLoading && !error) {
     return (
       <div style={centeredStyle}>
         <Spinner size="sm" />
@@ -162,12 +154,12 @@ const ResourceGraph: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
         size="sm"
         icon={<LuNetwork />}
         title="Could not load the resource graph"
-        description={error instanceof Error ? error.message : String(error)}
+        description={parseAppError(error).detail}
       />
     );
   }
 
-  if (!graph || !layout || layout.edges.length === 0) {
+  if (!graph || !layout) {
     return (
       <EmptyState
         size="sm"
@@ -178,15 +170,28 @@ const ResourceGraph: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
     );
   }
 
-  const open = (n: LayoutNode) => {
-    showResourceSidebar({
-      pluginID: n.node.pluginId,
-      connectionID: n.node.connectionId,
-      resourceKey: n.node.resourceKey,
-      resourceID: n.node.id,
-      resourceName: n.node.id,
-      namespace: n.node.namespace || undefined,
-    });
+  const open = async (n: LayoutNode) => {
+    setPivotError(null);
+    try {
+      const { reference, route } = n.node;
+      const resolved = await ResourceClient.ResolveReference(n.node.pluginId, {
+        route,
+        type: reference.address.type,
+        scope: reference.address.scope,
+        id: reference.address.id,
+        incarnation: reference.incarnation,
+      });
+      await showResourceSidebar({
+        pluginID: n.node.pluginId,
+        reference,
+        route,
+        representation: resolved.representation,
+        targetId: resolved.targetId,
+        resourceName: reference.address.id,
+      });
+    } catch (error) {
+      setPivotError(error instanceof Error ? error.message : String(error));
+    }
   };
 
   const touches = (e: LayoutEdge) =>
@@ -203,6 +208,7 @@ const ResourceGraph: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
 
   return (
     <div style={containerStyle}>
+      {pivotError && <div role="alert"><Text tone="muted">{`Could not open resource: ${pivotError}`}</Text></div>}
       <div style={toolbarStyle}>
         {edgeTypes.map((type) => (
           <span key={type} style={legendItemStyle}>
@@ -253,7 +259,7 @@ const ResourceGraph: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
               key={n.key}
               node={n}
               dimmed={hovered !== null && !neighbours.has(n.key)}
-              onOpen={open}
+              onOpen={(node) => { void open(node); }}
               onHover={setHovered}
             />
           ))}
@@ -269,17 +275,8 @@ const ResourceGraph: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
  * what it depends on. Clicking a resource opens its sidebar.
  */
 const ResourceGraphView: React.FC<{ ctx: DrawerContext }> = ({ ctx }) => {
-  if (!graphSupported) {
-    return (
-      <Stack direction="column" spacing={2} style={fallbackStyle}>
-        <EmptyState
-          size="sm"
-          icon={<LuNetwork />}
-          title="Update Omniview to see the resource graph"
-          description="This version of Omniview does not expose the relationship graph to plugins."
-        />
-      </Stack>
-    );
+  if (!ctx.resource) {
+    return <EmptyState size="sm" icon={<LuNetwork />} title="Resource target is unavailable" />;
   }
 
   return <ResourceGraph ctx={ctx} />;

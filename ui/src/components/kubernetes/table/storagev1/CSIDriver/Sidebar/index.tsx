@@ -22,7 +22,7 @@ export const CSIDriverSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={driver.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={driver.metadata} connectionID={ctx.resource?.route.connection} />
 
         {spec && (
           <SidebarSection title="Capabilities">

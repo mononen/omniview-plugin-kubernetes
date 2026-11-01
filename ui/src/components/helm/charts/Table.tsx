@@ -1,9 +1,10 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import { Text } from '@omniviewdev/base-ui';
 import { DrawerComponent } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import React from 'react';
 import { SiHelm } from 'react-icons/si';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { stringToColor } from '../../../utils/color';
 import { createStandardViews } from '../../shared/sidebar/createDrawerViews';
@@ -11,7 +12,7 @@ import ResourceTable from '../../shared/table/ResourceTable';
 
 import ChartSidebar from './ChartSidebar';
 
-const resourceKey = 'helm::v1::Chart';
+const resourceKey = 'helm:charts';
 
 const nameCellStyle: React.CSSProperties = {
   display: 'flex',
@@ -105,7 +106,7 @@ const ChartIcon: React.FC<{ icon?: string; name?: string }> = ({ icon, name = ''
 const HelmChartTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const columns = React.useMemo<Array<ColumnDef<HelmChart>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, HelmChart>>>(
     () => [
       {
         id: 'name',
@@ -170,7 +171,6 @@ const HelmChartTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="id"
       drawer={drawer}
       hideNamespaceSelector
       createEnabled={false}

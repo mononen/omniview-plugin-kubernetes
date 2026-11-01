@@ -1,4 +1,5 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { DrawerContext } from '@omniviewdev/runtime';
 import { render, screen } from '@testing-library/react';
 import type { Service } from 'kubernetes-types/core/v1';
@@ -126,7 +127,7 @@ function makeService(overrides: Partial<Service> = {}): Service {
 function makeDrawerCtx(data: Service | undefined): DrawerContext<Service> {
   return {
     data,
-    resource: { connectionID: 'conn-1', id: 'svc-1' },
+    resource: fixtureResource('k8s:/services', data, 'conn-1', data?.metadata?.name ?? 'fixture-object'),
   } as DrawerContext<Service>;
 }
 
@@ -251,7 +252,7 @@ describe('ServiceStatusSection', () => {
   it('shows Endpoints ResourceLinkChip when connectionID provided', () => {
     render(<ServiceStatusSection service={makeService()} connectionID="conn-1" />);
     const chip = screen.getByTestId('resource-link-chip');
-    expect(chip).toHaveAttribute('data-resource-key', 'core::v1::Endpoints');
+    expect(chip).toHaveAttribute('data-resource-key', 'k8s:/endpoints');
     expect(chip).toHaveTextContent('my-svc');
   });
 
@@ -317,22 +318,11 @@ describe('ServicePortsSection', () => {
     expect(screen.getByText('https')).toBeInTheDocument();
   });
 
-  it('shows Forward button when connectionID and resourceID provided', () => {
-    render(
-      <ServicePortsSection service={makeService()} connectionID="conn-1" resourceID="svc-1" />,
-    );
-    expect(screen.getByText('Forward')).toBeInTheDocument();
-  });
-
-  it('shows "Forwarded" chip and Stop button when session is active', () => {
-    mockPortForwarder.sessions.data = [
-      { id: 'session-1', remote_port: 80, local_port: 8080 },
-    ];
-    render(
-      <ServicePortsSection service={makeService()} connectionID="conn-1" resourceID="svc-1" />,
-    );
-    expect(screen.getByText('Forwarded')).toBeInTheDocument();
-    expect(screen.getByText('Stop')).toBeInTheDocument();
+  it('does not offer forwarding from display-only Service data without an observation', () => {
+    render(<ServicePortsSection service={makeService()} connectionID="conn-1" resourceID="my-svc" />);
+    expect(screen.getByText('http')).toBeInTheDocument();
+    expect(screen.getByText('TCP')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Forward' })).not.toBeInTheDocument();
   });
 });
 

@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -5,7 +6,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { RuntimeClass } from 'kubernetes-types/node/v1';
 import React from 'react';
 import { LuRocket } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -14,13 +15,13 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import RuntimeClassSidebar from './Sidebar';
 
-const resourceKey = 'node::v1::RuntimeClass';
+const resourceKey = 'k8s:node.k8s.io/runtimeclasses';
 
 const RuntimeClassTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<RuntimeClass>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, RuntimeClass>>>(
     () =>
       withClusterResourceColumns(
         [
@@ -100,7 +101,6 @@ const RuntimeClassTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

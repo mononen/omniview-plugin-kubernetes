@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import ResourceDrawerContainer from '../../../../../../stories/containers/SidebarContainer';
@@ -19,7 +20,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="storage::v1::CSIStorageCapacity"
+        type="k8s:storage.k8s.io/csistoragecapacities"
         icon="LuHardDrive"
         title={title}
         open
@@ -33,10 +34,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: {
-      data: data as Record<string, unknown>,
-      resource: { connectionID: 'ctx-1', id: 'csisc-a1b2c3d4', key: 'storage::v1::CSIStorageCapacity', pluginID: 'kubernetes' },
-    },
+    ctx: { data: data as Record<string, unknown>, resource: fixtureResource('k8s:storage.k8s.io/csistoragecapacities', data, 'ctx-1', 'csisc-a1b2c3d4') },
   },
   decorators: withDrawer(data.metadata.name),
 };

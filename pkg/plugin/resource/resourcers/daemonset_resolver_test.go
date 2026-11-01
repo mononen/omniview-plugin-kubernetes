@@ -2,9 +2,12 @@ package resourcers
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
+	k8stesting "k8s.io/client-go/testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -12,22 +15,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 )
-
-func dsMeta() resource.ResourceMeta {
-	return resource.ResourceMeta{
-		Group:   "apps",
-		Version: "v1",
-		Kind:    "DaemonSet",
-	}
-}
 
 func TestDaemonSetResourcer_ResolveRelationships(t *testing.T) {
 	ds := &appsv1.DaemonSet{
@@ -84,41 +77,50 @@ func TestDaemonSetResourcer_ResolveRelationships(t *testing.T) {
 
 	fakeKube := fake.NewSimpleClientset(ds, pod1, pod2)
 	fakeDynamic := dynamicfake.NewSimpleDynamicClient(scheme, ds)
-	factory := dynamicinformer.NewDynamicSharedInformerFactory(fakeDynamic, 0)
 
 	cs := &clients.ClientSet{
-		KubeClient:             fakeKube,
-		DynamicClient:          fakeDynamic,
-		DynamicInformerFactory: factory,
+		KubeClient:    fakeKube,
+		DynamicClient: fakeDynamic,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "daemonsets"}
-	factory.ForResource(gvr).Informer()
-	factory.Start(ctx.Done())
-	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
-	resourcer := NewDaemonSetResourcer(logger, WithRelationships(RelationshipTable()["apps::v1::DaemonSet"]))
+	resourcer := NewDaemonSetResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/daemonsets"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, dsMeta(), "my-ds", "kube-system")
+	request := relationshipRequest(workloadGetRequest("my-ds", "kube-system"), "k8s:/pods", "k8s:/configmaps", "k8s:/secrets")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, request)
 	require.NoError(t, err)
 	require.Len(t, rels, 3) // Pods, ConfigMap, Secret
 
 	// Pods
-	assert.Equal(t, "core::v1::Pod", rels[0].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/pods", rels[0].Descriptor.TargetType)
 	require.Len(t, rels[0].Targets, 2)
+	assert.Equal(t, request.Targets[0].Authority, rels[0].Targets[0].Reference.Address.Authority)
+	assert.NotEqual(t, request.Source.Reference.Address.Authority, rels[0].Targets[0].Reference.Address.Authority)
 
 	// ConfigMap
-	assert.Equal(t, "core::v1::ConfigMap", rels[1].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/configmaps", rels[1].Descriptor.TargetType)
 	require.Len(t, rels[1].Targets, 1)
-	assert.Equal(t, "agent-config", rels[1].Targets[0].ID)
+	assert.Equal(t, "agent-config", rels[1].Targets[0].Reference.Address.ID)
 
 	// Secret
-	assert.Equal(t, "core::v1::Secret", rels[2].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/secrets", rels[2].Descriptor.TargetType)
 	require.Len(t, rels[2].Targets, 1)
-	assert.Equal(t, "agent-certs", rels[2].Targets[0].ID)
+	assert.Equal(t, "agent-certs", rels[2].Targets[0].Reference.Address.ID)
+
+	request.Targets = nil
+	rels, err = resourcer.ResolveRelationships(ctx, cs, request)
+	assert.Empty(t, rels)
+	assert.Equal(t, "UNSUPPORTED", resource.ErrorCode(err))
+
+	fakeKube.PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("pod list denied")
+	})
+	rels, err = resourcer.ResolveRelationships(ctx, cs, request)
+	assert.Empty(t, rels)
+	require.ErrorContains(t, err, "pod list denied")
 }
 
 func TestDaemonSetResourcer_ResolveRelationships_NoPods(t *testing.T) {
@@ -147,25 +149,19 @@ func TestDaemonSetResourcer_ResolveRelationships_NoPods(t *testing.T) {
 
 	fakeKube := fake.NewSimpleClientset(ds)
 	fakeDynamic := dynamicfake.NewSimpleDynamicClient(scheme, ds)
-	factory := dynamicinformer.NewDynamicSharedInformerFactory(fakeDynamic, 0)
 
 	cs := &clients.ClientSet{
-		KubeClient:             fakeKube,
-		DynamicClient:          fakeDynamic,
-		DynamicInformerFactory: factory,
+		KubeClient:    fakeKube,
+		DynamicClient: fakeDynamic,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "daemonsets"}
-	factory.ForResource(gvr).Informer()
-	factory.Start(ctx.Done())
-	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
-	resourcer := NewDaemonSetResourcer(logger, WithRelationships(RelationshipTable()["apps::v1::DaemonSet"]))
+	resourcer := NewDaemonSetResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/daemonsets"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, dsMeta(), "empty-ds", "default")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, relationshipRequest(workloadGetRequest("empty-ds", "default"), "k8s:/pods"))
 	require.NoError(t, err)
 	assert.Empty(t, rels)
 }

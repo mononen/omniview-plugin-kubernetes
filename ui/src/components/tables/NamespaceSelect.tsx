@@ -1,9 +1,7 @@
-import { MultiSelect } from '@omniviewdev/base-ui';
-import { useResources } from '@omniviewdev/runtime';
+import { Button, MultiSelect } from '@omniviewdev/base-ui';
+import { useKubernetesResources } from '../../hooks/useKubernetesResources';
 import type { Namespace } from 'kubernetes-types/core/v1';
 import React from 'react';
-
-import { PLUGIN_ID } from '@/pluginId';
 
 import styles from './toolbarInputs.module.css';
 
@@ -20,25 +18,24 @@ type Props = {
 
 /**
  * Renders a select for choosing namespaces.
- * Uses useResources to subscribe to namespace watch events for live updates.
+ * Reads the complete namespace collection.
  */
 const NamespaceSelect: React.FC<Props> = ({ connectionID, selected, setNamespaces }) => {
-  const { resources } = useResources({
-    pluginID: PLUGIN_ID,
+  const { bodies, error, retry, isLoading } = useKubernetesResources<Namespace>({
     connectionID,
-    resourceKey: 'core::v1::Namespace',
-    idAccessor: 'metadata.name',
+    resourceType: 'k8s:/namespaces',
   });
 
   const namespaceNames = React.useMemo(() => {
-    const items = (resources.data?.result ?? []) as Namespace[];
-    return items
-      .map((ns) => ns.metadata?.name)
-      .filter((name): name is string => Boolean(name))
-      .sort();
-  }, [resources.data]);
+    const items = bodies;
+    return [...new Set([
+      ...selected,
+      ...items.map((ns) => ns.metadata?.name).filter((name): name is string => Boolean(name)),
+    ])].sort();
+  }, [bodies, selected]);
 
   return (
+    <div>
     <MultiSelect
       size="sm"
       variant="outline"
@@ -52,6 +49,8 @@ const NamespaceSelect: React.FC<Props> = ({ connectionID, selected, setNamespace
       clearable
       className={styles.filterSelect}
     />
+      {!!error && <div role="alert">Could not load namespaces. <Button size="sm" variant="outline" disabled={isLoading} onClick={retry}>Retry</Button></div>}
+    </div>
   );
 };
 

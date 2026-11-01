@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -49,7 +49,7 @@ func testDaemonSet(name, ns string, opts ...func(*appsv1.DaemonSet)) *appsv1.Dae
 
 func TestDaemonSetResourcer_GetActions(t *testing.T) {
 	r := newTestDaemonSetResourcer()
-	actions, err := r.GetActions(context.Background(), nil, resource.ResourceMeta{})
+	actions, err := r.GetActions(context.Background(), nil)
 	require.NoError(t, err)
 	require.Len(t, actions, 1)
 
@@ -65,14 +65,11 @@ func TestDaemonSetResourcer_Restart(t *testing.T) {
 	cs := newAppsDaemonSetClientSet(ds)
 	r := newTestDaemonSetResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "restart", resource.ActionInput{
-		ID:        "fluentd",
-		Namespace: "kube-system",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("restart", "fluentd", "kube-system", nil))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, result.Success)
+	require.Equal(t, "map", result.Kind)
+	assert.True(t, result.Map["success"].Bool)
 
 	updated, err := cs.KubeClient.AppsV1().DaemonSets("kube-system").Get(context.Background(), "fluentd", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -84,13 +81,10 @@ func TestDaemonSetResourcer_Restart_NotFound(t *testing.T) {
 	cs := newAppsDaemonSetClientSet()
 	r := newTestDaemonSetResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "restart", resource.ActionInput{
-		ID:        "nonexistent",
-		Namespace: "default",
-	})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("restart", "nonexistent", "default", nil))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "failed to restart daemonset")
 }
 
@@ -100,10 +94,10 @@ func TestDaemonSetResourcer_UnknownAction(t *testing.T) {
 	cs := newAppsDaemonSetClientSet()
 	r := newTestDaemonSetResourcer()
 
-	result, err := r.ExecuteAction(context.Background(), cs, resource.ResourceMeta{}, "foo", resource.ActionInput{})
+	result, err := r.ExecuteAction(context.Background(), cs, workloadActionRequest("foo", "", "", nil))
 
 	require.Error(t, err)
-	assert.Nil(t, result)
+	assert.Equal(t, resource.Value{}, result)
 	assert.Contains(t, err.Error(), "unknown action")
 }
 
@@ -113,7 +107,7 @@ func TestDaemonSetResourcer_StreamAction_UnsupportedAction(t *testing.T) {
 	r := newTestDaemonSetResourcer()
 	stream := make(chan resource.ActionEvent, 10)
 
-	err := r.StreamAction(context.Background(), nil, resource.ResourceMeta{}, "foo", resource.ActionInput{}, stream)
+	err := r.StreamAction(context.Background(), nil, workloadActionRequest("foo", "", "", nil), stream)
 
 	require.Error(t, err)
 	var operationError *resource.ResourceOperationError
@@ -126,14 +120,12 @@ func TestDaemonSetResourcer_StreamAction_Restart_NotFound(t *testing.T) {
 	r := newTestDaemonSetResourcer()
 	stream := make(chan resource.ActionEvent, 10)
 
-	err := r.StreamAction(context.Background(), cs, resource.ResourceMeta{}, "restart", resource.ActionInput{
-		ID:        "nonexistent",
-		Namespace: "default",
-	}, stream)
+	err := r.StreamAction(context.Background(), cs, workloadActionRequest("restart", "nonexistent", "default", nil), stream)
 
 	require.Error(t, err)
 
 	var events []resource.ActionEvent
+	close(stream)
 	for ev := range stream {
 		events = append(events, ev)
 	}

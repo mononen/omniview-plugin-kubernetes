@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { StatefulSet } from 'kubernetes-types/apps/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="apps::v1::StatefulSet"
+        type="k8s:apps/statefulsets"
         icon="LuDatabase"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const OrderedReady: Story = {
   args: {
-    ctx: {
-      data: data as unknown as StatefulSet,
-      resource: { connectionID: 'ctx-1', id: 'postgres', key: 'apps::v1::StatefulSet' },
-    },
+    ctx: { data: data as unknown as StatefulSet, resource: fixtureResource('k8s:apps/statefulsets', data, 'ctx-1', 'postgres') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -82,10 +80,7 @@ const parallelData: StatefulSet = {
 
 export const Parallel: Story = {
   args: {
-    ctx: {
-      data: parallelData,
-      resource: { connectionID: 'ctx-1', id: 'redis-cluster', key: 'apps::v1::StatefulSet' },
-    },
+    ctx: { data: parallelData, resource: fixtureResource('k8s:apps/statefulsets', parallelData, 'ctx-1', 'redis-cluster') },
   },
   decorators: withDrawer('redis-cluster'),
 };

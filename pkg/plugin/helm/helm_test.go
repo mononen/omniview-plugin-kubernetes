@@ -1,6 +1,10 @@
 package helm
 
 import (
+	"context"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
+	"go.uber.org/zap"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -335,10 +339,10 @@ func TestReleaseToMap_BasicRelease(t *testing.T) {
 	assert.Equal(t, "my-release", m["name"])
 	assert.Equal(t, "default", m["namespace"])
 
-	// Version comes through JSON round-trip as float64.
-	version, ok := m["version"].(float64)
-	require.True(t, ok, "version should be a float64 after JSON round-trip")
-	assert.Equal(t, float64(3), version)
+	// Release revisions retain signed integer intent across the canonical boundary.
+	version, ok := m["version"].(int64)
+	require.True(t, ok, "version should retain integer intent")
+	assert.Equal(t, int64(3), version)
 }
 
 func TestReleaseToMap_PreservesNestedInfo(t *testing.T) {
@@ -371,7 +375,7 @@ func TestReleaseToMap_PreservesNestedInfo(t *testing.T) {
 	// Config is nested.
 	config, ok := m["config"].(map[string]interface{})
 	require.True(t, ok, "config should be a nested map")
-	assert.Equal(t, float64(3), config["replicaCount"])
+	assert.Equal(t, 3, config["replicaCount"])
 
 	image, ok := config["image"].(map[string]interface{})
 	require.True(t, ok, "config.image should be a nested map")
@@ -475,5 +479,151 @@ func TestReleaseToMap_PopulatedConfig(t *testing.T) {
 
 	config, ok := m["config"].(map[string]interface{})
 	require.True(t, ok, "non-empty config should be present as a map")
-	assert.Equal(t, float64(2), config["replicaCount"])
+	assert.Equal(t, 2, config["replicaCount"])
+}
+
+func TestCanonicalHelmRegistrations(t *testing.T) {
+	t.Setenv("HELM_DRIVER", "")
+	registrations := NewHelmAncillary(zap.NewNop().Sugar()).Registrations()
+	require.Len(t, registrations, 3)
+	for _, registration := range registrations {
+		require.NotNil(t, registration.Get)
+		require.NotNil(t, registration.Enumerate)
+		require.NotNil(t, registration.Action)
+		assert.Nil(t, registration.NativeQuery)
+		if registration.Type == ChartType {
+			assert.Nil(t, registration.Mutate)
+		} else {
+			assert.NotNil(t, registration.Mutate)
+		}
+	}
+}
+
+func TestCanonicalHelmScope(t *testing.T) {
+	reference := resource.ResourceReference{Address: resource.ResourceAddress{
+		Type: ReleaseType, ID: "opaque/name", Scope: []resource.ScopeEntry{{Dimension: "namespace", Value: "team-a"}},
+	}}
+	require.NoError(t, validateReference(reference))
+	assert.Equal(t, "team-a", namespaceOf(reference))
+	reference.Address.Scope = nil
+	require.Error(t, validateReference(reference))
+	reference.Address.Type = ChartType
+	reference.Address.Scope = []resource.ScopeEntry{{Dimension: "domain", Value: helmLocalDomain}}
+	require.NoError(t, validateReference(reference))
+}
+
+func TestCanonicalReleaseIntegerIntent(t *testing.T) {
+	record, err := helmRecord(resource.ResourceReference{}, releaseToMap(&release.Release{
+		Name: "release", Version: 3, Config: map[string]interface{}{"large": uint64(18446744073709551615)},
+	}))
+	require.NoError(t, err)
+	assert.Equal(t, "int64", record.Body.Map["version"].Kind)
+	assert.Equal(t, "3", record.Body.Map["version"].Int)
+	assert.Equal(t, "uint64", record.Body.Map["config"].Map["large"].Kind)
+	assert.Equal(t, "18446744073709551615", record.Body.Map["config"].Map["large"].Uint)
+}
+
+func TestCanonicalHelmFinitePagePolicy(t *testing.T) {
+	_, _, err := pageBounds(resource.EnumerateRequest{PageSize: 257})
+	require.Error(t, err)
+	overflow := "9223372036854775807"
+	_, _, err = pageBounds(resource.EnumerateRequest{Cursor: &overflow})
+	require.Error(t, err)
+	size, offset, err := pageBounds(resource.EnumerateRequest{})
+	require.NoError(t, err)
+	assert.Equal(t, 256, size)
+	assert.Zero(t, offset)
+	page := finishPage(nil, 0, 2, true)
+	assert.Equal(t, "unknown", page.Count.Kind)
+	require.NotNil(t, page.NextCursor)
+	assert.Equal(t, "2", *page.NextCursor)
+}
+
+func TestHelmStorageDriverEnumerationAdmission(t *testing.T) {
+	for _, driver := range []string{"", "secret", "secrets", "configmap", "configmaps", "sql", "memory", "unknown"} {
+		t.Run(driver, func(t *testing.T) {
+			t.Setenv("HELM_DRIVER", driver)
+			supported := driver == "" || driver == "secret" || driver == "secrets" || driver == "configmap" || driver == "configmaps"
+			for _, descriptor := range HelmResourceTypes() {
+				hasEnumeration := false
+				for _, capability := range descriptor.Capabilities {
+					hasEnumeration = hasEnumeration || capability.Operation == resource.OperationEnumerate
+				}
+				assert.Equal(t, descriptor.Type != ReleaseType || supported, hasEnumeration)
+			}
+			for _, registration := range NewHelmAncillary(zap.NewNop().Sugar()).Registrations() {
+				assert.Equal(t, registration.Type != ReleaseType || supported, registration.Enumerate != nil)
+				assert.NotNil(t, registration.Get)
+				assert.NotNil(t, registration.Action)
+			}
+			if !supported {
+				_, err := releaseMetadata(context.Background(), nil, "default", 1, nil)
+				assert.Equal(t, "UNSUPPORTED", resource.ErrorCode(err))
+			}
+		})
+	}
+}
+
+func TestNativeActionConversionErrorsPropagate(t *testing.T) {
+	input := resource.ActionRequest{Input: resource.Value{Kind: "int64", Int: "invalid"}}
+	_, err := actionParams(input)
+	assert.Equal(t, "INVALID_REQUEST", resource.ErrorCode(err))
+	logger := zap.NewNop().Sugar()
+	_, err = NewReleaseResourcer(logger).executeRollback(nil, input)
+	assert.Equal(t, "INVALID_REQUEST", resource.ErrorCode(err))
+	_, err = NewRepoResourcerWithActions(logger).executeAdd(input)
+	assert.Equal(t, "INVALID_REQUEST", resource.ErrorCode(err))
+	_, err = NewChartResourcerWithActions(logger).executeGetValues("repo", "chart", input)
+	assert.Equal(t, "INVALID_REQUEST", resource.ErrorCode(err))
+}
+
+func TestHelmEditorSchemaCanonicalBinding(t *testing.T) {
+	document := []byte(`{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"replicas":{"type":"integer"}}}`)
+	schema, size, err := helmEditorSchema(document, "helm://connection/chart/1/values-schema", "**/helm:releases/release.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, ReleaseType, schema.Type)
+	assert.Equal(t, "available", schema.Binding.State)
+	assert.Equal(t, "http://json-schema.org/draft-07/schema#", schema.Binding.Dialect)
+	assert.Empty(t, schema.Binding.Root)
+	assert.Nil(t, schema.Binding.DocumentRef)
+	assert.Equal(t, document, []byte(schema.Binding.Document))
+	assert.Equal(t, "none", schema.Binding.Validation)
+	assert.Greater(t, size, len(document))
+	require.NotNil(t, schema.Binding.Revision)
+	same, _, err := helmEditorSchema(document, "helm://other/chart", "*.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, *schema.Binding.Revision, *same.Binding.Revision)
+	_, err = resource.ToProtoEditorSchema(schema)
+	require.NoError(t, err)
+}
+
+func TestHelmEditorSchemaFiniteAndHonest(t *testing.T) {
+	schema, _, err := helmEditorSchema([]byte(`{"type":"object"}`), "helm://chart", "*.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, "helm-json-schema", schema.Binding.Dialect)
+	_, _, err = helmEditorSchema([]byte(`{`), "helm://chart", "*.yaml")
+	assert.Equal(t, "INVALID_REQUEST", resource.ErrorCode(err))
+	_, _, err = helmEditorSchema([]byte(`[]`), "helm://chart", "*.yaml")
+	assert.Equal(t, "INVALID_REQUEST", resource.ErrorCode(err))
+	_, _, err = helmEditorSchema([]byte(`{}`), strings.Repeat("x", resource.MaxDocumentBytes/6), "*.yaml")
+	assert.Equal(t, "RESOURCE_LIMIT", resource.ErrorCode(err))
+}
+
+func TestHelmCatalogDeclaresEveryCapabilityQueryDimension(t *testing.T) {
+	t.Setenv("HELM_DRIVER", "secrets")
+	catalog := resource.Catalog{
+		Provider: "kubernetes", Revision: "fixture-native-catalog",
+		Types: HelmResourceTypes(), Coverage: resource.Coverage{Kind: "complete", Paths: []string{}},
+	}
+	require.NoError(t, resource.ValidateCatalog(catalog))
+	for _, descriptor := range catalog.Types {
+		require.Equal(t, helmRepresentation, descriptor.DefaultRepresentation)
+		for _, capability := range descriptor.Capabilities {
+			require.Len(t, capability.Scope, len(descriptor.QueryDimensions), descriptor.Type)
+			for index, dimension := range descriptor.QueryDimensions {
+				assert.Equal(t, dimension.Name, capability.Scope[index].Dimension)
+				assert.Equal(t, resource.ScopeAny, capability.Scope[index].Match)
+			}
+		}
+	}
 }

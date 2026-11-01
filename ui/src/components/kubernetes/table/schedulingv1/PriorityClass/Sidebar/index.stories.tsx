@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import ResourceDrawerContainer from '../../../../../../stories/containers/SidebarContainer';
@@ -19,7 +20,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="scheduling::v1::PriorityClass"
+        type="k8s:scheduling.k8s.io/priorityclasses"
         icon="LuArrowUp"
         title={title}
         open
@@ -33,10 +34,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: {
-      data: data as Record<string, unknown>,
-      resource: { connectionID: 'ctx-1', id: 'high-priority', key: 'scheduling::v1::PriorityClass', pluginID: 'kubernetes' },
-    },
+    ctx: { data: data as Record<string, unknown>, resource: fixtureResource('k8s:scheduling.k8s.io/priorityclasses', data, 'ctx-1', 'high-priority') },
   },
   decorators: withDrawer(data.metadata.name),
 };

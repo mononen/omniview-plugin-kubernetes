@@ -4,9 +4,10 @@ import type {
   useExec,
   useExecuteAction,
   useLogs,
-  useResourceMutations,
+  MutationRequest,
   useStreamAction,
 } from '@omniviewdev/runtime';
+import type { Pod } from 'kubernetes-types/core/v1';
 
 /**
  * Shared hook-backed execution dependencies. Drawer bridges register fallback
@@ -14,14 +15,22 @@ import type {
  * Context binding survives confirmation callbacks without a mounted table.
  */
 
-export type ScaleTarget = { name: string; namespace: string; replicas: number };
+export type ScaleTarget = { resource: NonNullable<DrawerContext['resource']>; name: string; namespace: string; replicas: number };
 
 type NodeShellConfig = { image?: string; command?: string };
 
+export type StartDebugInput = {
+  connectionID: string;
+  resourceID: string;
+  namespace: string;
+  podUID: string;
+  targetContainerName: string;
+  resourceData: Pod;
+};
+
 export type DrawerActionDeps = {
   show: ReturnType<typeof useConfirmationModal>['show'];
-  remove: ReturnType<typeof useResourceMutations>['remove'];
-  update: ReturnType<typeof useResourceMutations>['update'];
+  mutate: (request: MutationRequest) => Promise<unknown>;
   createLogSession: ReturnType<typeof useLogs>['createLogSession'];
   createExecSession: ReturnType<typeof useExec>['createSession'];
   executeAction: ReturnType<typeof useExecuteAction>['executeAction'];
@@ -29,6 +38,8 @@ export type DrawerActionDeps = {
   closeDrawer: () => void;
   /** Opens the replica count dialog; confirming runs the `scale` action. */
   openScale: (target: ScaleTarget) => void;
+  startDebug: (input: StartDebugInput) => Promise<void>;
+  openDebugOptions: (input: StartDebugInput) => void;
   nodeShellConfig?: NodeShellConfig;
 };
 
@@ -60,8 +71,8 @@ export function registerDrawerActionDeps(key: string, deps: DrawerActionDeps): (
 export function drawerActionDeps(ctx: DrawerContext): DrawerActionDeps {
   const bound = contextDeps.get(ctx);
   if (bound) return bound;
-  const connectionID = ctx.resource?.connectionID ?? '';
-  const resourceKey = ctx.resource?.key ?? '';
+  const connectionID = ctx.resource?.route.connection ?? '';
+  const resourceKey = ctx.resource?.reference.address.type ?? '';
   const list = registry.get(registryKey(connectionID, resourceKey));
   const deps = list?.[list.length - 1];
   if (!deps) {

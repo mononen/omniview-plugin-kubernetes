@@ -1,10 +1,11 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import { Chip } from '@omniviewdev/base-ui';
 import { DrawerComponent } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import { Secret } from 'kubernetes-types/core/v1';
 import React from 'react';
 import { LuBox, LuCircleCheck } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -15,12 +16,12 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 
 const scrollRowStyle = { gap: 2 } as const;
 
-const resourceKey = 'core::v1::Secret';
+const resourceKey = 'k8s:/secrets';
 
 const SecretTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
-  const columns = React.useMemo<Array<ColumnDef<Secret>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, Secret>>>(
     () =>
       withNamespacedResourceColumns<Secret>(
         [
@@ -84,7 +85,6 @@ const SecretTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

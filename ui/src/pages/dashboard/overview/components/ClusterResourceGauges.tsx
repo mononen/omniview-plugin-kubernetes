@@ -1,8 +1,11 @@
 import { Progress, Skeleton, Text } from '@omniviewdev/base-ui';
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import type { metric } from '@omniviewdev/runtime/models';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LuCpu, LuMemoryStick, LuBox, LuHardDrive } from 'react-icons/lu';
+import { metricQueryParams } from '../../../../utils/metricParams';
+
+import { useDocumentVisibility } from '@/hooks/useDocumentVisibility';
 
 import { PLUGIN_ID } from '@/pluginId';
 
@@ -101,41 +104,46 @@ const GAUGE_METRIC_IDS = [
   'prom_cluster_fs_total',
 ];
 
-const ClusterResourceGauges: React.FC<ClusterResourceGaugesProps> = ({
+type GaugeSnapshot = {
+  data: Record<string, metric.QueryResponse> | undefined;
+  hasProviders: boolean;
+  isLoading: boolean;
+};
+
+const INITIAL_GAUGES: GaugeSnapshot = { data: undefined, hasProviders: false, isLoading: true };
+
+const GaugeMetricsObserver: React.FC<ClusterResourceGaugesProps & {
+  onSnapshot: (snapshot: GaugeSnapshot) => void;
+}> = ({
   connectionID,
   metricConfig,
+  onSnapshot,
 }) => {
-  const resourceData = useMemo(() => {
-    if (
-      !metricConfig?.prometheusService &&
-      !metricConfig?.prometheusNamespace &&
-      !metricConfig?.prometheusPort
-    ) {
-      return {};
-    }
-    return {
-      __metric_config__: {
-        service: metricConfig.prometheusService || '',
-        namespace: metricConfig.prometheusNamespace || '',
-        port: metricConfig.prometheusPort || 0,
-      },
-    };
-  }, [metricConfig]);
+  const params = useMemo(() => metricQueryParams(metricConfig), [metricConfig]);
 
   const { data, providers, isLoading } = useResourceMetrics({
     pluginID: PLUGIN_ID,
     connectionID,
     resourceKey: 'cluster::metrics',
     resourceID: '',
-    resourceData,
+    params,
     shape: 0,
     metricIDs: GAUGE_METRIC_IDS,
     refreshInterval: 30000,
   });
+  const hasProviders = providers.length > 0;
+  const snapshot = useMemo(() => ({ data, hasProviders, isLoading }), [data, hasProviders, isLoading]);
+  useEffect(() => { onSnapshot(snapshot); }, [snapshot, onSnapshot]);
+  return null;
+};
+
+const ClusterResourceGaugesView: React.FC<{ snapshot: GaugeSnapshot }> = ({
+  snapshot: { data, hasProviders, isLoading },
+}) => {
 
   const values = useMemo(() => extractCurrentValues(data), [data]);
 
-  if (providers.length === 0 && !isLoading) return null;
+  if (!hasProviders && !isLoading) return null;
   if (values.size === 0 && !isLoading) return null;
 
   const cpuPct = values.get('prom_cluster_cpu_utilization') ?? 0;
@@ -237,5 +245,18 @@ function GaugeStatCard({
     </div>
   );
 }
+
+const ClusterResourceGaugesController: React.FC<ClusterResourceGaugesProps> = (props) => {
+  const visible = useDocumentVisibility();
+  const [snapshot, setSnapshot] = useState(INITIAL_GAUGES);
+  return <>
+    <ClusterResourceGaugesView snapshot={snapshot} />
+    {visible && <GaugeMetricsObserver {...props} onSnapshot={setSnapshot} />}
+  </>;
+};
+
+const ClusterResourceGauges: React.FC<ClusterResourceGaugesProps> = (props) => (
+  <ClusterResourceGaugesController key={props.connectionID} {...props} />
+);
 
 export default ClusterResourceGauges;

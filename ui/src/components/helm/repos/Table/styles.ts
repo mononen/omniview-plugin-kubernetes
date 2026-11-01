@@ -1,6 +1,6 @@
 import type React from 'react';
 
-export const resourceKey = 'helm::v1::Repository';
+export const resourceKey = 'helm:repositories';
 
 export const dialogStyle: React.CSSProperties = {
   width: '90%',

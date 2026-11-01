@@ -2,10 +2,12 @@ import { IconButton, Menu } from '@omniviewdev/base-ui';
 import {
   type DrawerComponentAction,
   type DrawerContext,
+  type HostRecord,
   useConfirmationModal,
+  parseAppError,
+  useSnackbar,
 } from '@omniviewdev/runtime';
 import { ResourceClient } from '@omniviewdev/runtime/api';
-import { type resource } from '@omniviewdev/runtime/models';
 import { ObjectMeta } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuEllipsis, LuTrash } from 'react-icons/lu';
@@ -24,13 +26,16 @@ type ContextMenuItem = {
   color?: 'danger';
   disabled?: boolean;
   dividerAfter?: boolean;
-  onClick?: () => void;
+  onClick?: () => void | Promise<unknown>;
   children?: ContextMenuItem[];
 };
 
 const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
-function renderMenuItems(items: ContextMenuItem[]): React.ReactNode {
+function renderMenuItems(
+  items: ContextMenuItem[],
+  invoke: (callback: NonNullable<ContextMenuItem['onClick']>) => void,
+): React.ReactNode {
   return items.map((item) => (
     <React.Fragment key={item.key}>
       {item.children && item.children.length > 0 ? (
@@ -40,7 +45,7 @@ function renderMenuItems(items: ContextMenuItem[]): React.ReactNode {
           </Menu.SubmenuTrigger>
           <Menu.Portal>
             <Menu.Positioner sideOffset={4}>
-              <Menu.Popup onClick={stopPropagation}>{renderMenuItems(item.children)}</Menu.Popup>
+              <Menu.Popup onClick={stopPropagation}>{renderMenuItems(item.children, invoke)}</Menu.Popup>
             </Menu.Positioner>
           </Menu.Portal>
         </Menu.SubmenuRoot>
@@ -49,7 +54,7 @@ function renderMenuItems(items: ContextMenuItem[]): React.ReactNode {
           startDecorator={item.icon}
           color={item.color}
           disabled={item.disabled}
-          onClick={item.onClick}
+          onClick={item.onClick ? () => { invoke(item.onClick!); } : undefined}
         >
           {item.label}
         </Menu.Item>
@@ -71,15 +76,17 @@ type Props = {
  * Build a DrawerContext from the table cell props so drawer actions
  * can be invoked with the correct row data.
  */
-function buildDrawerContext(props: Props): DrawerContext {
-  const meta = (props.data as { metadata?: ObjectMeta })?.metadata;
+function buildDrawerContext(props: Props, record: HostRecord): DrawerContext {
   return {
     data: props.data,
     resource: {
-      id: meta?.name ?? props.resourceID,
-      name: meta?.name ?? props.resourceID,
-      key: props.resourceKey,
-      connectionID: props.connectionID,
+      reference: record.record.reference,
+      route: record.route,
+      representation: record.record.representation.id,
+      targetId: record.targetId,
+      key: record.key,
+      record,
+      name: record.record.reference.address.id,
       pluginID: PLUGIN_ID,
     },
   };
@@ -162,8 +169,21 @@ function actionsToMenuItems(
 }
 
 const ActionsCell: React.FC<Props> = ({ connectionID, resourceKey, resourceID, data, namespace }) => {
-  const drawer = useTableDrawer();
+  const tableContext = useTableDrawer();
+  const drawer = tableContext?.drawer;
+  const record = tableContext?.recordsByBody.get(data as object);
   const { show } = useConfirmationModal();
+  const snackbar = useSnackbar();
+  const invoke = (callback: NonNullable<ContextMenuItem['onClick']>) => {
+    void (async () => {
+      try {
+        await callback();
+      } catch (cause) {
+        const error = parseAppError(cause);
+        snackbar.showSnackbar({ message: error.title || 'Action failed', status: 'error', details: error.detail });
+      }
+    })();
+  };
 
   const propsObj = React.useMemo<Props>(
     () => ({ connectionID, resourceKey, resourceID, data, namespace }),
@@ -171,11 +191,12 @@ const ActionsCell: React.FC<Props> = ({ connectionID, resourceKey, resourceID, d
   );
 
   const ctx = React.useMemo(
-    () => buildDrawerContext(propsObj),
-    [propsObj],
+    () => record ? buildDrawerContext(propsObj, record) : undefined,
+    [propsObj, record],
   );
 
   const items = React.useMemo<ContextMenuItem[]>(() => {
+    if (!ctx) return [];
     const drawerActions = drawer?.actions;
     if (drawerActions && drawerActions.length > 0) {
       return actionsToMenuItems(drawerActions, ctx);
@@ -204,7 +225,7 @@ const ActionsCell: React.FC<Props> = ({ connectionID, resourceKey, resourceID, d
       />
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="end" sideOffset={4}>
-          <Menu.Popup onClick={stopPropagation}>{renderMenuItems(items)}</Menu.Popup>
+          <Menu.Popup onClick={stopPropagation}>{renderMenuItems(items, invoke)}</Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
     </Menu.Root>
@@ -217,7 +238,7 @@ const ActionsCell: React.FC<Props> = ({ connectionID, resourceKey, resourceID, d
  */
 function buildFallbackDelete(
   props: Props,
-  _ctx: DrawerContext,
+  ctx: DrawerContext,
   show: ReturnType<typeof useConfirmationModal>['show'],
 ): ContextMenuItem {
   const meta = (props.data as { metadata?: ObjectMeta })?.metadata;
@@ -235,12 +256,12 @@ function buildFallbackDelete(
         confirmLabel: 'Delete',
         cancelLabel: 'Cancel',
         onConfirm: async () => {
-          await ResourceClient.Delete(PLUGIN_ID, props.connectionID, props.resourceKey, {
-            id: resourceName,
-            namespace: props.namespace,
-            input: {},
-            params: {},
-          } as unknown as resource.DeleteInput);
+          await ResourceClient.Mutate(PLUGIN_ID, {
+            reference: ctx.resource!.reference,
+            route: ctx.resource!.route,
+            operation: 'delete',
+            input: { kind: 'map', value: {} },
+          });
         },
       });
     },

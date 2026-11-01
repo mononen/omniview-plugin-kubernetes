@@ -71,10 +71,13 @@ func (k *kubeServiceChecker) ServiceExists(ctx context.Context, namespace, name 
 type PrometheusDetector struct {
 	mu          sync.RWMutex
 	cache       map[string]*DetectionResult
+	generations map[string]*detectionGeneration
 	positiveTTL time.Duration
 	negativeTTL time.Duration
 	nowFunc     func() time.Time
 }
+
+type detectionGeneration struct{ active bool }
 
 // DetectorOpts configures a PrometheusDetector.
 type DetectorOpts struct {
@@ -116,6 +119,7 @@ func NewPrometheusDetector(opts DetectorOpts) *PrometheusDetector {
 // combination is checked — no auto-detection fallback. This ensures the test
 // connection accurately reflects whether the user's config is correct.
 func (d *PrometheusDetector) Detect(
+	ctx context.Context,
 	connectionID string,
 	checker ServiceChecker,
 	configuredService string,
@@ -125,22 +129,33 @@ func (d *PrometheusDetector) Detect(
 	// Include config in cache key so different configs get different entries.
 	cacheKey := fmt.Sprintf("%s|%s|%s|%d", connectionID, configuredService, configuredNamespace, configuredPort)
 
-	// Check cache first.
-	d.mu.RLock()
+	// The token only fences native cache publication; it is not resource identity.
+	d.mu.Lock()
+	if d.generations == nil {
+		d.generations = make(map[string]*detectionGeneration)
+	}
+	generation := d.generations[connectionID]
+	if generation == nil {
+		generation = &detectionGeneration{active: true}
+		d.generations[connectionID] = generation
+	}
 	cached, ok := d.cache[cacheKey]
-	d.mu.RUnlock()
+	d.mu.Unlock()
 
 	if ok && d.isCacheValid(cached) {
 		return cached
 	}
 
 	// Perform fresh detection.
-	result := d.scan(checker, configuredService, configuredNamespace, configuredPort)
+	result := d.scan(ctx, checker, configuredService, configuredNamespace, configuredPort)
 
-	d.mu.Lock()
-	d.cache[cacheKey] = result
-	d.mu.Unlock()
-
+	if ctx.Err() == nil {
+		d.mu.Lock()
+		if d.generations[connectionID] == generation {
+			d.cache[cacheKey] = result
+		}
+		d.mu.Unlock()
+	}
 	return result
 }
 
@@ -148,6 +163,7 @@ func (d *PrometheusDetector) Detect(
 func (d *PrometheusDetector) InvalidateConnection(connectionID string) {
 	prefix := connectionID + "|"
 	d.mu.Lock()
+	delete(d.generations, connectionID)
 	for key := range d.cache {
 		if len(key) >= len(prefix) && key[:len(prefix)] == prefix {
 			delete(d.cache, key)
@@ -167,12 +183,12 @@ func (d *PrometheusDetector) isCacheValid(result *DetectionResult) bool {
 
 // scan performs the actual service discovery.
 func (d *PrometheusDetector) scan(
+	ctx context.Context,
 	checker ServiceChecker,
 	configuredService string,
 	configuredNamespace string,
 	configuredPort int,
 ) *DetectionResult {
-	ctx := context.Background()
 	now := d.nowFunc()
 
 	port := configuredPort
@@ -205,6 +221,9 @@ func (d *PrometheusDetector) scan(
 	// 2. No explicit config — scan well-known services across well-known namespaces.
 	for _, ns := range knownPrometheusNamespaces {
 		for _, svc := range knownPrometheusServices {
+			if ctx.Err() != nil {
+				return &DetectionResult{CheckedAt: now}
+			}
 			if exists, _ := checker.ServiceExists(ctx, ns, svc); exists {
 				return &DetectionResult{
 					Found:     true,

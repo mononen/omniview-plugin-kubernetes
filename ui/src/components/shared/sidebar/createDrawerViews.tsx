@@ -21,9 +21,8 @@ import { createMetricsView } from './pages/metrics/ResourceMetricsPage';
  */
 export function createStandardViews<T = KubernetesResourceObject>(opts: {
   SidebarComponent: React.FC<{ ctx: DrawerContext<T> }>;
-  onEditorSubmit?: (ctx: DrawerContext<T>, value: Record<string, unknown>) => void;
 }): Array<DrawerComponentView<T>> {
-  const { SidebarComponent, onEditorSubmit } = opts;
+  const { SidebarComponent } = opts;
 
   const views: Array<DrawerComponentView<T>> = [
     {
@@ -34,31 +33,23 @@ export function createStandardViews<T = KubernetesResourceObject>(opts: {
     {
       title: 'Related',
       icon: <LuWaypoints />,
-      component: (ctx) => <RelatedResourcesView ctx={ctx as DrawerContext} />,
+      component: (ctx) => <RelatedResourcesView ctx={ctx} />,
     },
     {
       title: 'Graph',
       icon: <LuNetwork />,
-      component: (ctx) => <ResourceGraphView ctx={ctx as DrawerContext} />,
+      component: (ctx) => <ResourceGraphView ctx={ctx} />,
     },
     createMetricsView() as unknown as DrawerComponentView<T>,
     {
       title: 'Events',
       icon: <LuZap />,
-      component: (ctx) => <ResourceEventsView ctx={ctx as DrawerContext} />,
+      component: (ctx) => <ResourceEventsView ctx={ctx} />,
     },
     {
       title: 'Editor',
       icon: <LuCode />,
-      component: onEditorSubmit
-        ? (ctx) => (
-            <BaseEditorPage
-              data={ctx.data as KubernetesResourceObject}
-              resourceKey={ctx.resource?.key}
-              onSubmit={(val) => onEditorSubmit(ctx, val)}
-            />
-          )
-        : (ctx) => <BaseEditorPage data={ctx.data as KubernetesResourceObject} resourceKey={ctx.resource?.key} />,
+      component: (ctx) => <BaseEditorPage ctx={ctx as DrawerContext<KubernetesResourceObject>} />,
     },
   ];
 
@@ -69,7 +60,7 @@ export function createStandardViews<T = KubernetesResourceObject>(opts: {
     component: (ctx) => (
       <>
         {ctx.resource && (
-          <DrawerActionsBridge connectionID={ctx.resource.connectionID} resourceKey={ctx.resource.key} />
+          <DrawerActionsBridge connectionID={ctx.resource.route.connection} resourceKey={ctx.resource.reference.address.type} />
         )}
         {view.component(ctx)}
       </>

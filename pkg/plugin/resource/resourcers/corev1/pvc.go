@@ -1,38 +1,35 @@
 //nolint:gochecknoglobals,gomnd // column definitions are global
 package corev1
 
-import "github.com/omniviewdev/plugin-sdk/pkg/resource/types"
+import types "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 
 var PVCDef = types.ResourceDefinition{
-	IDAccessor:        "metadata.name",
-	NamespaceAccessor: "metadata.namespace",
-	MemoizerAccessor:  "metadata.uid,metadata.resourceVersion",
-	ColumnDefs: []types.ColumnDef{
+	ColumnDefs: []types.ColumnDefinition{
 		{
 			ID:        "name",
 			Header:    "Name",
 			Accessors: "metadata.name",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 		},
 		{
 			ID:        "namespace",
 			Header:    "Namespace",
 			Accessors: "metadata.namespace",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     180,
 		},
 		{
 			ID:        "storageClassName",
 			Header:    "StorageClass",
 			Accessors: "spec.storageClassName",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     120,
 		},
 		{
 			ID:        "status",
 			Header:    "Status",
 			Accessors: "status.phase",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     100,
 			ColorMap: map[string]string{
 				"Bound":   "success",
@@ -44,28 +41,28 @@ var PVCDef = types.ResourceDefinition{
 			ID:        "capacity",
 			Header:    "Capacity",
 			Accessors: "status.capacity.storage",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     100,
 		},
 		{
 			ID:        "accessModes",
 			Header:    "Access Modes",
 			Accessors: "$.spec.accessModes[*]",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     150,
 		},
 		{
 			ID:        "volumeMode",
 			Header:    "Volume Mode",
 			Accessors: "spec.volumeMode",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     120,
 		},
 		{
 			ID:        "volumeName",
 			Header:    "Volume Name",
 			Accessors: "spec.volumeName",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     300,
 			Hidden:    true,
 		},
@@ -73,7 +70,7 @@ var PVCDef = types.ResourceDefinition{
 			ID:        "storageRequest",
 			Header:    "Storage Request",
 			Accessors: "spec.resources.requests.storage",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     150,
 			Hidden:    true,
 		},
@@ -81,9 +78,9 @@ var PVCDef = types.ResourceDefinition{
 			ID:        "age",
 			Header:    "Age",
 			Accessors: "metadata.creationTimestamp",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     80,
-			Formatter: types.CellValueFormatterAge,
+			Formatter: "AGE",
 		},
 	},
 }

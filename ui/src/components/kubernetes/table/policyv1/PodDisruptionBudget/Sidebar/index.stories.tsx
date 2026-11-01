@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { PodDisruptionBudget } from 'kubernetes-types/policy/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="policy::v1::PodDisruptionBudget"
+        type="k8s:policy/poddisruptionbudgets"
         icon="LuShield"
         title={title}
         open
@@ -36,10 +37,7 @@ function withDrawer(title: string) {
 
 export const MinAvailable: Story = {
   args: {
-    ctx: {
-      data: data as unknown as PodDisruptionBudget,
-      resource: { connectionID: 'ctx-1', id: 'web-frontend-pdb', key: 'policy::v1::PodDisruptionBudget' },
-    },
+    ctx: { data: data as unknown as PodDisruptionBudget, resource: fixtureResource('k8s:policy/poddisruptionbudgets', data, 'ctx-1', 'web-frontend-pdb') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -78,10 +76,7 @@ const maxUnavailableData: PodDisruptionBudget = {
 
 export const MaxUnavailable: Story = {
   args: {
-    ctx: {
-      data: maxUnavailableData,
-      resource: { connectionID: 'ctx-1', id: 'api-pdb', key: 'policy::v1::PodDisruptionBudget' },
-    },
+    ctx: { data: maxUnavailableData, resource: fixtureResource('k8s:policy/poddisruptionbudgets', maxUnavailableData, 'ctx-1', 'api-pdb') },
   },
   decorators: withDrawer('api-pdb'),
 };

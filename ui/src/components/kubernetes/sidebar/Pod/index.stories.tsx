@@ -30,7 +30,7 @@ export const Primary: Story = {
 Primary.decorators = [
   (Story, c) => (
     <ResourceDrawerContainer
-      type="core::v1::Pod"
+      type="k8s:/pods"
       icon="LuBox"
       // @ts-expect-error - arbitrary json
       title={c.args.ctx.data?.metadata?.name}

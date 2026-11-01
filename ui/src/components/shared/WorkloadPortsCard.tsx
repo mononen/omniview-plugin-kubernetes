@@ -9,7 +9,7 @@ import {
   Stack,
   Text,
 } from '@omniviewdev/base-ui';
-import { useResourcePortForwarder } from '@omniviewdev/runtime';
+import { useResourcePortForwarder, type DrawerContext } from '@omniviewdev/runtime';
 import { networker } from '@omniviewdev/runtime/models';
 import { Browser } from '@omniviewdev/runtime/runtime';
 import type { ContainerPort, PodSpec } from 'kubernetes-types/core/v1';
@@ -171,17 +171,10 @@ interface ForwardConfigPopoverProps {
 function ForwardConfigPopover({ anchorEl, port, onClose, onConfirm }: ForwardConfigPopoverProps) {
   const [localPort, setLocalPort] = React.useState('');
   const [portError, setPortError] = React.useState('');
-  const [protocol, setProtocol] = React.useState<'TCP' | 'UDP'>('TCP');
+  const [protocol, setProtocol] = React.useState<'TCP' | 'UDP'>(() =>
+    (port?.protocol as 'TCP' | 'UDP') || 'TCP',
+  );
   const [openInBrowser, setOpenInBrowser] = React.useState(true);
-
-  React.useEffect(() => {
-    if (anchorEl && port) {
-      setLocalPort('');
-      setPortError('');
-      setProtocol((port.protocol as 'TCP' | 'UDP') || 'TCP');
-      setOpenInBrowser(true);
-    }
-  }, [anchorEl, port]);
 
   const handleConfirm = () => {
     if (localPort) {
@@ -282,10 +275,10 @@ function ForwardConfigPopover({ anchorEl, port, onClose, onConfirm }: ForwardCon
 export interface WorkloadPortsCardProps {
   /** The pod template spec containing containers with ports. */
   podSpec: PodSpec;
-  /** Resource key for the port-forward call (e.g. 'apps::v1::Deployment'). */
+  /** Native logical Type for the port-forward call (e.g. 'k8s:apps/deployments'). */
   resourceKey: string;
-  /** Full resource data object passed to the port-forward call. */
-  resourceData: unknown;
+  /** Canonical observation and admitted target used for port-forward calls. */
+  resource: DrawerContext['resource'];
   /** Resource ID (e.g. the deployment name). */
   resourceID: string;
   /** Connection ID. */
@@ -295,7 +288,7 @@ export interface WorkloadPortsCardProps {
 const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
   podSpec,
   resourceKey,
-  resourceData,
+  resource,
   resourceID,
   connectionID,
 }) => {
@@ -319,22 +312,31 @@ const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
     port: number,
     opts?: { localPort?: number; protocol?: 'TCP' | 'UDP'; openInBrowser?: boolean },
   ) => {
+    if (!resource?.record) throw new Error('Resource observation is unavailable');
     void forward({
       opts: {
         resourceId: resourceID,
         resourceKey,
-        resource: resourceData,
+        resource: resource.record.record.body,
+        reference: resource.reference,
+        route: resource.route,
         remotePort: port,
         localPort: opts?.localPort,
         protocol: opts?.protocol ?? 'TCP',
         openInBrowser: opts?.openInBrowser ?? true,
         parameters: {},
       },
+    }).catch((error: unknown) => {
+      // The runtime hook reports mutation failures through its snackbar.
+      console.error('Port forward request failed', error);
     });
   };
 
   const handleStopPortForward = (sessionID: string) => {
-    void close({ opts: { sessionID } });
+    close({ opts: { sessionID } }).catch((error: unknown) => {
+      // The runtime hook reports mutation failures through its snackbar.
+      console.error('Port forward close request failed', error);
+    });
   };
 
   const handleOpenConfig = (e: React.MouseEvent<HTMLElement>, port: ContainerPort) => {
@@ -392,7 +394,11 @@ const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
                         size="sm"
                         clickable
                         style={chipStyle}
-                        onClick={() => void Browser.OpenURL(`http://localhost:${existing.local_port}`)}
+                        onClick={() => {
+                          Browser.OpenURL(`http://localhost:${existing.local_port}`).catch(
+                            (error: unknown) => console.error('Failed to open port in browser', error),
+                          );
+                        }}
                       >
                         {`localhost:${existing.local_port}`}
                       </Chip>
@@ -420,16 +426,17 @@ const WorkloadPortsCard: React.FC<WorkloadPortsCardProps> = ({
         })}
       </div>
 
-      <ForwardConfigPopover
-        anchorEl={configAnchor}
-        port={configPort}
-        onClose={handleCloseConfig}
-        onConfirm={(opts) => {
-          if (configPort) {
+      {configAnchor && configPort && (
+        <ForwardConfigPopover
+          key={`${connectionID}/${resourceID}/${configPort.containerPort}/${configPort.protocol}`}
+          anchorEl={configAnchor}
+          port={configPort}
+          onClose={handleCloseConfig}
+          onConfirm={(opts) => {
             handleStartPortForward(Number(configPort.containerPort), opts);
-          }
-        }}
-      />
+          }}
+        />
+      )}
     </>
   );
 };

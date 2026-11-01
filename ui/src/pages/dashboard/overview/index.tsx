@@ -3,17 +3,19 @@ import {
   useConnection,
   useExtensionPoint,
   usePluginRouter,
-  useResources,
 } from '@omniviewdev/runtime';
+import { useKubernetesResources } from '../../../hooks/useKubernetesResources';
 import type { Pod, Node as K8sNode, Event as K8sEvent } from 'kubernetes-types/core/v1';
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 
 import { PLUGIN_ID } from '@/pluginId';
 
 import type { ChartTimeRange } from '../../../components/shared/charts';
 import NamespaceSelect from '../../../components/tables/NamespaceSelect';
 import { useClusterPreferences } from '../../../hooks/useClusterPreferences';
+import { CollectionStatus } from '../../../components/shared/CollectionStatus';
+import { destinationPath } from '../../../search/navigation';
 
 import ClusterInfoCard from './components/ClusterInfoCard';
 import ClusterMetricsSection from './components/ClusterMetricsSection';
@@ -27,6 +29,7 @@ const pageStyle: React.CSSProperties = {
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
+  minHeight: 0,
 };
 
 // EventsTable scrolls its own list, so the frame clips instead of adding a
@@ -38,10 +41,10 @@ const eventsContainerStyle: React.CSSProperties = {
   borderRadius: 4,
 };
 
-/** Six equal columns (MUI Grid md=2 of 12). */
+/** Keep cards wide enough for source controls, wrapping into rows as needed. */
 const workloadGridStyle: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
 };
 
@@ -62,15 +65,6 @@ import {
 } from './components/WorkloadStatCards';
 import EventsTable from './EventsTable';
 
-/** Shape of the connection metadata returned by the runtime for Kubernetes clusters. */
-type ConnectionData = {
-  server_url?: string;
-  k8s_version?: string;
-  k8s_platform?: string;
-  node_count?: number;
-  api_groups?: number;
-  last_checked?: string;
-};
 
 /**
  * Generic filter for namespaced K8s resources.
@@ -95,50 +89,33 @@ const ClusterDashboardOverviewPage: React.FC = () => {
 
   const goToResource = React.useCallback(
     (resourceKey: string) => {
-      navigate(`/cluster/${id}/resources/${resourceKey}`);
+      navigate(destinationPath(id, resourceKey));
     },
     [navigate, id],
   );
 
   // Stable onClick callbacks per resource type
-  const goToPods = React.useCallback(() => goToResource('core_v1_Pod'), [goToResource]);
+  const goToPods = React.useCallback(() => goToResource('k8s:/pods'), [goToResource]);
   const goToDeployments = React.useCallback(
-    () => goToResource('apps_v1_Deployment'),
+    () => goToResource('k8s:apps/deployments'),
     [goToResource],
   );
   const goToStatefulSets = React.useCallback(
-    () => goToResource('apps_v1_StatefulSet'),
+    () => goToResource('k8s:apps/statefulsets'),
     [goToResource],
   );
-  const goToDaemonSets = React.useCallback(() => goToResource('apps_v1_DaemonSet'), [goToResource]);
-  const goToJobs = React.useCallback(() => goToResource('batch_v1_Job'), [goToResource]);
-  const goToCronJobs = React.useCallback(() => goToResource('batch_v1_CronJob'), [goToResource]);
+  const goToDaemonSets = React.useCallback(() => goToResource('k8s:apps/daemonsets'), [goToResource]);
+  const goToJobs = React.useCallback(() => goToResource('k8s:batch/jobs'), [goToResource]);
+  const goToCronJobs = React.useCallback(() => goToResource('k8s:batch/cronjobs'), [goToResource]);
 
   const { connection } = useConnection({ pluginID: PLUGIN_ID, connectionID: id });
   const { connectionOverrides } = useClusterPreferences(PLUGIN_ID);
   const metricConfig = connectionOverrides[id]?.metricConfig;
 
-  // Only keep the resource hooks needed for ClusterInfoCard and EventsTable
-  const { resources: pods } = useResources({
-    pluginID: PLUGIN_ID,
-    connectionID: id,
-    resourceKey: 'core::v1::Pod',
-    idAccessor: 'metadata.uid',
-  });
-
-  const { resources: nodes } = useResources({
-    pluginID: PLUGIN_ID,
-    connectionID: id,
-    resourceKey: 'core::v1::Node',
-    idAccessor: 'metadata.uid',
-  });
-
-  const { resources: events } = useResources({
-    pluginID: PLUGIN_ID,
-    connectionID: id,
-    resourceKey: 'core::v1::Event',
-    idAccessor: 'metadata.uid',
-  });
+  // Own Pod ingestion once; health and workload counts share the collection.
+  const pods = useKubernetesResources<Pod>({ connectionID: id, resourceType: 'k8s:/pods', namespaces });
+  const nodes = useKubernetesResources<K8sNode>({ connectionID: id, resourceType: 'k8s:/nodes' });
+  const events = useKubernetesResources<K8sEvent>({ connectionID: id, resourceType: 'k8s:/events', namespaces });
 
   // --- Extension point for dashboard widgets ---
   const widgetEP = useExtensionPoint<React.FC<{ pluginID: string; connectionID: string }>>(
@@ -147,41 +124,41 @@ const ClusterDashboardOverviewPage: React.FC = () => {
   const widgets = widgetEP?.list() ?? [];
 
   // --- Filtered data for health banner and events ---
-  // runtime ListResult.result is typed as any[]; cast to the known K8s types
   const allPods = React.useMemo(
-    () => filterByNamespace((pods.data?.result ?? []) as Pod[], namespaces),
-    [pods.data, namespaces],
+    () => filterByNamespace(pods.bodies ?? [], namespaces),
+    [pods.bodies, namespaces],
   );
-  const allNodes = React.useMemo(() => (nodes.data?.result ?? []) as K8sNode[], [nodes.data]);
+  const allNodes = nodes.bodies;
   const allEvents = React.useMemo(
-    () => filterByNamespace((events.data?.result ?? []) as K8sEvent[], namespaces),
-    [events.data, namespaces],
+    () => filterByNamespace(events.bodies ?? [], namespaces),
+    [events.bodies, namespaces],
   );
 
   return (
     <div style={pageStyle}>
-      <Stack direction="column" spacing={3}>
+      <Stack direction="column" spacing={3} style={{ flexShrink: 0, minWidth: 0 }}>
         {/* Cluster info + health status */}
         <ClusterInfoCard
-          // Connection.data is Record<string, any> from the runtime; cast to the expected shape
-          data={connection.data?.data as ConnectionData | undefined}
+          connectionID={id}
           loading={connection.isLoading}
           nodes={allNodes}
           pods={allPods}
           events={allEvents}
         />
+        <CollectionStatus {...pods} label="Pods" />
+        <CollectionStatus {...nodes} label="Nodes" />
 
         {/* Namespace filter */}
-        <Stack direction="row" align="center" spacing={2}>
+        <Stack direction="row" align="center" spacing={2} style={{ flexWrap: 'wrap', minWidth: 0 }}>
           <Text size="sm" tone="muted">
             Namespace:
           </Text>
           <NamespaceSelect connectionID={id} selected={namespaces} setNamespaces={setNamespaces} />
         </Stack>
 
-        {/* Workload summary cards — each owns its own useResources hook */}
+        {/* Pods share the health data; other workload cards own their collections. */}
         <div style={workloadGridStyle}>
-          <PodStatCard connectionID={id} namespaces={namespaces} onClick={goToPods} />
+          <PodStatCard pods={allPods} loading={pods.isLoading} onClick={goToPods} />
           <DeploymentStatCard connectionID={id} namespaces={namespaces} onClick={goToDeployments} />
           <StatefulSetStatCard connectionID={id} namespaces={namespaces} onClick={goToStatefulSets} />
           <DaemonSetStatCard connectionID={id} namespaces={namespaces} onClick={goToDaemonSets} />
@@ -218,10 +195,11 @@ const ClusterDashboardOverviewPage: React.FC = () => {
         {/* Recent events — responsive height, scrolls independently */}
         <Stack direction="column" spacing={1} style={{ gap: 6 }}>
           <Text weight="semibold" size="sm">
-            Recent Events ({allEvents.length})
+            Events ({allEvents.length})
           </Text>
+          <CollectionStatus {...events} label="Events" />
           <div style={eventsContainerStyle}>
-            <EventsTable events={allEvents} loading={events.isLoading} connectionID={id} />
+            <EventsTable events={allEvents} loading={events.isLoading} connectionID={id} namespaceScope={JSON.stringify(namespaces)} />
           </div>
         </Stack>
       </Stack>

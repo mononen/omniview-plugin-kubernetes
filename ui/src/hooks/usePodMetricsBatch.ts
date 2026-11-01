@@ -1,5 +1,7 @@
 import { MetricClient } from '@omniviewdev/runtime/api';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+
+import { useDocumentVisibility } from './useDocumentVisibility';
 
 export type PodMetricEntry = {
   cpuMillicores: number;
@@ -32,30 +34,31 @@ export function usePodMetricsBatch(opts: {
   enabled?: boolean;
 }): { metricsMap: PodMetricsMap; isLoading: boolean } {
   const { connectionID, namespace = '', refreshInterval = 30_000, enabled = true } = opts;
+  const documentVisible = useDocumentVisibility();
 
-  const resourceKey = 'core::v1::Pod';
+  const resourceKey = 'k8s:/pods';
 
   const query = useQuery<PodMetricsMap>({
     queryKey: ['metric', 'pod-batch', connectionID, namespace],
     queryFn: async () => {
       const resp = await MetricClient.QueryAll(
         connectionID,
-        resourceKey,
-        '', // empty resourceID = batch mode
-        namespace,
-        {},
-        // Request both metrics-server and Prometheus metric IDs.
-        // The Go backend will try both sources; whichever is available responds.
-        [
-          'cpu_usage',
-          'memory_usage', // metrics-server
-          'prom_cpu_usage_rate',
-          'prom_memory_working_set', // prometheus
-        ],
-        0, // ShapeCurrent
-        new Date(0).toISOString(),
-        new Date(0).toISOString(),
-        0,
+        {
+          resource_key: resourceKey,
+          resource_id: '', // empty native ID selects the existing batch operation
+          resource_namespace: namespace,
+          // Native batch metrics are not one resource observation.
+          metric_ids: [
+            'cpu_usage',
+            'memory_usage',
+            'prom_cpu_usage_rate',
+            'prom_memory_working_set',
+          ],
+          shape: 0, // ShapeCurrent
+          start_time: new Date(0).toISOString(),
+          end_time: new Date(0).toISOString(),
+          step: 0,
+        },
       );
 
       const map = new Map<string, PodMetricEntry>();
@@ -95,11 +98,10 @@ export function usePodMetricsBatch(opts: {
 
       return map;
     },
-    enabled: enabled && !!connectionID,
+    enabled: enabled && documentVisible && !!connectionID,
     refetchInterval: refreshInterval > 0 ? refreshInterval : undefined,
     staleTime: 10_000,
-    placeholderData: keepPreviousData,
-    retry: 1,
+    retry: (failureCount) => failureCount < 1 && enabled && document.visibilityState !== 'hidden',
   });
 
   return {

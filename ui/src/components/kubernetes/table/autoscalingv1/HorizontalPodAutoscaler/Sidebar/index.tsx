@@ -15,26 +15,12 @@ interface Props {
   ctx: DrawerContext<HorizontalPodAutoscaler>;
 }
 
-function resolveResourceKey(kind?: string): string {
-  switch (kind) {
-    case 'Deployment':
-      return 'apps::v1::Deployment';
-    case 'StatefulSet':
-      return 'apps::v1::StatefulSet';
-    case 'ReplicaSet':
-      return 'apps::v1::ReplicaSet';
-    case 'ReplicationController':
-      return 'core::v1::ReplicationController';
-    default:
-      return `apps::v1::${kind || 'Deployment'}`;
-  }
-}
 
 export const HorizontalPodAutoscalerSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) return null;
 
   const hpa = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
   const namespace = hpa.metadata?.namespace;
   const spec = hpa.spec;
   const status = hpa.status;
@@ -43,20 +29,19 @@ export const HorizontalPodAutoscalerSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={hpa.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={hpa.metadata} connectionID={ctx.resource?.route.connection} />
 
         {targetRef && (
           <SidebarSection title="Scale Target">
             <LabeledEntry
               label={targetRef.kind || 'Target'}
               value={
-                <ResourceLinkChip
+                targetRef.apiVersion && targetRef.kind && targetRef.name ? <ResourceLinkChip
                   connectionID={connectionID}
                   namespace={namespace}
-                  resourceID={targetRef.name || ''}
-                  resourceKey={resolveResourceKey(targetRef.kind)}
+                  ownerReference={{ apiVersion: targetRef.apiVersion, kind: targetRef.kind, name: targetRef.name, uid: '' }}
                   resourceName={targetRef.name}
-                />
+                /> : targetRef.name
               }
             />
           </SidebarSection>

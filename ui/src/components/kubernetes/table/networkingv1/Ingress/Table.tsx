@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -5,7 +6,7 @@ import { ColumnDef, FilterFn } from '@tanstack/react-table';
 import { Ingress } from 'kubernetes-types/networking/v1';
 import React from 'react';
 import { LuRoute } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -21,13 +22,13 @@ const scrollRowStyle = { gap: 2 } as const;
 
 import { drawerActions } from './actions';
 
-const resourceKey = 'networking::v1::Ingress';
+const resourceKey = 'k8s:networking.k8s.io/ingresses';
 
 const IngressTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<Ingress>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, Ingress>>>(
     () =>
       withNamespacedResourceColumns(
         [
@@ -35,7 +36,7 @@ const IngressTable: React.FC = () => {
             id: 'ingressClass',
             header: 'Ingress Class',
             accessorFn: (row) => row.spec?.ingressClassName ?? '—',
-            filterFn: inclusionFilter as FilterFn<Ingress>,
+            filterFn: inclusionFilter as FilterFn<DataTableFeatures, Ingress>,
             size: 150,
             cell: CopyableCell,
           },
@@ -98,7 +99,7 @@ const IngressTable: React.FC = () => {
                       key={v}
                       connectionId={id}
                       resourceId={v}
-                      resourceKey={'core::v1::Secret'}
+                      resourceKey={'k8s:/secrets'}
                       resourceName={v}
                     />
                   ))}
@@ -127,7 +128,6 @@ const IngressTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
       toolbarFilters={[
         {

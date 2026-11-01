@@ -1,10 +1,9 @@
-import { DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
 import { Stack } from '@omniviewdev/base-ui';
+import { DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
 import { Pod } from 'kubernetes-types/core/v1';
 import React from 'react';
 
-import { PLUGIN_ID } from '@/pluginId';
-
+import DebugSessionsSection from '../../../../features/debug/DebugSessionsSection';
 import MetadataSection from '../../../shared/sidebar/pages/overview/sections/MetadataSection';
 
 import PodConfigSection from './PodConfigSection';
@@ -12,23 +11,28 @@ import PodContainersSection from './PodContainersSection';
 import PodStatusSection from './PodStatusSection';
 import PodVolumesSection from './PodVolumesSection';
 
+import { PLUGIN_ID } from '@/pluginId';
+
 interface Props {
   ctx: DrawerContext<Pod>;
 }
 
 export const PodSidebar: React.FC<Props> = ({ ctx }) => {
   const pod = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
-  const resourceID = ctx.resource?.id || '';
+  const connectionID = ctx.resource?.route.connection || '';
+  const resourceID = ctx.resource?.reference.address.id || '';
 
   // Fetch live CPU/memory metrics for this pod.
   // Request both metrics-server and Prometheus IDs — whichever is available responds.
   const { data: metricsData } = useResourceMetrics({
     pluginID: PLUGIN_ID,
     connectionID,
-    resourceKey: 'core::v1::Pod',
+    resourceKey: 'k8s:/pods',
     resourceID,
     resourceNamespace: pod?.metadata?.namespace,
+    resourceData: ctx.resource?.record?.record.body,
+    reference: ctx.resource?.reference,
+    route: ctx.resource?.route,
     metricIDs: [
       'cpu_usage',
       'memory_usage', // metrics-server
@@ -77,12 +81,14 @@ export const PodSidebar: React.FC<Props> = ({ ctx }) => {
         <PodStatusSection pod={pod} connectionID={connectionID} />
         <PodConfigSection pod={pod} connectionID={connectionID} />
       </Stack>
+      <DebugSessionsSection connectionID={connectionID} pod={pod} />
 
       {/* Containers — separated by section heading */}
       <PodContainersSection
         resourceID={resourceID}
         connectionID={connectionID}
         obj={pod}
+        resource={ctx.resource}
         podCpuUsage={podCpuUsage}
         podMemoryUsage={podMemoryUsage}
       />

@@ -12,7 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
 func int32Ptr(i int32) *int32 { return &i }
@@ -30,7 +30,7 @@ func TestNodeHealth_Ready(t *testing.T) {
 	}
 	data, _ := json.Marshal(node)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthHealthy, health.Status)
 	assert.Equal(t, "Ready", health.Reason)
@@ -47,7 +47,7 @@ func TestNodeHealth_NotReady(t *testing.T) {
 	}
 	data, _ := json.Marshal(node)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthUnhealthy, health.Status)
 	assert.Equal(t, "NotReady", health.Reason)
@@ -66,7 +66,7 @@ func TestNodeHealth_MemoryPressure(t *testing.T) {
 	}
 	data, _ := json.Marshal(node)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthDegraded, health.Status)
 	assert.Equal(t, "MemoryPressure", health.Reason)
@@ -77,7 +77,7 @@ func TestNodeHealth_NoConditions(t *testing.T) {
 	node := corev1.Node{}
 	data, _ := json.Marshal(node)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthUnknown, health.Status)
 }
@@ -92,7 +92,7 @@ func TestDeploymentHealth_AllAvailable(t *testing.T) {
 	}
 	data, _ := json.Marshal(dep)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthHealthy, health.Status)
 	assert.Equal(t, "Available", health.Reason)
@@ -107,7 +107,7 @@ func TestDeploymentHealth_PartiallyAvailable(t *testing.T) {
 	}
 	data, _ := json.Marshal(dep)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthDegraded, health.Status)
 	assert.Equal(t, "PartiallyAvailable", health.Reason)
@@ -122,7 +122,7 @@ func TestDeploymentHealth_Unavailable(t *testing.T) {
 	}
 	data, _ := json.Marshal(dep)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthUnhealthy, health.Status)
 	assert.Equal(t, "Unavailable", health.Reason)
@@ -137,7 +137,7 @@ func TestDeploymentHealth_NilReplicas(t *testing.T) {
 	}
 	data, _ := json.Marshal(dep)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthHealthy, health.Status)
 	assert.Contains(t, health.Message, "1/1")
@@ -156,7 +156,7 @@ func TestDeploymentHealth_Conditions(t *testing.T) {
 	}
 	data, _ := json.Marshal(dep)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	require.Len(t, health.Conditions, 1)
 	assert.Equal(t, "Available", health.Conditions[0].Type)
@@ -172,7 +172,7 @@ func TestStatefulSetHealth_AllReady(t *testing.T) {
 	}
 	data, _ := json.Marshal(sts)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthHealthy, health.Status)
 	assert.Equal(t, "Ready", health.Reason)
@@ -187,7 +187,7 @@ func TestStatefulSetHealth_PartiallyReady(t *testing.T) {
 	}
 	data, _ := json.Marshal(sts)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthDegraded, health.Status)
 	assert.Equal(t, "PartiallyReady", health.Reason)
@@ -201,7 +201,7 @@ func TestStatefulSetHealth_NoneReady(t *testing.T) {
 	}
 	data, _ := json.Marshal(sts)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthUnhealthy, health.Status)
 	assert.Equal(t, "NotReady", health.Reason)
@@ -215,7 +215,7 @@ func TestStatefulSetHealth_NilReplicas(t *testing.T) {
 	}
 	data, _ := json.Marshal(sts)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthHealthy, health.Status)
 }
@@ -229,7 +229,7 @@ func TestDaemonSetHealth_AllReady(t *testing.T) {
 	}
 	data, _ := json.Marshal(ds)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthHealthy, health.Status)
 	assert.Equal(t, "Ready", health.Reason)
@@ -242,7 +242,7 @@ func TestDaemonSetHealth_PartiallyReady(t *testing.T) {
 	}
 	data, _ := json.Marshal(ds)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthDegraded, health.Status)
 	assert.Equal(t, "PartiallyReady", health.Reason)
@@ -255,7 +255,7 @@ func TestDaemonSetHealth_NoneReady(t *testing.T) {
 	}
 	data, _ := json.Marshal(ds)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthUnhealthy, health.Status)
 	assert.Equal(t, "NotReady", health.Reason)
@@ -268,7 +268,7 @@ func TestDaemonSetHealth_ZeroDesired(t *testing.T) {
 	}
 	data, _ := json.Marshal(ds)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	assert.Equal(t, resource.HealthHealthy, health.Status)
 	assert.Equal(t, "NoScheduled", health.Reason)
@@ -276,24 +276,24 @@ func TestDaemonSetHealth_ZeroDesired(t *testing.T) {
 
 // ====================== INVALID JSON ====================== //
 
-func TestHealth_InvalidJSON(t *testing.T) {
-	badData := json.RawMessage(`{invalid}`)
+func TestHealth_InvalidValue(t *testing.T) {
+	badData := resource.Value{Kind: "map", Map: map[string]resource.Value{"status": {Kind: "invalid"}}}
 
 	tests := []struct {
 		name string
 		fn   func() (*resource.ResourceHealth, error)
 	}{
 		{"Node", func() (*resource.ResourceHealth, error) {
-			return NewNodeResourcer(zap.NewNop().Sugar()).AssessHealth(context.Background(), nil, resource.ResourceMeta{}, badData)
+			return NewNodeResourcer(zap.NewNop().Sugar()).AssessHealth(context.Background(), nil, resource.GetRequest{}, badData)
 		}},
 		{"Deployment", func() (*resource.ResourceHealth, error) {
-			return NewDeploymentResourcer(zap.NewNop().Sugar()).AssessHealth(context.Background(), nil, resource.ResourceMeta{}, badData)
+			return NewDeploymentResourcer(zap.NewNop().Sugar()).AssessHealth(context.Background(), nil, resource.GetRequest{}, badData)
 		}},
 		{"StatefulSet", func() (*resource.ResourceHealth, error) {
-			return NewStatefulSetResourcer(zap.NewNop().Sugar()).AssessHealth(context.Background(), nil, resource.ResourceMeta{}, badData)
+			return NewStatefulSetResourcer(zap.NewNop().Sugar()).AssessHealth(context.Background(), nil, resource.GetRequest{}, badData)
 		}},
 		{"DaemonSet", func() (*resource.ResourceHealth, error) {
-			return NewDaemonSetResourcer(zap.NewNop().Sugar()).AssessHealth(context.Background(), nil, resource.ResourceMeta{}, badData)
+			return NewDaemonSetResourcer(zap.NewNop().Sugar()).AssessHealth(context.Background(), nil, resource.GetRequest{}, badData)
 		}},
 	}
 
@@ -326,9 +326,17 @@ func TestNodeHealth_ConditionsPopulated(t *testing.T) {
 	}
 	data, _ := json.Marshal(node)
 
-	health, err := r.AssessHealth(context.Background(), nil, resource.ResourceMeta{}, data)
+	health, err := r.AssessHealth(context.Background(), nil, resource.GetRequest{}, mustTestValue(t, data))
 	require.NoError(t, err)
 	require.Len(t, health.Conditions, 1)
 	assert.Equal(t, "Ready", health.Conditions[0].Type)
 	assert.Equal(t, "KubeletReady", health.Conditions[0].Reason)
+}
+
+func TestNativeEventSelectorPreservesIncarnation(t *testing.T) {
+	request := resource.GetRequest{Reference: resource.ResourceReference{Address: resource.ResourceAddress{ID: "native-name"}}}
+	assert.Equal(t, "involvedObject.name=native-name,involvedObject.kind=Deployment", nativeEventSelector(request, "Deployment"))
+	uid := "native-uid"
+	request.Reference.Incarnation = &uid
+	assert.Equal(t, "involvedObject.name=native-name,involvedObject.kind=Deployment,involvedObject.uid=native-uid", nativeEventSelector(request, "Deployment"))
 }

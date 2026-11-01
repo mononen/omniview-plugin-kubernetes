@@ -1,4 +1,5 @@
 .card {
+  min-width: 0;
   height: 100%;
   box-sizing: border-box;
   padding: 16px;
@@ -17,10 +18,16 @@
   text-align: left;
   font: inherit;
   color: inherit;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.clickable:hover,
-.clickable:focus-visible {
+.card:has(.clickable:hover),
+.card:has(.clickable:focus-visible) {
   border-color: var(--ov-color-brand-500);
 }
 

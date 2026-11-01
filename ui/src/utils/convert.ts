@@ -1,3 +1,18 @@
+/** Sum integral observation fields without rounding wide native integers. */
+export function sumIntegerValues(values: Iterable<number | bigint | undefined>): number | bigint {
+  let total = 0n;
+  for (const value of values) total += BigInt(value ?? 0);
+  return total >= BigInt(Number.MIN_SAFE_INTEGER) && total <= BigInt(Number.MAX_SAFE_INTEGER)
+    ? Number(total)
+    : total;
+}
+
+/** Keep wide byte counts exact; retain compact units for normal UI values. */
+export function formatObservedBytes(value: number | bigint, to: KubernetesByteUnit): string {
+  if (typeof value === 'bigint') return `${value}B`;
+  return convertKubernetesByteUnits({ from: `${value}B`, to });
+}
+
 export type KubernetesByteUnit =
   | 'E'
   | 'EB'

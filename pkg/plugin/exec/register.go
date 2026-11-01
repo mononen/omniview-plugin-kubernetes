@@ -2,7 +2,6 @@ package exec
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 
 	"github.com/omniview/kubernetes/pkg/pluginid"
+	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/sdk"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
 	"github.com/omniviewdev/plugin-sdk/pkg/v1/exec"
@@ -24,28 +24,33 @@ func Register(plugin *sdk.Plugin) {
 	// Register the capabilities
 	if err := exec.RegisterPlugin(plugin, exec.PluginOpts{
 		Handlers: []exec.Handler{
+			podExecHandler(),
 			{
-				Plugin:         pluginid.ID,
-				Resource:       "core::v1::Pod",
-				TTYHandler:     PodHandler,
-				DefaultCommand: []string{"/bin/bash"},
-				TargetBuilder: exec.ActionTargetBuilder{
-					Paths: []string{"$.spec.containers[*]"},
-					Selectors: map[string]string{
-						"container": "$.name",
-					},
-					LabelSelector: "container",
-				},
-			},
-			{
-				Plugin:         pluginid.ID,
-				Resource:       "core::v1::Node",
+				Plugin:         pluginid.ResourceProvider,
+				Resource:       "k8s:/nodes",
 				TTYHandler:     NodeHandler,
 				DefaultCommand: []string{"/bin/bash"},
 			},
 		},
 	}); err != nil {
 		panic(err)
+	}
+}
+
+func podExecHandler() exec.Handler {
+	return exec.Handler{
+		Plugin:         pluginid.ResourceProvider,
+		Resource:       "k8s:/pods",
+		TTYHandler:     PodHandler,
+		HandlesResize:  true,
+		DefaultCommand: []string{"/bin/bash"},
+		TargetBuilder: exec.ActionTargetBuilder{
+			Paths: []string{"$.spec.containers[*]"},
+			Selectors: map[string]string{
+				"container": "$.name",
+			},
+			LabelSelector: "container",
+		},
 	}
 }
 
@@ -72,22 +77,24 @@ func podHandlerWithProvider(
 		return err
 	}
 
-	// get the namespace and pod off the data obj
-	metadata, ok := opts.ResourceData["metadata"].(map[string]interface{})
-	if !ok {
-		return errors.New("metadata is required")
-	}
-	pod, ok := metadata["name"].(string)
-	if !ok {
-		return errors.New("pod is required")
-	}
-	namespace, ok := metadata["namespace"].(string)
-	if !ok {
-		return errors.New("namespace is required")
+	pod, namespace, err := nativeExecTarget(ctx, opts, "k8s:/pods", true)
+	if err != nil {
+		return err
 	}
 	container, ok := opts.Params["container"]
 	if !ok {
 		container = ""
+	}
+
+	switch opts.Params["mode"] {
+	case "attach":
+		if err := waitForDebugContainer(ctx.Context, clients.Clientset, namespace, pod, opts.Params["pod_uid"], container); err != nil {
+			return err
+		}
+		return streamPod(ctx.Context, clients.Clientset, clients.RestConfig, namespace, pod, container, nil, true, tty, stopCh, resize)
+	case "", "exec":
+	default:
+		return fmt.Errorf("unsupported session mode %q", opts.Params["mode"])
 	}
 
 	return ExecCmd(
@@ -104,14 +111,86 @@ func podHandlerWithProvider(
 	)
 }
 
-type sizeQueue chan remotecommand.TerminalSize
-
-func (s *sizeQueue) Next() *remotecommand.TerminalSize {
-	size, ok := <-*s
-	if !ok {
-		return nil
+// nativeExecTarget consumes tagged observations and an optional canonical target.
+// Native exec authorization remains the selected client's Kubernetes credentials;
+// neither body metadata nor reference/route strings grant access or trigger Get.
+func nativeExecTarget(ctx *types.PluginContext, opts exec.SessionOptions, resourceType string, namespaced bool) (name, namespace string, err error) {
+	if opts.ResourcePlugin != "" && opts.ResourcePlugin != pluginid.ResourceProvider {
+		return "", "", resourcev2.NewError("INVALID_REQUEST", "exec resource belongs to another provider")
 	}
-	return &size
+	if opts.ResourceKey != "" && opts.ResourceKey != resourceType {
+		return "", "", resourcev2.NewError("INVALID_REQUEST", "exec resource type does not match its native handler")
+	}
+	if opts.Route != nil && (opts.Route.Connection == "" || ctx == nil || ctx.Connection == nil || opts.Route.Connection != ctx.Connection.ID) {
+		return "", "", resourcev2.NewError("INVALID_REQUEST", "exec route does not match the selected connection")
+	}
+	var metadata map[string]resourcev2.Value
+	if opts.ResourceData != nil {
+		if opts.ResourceData.Kind != "map" {
+			return "", "", resourcev2.NewError("INVALID_REQUEST", "resource data must be a document")
+		}
+		if value, present := opts.ResourceData.Map["metadata"]; present {
+			if value.Kind != "map" {
+				return "", "", resourcev2.NewError("INVALID_REQUEST", "metadata is required")
+			}
+			metadata = value.Map
+		}
+	}
+	if opts.Reference != nil {
+		reference := opts.Reference
+		if err := resourcev2.ValidateAddress(reference.Address); err != nil {
+			return "", "", err
+		}
+		if opts.Route == nil {
+			return "", "", resourcev2.NewError("INVALID_REQUEST", "a canonical exec reference requires an explicit route")
+		}
+		if reference.Address.Provider != pluginid.ResourceProvider || reference.Address.Type != resourceType {
+			return "", "", resourcev2.NewError("INVALID_REQUEST", "exec reference does not match its native handler")
+		}
+		name = reference.Address.ID
+		if namespaced {
+			if len(reference.Address.Scope) != 1 || reference.Address.Scope[0].Dimension != "namespace" || reference.Address.Scope[0].Value == "" {
+				return "", "", resourcev2.NewError("INVALID_REQUEST", "namespace is required")
+			}
+			namespace = reference.Address.Scope[0].Value
+		} else if len(reference.Address.Scope) != 0 {
+			return "", "", resourcev2.NewError("INVALID_REQUEST", "node exec requires cluster scope")
+		}
+		if observed, present := metadata["name"]; present && (observed.Kind != "string" || observed.String != name) {
+			return "", "", resourcev2.NewError("INVALID_REQUEST", "resource metadata name does not match the exec reference")
+		}
+		if observed, present := metadata["namespace"]; present && (observed.Kind != "string" || observed.String != namespace) {
+			return "", "", resourcev2.NewError("INVALID_REQUEST", "resource metadata namespace does not match the exec reference")
+		}
+		if reference.Incarnation != nil {
+			if *reference.Incarnation == "" {
+				return "", "", resourcev2.NewError("INVALID_REQUEST", "exec incarnation must be absent or nonempty")
+			}
+			if observed, present := metadata["uid"]; present && (observed.Kind != "string" || observed.String != *reference.Incarnation) {
+				return "", "", resourcev2.NewError("RESET_REQUIRED", "resource metadata incarnation does not match the exec reference")
+			}
+		}
+		return name, namespace, nil
+	}
+	if metadata == nil {
+		return "", "", resourcev2.NewError("INVALID_REQUEST", "metadata is required")
+	}
+	nativeName, present := metadata["name"]
+	if !present || nativeName.Kind != "string" || nativeName.String == "" {
+		if namespaced {
+			return "", "", resourcev2.NewError("INVALID_REQUEST", "pod is required")
+		}
+		return "", "", resourcev2.NewError("INVALID_REQUEST", "node name is required")
+	}
+	name = nativeName.String
+	if namespaced {
+		value, present := metadata["namespace"]
+		if !present || value.Kind != "string" || value.String == "" {
+			return "", "", resourcev2.NewError("INVALID_REQUEST", "namespace is required")
+		}
+		namespace = value.String
+	}
+	return name, namespace, nil
 }
 
 // ExecCmd exec command on specific pod and wait the command's output.
@@ -127,29 +206,30 @@ func ExecCmd(
 	stopChan chan error,
 	resize <-chan exec.SessionResizeInput,
 ) error {
-	req := client.
-		CoreV1().
-		RESTClient().
-		Post().
-		Resource("pods").
-		Name(pod).
-		Namespace(namespace).
-		SubResource("exec")
+	return streamPod(ctx, client, config, namespace, pod, container, command, false, tty, stopChan, resize)
+}
 
-	option := &v1.PodExecOptions{
-		Command:   command,
-		Container: container,
-		Stdin:     true,
-		Stdout:    true,
-		Stderr:    true,
-		TTY:       true,
+func streamPod(
+	ctx context.Context,
+	client kubernetes.Interface,
+	config *restclient.Config,
+	namespace, pod, container string,
+	command []string,
+	attach bool,
+	tty *os.File,
+	stopChan chan error,
+	resize <-chan exec.SessionResizeInput,
+) error {
+	subresource := "exec"
+	if attach {
+		subresource = "attach"
 	}
-
-	req.VersionedParams(
-		option,
-		scheme.ParameterCodec,
-	)
-
+	req := client.CoreV1().RESTClient().Post().Resource("pods").Name(pod).Namespace(namespace).SubResource(subresource)
+	if attach {
+		req.VersionedParams(&v1.PodAttachOptions{Container: container, Stdin: true, Stdout: true, Stderr: true, TTY: true}, scheme.ParameterCodec)
+	} else {
+		req.VersionedParams(&v1.PodExecOptions{Command: command, Container: container, Stdin: true, Stdout: true, Stderr: true, TTY: true}, scheme.ParameterCodec)
+	}
 	spdy, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
 		return err
@@ -162,21 +242,21 @@ func ExecCmd(
 	if err != nil {
 		return err
 	}
-
-	go func(tty *os.File, stopCh chan error) {
-		err = executor.StreamWithContext(ctx, remotecommand.StreamOptions{
-			Stdin:  tty,
-			Stdout: tty,
-			Stderr: tty,
-			Tty:    true,
+	go func() {
+		streamCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		queue := &terminalSizeQueue{ctx: streamCtx, resize: resize}
+		streamErr := executor.StreamWithContext(streamCtx, remotecommand.StreamOptions{
+			Stdin: tty, Stdout: tty, Stderr: tty, Tty: true, TerminalSizeQueue: queue,
 		})
-		if err != nil {
-			stopCh <- classifyExecError(err, command)
-		} else {
-			stopCh <- nil
+		if streamErr != nil && !attach {
+			streamErr = classifyExecError(streamErr, command)
 		}
-	}(tty, stopChan)
-
+		select {
+		case stopChan <- streamErr:
+		case <-ctx.Done():
+		}
+	}()
 	return nil
 }
 

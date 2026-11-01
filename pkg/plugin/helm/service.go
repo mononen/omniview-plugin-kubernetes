@@ -1,10 +1,12 @@
 package helm
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
-	"sync"
 
 	"helm.sh/helm/v3/pkg/action"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -16,65 +18,87 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// HelmService manages Helm action.Configuration instances per connection+namespace.
-type HelmService struct {
-	configs sync.Map // key: "connectionID/namespace" → *action.Configuration
-}
-
-// NewHelmService creates a new HelmService.
-func NewHelmService() *HelmService {
-	return &HelmService{}
-}
-
-// GetActionConfig returns a Helm action.Configuration for the given connection
-// and namespace. Configurations are cached per connection+namespace pair.
-func (s *HelmService) GetActionConfig(
-	connectionID string,
-	restConfig *rest.Config,
-	namespace string,
-) (*action.Configuration, error) {
-	key := connectionID + "/" + namespace
-	if cfg, ok := s.configs.Load(key); ok {
-		return cfg.(*action.Configuration), nil
+// Each native Helm operation owns its configuration so Background-only Helm
+// APIs still use the actual RPC cancellation without caching a request context.
+func newActionConfig(ctx context.Context, config *rest.Config, client *http.Client, namespace string) (*action.Configuration, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
-
+	if config == nil || client == nil || client.Transport == nil {
+		return nil, fmt.Errorf("Helm requires the native auth-aware bounded HTTP client")
+	}
+	ownedClient := *client
+	ownedClient.Transport = helmRequestTransport{base: client.Transport, operation: ctx}
+	getter := newRESTClientGetter(config, &ownedClient, namespace)
+	driver := os.Getenv("HELM_DRIVER")
+	if driver == "" {
+		driver = "secrets"
+	}
 	cfg := new(action.Configuration)
-	getter := newRESTClientGetter(restConfig, namespace)
-
-	helmDriver := os.Getenv("HELM_DRIVER")
-	if helmDriver == "" {
-		helmDriver = "secrets"
+	if err := cfg.Init(getter, namespace, driver, log.Printf); err != nil {
+		return nil, fmt.Errorf("failed to initialize Helm action configuration: %w", err)
 	}
-
-	if err := cfg.Init(getter, namespace, helmDriver, log.Printf); err != nil {
-		return nil, fmt.Errorf("failed to initialize helm action configuration: %w", err)
-	}
-
-	s.configs.Store(key, cfg)
 	return cfg, nil
 }
 
-// InvalidateConnection removes all cached configurations for a connection.
-func (s *HelmService) InvalidateConnection(connectionID string) {
-	prefix := connectionID + "/"
-	s.configs.Range(func(key, _ any) bool {
-		k := key.(string)
-		if len(k) >= len(prefix) && k[:len(prefix)] == prefix {
-			s.configs.Delete(key)
-		}
-		return true
-	})
+type helmRequestTransport struct {
+	base      http.RoundTripper
+	operation context.Context
 }
+
+func (t helmRequestTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	if err := t.operation.Err(); err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithCancel(request.Context())
+	stop := context.AfterFunc(t.operation, cancel)
+	release := func() { stop(); cancel() }
+	response, err := t.base.RoundTrip(request.WithContext(ctx))
+	if err != nil {
+		release()
+		return nil, err
+	}
+	if response.Body == nil {
+		release()
+		return response, nil
+	}
+	response.Body = helmRequestBody{ReadCloser: response.Body, release: release}
+	return response, nil
+}
+
+type helmRequestBody struct {
+	io.ReadCloser
+	release func()
+}
+
+func (b helmRequestBody) Read(buffer []byte) (int, error) {
+	count, err := b.ReadCloser.Read(buffer)
+	if err != nil {
+		b.release()
+	}
+	return count, err
+}
+
+func (b helmRequestBody) Close() error { b.release(); return b.ReadCloser.Close() }
 
 // restClientGetter implements genericclioptions.RESTClientGetter
 // using an existing rest.Config from the K8s plugin's ClientSet.
 type restClientGetter struct {
 	restConfig *rest.Config
+	httpClient *http.Client
 	namespace  string
 }
 
-func newRESTClientGetter(cfg *rest.Config, namespace string) *restClientGetter {
-	return &restClientGetter{restConfig: cfg, namespace: namespace}
+func newRESTClientGetter(cfg *rest.Config, client *http.Client, namespace string) *restClientGetter {
+	// This HTTP-only config carries the existing complete transport. Authentication
+	// and TLS are already inside it; do not reconstruct exec/EKS or a default
+	// transport. Clearing duplicate TLS options is required by client-go's custom
+	// Transport validation, and never mutates the original native configuration.
+	config := rest.AnonymousClientConfig(cfg)
+	config.TLSClientConfig = rest.TLSClientConfig{}
+	config.Transport = client.Transport
+	config.WrapTransport = nil
+	return &restClientGetter{restConfig: config, httpClient: client, namespace: namespace}
 }
 
 func (g *restClientGetter) ToRESTConfig() (*rest.Config, error) {
@@ -82,7 +106,7 @@ func (g *restClientGetter) ToRESTConfig() (*rest.Config, error) {
 }
 
 func (g *restClientGetter) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
-	dc, err := discovery.NewDiscoveryClientForConfig(g.restConfig)
+	dc, err := discovery.NewDiscoveryClientForConfigAndClient(g.restConfig, g.httpClient)
 	if err != nil {
 		return nil, err
 	}

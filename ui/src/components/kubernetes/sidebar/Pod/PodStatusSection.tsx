@@ -104,7 +104,7 @@ const PodStatusSection: React.FC<Props> = ({ pod, connectionID }) => {
               connectionID ? (
                 <ResourceLinkChip
                   connectionID={connectionID}
-                  resourceKey="core::v1::Node"
+                  resourceKey="k8s:/nodes"
                   resourceID={nodeName}
                   resourceName={nodeName}
                 />

@@ -1,8 +1,8 @@
-import type { DrawerComponentAction, DrawerContext } from '@omniviewdev/runtime';
+import type { DrawerComponentAction } from '@omniviewdev/runtime';
 
 import { drawerActions as validatingAdmissionPolicyBindingActions } from './table/admissionregistrationv1/ValidatingAdmissionPolicyBinding/actions';
 import { drawerActions as daemonSetActions } from './table/appsv1/DaemonSet/actions';
-import { drawerActions as deploymentActions, editorSubmit as deploymentEditorSubmit } from './table/appsv1/Deployment/actions';
+import { drawerActions as deploymentActions } from './table/appsv1/Deployment/actions';
 import { drawerActions as replicaSetActions } from './table/appsv1/ReplicaSet/actions';
 import { drawerActions as statefulSetActions } from './table/appsv1/StatefulSet/actions';
 import { drawerActions as horizontalPodAutoscalerActions } from './table/autoscalingv1/HorizontalPodAutoscaler/actions';
@@ -14,7 +14,7 @@ import { drawerActions as namespaceActions } from './table/corev1/Namespace/acti
 import { drawerActions as nodeActions } from './table/corev1/Node/actions';
 import { drawerActions as persistentVolumeActions } from './table/corev1/PersistentVolume/actions';
 import { drawerActions as persistentVolumeClaimActions } from './table/corev1/PersistentVolumeClaim/actions';
-import { drawerActions as podActions, editorSubmit as podEditorSubmit } from './table/corev1/Pod/actions';
+import { drawerActions as podActions } from './table/corev1/Pod/actions';
 import { drawerActions as replicationControllerActions } from './table/corev1/ReplicationController/actions';
 import { drawerActions as resourceQuotaActions } from './table/corev1/ResourceQuota/actions';
 import { drawerActions as serviceActions } from './table/corev1/Service/actions';
@@ -40,8 +40,6 @@ type AnyAction = DrawerComponentAction<any>;
 
 export type ResourceDrawerActions = {
   actions: Array<AnyAction>;
-  /** Saves the Editor view; only resources whose table supported editing have one. */
-  editorSubmit?: (ctx: DrawerContext, value: Record<string, unknown>) => void;
 };
 
 /**
@@ -51,40 +49,38 @@ export type ResourceDrawerActions = {
  * actions however its drawer was opened.
  */
 export const resourceDrawerActions: Record<string, ResourceDrawerActions> = {
-  'admissionregistration::v1::ValidatingAdmissionPolicyBinding': { actions: validatingAdmissionPolicyBindingActions },
-  'apps::v1::DaemonSet': { actions: daemonSetActions },
-  'apps::v1::Deployment': { actions: deploymentActions, editorSubmit: deploymentEditorSubmit as ResourceDrawerActions['editorSubmit'] },
-  'apps::v1::ReplicaSet': { actions: replicaSetActions },
-  'apps::v1::StatefulSet': { actions: statefulSetActions },
-  'autoscaling::v1::HorizontalPodAutoscaler': { actions: horizontalPodAutoscalerActions },
-  'autoscaling::v2::HorizontalPodAutoscaler': { actions: horizontalPodAutoscalerActions },
-  'batch::v1::CronJob': { actions: cronJobActions },
-  'batch::v1::Job': { actions: jobActions },
-  'core::v1::Endpoints': { actions: endpointsActions },
-  'core::v1::LimitRange': { actions: limitRangeActions },
-  'core::v1::Namespace': { actions: namespaceActions },
-  'core::v1::Node': { actions: nodeActions },
-  'core::v1::PersistentVolume': { actions: persistentVolumeActions },
-  'core::v1::PersistentVolumeClaim': { actions: persistentVolumeClaimActions },
-  'core::v1::Pod': { actions: podActions, editorSubmit: podEditorSubmit as ResourceDrawerActions['editorSubmit'] },
-  'core::v1::ReplicationController': { actions: replicationControllerActions },
-  'core::v1::ResourceQuota': { actions: resourceQuotaActions },
-  'core::v1::Service': { actions: serviceActions },
-  'core::v1::ServiceAccount': { actions: serviceAccountActions },
-  'discovery::v1::EndpointSlice': { actions: endpointSliceActions },
-  'flowcontrol::v1::FlowSchema': { actions: flowSchemaActions },
-  'flowcontrol::v1beta3::FlowSchema': { actions: flowSchemaActions },
-  'networking::v1::Ingress': { actions: ingressActions },
-  'networking::v1::IngressClass': { actions: ingressClassActions },
-  'networking::v1::NetworkPolicy': { actions: networkPolicyActions },
-  'node::v1::RuntimeClass': { actions: runtimeClassActions },
-  'policy::v1::PodDisruptionBudget': { actions: podDisruptionBudgetActions },
-  'rbac::v1::ClusterRole': { actions: clusterRoleActions },
-  'rbac::v1::ClusterRoleBinding': { actions: clusterRoleBindingActions },
-  'rbac::v1::Role': { actions: roleActions },
-  'rbac::v1::RoleBinding': { actions: roleBindingActions },
-  'storage::v1::CSIDriver': { actions: cSIDriverActions },
-  'storage::v1::CSINode': { actions: cSINodeActions },
-  'storage::v1::StorageClass': { actions: storageClassActions },
-  'storage::v1::VolumeAttachment': { actions: volumeAttachmentActions },
+  'k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings': { actions: validatingAdmissionPolicyBindingActions },
+  'k8s:apps/daemonsets': { actions: daemonSetActions },
+  'k8s:apps/replicasets': { actions: replicaSetActions },
+  'k8s:apps/deployments': { actions: deploymentActions },
+  'k8s:apps/statefulsets': { actions: statefulSetActions },
+  'k8s:autoscaling/horizontalpodautoscalers': { actions: horizontalPodAutoscalerActions },
+  'k8s:batch/cronjobs': { actions: cronJobActions },
+  'k8s:batch/jobs': { actions: jobActions },
+  'k8s:/endpoints': { actions: endpointsActions },
+  'k8s:/limitranges': { actions: limitRangeActions },
+  'k8s:/namespaces': { actions: namespaceActions },
+  'k8s:/nodes': { actions: nodeActions },
+  'k8s:/persistentvolumes': { actions: persistentVolumeActions },
+  'k8s:/persistentvolumeclaims': { actions: persistentVolumeClaimActions },
+  'k8s:/replicationcontrollers': { actions: replicationControllerActions },
+  'k8s:/pods': { actions: podActions },
+  'k8s:/resourcequotas': { actions: resourceQuotaActions },
+  'k8s:/services': { actions: serviceActions },
+  'k8s:/serviceaccounts': { actions: serviceAccountActions },
+  'k8s:discovery.k8s.io/endpointslices': { actions: endpointSliceActions },
+  'k8s:flowcontrol.apiserver.k8s.io/flowschemas': { actions: flowSchemaActions },
+  'k8s:networking.k8s.io/ingresses': { actions: ingressActions },
+  'k8s:networking.k8s.io/ingressclasses': { actions: ingressClassActions },
+  'k8s:networking.k8s.io/networkpolicies': { actions: networkPolicyActions },
+  'k8s:node.k8s.io/runtimeclasses': { actions: runtimeClassActions },
+  'k8s:policy/poddisruptionbudgets': { actions: podDisruptionBudgetActions },
+  'k8s:rbac.authorization.k8s.io/clusterroles': { actions: clusterRoleActions },
+  'k8s:rbac.authorization.k8s.io/clusterrolebindings': { actions: clusterRoleBindingActions },
+  'k8s:rbac.authorization.k8s.io/roles': { actions: roleActions },
+  'k8s:rbac.authorization.k8s.io/rolebindings': { actions: roleBindingActions },
+  'k8s:storage.k8s.io/csidrivers': { actions: cSIDriverActions },
+  'k8s:storage.k8s.io/csinodes': { actions: cSINodeActions },
+  'k8s:storage.k8s.io/storageclasses': { actions: storageClassActions },
+  'k8s:storage.k8s.io/volumeattachments': { actions: volumeAttachmentActions },
 };

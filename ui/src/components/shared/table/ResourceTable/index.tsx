@@ -1,19 +1,17 @@
-import { DataTable, Progress, Skeleton } from '@omniviewdev/base-ui';
-import { useResources, useRightDrawer, usePluginRouter, DrawerComponent } from '@omniviewdev/runtime';
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
+import { Button, DataTable, Progress, Skeleton, dataTableFeatures } from '@omniviewdev/base-ui';
+import { useResources, useResourceType, useResolvedResourceTarget, useRightDrawer, usePluginRouter, DrawerComponent } from '@omniviewdev/runtime';
 import {
   type ColumnDef,
   type ColumnFiltersState,
   type ColumnSizingState,
   type SortingState,
-  type VisibilityState,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
+  type ColumnVisibilityState as VisibilityState,
+  useTable,
   type Row,
   type RowSelectionState,
+  type RowData,
 } from '@tanstack/react-table';
-import get from 'lodash.get';
 import React, { useMemo, useState } from 'react';
 
 import { PLUGIN_ID } from '@/pluginId';
@@ -30,20 +28,21 @@ const ROW_HEIGHT = 30;
 const NON_DRAWER_COLUMNS = new Set(['select', 'menu']);
 
 import type { KubernetesResourceObject } from '../../../../types/resource';
-import { plural } from '../../../../utils/language';
 import { useDynamicResourceColumns } from '../../../tables/ColumnFilter/useDynamicResourceColumns';
-
 import DrawerActionsBridge from '../../drawer/DrawerActionsBridge';
 import { TableDrawerContext } from '../TableDrawerContext';
 import { ColumnMeta } from '../types';
 import { useRowSelectionCleanup } from '../useRowSelectionCleanup';
 import { getBodyCellStyles } from '../utils';
+
+import styles from './ResourceTable.module.css';
+import ResourceTableErrorState from './ResourceTableErrorState';
+import ResourceTableToolbar from './ResourceTableToolbar';
+
 import { useConnectionNamespaces } from '@/hooks/useConnectionNamespaces';
 import { useStoredState } from '@/hooks/useStoredState';
 
-import ResourceTableErrorState from './ResourceTableErrorState';
-import styles from './ResourceTable.module.css';
-import ResourceTableToolbar from './ResourceTableToolbar';
+import { decodeResourceTableRows } from './rows';
 
 export type ToolbarFilterDef = {
   /** TanStack column ID this filter targets. */
@@ -56,11 +55,10 @@ export type ToolbarFilterDef = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Generic component that accepts multiple row data types (Pod, HelmChart, etc.)
-export type Props<T = any> = {
+export type Props<T extends RowData = any> = {
   connectionID: string;
   resourceKey: string;
-  columns: Array<ColumnDef<T> & ColumnMeta>;
-  idAccessor: string;
+  columns: Array<ColumnDef<DataTableFeatures, T> & ColumnMeta>;
   drawer?: DrawerComponent;
   /** Hide the namespace selector (for non-namespaced resources like Helm Charts) */
   hideNamespaceSelector?: boolean;
@@ -75,9 +73,11 @@ export type Props<T = any> = {
    * the shared useConnectionNamespaces hook so all tables stay in sync.
    */
   toolbarFilters?: ToolbarFilterDef[];
+  /** Wrap table content with consumers that need persisted visibility before mounting. */
+  contentWrapper?: React.ComponentType<React.PropsWithChildren<{ columnVisibility: VisibilityState }>>;
 };
 
-const visibilityFromColumnDefs = <T,>(defs: Array<ColumnDef<T>>): VisibilityState => {
+const visibilityFromColumnDefs = <T extends RowData,>(defs: Array<ColumnDef<DataTableFeatures, T>>): VisibilityState => {
   const visibility: VisibilityState = {};
   defs.forEach((def) => {
     let meta = (def?.meta as { defaultHidden?: boolean }) || undefined;
@@ -91,10 +91,8 @@ const visibilityFromColumnDefs = <T,>(defs: Array<ColumnDef<T>>): VisibilityStat
   return visibility;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Empty array used as fallback for resources.data?.result which is any[]
-const defaultData: any[] = [];
 
-const ResourceTableContainer: React.FC<Props> = ({
+const ResourceTableContainer = <T extends RowData,>({
   connectionID,
   resourceKey,
   columns,
@@ -103,7 +101,8 @@ const ResourceTableContainer: React.FC<Props> = ({
   toolbarActions,
   createEnabled = true,
   toolbarFilters,
-}) => {
+  contentWrapper: ContentWrapper,
+}: Props<T>) => {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }]);
   const [columnVisibility, setColumnVisibility] = useStoredState<VisibilityState>(
     `kubernetes-${connectionID}-${resourceKey}-column-visibility`,
@@ -117,14 +116,22 @@ const ResourceTableContainer: React.FC<Props> = ({
     `kubernetes-${connectionID}-${resourceKey}-column-sizing`,
     {},
   );
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [collectionSelection, setCollectionSelection] = useState<{
+    context: string;
+    selection: RowSelectionState;
+  }>({ context: '', selection: {} });
   const { location } = usePluginRouter();
   const navigationSearch = new URLSearchParams(location.search).get('search') ?? '';
   const [search, setSearch] = useState<string>(navigationSearch);
-  React.useEffect(() => {
+  const [searchScope, setSearchScope] = useState(() => ({
+    connectionID, resourceKey, key: location.key, pathname: location.pathname, navigationSearch,
+  }));
+  if (searchScope.connectionID !== connectionID || searchScope.resourceKey !== resourceKey
+    || searchScope.key !== location.key || searchScope.pathname !== location.pathname
+    || searchScope.navigationSearch !== navigationSearch) {
+    setSearchScope({ connectionID, resourceKey, key: location.key, pathname: location.pathname, navigationSearch });
     setSearch(navigationSearch);
-  }, [connectionID, resourceKey, location.key, location.pathname, navigationSearch]);
-
+  }
   // Shared per-connection namespace selection
   const { namespaces: sharedNamespaces, setNamespaces: setSharedNamespaces } =
     useConnectionNamespaces(connectionID);
@@ -138,25 +145,45 @@ const ResourceTableContainer: React.FC<Props> = ({
   /** Column / label / annotation picker */
   const [filterOpen, setFilterOpen] = React.useState(false);
 
-  const { resources, isSyncing } = useResources({
+  const { resourceType } = useResourceType({
     pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey,
-    idAccessor: 'metadata.uid',
+    route: { connection: connectionID },
+    type: resourceKey,
   });
-
-  // Prune stale entries from rowSelection when resources are deleted (e.g. during
-  // rolling updates). Orphaned UIDs in rowSelection cause the header "select all"
-  // checkbox and per-row checkboxes to desync from the actual row highlight state.
-  useRowSelectionCleanup(
-    resources.data?.result || defaultData,
-    'metadata.uid',
-    setRowSelection,
+  const target = useResolvedResourceTarget({
+    pluginID: PLUGIN_ID,
+    route: { connection: connectionID },
+    type: resourceKey,
+  });
+  const collectionContext = JSON.stringify([connectionID, resourceKey, target.data]);
+  const { resources, acquired, isSyncing, watchError } = useResources({
+    pluginID: PLUGIN_ID,
+    collection: true,
+    request: target.data ? {
+      targetId: target.data.targetId,
+      request: { target: target.data.target, pageSize: 256 },
+    } : undefined,
+    live: resourceType.data?.capabilities.some((capability) => capability.operation === 'update') ?? false,
+  });
+  const rowSelection = collectionSelection.context === collectionContext ? collectionSelection.selection : {};
+  const setRowSelection = React.useCallback<React.Dispatch<React.SetStateAction<RowSelectionState>>>((update) => {
+    setCollectionSelection((state) => {
+      const current = state.context === collectionContext ? state.selection : {};
+      const selection = typeof update === 'function' ? update(current) : update;
+      return selection === current && state.context === collectionContext
+        ? state
+        : { context: collectionContext, selection };
+    });
+  }, [collectionContext]);
+  const { rows, recordsByBody, rowKeys } = useMemo(
+    () => decodeResourceTableRows(acquired?.page.records ?? []),
+    [acquired?.page],
   );
+  useRowSelectionCleanup(rowKeys, setRowSelection, resources.isSuccess && !resources.isFetching);
 
-  const showSyncingIndicator = isSyncing && (resources.data?.result?.length ?? 0) > 0;
-  const { labels, setLabels, annotations, setAnnotations, columnDefs } = useDynamicResourceColumns({
-    connectionID,
+  const showSyncingIndicator = isSyncing && rows.length > 0;
+  const { labels, setLabels, annotations, setAnnotations, columnDefs } = useDynamicResourceColumns<T>({
+    rows,
     resourceKey,
   });
 
@@ -168,7 +195,7 @@ const ResourceTableContainer: React.FC<Props> = ({
     setAnnotations((prev: Record<string, boolean>) => ({ ...prev, ...vals }));
   };
 
-  const allColumns = [...columns, ...columnDefs] as ColumnDef<KubernetesResourceObject, any>[];
+  const allColumns = useMemo(() => [...columns, ...columnDefs], [columns, columnDefs]);
 
   // Auto-detect whether this resource has a namespace column
   const hasNamespaceColumn = allColumns.some((col) => col.id === 'namespace');
@@ -214,19 +241,21 @@ const ResourceTableContainer: React.FC<Props> = ({
     [setColumnFilters, setSharedNamespaces],
   );
 
-  const table = useReactTable({
-    data: resources.data?.result || defaultData,
+  const table = useTable<DataTableFeatures, T>({
+    features: dataTableFeatures,
+    enableRowRangeSelection: false,
+    manualPagination: true,
+    manualExpanding: true,
+    data: rows as unknown as T[],
     columns: allColumns,
     columnResizeMode: 'onChange',
     onSortingChange: setSorting,
     onColumnFiltersChange: handleColumnFiltersChange,
     onColumnSizingChange: setColumnSizing,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    onGlobalFilterChange: setSearch,
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
-    getRowId: (row) => get(row, 'metadata.uid') as string,
+    getRowId: (row) => recordsByBody.get(row as object)!.key,
     defaultColumn: {
       minSize: 40,
       maxSize: 800,
@@ -238,7 +267,7 @@ const ResourceTableContainer: React.FC<Props> = ({
       columnSizing,
       rowSelection,
       globalFilter: search,
-      columnPinning: { left: ['select'], right: ['menu'] },
+      columnPinning: { start: ['select'], end: ['menu'] },
     },
   });
 
@@ -246,7 +275,7 @@ const ResourceTableContainer: React.FC<Props> = ({
 
   const { openDrawer } = useRightDrawer();
   const onRowClick = React.useCallback(
-    (row: Row<KubernetesResourceObject>, event: React.MouseEvent<HTMLTableRowElement>) => {
+    (row: Row<DataTableFeatures, T>, event: React.MouseEvent<HTMLTableRowElement>) => {
       if (drawer === undefined) {
         return;
       }
@@ -257,43 +286,51 @@ const ResourceTableContainer: React.FC<Props> = ({
       if (columnId && NON_DRAWER_COLUMNS.has(columnId)) {
         return;
       }
+      const record = recordsByBody.get(row.original as object)!;
       openDrawer(drawer, {
         data: row.original,
         resource: {
-          id: row.id,
-          name: row.original?.metadata?.name ?? row.id,
-          key: resourceKey,
-          connectionID,
+          reference: record.record.reference,
+          route: record.route,
+          representation: record.record.representation.id,
+          targetId: record.targetId,
+          key: record.key,
+          record,
+          name: (row.original as KubernetesResourceObject)?.metadata?.name ?? record.record.reference.address.id,
           pluginID: PLUGIN_ID,
         },
       });
     },
-    [drawer, connectionID, openDrawer, resourceKey],
+    [drawer, openDrawer, recordsByBody],
   );
 
   const placeHolderText = () => {
-    const keyparts = resourceKey.split('::');
-    const resource = plural(keyparts[keyparts.length - 1]);
+    const resource = resourceType.data?.displayName ?? resourceKey;
 
-    const count = resources.data?.result?.length;
+    const count = rows.length;
 
     return `Search ${count ? `${count} ` : ''}${resource}...`;
   };
 
-  if (resources.isError) {
+  if (target.isError || (resources.isError && !acquired)) {
     return (
-      <ResourceTableErrorState
-        error={resources.error}
-        resourceKey={resourceKey}
-      />
+      <>
+        <ResourceTableErrorState
+          error={target.error ?? resources.error}
+          resourceKey={resourceKey}
+        />
+        <Button size="sm" variant="outline" onClick={() => { void (target.isError ? target.refetch() : resources.refetch()); }}>Retry</Button>
+      </>
     );
   }
 
-  return (
-    <TableDrawerContext.Provider value={drawer}>
+  const content = (
+    <TableDrawerContext.Provider value={{ drawer, recordsByBody }}>
       {/* Row menu actions run outside the drawer, so the table mounts their handlers too */}
       {drawer && <DrawerActionsBridge connectionID={connectionID} resourceKey={resourceKey} />}
       <div className={styles.outer}>
+        {watchError && <div role="status">Live updates unavailable. Showing the last acquired resources.</div>}
+        {resources.isError && <div role="alert">Could not update resources. <Button size="sm" variant="outline" onClick={() => { void resources.refetch(); }}>Retry</Button></div>}
         <DataTable.Root
           table={table}
           features={TABLE_FEATURES}
@@ -318,7 +355,7 @@ const ResourceTableContainer: React.FC<Props> = ({
             hideNamespaceSelector={hideNamespaceSelector}
             sharedNamespaces={sharedNamespaces}
             setSharedNamespaces={setSharedNamespaces}
-            data={resources.data?.result || defaultData}
+            data={rows}
             extraFilterValues={extraFilterValues}
             setExtraFilterValues={setExtraFilterValues}
             hasResizedColumns={hasResizedColumns}
@@ -337,7 +374,7 @@ const ResourceTableContainer: React.FC<Props> = ({
             aria-labelledby={'table-title'}
           >
             <DataTable.Header />
-            {resources.isLoading ? (
+            {target.isLoading || resourceType.isLoading || (resources.isLoading && !acquired) ? (
               <tbody style={{ display: 'grid' }}>
                 {SKELETON_ROWS.map((rowKey) => (
                   <tr key={rowKey} className={styles.skeletonRow}>
@@ -363,6 +400,7 @@ const ResourceTableContainer: React.FC<Props> = ({
       </div>
     </TableDrawerContext.Provider>
   );
+  return ContentWrapper ? <ContentWrapper columnVisibility={columnVisibility}>{content}</ContentWrapper> : content;
 };
 
 ResourceTableContainer.displayName = 'ResourceTableContainer';

@@ -1,134 +1,99 @@
-import { Button, Dialog, Text } from '@omniviewdev/base-ui';
+import { Button, Dialog } from '@omniviewdev/base-ui';
 import React from 'react';
 import { LuPlus } from 'react-icons/lu';
 
-// project-imports
-import { parseResourceKey } from '../../../../utils/resourceKey';
-import CodeEditor from '../../../shared/CodeEditor';
-
-import { getTemplate } from './templates';
-
-const dialogStyle = { width: '90%', maxWidth: 1000, maxHeight: '90vh' } as const;
-const contentStyle = {
-  flex: 1,
-  overflow: 'hidden',
-  display: 'flex',
-  flexDirection: 'column',
-  borderTop: '1px solid var(--ov-color-border-muted)',
-} as const;
-const footerStyle = { paddingTop: 12 } as const;
-const editorWrapperStyle = { height: 'calc(80vh - 120px)', overflow: 'hidden' } as const;
-const errorStyle = {
-  paddingInline: 20,
-  paddingBlock: 8,
-  background: 'var(--ov-color-danger-soft)',
-  borderTop: '1px solid var(--ov-color-danger)',
-} as const;
+import ResourceManifestEditor from '../../manifest/ResourceManifestEditor';
+import { validateManifest } from '../../manifest/manifestDraft';
+import styles from './CreateResourceModal.module.css';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   resourceKey: string;
-  onCreate: (yaml: string, namespace: string) => Promise<void>;
+  resourceName: string;
+  template: string;
+  onCreate: (yaml: string) => Promise<void>;
   isCreating?: boolean;
+  context?: string;
 }
 
-const CreateResourceModal: React.FC<Props> = ({
-  open,
-  onClose,
-  resourceKey,
-  onCreate,
-  isCreating,
-}) => {
-  const { kind } = parseResourceKey(resourceKey);
-  const [value, setValue] = React.useState('');
-  const [error, setError] = React.useState<string | null>(null);
+const CreateResourceModal: React.FC<Props> = (props) =>
+  props.open ? <CreateResourceForm key={JSON.stringify([props.resourceKey, props.template])} {...props} /> : null;
 
-  // Reset template each time modal opens
+// Each open owns its draft and completion lifetime, including while a request is pending.
+const CreateResourceForm: React.FC<Props> = ({
+  onClose, resourceKey, resourceName, template, onCreate, isCreating, context,
+}) => {
+  const [value, setValue] = React.useState(template);
+  const [error, setError] = React.useState<string | null>(null);
+  const [pending, setPending] = React.useState(false);
+  const activeRef = React.useRef(false);
+  const busyRef = React.useRef(false);
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  const openerRef = React.useRef(document.activeElement);
+
   React.useEffect(() => {
-    if (open) {
-      setValue(getTemplate(resourceKey));
-      setError(null);
-    }
-  }, [open, resourceKey]);
+    activeRef.current = true;
+    const opener = openerRef.current;
+    return () => {
+      activeRef.current = false;
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    };
+  }, []);
 
   const handleSubmit = async () => {
-    setError(null);
-
-    // Parse YAML
-    let parsed: Record<string, unknown>;
+    if (busyRef.current || isCreating) return;
+    const validationError = validateManifest(value, resourceKey);
+    setError(validationError);
+    if (validationError) return;
+    busyRef.current = true;
+    setPending(true);
     try {
-      // Dynamic import to keep bundle lean — yaml is already installed
-      const { parse } = await import('yaml');
-      parsed = parse(value) as Record<string, unknown>;
-    } catch (err: unknown) {
-      setError(`YAML syntax error: ${err instanceof Error ? err.message : 'Invalid YAML'}`);
-      return;
+      await onCreate(value);
+      if (activeRef.current) onClose();
+    } catch (cause) {
+      if (activeRef.current) setError(cause instanceof Error ? cause.message : 'Failed to create resource');
+    } finally {
+      busyRef.current = false;
+      if (activeRef.current) setPending(false);
     }
+  };
 
-    if (!parsed || typeof parsed !== 'object') {
-      setError('YAML must be a valid Kubernetes resource object');
-      return;
-    }
-
-    // Validate required fields
-    const metadata = parsed.metadata as Record<string, unknown> | undefined;
-    if (!metadata?.name) {
-      setError('metadata.name is required');
-      return;
-    }
-
-    const namespace = (metadata.namespace as string | undefined) ?? '';
-
-    try {
-      await onCreate(value, namespace);
-      onClose();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create resource');
+  const trapFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
+    ) ?? []).filter((element) => element.getClientRects().length > 0);
+    const first = controls[0];
+    const last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
     }
   };
 
   return (
-    <Dialog open={open} onClose={onClose} size="xl" style={dialogStyle}>
+    <Dialog ref={dialogRef} open onClose={onClose} size="xl" className={styles.Dialog} onKeyDown={trapFocus}>
       <Dialog.Close aria-label="Close" />
-      <Dialog.Title icon={<LuPlus size={16} />}>Create {kind}</Dialog.Title>
-
-      {/* Content — editor */}
-      <div style={contentStyle}>
-        <div style={editorWrapperStyle}>
-          <CodeEditor
-            filename={`${kind}.yaml`}
-            language="yaml"
-            value={value}
-            onChange={(v) => setValue(v)}
-            path={`file:///${resourceKey}/create.yaml`}
-            height="100%"
-          />
-        </div>
-
-        {/* Inline error */}
-        {error && (
-          <div style={errorStyle}>
-            <Text size="xs" tone="danger">
-              {error}
-            </Text>
-          </div>
-        )}
+      <Dialog.Title className={styles.Title} icon={<LuPlus size={16} />}>Create {resourceName}</Dialog.Title>
+      <div className={styles.Content}>
+        <ResourceManifestEditor
+          value={value}
+          onChange={(next) => { if (!busyRef.current) { setValue(next); setError(null); } }}
+          resourceKey={resourceKey}
+          filename="create.yaml"
+          context={context}
+          disabled={pending || isCreating}
+        />
       </div>
-
-      {/* Footer */}
-      <Dialog.Footer style={footerStyle}>
-        <Button size="sm" variant="ghost" color="neutral" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button
-          size="sm"
-          variant="solid"
-          color="brand"
-          disabled={isCreating}
-          onClick={() => void handleSubmit()}
-        >
-          {isCreating ? 'Creating...' : 'Create'}
+      {error && <div className={styles.Error} role="alert">{error}</div>}
+      <Dialog.Footer className={styles.Footer}>
+        <Button size="sm" variant="ghost" color="neutral" onClick={onClose}>Cancel</Button>
+        <Button size="sm" variant="solid" color="brand" disabled={pending || isCreating} onClick={() => void handleSubmit()}>
+          {pending || isCreating ? 'Creating...' : 'Create'}
         </Button>
       </Dialog.Footer>
     </Dialog>

@@ -1,4 +1,5 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { DrawerContext } from '@omniviewdev/runtime';
 import { render, screen } from '@testing-library/react';
 import type { NetworkPolicy } from 'kubernetes-types/networking/v1';
@@ -73,7 +74,7 @@ function makePolicy(overrides: Partial<NetworkPolicy> = {}): NetworkPolicy {
 function makeDrawerCtx(data: NetworkPolicy | undefined): DrawerContext<NetworkPolicy> {
   return {
     data,
-    resource: { connectionID: 'conn-1', id: 'deny-all' },
+    resource: fixtureResource('k8s:networking.k8s.io/networkpolicies', data, 'conn-1', data?.metadata?.name ?? 'fixture-object'),
   } as DrawerContext<NetworkPolicy>;
 }
 

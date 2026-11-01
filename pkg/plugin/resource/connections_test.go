@@ -375,23 +375,6 @@ func TestEnrichAKSLabels_NoArgs(t *testing.T) {
 	assert.False(t, hasRG)
 }
 
-// --- CheckConnectionFunc ---
-
-func TestCheckConnectionFunc_NilConnection(t *testing.T) {
-	status, err := CheckConnectionFunc(nil, nil, nil)
-	require.NoError(t, err)
-	assert.Equal(t, types.ConnectionStatusError, status.Status)
-	assert.Contains(t, status.Details, "No connection was provided")
-}
-
-func TestCheckConnectionFunc_NilClient(t *testing.T) {
-	conn := &types.Connection{ID: "test"}
-	status, err := CheckConnectionFunc(nil, conn, nil)
-	require.NoError(t, err)
-	assert.Equal(t, types.ConnectionStatusError, status.Status)
-	assert.Contains(t, status.Details, "No client was provided")
-}
-
 // --- connectionsFromKubeconfig ---
 
 func TestConnectionsFromKubeconfig_ValidFile(t *testing.T) {

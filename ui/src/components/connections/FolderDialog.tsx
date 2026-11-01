@@ -6,6 +6,7 @@ import type { EnrichedConnection, FolderRuleSet } from '../../types/clusters';
 import { processImageFile } from '../../utils/avatarUtils';
 import { FOLDER_ICON_MAP, PRESET_COLORS } from '../../utils/folderIcons';
 import { compileRuleSet, matchConnections } from '../../utils/folderRules';
+import { isRetiredConnectionDataKey, isRetiredInventoryDataKey } from '../../utils/migrateFolderMetadataRules';
 
 import styles from './FolderDialog.module.css';
 import RuleBuilder from './RuleBuilder';
@@ -163,7 +164,9 @@ const FolderDialog: React.FC<Props> = ({
         for (const key of Object.keys(conn.connection.labels)) labelKeys.add(key);
       }
       if (conn.connection.data) {
-        for (const key of Object.keys(conn.connection.data as Record<string, unknown>)) dataKeys.add(key);
+        for (const key of Object.keys(conn.connection.data)) {
+          if (!isRetiredConnectionDataKey(key)) dataKeys.add(key);
+        }
       }
     }
     for (const key of [...labelKeys].sort()) {
@@ -171,6 +174,9 @@ const FolderDialog: React.FC<Props> = ({
     }
     for (const key of [...dataKeys].sort()) {
       fields.push({ value: `data:${key}`, label: `Data: ${key}` });
+    }
+    for (const key of ['kubernetes.server_url', 'kubernetes.server_version', 'kubernetes.server_platform']) {
+      fields.push({ value: `metadata:${key}`, label: `Metadata: ${key}` });
     }
     return fields;
   }, [enrichedConnections]);
@@ -300,7 +306,7 @@ const FolderDialog: React.FC<Props> = ({
             >
               <Input.Control
                 id="folder-dialog-name"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
+                // eslint-disable-next-line jsx-a11y-x/no-autofocus
                 autoFocus
                 size="sm"
                 placeholder="e.g. Production Suite"
@@ -377,7 +383,7 @@ const FolderDialog: React.FC<Props> = ({
               ) : (
                 <Stack direction="column" align="stretch" spacing={2}>
                   {/* Drag-and-drop zone */}
-                  {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+                  {/* eslint-disable-next-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-static-element-interactions */}
                   <div
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
@@ -468,6 +474,11 @@ const FolderDialog: React.FC<Props> = ({
                   </Text>
                 )}
               </button>
+              {ruleSet.rules.some((rule) => rule.field.startsWith('data:') && isRetiredInventoryDataKey(rule.field.slice(5))) && (
+                <Text size="sm" role="alert">
+                  Review required: saved inventory and last-checked rules are unsupported. These rules never match, including negative rules. Edit or remove them explicitly.
+                </Text>
+              )}
               {rulesExpanded && (
                 <RuleBuilder
                   ruleSet={ruleSet}

@@ -10,7 +10,7 @@ import {
   Stack,
   Text,
 } from '@omniviewdev/base-ui';
-import { useResourcePortForwarder } from '@omniviewdev/runtime';
+import { useResourcePortForwarder, type DrawerContext } from '@omniviewdev/runtime';
 import { networker } from '@omniviewdev/runtime/models';
 import { Browser } from '@omniviewdev/runtime/runtime';
 import type { Service, ServicePort } from 'kubernetes-types/core/v1';
@@ -141,6 +141,7 @@ interface Props {
   service: Service;
   connectionID?: string;
   resourceID?: string;
+  resource?: DrawerContext['resource'];
 }
 
 // ---------------------------------------------------------------------------
@@ -170,17 +171,10 @@ interface ForwardConfigPopoverProps {
 function ForwardConfigPopover({ anchorEl, port, onClose, onConfirm }: ForwardConfigPopoverProps) {
   const [localPort, setLocalPort] = React.useState('');
   const [portError, setPortError] = React.useState('');
-  const [protocol, setProtocol] = React.useState<'TCP' | 'UDP'>('TCP');
+  const [protocol, setProtocol] = React.useState<'TCP' | 'UDP'>(() =>
+    port?.protocol === 'UDP' ? 'UDP' : 'TCP',
+  );
   const [openInBrowser, setOpenInBrowser] = React.useState(true);
-
-  React.useEffect(() => {
-    if (anchorEl && port) {
-      setLocalPort('');
-      setPortError('');
-      setProtocol(port.protocol === 'UDP' ? 'UDP' : 'TCP');
-      setOpenInBrowser(true);
-    }
-  }, [anchorEl, port]);
 
   const handleConfirm = () => {
     if (localPort) {
@@ -289,7 +283,7 @@ const PortDetail: React.FC<{ label: string; value: string }> = ({ label, value }
 // ServicePortsSection
 // ---------------------------------------------------------------------------
 
-const ServicePortsSection: React.FC<Props> = ({ service, connectionID, resourceID }) => {
+const ServicePortsSection: React.FC<Props> = ({ service, connectionID, resourceID, resource }) => {
   // Port forward state — hooks must be called unconditionally
   const [configAnchor, setConfigAnchor] = React.useState<HTMLElement | null>(null);
   const [configPort, setConfigPort] = React.useState<ServicePort | null>(null);
@@ -305,7 +299,7 @@ const ServicePortsSection: React.FC<Props> = ({ service, connectionID, resourceI
 
   const svcType = service.spec?.type || 'ClusterIP';
   const showNodePort = svcType === 'NodePort' || svcType === 'LoadBalancer';
-  const canForward = !!connectionID && !!resourceID;
+  const canForward = !!connectionID && !!resourceID && !!resource?.record;
 
   const portMap =
     sessions.data?.reduce(
@@ -317,22 +311,31 @@ const ServicePortsSection: React.FC<Props> = ({ service, connectionID, resourceI
     port: number,
     opts?: { localPort?: number; protocol?: 'TCP' | 'UDP'; openInBrowser?: boolean },
   ) => {
+    if (!resource?.record) throw new Error('Resource observation is unavailable');
     void forward({
       opts: {
         resourceId: resourceID || '',
-        resourceKey: 'core::v1::Service',
-        resource: service,
+        resourceKey: 'k8s:/services',
+        resource: resource.record.record.body,
+        reference: resource.reference,
+        route: resource.route,
         remotePort: port,
         localPort: opts?.localPort,
         protocol: opts?.protocol ?? 'TCP',
         openInBrowser: opts?.openInBrowser ?? true,
         parameters: {},
       },
+    }).catch((error: unknown) => {
+      // The runtime hook reports mutation failures through its snackbar.
+      console.error('Port forward request failed', error);
     });
   };
 
   const handleStopPortForward = (sessionID: string) => {
-    void close({ opts: { sessionID } });
+    close({ opts: { sessionID } }).catch((error: unknown) => {
+      // The runtime hook reports mutation failures through its snackbar.
+      console.error('Port forward close request failed', error);
+    });
   };
 
   const handleOpenConfig = (e: React.MouseEvent<HTMLElement>, port: ServicePort) => {
@@ -381,7 +384,11 @@ const ServicePortsSection: React.FC<Props> = ({ service, connectionID, resourceI
                   <Chip
                     as="button"
                     clickable
-                    onClick={() => void Browser.OpenURL(`http://localhost:${existing.local_port}`)}
+                    onClick={() => {
+                      Browser.OpenURL(`http://localhost:${existing.local_port}`).catch(
+                        (error: unknown) => console.error('Failed to open port in browser', error),
+                      );
+                    }}
                     size="sm"
                     style={chipStyle}
                   >
@@ -424,16 +431,17 @@ const ServicePortsSection: React.FC<Props> = ({ service, connectionID, resourceI
         <ExpandableSections sections={sections} size="sm" variant="flush" />
       </div>
 
-      <ForwardConfigPopover
-        anchorEl={configAnchor}
-        port={configPort}
-        onClose={handleCloseConfig}
-        onConfirm={(opts) => {
-          if (configPort) {
+      {configAnchor && configPort && (
+        <ForwardConfigPopover
+          key={`${connectionID}/${resourceID}/${configPort.port}/${configPort.protocol}`}
+          anchorEl={configAnchor}
+          port={configPort}
+          onClose={handleCloseConfig}
+          onConfirm={(opts) => {
             handleStartPortForward(configPort.port, opts);
-          }
-        }}
-      />
+          }}
+        />
+      )}
     </>
   );
 };

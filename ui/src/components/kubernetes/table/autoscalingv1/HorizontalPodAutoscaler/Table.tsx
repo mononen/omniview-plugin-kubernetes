@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -6,24 +7,24 @@ import { HorizontalPodAutoscaler } from 'kubernetes-types/autoscaling/v2';
 import { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuActivity } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
-import ResourceLinkCell from '../../corev1/Pod/cells/ResourceLinkCell';
+import ResourceLinkChip from '../../../../shared/ResourceLinkChip';
 import ConditionsCell from '../../shared/cells/ConditionsCell';
 import { withNamespacedResourceColumns } from '../../shared/columns';
 
 import { drawerActions } from './actions';
 import HorizontalPodAutoscalerSidebar from './Sidebar';
 
-const resourceKey = 'autoscaling::v2::HorizontalPodAutoscaler';
+const resourceKey = 'k8s:autoscaling/horizontalpodautoscalers';
 
 const HorizontalPodAutoscalerTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<HorizontalPodAutoscaler>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, HorizontalPodAutoscaler>>>(
     () =>
       withNamespacedResourceColumns(
         [
@@ -34,15 +35,14 @@ const HorizontalPodAutoscalerTable: React.FC = () => {
               `${row.spec?.scaleTargetRef.kind}/${row.spec?.scaleTargetRef.name}`,
             cell: ({ row }) => {
               const target = row.original.spec?.scaleTargetRef;
-              return target ? (
-                <ResourceLinkCell
-                  connectionId={id}
-                  resourceId={target.name}
-                  resourceKey={`${target.apiVersion}::${target.kind}`}
+              return target?.apiVersion && target.kind && target.name ? (
+                <ResourceLinkChip
+                  connectionID={id}
+                  ownerReference={{ apiVersion: target.apiVersion, kind: target.kind, name: target.name, uid: '' }}
                   resourceName={target.kind}
                   namespace={row.original.metadata?.namespace}
                 />
-              ) : null;
+              ) : target?.name ?? null;
             },
             size: 200,
           },
@@ -123,7 +123,6 @@ const HorizontalPodAutoscalerTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

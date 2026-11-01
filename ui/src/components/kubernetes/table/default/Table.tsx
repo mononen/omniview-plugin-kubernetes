@@ -1,8 +1,9 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import { DrawerComponent, DrawerContext, useExtensionPoint } from '@omniviewdev/runtime';
 import { ColumnDef } from '@tanstack/react-table';
 import React from 'react';
 import { LuContainer } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { PLUGIN_ID } from '@/pluginId';
 
@@ -16,10 +17,10 @@ type ResourceSidebarContext = { pluginId: string; resourceKey: string; getCacheK
 
 const DefaultTable: React.FC = () => {
   const { id = '', resourceKey = '' } = useParams<{ id: string; resourceKey: string }>();
-  const key = resourceKey.replace(/_/g, '::');
+  const key = resourceKey;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const columns = React.useMemo<Array<ColumnDef<any>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, any>>>(
     () => withNamespacedResourceColumns([], { connectionID: id, resourceKey }),
     [id, resourceKey],
   );
@@ -54,7 +55,6 @@ const DefaultTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={key}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );

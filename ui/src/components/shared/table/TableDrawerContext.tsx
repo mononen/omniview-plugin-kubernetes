@@ -1,4 +1,4 @@
-import type { DrawerComponent } from '@omniviewdev/runtime';
+import type { DrawerComponent, HostRecord } from '@omniviewdev/runtime';
 import { createContext, useContext } from 'react';
 
 /**
@@ -6,9 +6,12 @@ import { createContext, useContext } from 'react';
  * This lets ActionsCell read the drawer's actions without threading
  * the drawer through the column definition system.
  */
-export const TableDrawerContext = createContext<DrawerComponent | undefined>(undefined);
+export const TableDrawerContext = createContext<{
+  drawer?: DrawerComponent;
+  recordsByBody: WeakMap<object, HostRecord>;
+} | undefined>(undefined);
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function useTableDrawer(): DrawerComponent | undefined {
+export function useTableDrawer() {
   return useContext(TableDrawerContext);
 }

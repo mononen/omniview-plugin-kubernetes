@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -6,7 +7,7 @@ import { DaemonSet } from 'kubernetes-types/apps/v1';
 import { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuServerCog } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 // import ResourceLinkCell from './cells/ResourceLinkCell'
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
@@ -17,13 +18,13 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import DaemonSetSidebar from './Sidebar';
 
-const resourceKey = 'apps::v1::DaemonSet';
+const resourceKey = 'k8s:apps/daemonsets';
 
 const DaemonSetTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<DaemonSet>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, DaemonSet>>>(
     () =>
       withNamespacedResourceColumns(
         [
@@ -127,7 +128,6 @@ const DaemonSetTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

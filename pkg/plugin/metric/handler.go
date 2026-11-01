@@ -3,6 +3,7 @@ package metric
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -10,8 +11,9 @@ import (
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	metricsclientset "k8s.io/metrics/pkg/client/clientset/versioned"
 
-	sdkmetric "github.com/omniviewdev/plugin-sdk/pkg/v1/metric"
+	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
+	sdkmetric "github.com/omniviewdev/plugin-sdk/pkg/v1/metric"
 
 	"github.com/omniview/kubernetes/pkg/utils"
 )
@@ -23,12 +25,22 @@ func compositeQuery(
 	qctx *sdkmetric.QueryContext,
 	req sdkmetric.QueryRequest,
 ) (*sdkmetric.QueryResponse, error) {
+	if err := admitMetricRequest(qctx, &req); err != nil {
+		return nil, err
+	}
 	// Cluster-level metrics are Prometheus-only.
 	if req.ResourceKey == "cluster::metrics" {
+		var response *sdkmetric.QueryResponse
+		var err error
 		if req.Shape == sdkmetric.ShapeTimeseries {
-			return promClient.queryClusterPrometheusTimeseries(qctx, req)
+			response, err = promClient.queryClusterPrometheusTimeseries(qctx, req)
+		} else {
+			response, err = promClient.queryClusterPrometheus(qctx, req)
 		}
-		return promClient.queryClusterPrometheus(qctx, req)
+		if canceled := metricQueryContext(qctx).Err(); canceled != nil {
+			return nil, canceled
+		}
+		return response, err
 	}
 
 	// If specific metric IDs are requested, check whether they're all Prometheus
@@ -59,29 +71,81 @@ func compositeQuery(
 	if wantAll || hasProm {
 		if req.Shape == sdkmetric.ShapeTimeseries {
 			switch req.ResourceKey {
-			case "core::v1::Pod":
+			case "k8s:/pods":
 				promResp, promErr = promClient.queryPodPrometheusTimeseries(qctx, req)
-			case "core::v1::Node":
+			case "k8s:/nodes":
 				promResp, promErr = promClient.queryNodePrometheusTimeseries(qctx, req)
 			case "cluster::metrics":
 				promResp, promErr = promClient.queryClusterPrometheusTimeseries(qctx, req)
 			}
 		} else {
 			switch req.ResourceKey {
-			case "core::v1::Pod":
+			case "k8s:/pods":
 				if req.ResourceID == "" {
 					promResp, promErr = promClient.queryAllPodPrometheus(qctx, req)
 				} else {
 					promResp, promErr = promClient.queryPodPrometheus(qctx, req)
 				}
-			case "core::v1::Node":
+			case "k8s:/nodes":
 				promResp, promErr = promClient.queryNodePrometheus(qctx, req)
 			}
 		}
 	}
 
+	if err := metricQueryContext(qctx).Err(); err != nil {
+		return nil, err
+	}
 	// Merge results.
 	return mergeResponses(msResp, msErr, promResp, promErr)
+}
+
+func metricQueryContext(qctx *sdkmetric.QueryContext) context.Context {
+	if qctx != nil && qctx.Context != nil {
+		return qctx.Context
+	}
+	return context.Background()
+}
+
+// A native utility selector is not resource identity. Targeted resource metrics
+// use the admitted observation/reference without acquiring new GET permission.
+func admitMetricRequest(qctx *sdkmetric.QueryContext, req *sdkmetric.QueryRequest) error {
+	if qctx == nil || qctx.Connection == nil || qctx.ConnectionID == "" || qctx.Connection.ID != qctx.ConnectionID {
+		return resourcev2.NewError("UNAVAILABLE", "An explicit selected metric connection is required")
+	}
+	if err := metricQueryContext(qctx).Err(); err != nil {
+		return err
+	}
+	if raw := req.Params["prometheus_service_port"]; raw != "" {
+		port, err := strconv.Atoi(raw)
+		if err != nil || port < 1 || port > 65535 {
+			return resourcev2.NewError("INVALID_REQUEST", "Prometheus service port must be an integer from 1 to 65535")
+		}
+	}
+	intent := req.ResourceData != nil || req.Reference != nil || req.Route != nil
+	if req.ResourceKey == "cluster::metrics" {
+		if intent {
+			return resourcev2.NewError("INVALID_REQUEST", "Cluster metrics do not accept resource identity or observation data")
+		}
+		return nil
+	}
+	if !intent {
+		if req.ResourceID != "" {
+			return resourcev2.NewError("INVALID_REQUEST", "Targeted resource metrics require an observation or reference")
+		}
+		return nil
+	}
+	if req.ResourceKey != "k8s:/pods" && req.ResourceKey != "k8s:/nodes" {
+		return resourcev2.NewError("UNSUPPORTED", "This native metric selector does not support resource intent")
+	}
+	name, namespace, err := utils.NativeResourceTarget(&types.PluginContext{Context: metricQueryContext(qctx), Connection: qctx.Connection}, req.ResourceData, req.Reference, req.Route, req.ResourceKey, req.ResourceKey == "k8s:/pods")
+	if err != nil {
+		return err
+	}
+	if req.ResourceID != "" && req.ResourceID != name || req.ResourceNamespace != "" && req.ResourceNamespace != namespace {
+		return resourcev2.NewError("INVALID_REQUEST", "Metric selector does not match the admitted native resource")
+	}
+	req.ResourceID, req.ResourceNamespace = name, namespace
+	return nil
 }
 
 // mergeResponses combines the results from metrics-server and Prometheus.
@@ -119,9 +183,9 @@ func mergeResponses(
 // queryMetricsServer handles metric queries using the Kubernetes metrics-server API.
 func queryMetricsServer(qctx *sdkmetric.QueryContext, req sdkmetric.QueryRequest) (*sdkmetric.QueryResponse, error) {
 	switch req.ResourceKey {
-	case "core::v1::Pod":
+	case "k8s:/pods":
 		return queryPodMetrics(qctx, req)
-	case "core::v1::Node":
+	case "k8s:/nodes":
 		return queryNodeMetrics(qctx, req)
 	default:
 		return &sdkmetric.QueryResponse{
@@ -137,7 +201,7 @@ func getMetricsClient(qctx *sdkmetric.QueryContext) (metricsclientset.Interface,
 	}
 
 	ctx := &types.PluginContext{
-		Context:    context.Background(),
+		Context:    metricQueryContext(qctx),
 		Connection: qctx.Connection,
 	}
 
@@ -172,7 +236,7 @@ func queryPodMetrics(qctx *sdkmetric.QueryContext, req sdkmetric.QueryRequest) (
 	name := req.ResourceID
 
 	podMetrics, err := metricsClient.MetricsV1beta1().PodMetricses(namespace).Get(
-		context.Background(), name, metav1.GetOptions{},
+		metricQueryContext(qctx), name, metav1.GetOptions{},
 	)
 	if err != nil {
 		return &sdkmetric.QueryResponse{
@@ -196,7 +260,7 @@ func queryAllPodMetrics(qctx *sdkmetric.QueryContext, req sdkmetric.QueryRequest
 	}
 
 	podMetricsList, err := metricsClient.MetricsV1beta1().PodMetricses(req.ResourceNamespace).List(
-		context.Background(), metav1.ListOptions{},
+		metricQueryContext(qctx), metav1.ListOptions{},
 	)
 	if err != nil {
 		return &sdkmetric.QueryResponse{
@@ -231,7 +295,7 @@ func queryNodeMetrics(qctx *sdkmetric.QueryContext, req sdkmetric.QueryRequest) 
 	name := req.ResourceID
 
 	nodeMetrics, err := metricsClient.MetricsV1beta1().NodeMetricses().Get(
-		context.Background(), name, metav1.GetOptions{},
+		metricQueryContext(qctx), name, metav1.GetOptions{},
 	)
 	if err != nil {
 		return &sdkmetric.QueryResponse{
@@ -309,7 +373,7 @@ func buildPodMetricResponse(podMetrics *metricsv1beta1.PodMetrics, metricIDs []s
 func buildNodeMetricResponse(
 	nodeMetrics *metricsv1beta1.NodeMetrics,
 	metricIDs []string,
-	resourceData map[string]interface{},
+	resourceData *resourcev2.Value,
 ) *sdkmetric.QueryResponse {
 	now := time.Now()
 	results := make([]sdkmetric.MetricResult, 0)
@@ -391,30 +455,19 @@ func buildNodeMetricResponse(
 
 // extractNodeCapacity extracts capacity values from the node's resource data.
 // The data is expected to be a full Node object with status.capacity.
-func extractNodeCapacity(resourceData map[string]interface{}, resource string) float64 {
-	status, ok := resourceData["status"].(map[string]interface{})
+func extractNodeCapacity(resourceData *resourcev2.Value, resource string) float64 {
+	value, ok := utils.TaggedField(resourceData, "status", "capacity", resource)
 	if !ok {
 		return 0
 	}
-	capacity, ok := status["capacity"].(map[string]interface{})
-	if !ok {
-		return 0
-	}
-	val, ok := capacity[resource]
-	if !ok {
-		return 0
-	}
-
-	switch v := val.(type) {
-	case float64:
+	switch value.Kind {
+	case "double":
 		if resource == "cpu" {
-			// CPU capacity in cores, convert to millicores
-			return v * 1000
+			return value.Double * 1000
 		}
-		return v
-	case string:
-		// Parse k8s quantity strings like "4", "16Gi"
-		return parseQuantityString(v, resource)
+		return value.Double
+	case "string":
+		return parseQuantityString(value.String, resource)
 	}
 	return 0
 }

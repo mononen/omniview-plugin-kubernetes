@@ -38,14 +38,6 @@ const addrLabelStyle: React.CSSProperties = { color: 'var(--ov-color-fg-muted)',
 const warningSubLabelStyle: React.CSSProperties = { ...subLabelStyle, color: 'var(--ov-color-warning)' };
 const addrRowStyle: React.CSSProperties = { minHeight: 20, alignItems: 'center', display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))' };
 
-/** Build a resourceKey from an ObjectReference's apiVersion + kind */
-function refToResourceKey(apiVersion?: string, kind?: string): string {
-  if (!apiVersion || !kind) return '';
-  const group = apiVersion.includes('/')
-    ? apiVersion.replace('/', '::')
-    : `core::${apiVersion}`;
-  return `${group}::${kind}`;
-}
 
 const AddressRow: React.FC<{
   addr: EndpointAddress;
@@ -65,26 +57,37 @@ const AddressRow: React.FC<{
         {addr.nodeName && connectionID ? (
           <ResourceLinkChip
             connectionID={connectionID}
-            resourceKey="core::v1::Node"
+            resourceKey="k8s:/nodes"
             resourceID={addr.nodeName}
             resourceName={addr.nodeName}
           />
         ) : addr.nodeName ? (
           <Chip size="xs" color="neutral" style={smallChipStyle} variant="outline">{addr.nodeName}</Chip>
         ) : null}
-        {addr.targetRef && connectionID && addr.targetRef.name ? (
+        {/* Kubernetes endpoint controllers omit apiVersion from their observed Pod references. */}
+        {addr.targetRef?.kind === 'Pod' && (addr.targetRef.apiVersion === 'v1' || (!addr.targetRef.apiVersion && addr.targetRef.uid)) && connectionID && addr.targetRef.name ? (
           <ResourceLinkChip
             connectionID={connectionID}
-            resourceKey={
-              refToResourceKey(addr.targetRef.apiVersion, addr.targetRef.kind) ||
-              `core::v1::${addr.targetRef.kind || 'Pod'}`
-            }
+            resourceKey="k8s:/pods"
             resourceID={addr.targetRef.name}
+            resourceName={addr.targetRef.name}
+            namespace={addr.targetRef.namespace}
+            incarnation={addr.targetRef.uid}
+          />
+        ) : addr.targetRef?.apiVersion && addr.targetRef.kind && connectionID && addr.targetRef.name ? (
+          <ResourceLinkChip
+            connectionID={connectionID}
+            ownerReference={{
+              apiVersion: addr.targetRef.apiVersion,
+              kind: addr.targetRef.kind,
+              name: addr.targetRef.name,
+              uid: addr.targetRef.uid ?? '',
+            }}
             resourceName={addr.targetRef.name}
             namespace={addr.targetRef.namespace}
           />
         ) : addr.targetRef && addr.targetRef.name ? (
-          <Chip size="xs" color="brand" style={smallChipStyle} variant="outline">{`${addr.targetRef.kind}/${addr.targetRef.name}`}</Chip>
+          <Chip size="xs" color="brand" style={smallChipStyle} variant="outline">{`${addr.targetRef.kind || 'Resource'}/${addr.targetRef.name}`}</Chip>
         ) : null}
       </Stack>
     </div>

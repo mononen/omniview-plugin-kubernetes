@@ -1,14 +1,6 @@
 import { Text } from '@omniviewdev/base-ui';
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import type { metric } from '@omniviewdev/runtime/models';
-
-import { MetricsPanel } from '../../../components/shared/charts';
-import type {
-  TimeSeriesDef,
-  ChartTimeRange,
-  MetricFormat,
-  ChartAnnotation,
-} from '../../../components/shared/charts';
 import React, { useMemo } from 'react';
 import {
   LuCpu,
@@ -19,11 +11,19 @@ import {
   LuRotateCcw,
   LuTriangleAlert,
 } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
+
+import type {
+  TimeSeriesDef,
+  ChartTimeRange,
+  MetricFormat,
+  ChartAnnotation,
+} from '../../../components/shared/charts';
+import { MetricsPanel } from '../../../components/shared/charts';
+import { useClusterPreferences } from '../../../hooks/useClusterPreferences';
+import { metricQueryParams } from '../../../utils/metricParams';
 
 import { PLUGIN_ID } from '@/pluginId';
-
-import { useClusterPreferences } from '../../../hooks/useClusterPreferences';
 
 const emptyStateStyle: React.CSSProperties = { padding: 24, textAlign: 'center' };
 
@@ -97,7 +97,7 @@ function toTimeSeriesDef(
     id: ts.metric_id,
     label,
     data: (ts.data_points ?? []).map((dp) => ({
-      timestamp: new Date(dp.timestamp as unknown as string).getTime(),
+      timestamp: new Date(dp.timestamp).getTime(),
       value: dp.value,
     })),
     color,
@@ -258,22 +258,7 @@ const ClusterDashboardMetricsPage: React.FC = () => {
   const { connectionOverrides } = useClusterPreferences(PLUGIN_ID);
   const metricConfig = connectionOverrides[id]?.metricConfig;
 
-  const resourceData = useMemo(() => {
-    if (
-      !metricConfig?.prometheusService &&
-      !metricConfig?.prometheusNamespace &&
-      !metricConfig?.prometheusPort
-    ) {
-      return {};
-    }
-    return {
-      __metric_config__: {
-        service: metricConfig.prometheusService || '',
-        namespace: metricConfig.prometheusNamespace || '',
-        port: metricConfig.prometheusPort || 0,
-      },
-    };
-  }, [metricConfig]);
+  const params = useMemo(() => metricQueryParams(metricConfig), [metricConfig]);
 
   // All time-series metric IDs
   const tsMetricIDs = useMemo(() => {
@@ -305,7 +290,7 @@ const ClusterDashboardMetricsPage: React.FC = () => {
     connectionID: id,
     resourceKey: 'cluster::metrics',
     resourceID: '',
-    resourceData,
+    params,
     shape: 1,
     timeRange: {
       start: timeRange.from,
@@ -322,7 +307,7 @@ const ClusterDashboardMetricsPage: React.FC = () => {
     connectionID: id,
     resourceKey: 'cluster::metrics',
     resourceID: '',
-    resourceData,
+    params,
     shape: 0,
     metricIDs: annotationMetricIDs,
     refreshInterval: 30000,

@@ -2,444 +2,121 @@ package resource
 
 import (
 	"context"
-	"encoding/json"
+	"net"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	"github.com/omniview/kubernetes/pkg/plugin/resource/resourcers"
-	"github.com/stretchr/testify/assert"
+	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
+	resourceplugin "github.com/omniviewdev/plugin-sdk/pkg/resource/v2/plugin"
+	"github.com/omniviewdev/plugin-sdk/pkg/types"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-	appsv1 "k8s.io/api/apps/v1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/test/bufconn"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	fakedynamic "k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/dynamic/dynamicinformer"
-	fakeclientset "k8s.io/client-go/kubernetes/fake"
-
-	"github.com/omniviewdev/plugin-sdk/pkg/types"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
-	"github.com/omniviewdev/plugin-sdk/pkg/v1/resource/plugintest"
-	"github.com/omniviewdev/plugin-sdk/pkg/v1/resource/resourcetest"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 )
 
-// ====================== Helpers ====================== //
+var boundaryGVR = schema.GroupVersionResource{Version: "v1", Resource: "pods"}
 
-var (
-	integDeploymentGVR = schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
-	integPodGVR        = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
-)
-
-func newIntegPod(name, namespace string) *unstructured.Unstructured {
-	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "Pod",
-			"metadata": map[string]interface{}{
-				"name":      name,
-				"namespace": namespace,
-			},
-		},
-	}
+func boundaryRepresentation() resourcev2.Representation {
+	return resourcev2.Representation{ID: "kubernetes.object.v1/v1", Revision: "kubernetes.object.v1/v1", Schema: resourcev2.SchemaBinding{State: "unavailable", Validation: "none", Unvalidated: []string{}}}
 }
-
-func newIntegDeployment(name, namespace string, replicas int64) *unstructured.Unstructured {
-	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "apps/v1",
-			"kind":       "Deployment",
-			"metadata": map[string]interface{}{
-				"name":      name,
-				"namespace": namespace,
-			},
-			"spec": map[string]interface{}{
-				"replicas": replicas,
-				"selector": map[string]interface{}{
-					"matchLabels": map[string]interface{}{"app": name},
-				},
-				"template": map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{"app": name},
-					},
-					"spec": map[string]interface{}{
-						"containers": []interface{}{
-							map[string]interface{}{
-								"name":  name,
-								"image": "nginx:latest",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+func boundaryObject(name, namespace string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]any{"apiVersion": "v1", "kind": "Pod", "metadata": map[string]any{"name": name, "namespace": namespace, "uid": "uid-1", "resourceVersion": "opaque:9"}}}
 }
-
-func mustJSON(v interface{}) json.RawMessage {
-	data, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return data
+func boundaryClient(objects ...runtime.Object) *dynamicfake.FakeDynamicClient {
+	return dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{boundaryGVR: "PodList"}, objects...)
 }
-
-// makeIntegClientSet creates a clients.ClientSet with fake K8s clients.
-// preRegister lists GVRs whose informers should be pre-registered (for watch tests).
-// typedObjects are seeded into the fake typed Clientset (for action tests).
-// dynamicObjects are seeded into the fake dynamic client (for CRUD/watch tests).
-func makeIntegClientSet(
-	gvrToListKind map[schema.GroupVersionResource]string,
-	preRegister []schema.GroupVersionResource,
-	typedObjects []runtime.Object,
-	dynamicObjects ...runtime.Object,
-) *clients.ClientSet {
-	scheme := runtime.NewScheme()
-	dynamicClient := fakedynamic.NewSimpleDynamicClientWithCustomListKinds(scheme, gvrToListKind, dynamicObjects...)
-	factory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
-
-	for _, gvr := range preRegister {
-		factory.ForResource(gvr).Informer()
-	}
-
-	fakeKube := fakeclientset.NewSimpleClientset(typedObjects...)
-
-	return &clients.ClientSet{
-		DynamicClient:          dynamicClient,
-		DynamicInformerFactory: factory,
-		KubeClient:             fakeKube,
-	}
+func boundaryGet() resourcev2.GetRequest {
+	return resourcev2.GetRequest{Route: resourcev2.AccessRoute{Connection: "cluster"}, Reference: resourcev2.ResourceReference{Address: resourcev2.ResourceAddress{Provider: "kubernetes", Authority: "host-authority", Type: "k8s:/pods", ID: "native-name", Scope: []resourcev2.ScopeEntry{{Dimension: "namespace", Value: "selected"}}}}, Representation: boundaryRepresentation().ID}
 }
-
-// integConnProvider returns a StubConnectionProvider that returns the given ClientSet.
-func integConnProvider(cs *clients.ClientSet) *resourcetest.StubConnectionProvider[clients.ClientSet] {
-	return &resourcetest.StubConnectionProvider[clients.ClientSet]{
-		CreateClientFunc: func(_ context.Context) (*clients.ClientSet, error) {
-			return cs, nil
-		},
-		LoadConnectionsFunc: func(_ context.Context) ([]types.Connection, error) {
-			return []types.Connection{{ID: "test-conn", Name: "Test Cluster"}}, nil
-		},
-		GetNamespacesFunc: func(_ context.Context, _ *clients.ClientSet) ([]string, error) {
-			return []string{"default"}, nil
-		},
-	}
-}
-
-// mountAndConnect mounts the harness, loads connections, and starts "test-conn".
-func mountAndConnect(t *testing.T, cfg resource.ResourcePluginConfig[clients.ClientSet]) *plugintest.Harness[clients.ClientSet] {
+func boundaryProvider(t *testing.T, client *dynamicfake.FakeDynamicClient) (*resourcev2.Controller[clients.ClientSet], *atomic.Int32) {
 	t.Helper()
-	h := plugintest.Mount(t, cfg)
-	h.LoadConnections()
-	h.StartConnection("test-conn")
-	return h
-}
-
-// ====================== Integration Tests ====================== //
-
-func TestIntegration_CRUD_Deployment(t *testing.T) {
-	logger := zap.NewNop().Sugar()
-
-	cs := makeIntegClientSet(
-		map[schema.GroupVersionResource]string{integDeploymentGVR: "DeploymentList"},
-		nil, // no pre-registered informers — CRUD uses DynamicClient fallback
-		nil, // no typed objects
-		newIntegDeployment("existing-deploy", "default", 3),
-	)
-
-	// Use a base resourcer with SyncNever to avoid background watch goroutines.
-	deployRes := resourcers.NewKubernetesResourcerBase[resourcers.MetaAccessor](
-		logger, integDeploymentGVR, resourcers.WithSyncPolicy(resource.SyncNever),
-	)
-
-	cfg := resource.ResourcePluginConfig[clients.ClientSet]{
-		Connections: integConnProvider(cs),
-		Resources: []resource.ResourceRegistration[clients.ClientSet]{
-			{
-				Meta:      resource.ResourceMeta{Group: "apps", Version: "v1", Kind: "Deployment"},
-				Resourcer: deployRes,
-			},
+	representation := boundaryRepresentation()
+	scope := resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeAny}}
+	descriptor := resourcev2.ResourceType{Type: "k8s:/pods", IdentityDimensions: []resourcev2.Dimension{{Name: "namespace"}}, QueryDimensions: []resourcev2.Dimension{{Name: "namespace"}}, Representations: []resourcev2.Representation{representation}, DefaultRepresentation: representation.ID, Capabilities: []resourcev2.Capability{{Operation: resourcev2.OperationGet, Scope: scope}, {Operation: resourcev2.OperationEnumerate, Scope: scope}, {Operation: resourcev2.OperationCreate, Scope: scope}, {Operation: resourcev2.OperationMutationUpdate, Scope: scope}, {Operation: resourcev2.OperationDelete, Scope: scope}}}
+	p := &kubernetesProvider{catalogs: map[string]*nativeCatalogSnapshot{"cluster": {catalog: resourcev2.Catalog{Provider: "kubernetes", Revision: "catalog-1", Coverage: resourcev2.Coverage{Kind: "complete", Paths: []string{}}, Types: []resourcev2.ResourceType{descriptor}}, bindings: map[string]nativeType{"k8s:/pods": {GVR: boundaryGVR, API: metav1.APIResource{Name: "pods", Kind: "Pod", Namespaced: true, Verbs: metav1.Verbs{"get", "list", "create", "update", "delete"}}, Descriptor: descriptor}}}}}
+	snapshot := p.catalogs["cluster"]
+	snapshot.registrations = map[string]resourcev2.Registration[clients.ClientSet]{"k8s:/pods": p.nativeRegistration(boundaryGet().Route, snapshot.bindings["k8s:/pods"])}
+	destroyed := &atomic.Int32{}
+	controller, err := resourcev2.NewController(resourcev2.Config[clients.ClientSet]{Catalog: p.catalog, ResolveRegistration: p.registration, ErrorClassifier: &kubeErrorClassifier{}, Lifecycle: &resourcev2.Lifecycle[clients.ClientSet]{
+		LoadConnections: func(context.Context) ([]types.Connection, error) {
+			return []types.Connection{{ID: "cluster", Name: "Cluster"}}, nil
 		},
-	}
-
-	h := mountAndConnect(t, cfg)
-	key := "apps::v1::Deployment"
-
-	// List — should find the pre-seeded deployment.
-	listResult := h.List(key, resource.ListInput{})
-	require.True(t, listResult.Success)
-	require.Len(t, listResult.Result, 1)
-
-	// Get — retrieve the pre-seeded deployment.
-	getResult := h.Get(key, resource.GetInput{ID: "existing-deploy", Namespace: "default"})
-	require.True(t, getResult.Success)
-	var obj map[string]interface{}
-	require.NoError(t, json.Unmarshal(getResult.Result, &obj))
-	md, _ := obj["metadata"].(map[string]interface{})
-	assert.Equal(t, "existing-deploy", md["name"])
-
-	// Create — add a new deployment.
-	createResult := h.Create(key, resource.CreateInput{
-		Namespace: "default",
-		Input:     mustJSON(newIntegDeployment("new-deploy", "default", 2).Object),
-	})
-	require.True(t, createResult.Success)
-
-	// List again — should now have 2 deployments.
-	listResult = h.List(key, resource.ListInput{})
-	require.True(t, listResult.Success)
-	assert.Len(t, listResult.Result, 2)
-
-	// Delete — remove the new deployment.
-	deleteResult := h.Delete(key, resource.DeleteInput{ID: "new-deploy", Namespace: "default"})
-	require.True(t, deleteResult.Success)
-
-	// List again — back to 1.
-	listResult = h.List(key, resource.ListInput{})
-	require.True(t, listResult.Success)
-	assert.Len(t, listResult.Result, 1)
-}
-
-func TestIntegration_Actions_Deployment(t *testing.T) {
-	logger := zap.NewNop().Sugar()
-
-	replicas := int32(3)
-	typedDep := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-deploy", Namespace: "default"},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "my-deploy"}},
+		CreateClient: func(context.Context, types.Connection) (*clients.ClientSet, error) {
+			return &clients.ClientSet{DynamicClient: client}, nil
 		},
-	}
-
-	cs := makeIntegClientSet(
-		map[schema.GroupVersionResource]string{integDeploymentGVR: "DeploymentList"},
-		nil,
-		[]runtime.Object{typedDep}, // typed object for KubeClient Patch operations
-	)
-
-	deployRes := resourcers.NewDeploymentResourcer(logger)
-	cfg := resource.ResourcePluginConfig[clients.ClientSet]{
-		Connections: integConnProvider(cs),
-		Resources: []resource.ResourceRegistration[clients.ClientSet]{
-			{
-				Meta:      resource.ResourceMeta{Group: "apps", Version: "v1", Kind: "Deployment"},
-				Resourcer: deployRes,
-			},
-		},
-	}
-
-	h := mountAndConnect(t, cfg)
-	key := "apps::v1::Deployment"
-
-	// Scale action.
-	scaleResult := h.ExecuteAction(key, "scale", resource.ActionInput{
-		ID:        "my-deploy",
-		Namespace: "default",
-		Params:    map[string]interface{}{"replicas": float64(5)},
-	})
-	assert.True(t, scaleResult.Success)
-	assert.Contains(t, scaleResult.Message, "scaled")
-
-	// Pause action.
-	pauseResult := h.ExecuteAction(key, "pause", resource.ActionInput{
-		ID:        "my-deploy",
-		Namespace: "default",
-	})
-	assert.True(t, pauseResult.Success)
-	assert.Contains(t, pauseResult.Message, "paused")
-
-	// Resume action.
-	resumeResult := h.ExecuteAction(key, "resume", resource.ActionInput{
-		ID:        "my-deploy",
-		Namespace: "default",
-	})
-	assert.True(t, resumeResult.Success)
-	assert.Contains(t, resumeResult.Message, "resumed")
-
-	// Restart action (non-streaming).
-	restartResult := h.ExecuteAction(key, "restart", resource.ActionInput{
-		ID:        "my-deploy",
-		Namespace: "default",
-	})
-	assert.True(t, restartResult.Success)
-	assert.Contains(t, restartResult.Message, "Rollout restart initiated")
-}
-
-func TestIntegration_Watch_ReceivesEvents(t *testing.T) {
-	logger := zap.NewNop().Sugar()
-
-	cs := makeIntegClientSet(
-		map[schema.GroupVersionResource]string{integPodGVR: "PodList"},
-		[]schema.GroupVersionResource{integPodGVR}, // pre-register for watch sync
-		nil,
-		newIntegPod("pod-a", "default"),
-		newIntegPod("pod-b", "default"),
-	)
-
-	podRes := resourcers.NewKubernetesResourcerBase[resourcers.MetaAccessor](logger, integPodGVR)
-	cfg := resource.ResourcePluginConfig[clients.ClientSet]{
-		Connections: integConnProvider(cs),
-		Resources: []resource.ResourceRegistration[clients.ClientSet]{
-			{
-				Meta:      resource.ResourceMeta{Group: "core", Version: "v1", Kind: "Pod"},
-				Resourcer: podRes,
-			},
-		},
-	}
-
-	h := mountAndConnect(t, cfg)
-
-	// The 2 pre-seeded pods should appear as ADD events after sync.
-	h.WaitForAdds(2, 5*time.Second)
-}
-
-func TestIntegration_Health_Deployment(t *testing.T) {
-	logger := zap.NewNop().Sugar()
-
-	cs := makeIntegClientSet(
-		map[schema.GroupVersionResource]string{integDeploymentGVR: "DeploymentList"},
-		nil, nil,
-	)
-
-	deployRes := resourcers.NewDeploymentResourcer(logger)
-	cfg := resource.ResourcePluginConfig[clients.ClientSet]{
-		Connections: integConnProvider(cs),
-		Resources: []resource.ResourceRegistration[clients.ClientSet]{
-			{
-				Meta:      resource.ResourceMeta{Group: "apps", Version: "v1", Kind: "Deployment"},
-				Resourcer: deployRes,
-			},
-		},
-	}
-
-	h := mountAndConnect(t, cfg)
-
-	// Healthy deployment: all replicas available.
-	replicas := int32(3)
-	dep := appsv1.Deployment{
-		Spec:   appsv1.DeploymentSpec{Replicas: &replicas},
-		Status: appsv1.DeploymentStatus{AvailableReplicas: 3},
-	}
-	data, err := json.Marshal(dep)
+		DestroyClient: func(context.Context, *clients.ClientSet) error { destroyed.Add(1); return nil },
+	}})
 	require.NoError(t, err)
-
-	health := h.GetHealth("test-conn", "apps::v1::Deployment", data)
-	require.NotNil(t, health)
-	assert.Equal(t, resource.HealthHealthy, health.Status)
-	assert.Equal(t, "Available", health.Reason)
-
-	// Degraded deployment: partial availability.
-	dep.Status.AvailableReplicas = 1
-	data, err = json.Marshal(dep)
+	p.Controller = controller
+	t.Cleanup(func() { require.NoError(t, controller.Close()) })
+	_, err = controller.LoadConnections(context.Background())
 	require.NoError(t, err)
-	health = h.GetHealth("test-conn", "apps::v1::Deployment", data)
-	require.NotNil(t, health)
-	assert.Equal(t, resource.HealthDegraded, health.Status)
-
-	// Unhealthy deployment: no replicas available.
-	dep.Status.AvailableReplicas = 0
-	data, err = json.Marshal(dep)
+	_, err = controller.StartConnection(context.Background(), "cluster")
 	require.NoError(t, err)
-	health = h.GetHealth("test-conn", "apps::v1::Deployment", data)
-	require.NotNil(t, health)
-	assert.Equal(t, resource.HealthUnhealthy, health.Status)
+	return controller, destroyed
 }
 
-func TestIntegration_PatternResourcer_CRD(t *testing.T) {
-	logger := zap.NewNop().Sugar()
-
-	widgetGVR := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"}
-	cs := makeIntegClientSet(
-		map[schema.GroupVersionResource]string{widgetGVR: "WidgetList"},
-		nil, nil,
-	)
-
-	cfg := resource.ResourcePluginConfig[clients.ClientSet]{
-		Connections: integConnProvider(cs),
-		Patterns: map[string]resource.Resourcer[clients.ClientSet]{
-			"*": resourcers.NewKubernetesPatternResourcer(logger),
-		},
-	}
-
-	h := mountAndConnect(t, cfg)
-	key := "example.com::v1::Widget"
-
-	// Create a widget CRD object through the pattern resourcer.
-	widgetObj := map[string]interface{}{
-		"apiVersion": "example.com/v1",
-		"kind":       "Widget",
-		"metadata": map[string]interface{}{
-			"name":      "my-widget",
-			"namespace": "default",
-		},
-		"spec": map[string]interface{}{
-			"color": "blue",
-		},
-	}
-
-	createResult := h.Create(key, resource.CreateInput{
-		Namespace: "default",
-		Input:     mustJSON(widgetObj),
-	})
-	require.True(t, createResult.Success)
-
-	// Verify the created object.
-	var created map[string]interface{}
-	require.NoError(t, json.Unmarshal(createResult.Result, &created))
-	md, _ := created["metadata"].(map[string]interface{})
-	assert.Equal(t, "my-widget", md["name"])
-
-	// Delete the widget through the pattern resourcer.
-	deleteResult := h.Delete(key, resource.DeleteInput{
-		ID:        "my-widget",
-		Namespace: "default",
-	})
-	require.True(t, deleteResult.Success)
-}
-
-func TestIntegration_Relationships_Pod(t *testing.T) {
-	logger := zap.NewNop().Sugar()
-
-	cs := makeIntegClientSet(
-		map[schema.GroupVersionResource]string{integPodGVR: "PodList"},
-		nil, nil,
-	)
-
-	relTable := resourcers.RelationshipTable()
-	podRes := resourcers.NewPodResourcer(logger, resourcers.WithRelationships(relTable["core::v1::Pod"]))
-	cfg := resource.ResourcePluginConfig[clients.ClientSet]{
-		Connections: integConnProvider(cs),
-		Resources: []resource.ResourceRegistration[clients.ClientSet]{
-			{
-				Meta:      resource.ResourceMeta{Group: "core", Version: "v1", Kind: "Pod"},
-				Resourcer: podRes,
-			},
-		},
-	}
-
-	// No need to start a connection for relationships — they are static declarations.
-	h := plugintest.Mount(t, cfg)
-
-	rels := h.GetRelationships("core::v1::Pod")
-	require.Len(t, rels, 11)
-
-	// Collect unique target keys.
-	targetKeys := make(map[string]bool)
-	for _, rel := range rels {
-		targetKeys[rel.TargetResourceKey] = true
-	}
-
-	// Pod table has 11 relationships across these target keys.
-	assert.Contains(t, targetKeys, "core::v1::Node")
-	assert.Contains(t, targetKeys, "core::v1::PersistentVolumeClaim")
-	assert.Contains(t, targetKeys, "core::v1::ConfigMap")
-	assert.Contains(t, targetKeys, "core::v1::Secret")
-	assert.Contains(t, targetKeys, "core::v1::ServiceAccount")
-	assert.Contains(t, targetKeys, "apps::v1::ReplicaSet")
-	assert.Contains(t, targetKeys, "apps::v1::DaemonSet")
-	assert.Contains(t, targetKeys, "apps::v1::StatefulSet")
-	assert.Contains(t, targetKeys, "batch::v1::Job")
+func TestIntegrationNativeBoundaryThroughGRPC(t *testing.T) {
+	object := boundaryObject("native-name", "selected")
+	object.Object["spec"] = map[string]any{"exact": int64(9223372036854775807), "document": strings.Repeat("x", 2<<20)}
+	backend := boundaryClient(object, boundaryObject("native-name", "other"))
+	controller, destroyed := boundaryProvider(t, backend)
+	server := grpc.NewServer(resourceplugin.ServerOptions()...)
+	resourceplugin.RegisterServer(server, controller)
+	listener := bufconn.Listen(1 << 20)
+	go server.Serve(listener)
+	t.Cleanup(func() { server.Stop(); listener.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	connection, err := grpc.DialContext(ctx, "passthrough:///native", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return listener.Dial() }), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	require.NoError(t, err)
+	t.Cleanup(func() { connection.Close() })
+	client := resourceplugin.NewClient(connection)
+	request := boundaryGet()
+	catalog, err := client.Catalog(ctx, resourcev2.CatalogRequest{Route: request.Route})
+	require.NoError(t, err)
+	ctx = resourcev2.WithCatalogRevisionForRoute(ctx, "kubernetes", request.Route, catalog.Revision)
+	record, err := client.Get(ctx, request)
+	require.NoError(t, err)
+	require.Equal(t, request.Reference.Address, record.Reference.Address)
+	require.Equal(t, boundaryRepresentation(), record.Representation)
+	require.Equal(t, "9223372036854775807", record.Body.Map["spec"].Map["exact"].Int)
+	require.Len(t, record.Body.Map["spec"].Map["document"].String, 2<<20)
+	namespaces := []string{"selected"}
+	page, err := client.Enumerate(ctx, resourcev2.EnumerateRequest{Target: resourcev2.ReadTarget{Route: request.Route, Provider: "kubernetes", Authority: "host-authority", Type: "k8s:/pods", Scope: resourcev2.QueryScope{{Dimension: "namespace", Match: resourcev2.ScopeOneOf, Values: &namespaces}}, Representation: request.Representation}, PageSize: 256})
+	require.NoError(t, err)
+	require.Len(t, page.Records, 1)
+	require.Equal(t, request.Reference.Address, page.Records[0].Reference.Address)
+	mutation := boundaryMutation(t, "update")
+	mutation.ExpectedRevision = mutationToken("opaque:9")
+	mutation.Reference.Incarnation = mutationToken("uid-1")
+	mutation.Input.Map["spec"] = resourcev2.Value{Kind: "map", Map: map[string]resourcev2.Value{"exact": {Kind: "int64", Int: "9007199254740993"}}}
+	updated, err := client.Mutate(ctx, mutation)
+	require.NoError(t, err)
+	require.Equal(t, "9007199254740993", updated.Body.Map["spec"].Map["exact"].Int)
+	deleted, err := client.Mutate(ctx, boundaryMutation(t, "delete"))
+	require.NoError(t, err)
+	require.Equal(t, "9007199254740993", deleted.Body.Map["spec"].Map["exact"].Int)
+	request.Reference.Address.ID = "absent"
+	_, err = client.Get(ctx, request)
+	require.Equal(t, "NOT_FOUND", resourcev2.ErrorCode(err))
+	_, err = client.Action(ctx, resourcev2.ActionRequest{Route: request.Route, Reference: request.Reference, Action: "unsupported", Input: resourcev2.Value{Kind: "null"}})
+	require.Equal(t, "UNSUPPORTED", resourcev2.ErrorCode(err))
+	canceled, stop := context.WithCancel(ctx)
+	stop()
+	_, err = client.Get(canceled, boundaryGet())
+	require.Error(t, err)
+	_, err = controller.StopConnection(ctx, "cluster")
+	require.NoError(t, err)
+	require.NoError(t, controller.Close())
+	require.Equal(t, int32(1), destroyed.Load())
 }

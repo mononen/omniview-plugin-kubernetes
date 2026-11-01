@@ -1,11 +1,12 @@
 import { Progress, Spinner, Stack, Text } from '@omniviewdev/base-ui';
-import { useResourceMetrics } from '@omniviewdev/runtime';
+import { useResourceMetrics, type Value, type ResourceReference, type AccessRoute } from '@omniviewdev/runtime';
 import { type metric } from '@omniviewdev/runtime/models';
-import { PLUGIN_ID } from '@/pluginId';
+import React, { useState, useMemo, useCallback } from 'react';
 
 import { MetricsPanel } from '../../shared/charts';
 import type { TimeSeriesDef, ChartTimeRange } from '../../shared/charts';
-import React, { useState, useMemo, useCallback } from 'react';
+
+import { PLUGIN_ID } from '@/pluginId';
 
 const outerBoxStyle: React.CSSProperties = {
   borderRadius: 4,
@@ -56,7 +57,9 @@ interface Props {
   connectionID: string;
   resourceKey: string;
   resourceID: string;
-  resourceData?: Record<string, unknown>;
+  resourceData?: Value;
+  reference?: ResourceReference;
+  route?: AccessRoute;
 }
 
 /** Extract current-value metrics keyed by metric_id */
@@ -102,7 +105,7 @@ function toTimeSeriesDef(ts: metric.TimeSeries, label: string, color?: string): 
     label,
     // dp.timestamp is a Wails-serialized time.Time (ISO string at runtime)
     data: (ts.data_points ?? []).map((dp) => ({
-      timestamp: new Date(dp.timestamp as unknown as string).getTime(),
+      timestamp: new Date(dp.timestamp).getTime(),
       value: dp.value,
     })),
     color,
@@ -171,6 +174,8 @@ const NodeMetricsSection: React.FC<Props> = ({
   resourceKey,
   resourceID,
   resourceData,
+  reference,
+  route,
 }) => {
   const [timeRange, setTimeRange] = useState<ChartTimeRange>(() => ({
     from: new Date(Date.now() - 60 * 60 * 1000),
@@ -188,6 +193,8 @@ const NodeMetricsSection: React.FC<Props> = ({
     resourceKey,
     resourceID,
     resourceData,
+    reference,
+    route,
     refreshInterval: 30000,
   });
 
@@ -198,6 +205,8 @@ const NodeMetricsSection: React.FC<Props> = ({
     resourceKey,
     resourceID,
     resourceData,
+    reference,
+    route,
     shape: 1,
     timeRange: {
       start: timeRange.from,

@@ -1,30 +1,28 @@
 //nolint:gochecknoglobals,gomnd // column definitions are global
 package corev1
 
-import "github.com/omniviewdev/plugin-sdk/pkg/resource/types"
+import types "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 
 var NodeDef = types.ResourceDefinition{
-	IDAccessor:       "metadata.name",
-	MemoizerAccessor: "metadata.uid,metadata.resourceVersion",
-	ColumnDefs: []types.ColumnDef{
+	ColumnDefs: []types.ColumnDefinition{
 		{
 			ID:        "name",
 			Header:    "Name",
 			Accessors: "metadata.name",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 		},
 		{
 			ID:        "architecture",
 			Header:    "Architecture",
 			Accessors: "status.nodeInfo.architecture",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     120,
 		},
 		{
 			ID:        "os",
 			Header:    "OS",
 			Accessors: "status.nodeInfo.operatingSystem",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Hidden:    true,
 			Width:     80,
 		},
@@ -32,33 +30,33 @@ var NodeDef = types.ResourceDefinition{
 			ID:        "kernelVersion",
 			Header:    "Kernel Version",
 			Accessors: "status.nodeInfo.kernelVersion",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Hidden:    true,
 		},
 		{
 			ID:        "osImage",
 			Header:    "OS Image",
 			Accessors: "status.nodeInfo.osImage",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 		},
 		{
 			ID:        "containerRuntime",
 			Header:    "Container Runtime",
 			Accessors: "status.nodeInfo.containerRuntimeVersion",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Hidden:    true,
 		},
 		{
 			ID:        "kubeletVersion",
 			Header:    "Kubelet Version",
 			Accessors: "status.nodeInfo.kubeletVersion",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 		},
 		{
 			ID:        "cpuCapacity",
 			Header:    "CPU",
 			Accessors: "status.capacity.cpu",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Hidden:    true,
 			Width:     80,
 		},
@@ -66,8 +64,8 @@ var NodeDef = types.ResourceDefinition{
 			ID:        "memoryCapacity",
 			Header:    "Memory",
 			Accessors: "status.capacity.memory",
-			Alignment: types.CellAlignmentLeft,
-			Formatter: types.CellValueFormatterBytes,
+			Alignment: "LEFT",
+			Formatter: "BYTES",
 			Hidden:    true,
 			Width:     120,
 		},
@@ -75,7 +73,7 @@ var NodeDef = types.ResourceDefinition{
 			ID:        "podsCapacity",
 			Header:    "Pods",
 			Accessors: "status.capacity.pods",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Hidden:    true,
 			Width:     80,
 		},
@@ -83,8 +81,8 @@ var NodeDef = types.ResourceDefinition{
 			ID:        "ephemeralStorageCapacity",
 			Header:    "Ephemeral Storage",
 			Accessors: "status.capacity.ephemeral-storage",
-			Alignment: types.CellAlignmentLeft,
-			Formatter: types.CellValueFormatterBytes,
+			Alignment: "LEFT",
+			Formatter: "BYTES",
 			Hidden:    true,
 			Width:     120,
 		},
@@ -92,9 +90,9 @@ var NodeDef = types.ResourceDefinition{
 			ID:        "age",
 			Header:    "Age",
 			Accessors: "metadata.creationTimestamp",
-			Alignment: types.CellAlignmentLeft,
+			Alignment: "LEFT",
 			Width:     120,
-			Formatter: types.CellValueFormatterAge,
+			Formatter: "AGE",
 		},
 	},
 }

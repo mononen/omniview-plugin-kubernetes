@@ -8,13 +8,13 @@ import NamespaceSelect from './NamespaceSelect';
 
 let mockNamespaces: string[] = [];
 
-vi.mock('@omniviewdev/runtime', () => ({
-  useResources: () => ({
-    resources: {
-      data: {
-        result: mockNamespaces.map((name) => ({ metadata: { name } })),
-      },
-    },
+const collection = vi.hoisted(() => ({ retry: vi.fn() }));
+vi.mock('../../hooks/useKubernetesResources', () => ({
+  useKubernetesResources: () => ({
+    bodies: mockNamespaces.map((name) => ({ metadata: { name } })),
+    isLoading: false,
+    error: undefined,
+    retry: collection.retry,
   }),
 }));
 
@@ -126,5 +126,14 @@ describe('NamespaceSelect', () => {
 
     fireEvent.click(getClearAllButton()!);
     expect(setNamespaces).toHaveBeenCalledWith([]);
+  });
+
+  it('keeps selection across the full collection without source-page controls', () => {
+    renderNs(['default', 'production']);
+    expect(screen.getByText('default')).toBeInTheDocument();
+    expect(screen.getByText('production')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: /^Namespaces source pages;/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Namespaces: next page' })).not.toBeInTheDocument();
+    expect(collection.retry).not.toHaveBeenCalled();
   });
 });

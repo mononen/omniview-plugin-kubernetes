@@ -2,13 +2,14 @@ package resourcers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"go.uber.org/zap"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // HPAResourcer wraps KubernetesResourcerBase for CRUD and adds kind-aware
@@ -18,14 +19,7 @@ type HPAResourcer struct {
 	log *zap.SugaredLogger
 }
 
-// Compile-time interface checks.
-var (
-	_ resource.Resourcer[clients.ClientSet]            = (*HPAResourcer)(nil)
-	_ resource.RelationshipDeclarer                     = (*HPAResourcer)(nil)
-	_ resource.RelationshipResolver[clients.ClientSet]  = (*HPAResourcer)(nil)
-)
-
-// NewHPAResourcer creates an HPAResourcer for autoscaling::v2::HorizontalPodAutoscaler.
+// NewHPAResourcer creates an HPAResourcer for k8s:autoscaling/horizontalpodautoscalers.
 func NewHPAResourcer(logger *zap.SugaredLogger, opts ...Option) *HPAResourcer {
 	base := NewKubernetesResourcerBase[MetaAccessor](
 		logger,
@@ -38,12 +32,10 @@ func NewHPAResourcer(logger *zap.SugaredLogger, opts ...Option) *HPAResourcer {
 	}
 }
 
-// scaleTargetRefToResourceKey maps the HPA scaleTargetRef apiVersion+kind to
-// the internal resource key used by the relationship table. Keys use the form
-// "apiVersion::Kind" to avoid mis-resolving HPAs that target a different API group.
+// scaleTargetRefToResourceKey maps native API group and kind to logical Type.
 var scaleTargetRefToResourceKey = map[string]string{
-	"apps/v1::Deployment":  "apps::v1::Deployment",
-	"apps/v1::StatefulSet": "apps::v1::StatefulSet",
+	"apps::Deployment":  "k8s:apps/deployments",
+	"apps::StatefulSet": "k8s:apps/statefulsets",
 }
 
 // ResolveRelationships resolves runtime relationship instances for an HPA.
@@ -51,43 +43,49 @@ var scaleTargetRefToResourceKey = map[string]string{
 func (h *HPAResourcer) ResolveRelationships(
 	ctx context.Context,
 	client *clients.ClientSet,
-	meta resource.ResourceMeta,
-	id string,
-	namespace string,
+	request resource.RelationshipResolutionRequest,
 ) ([]resource.ResolvedRelationship, error) {
-	result, err := h.Get(ctx, client, meta, resource.GetInput{ID: id, Namespace: namespace})
+	namespace, err := nativeRequestNamespace(request.Source.Reference.Address.Scope)
+	if err != nil {
+		return nil, err
+	}
+	id := request.Source.Reference.Address.ID
+	hpa, err := client.KubeClient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(ctx, id, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get HPA %s: %w", id, err)
 	}
 
-	var hpa autoscalingv2.HorizontalPodAutoscaler
-	if err := json.Unmarshal(result.Result, &hpa); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal HPA: %w", err)
-	}
-
 	ref := hpa.Spec.ScaleTargetRef
-	lookupKey := ref.APIVersion + "::" + ref.Kind
+	if ref.Name == "" {
+		return nil, resource.NewError("INVALID_REQUEST", "HPA scaleTargetRef requires a name")
+	}
+	gv, err := schema.ParseGroupVersion(ref.APIVersion)
+	if err != nil || gv.Version == "" {
+		return nil, resource.NewError("UNSUPPORTED", "HPA scaleTargetRef API version is unsupported")
+	}
+	lookupKey := gv.Group + "::" + ref.Kind
 
 	resourceKey, ok := scaleTargetRefToResourceKey[lookupKey]
-	if !ok || ref.Name == "" {
-		h.log.Debugw("skipping HPA relationship: unmapped scaleTargetRef or empty name",
-			"id", id, "namespace", namespace, "lookupKey", lookupKey,
-			"apiVersion", ref.APIVersion, "kind", ref.Kind, "name", ref.Name,
-			"mapped", ok)
-		return nil, nil
+	if !ok {
+		return nil, resource.NewError("UNSUPPORTED", "HPA scaleTargetRef target is unsupported")
 	}
 
 	byTarget := descriptorByTarget(h.DeclareRelationships())
 	desc, ok := byTarget[resourceKey]
 	if !ok {
-		return nil, fmt.Errorf("missing relationship descriptor for %s; ensure WithRelationships(RelationshipTable()[\"autoscaling::v2::HorizontalPodAutoscaler\"]) is provided", resourceKey)
+		return nil, resource.NewError("UNSUPPORTED", "HPA relationship descriptor is unavailable")
+	}
+
+	target, err := makeRef(request, resourceKey, ref.Name, namespace)
+	if err != nil {
+		return nil, err
 	}
 
 	return []resource.ResolvedRelationship{
 		{
 			Descriptor: desc,
-			Targets: []resource.ResourceRef{
-				makeRef(resourceKey, ref.Name, namespace),
+			Targets: []resource.RelationshipTarget{
+				target,
 			},
 		},
 	}, nil

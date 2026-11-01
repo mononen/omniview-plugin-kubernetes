@@ -1,6 +1,6 @@
 import React from 'react';
-import { LuContainer, LuBox, LuServer } from 'react-icons/lu';
 import { FaAws } from 'react-icons/fa';
+import { LuContainer, LuBox, LuServer } from 'react-icons/lu';
 import { SiKubernetes, SiGooglecloud } from 'react-icons/si';
 import { VscAzure } from 'react-icons/vsc';
 
@@ -12,6 +12,9 @@ type Props = {
 };
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
+  aws: FaAws,
+  gcp: SiGooglecloud,
+  azure: VscAzure,
   eks: FaAws,
   gke: SiGooglecloud,
   aks: VscAzure,
@@ -20,6 +23,7 @@ const iconMap: Record<string, React.ComponentType<{ size?: number; color?: strin
   'docker-desktop': LuContainer,
   k3d: LuBox,
   k3s: LuServer,
+  rke2: LuServer,
   openshift: SiKubernetes,
   rancher: SiKubernetes,
   generic: SiKubernetes,

@@ -1,6 +1,7 @@
 package metric
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -17,7 +18,7 @@ import (
 // fakeFactory returns a factory that counts invocations and returns a stub bundle.
 func fakeFactory() (ClientFactory, *atomic.Int64) {
 	var count atomic.Int64
-	factory := func(conn *types.Connection) (*kubeauth.KubeClientBundle, error) {
+	factory := func(_ context.Context, conn *types.Connection) (*kubeauth.KubeClientBundle, error) {
 		count.Add(1)
 		return &kubeauth.KubeClientBundle{}, nil
 	}
@@ -26,7 +27,7 @@ func fakeFactory() (ClientFactory, *atomic.Int64) {
 
 // failingFactory always returns an error.
 func failingFactory() ClientFactory {
-	return func(conn *types.Connection) (*kubeauth.KubeClientBundle, error) {
+	return func(_ context.Context, conn *types.Connection) (*kubeauth.KubeClientBundle, error) {
 		return nil, fmt.Errorf("connection failed")
 	}
 }
@@ -54,13 +55,13 @@ func TestClientCache_BasicGetAndCache(t *testing.T) {
 	conn := testConn("conn-1")
 
 	// First call should invoke the factory.
-	c1, err := cache.Get("conn-1", conn)
+	c1, err := cache.Get(context.Background(), "conn-1", conn)
 	require.NoError(t, err)
 	require.NotNil(t, c1)
 	assert.Equal(t, int64(1), count.Load(), "factory should be called once")
 
 	// Second call should return cached - no factory invocation.
-	c2, err := cache.Get("conn-1", conn)
+	c2, err := cache.Get(context.Background(), "conn-1", conn)
 	require.NoError(t, err)
 	assert.Same(t, c1, c2, "expected same pointer from cache")
 	assert.Equal(t, int64(1), count.Load(), "factory should still be called once")
@@ -74,8 +75,8 @@ func TestClientCache_DifferentConnections(t *testing.T) {
 	})
 	defer cache.Stop()
 
-	_, err1 := cache.Get("conn-1", testConn("conn-1"))
-	_, err2 := cache.Get("conn-2", testConn("conn-2"))
+	_, err1 := cache.Get(context.Background(), "conn-1", testConn("conn-1"))
+	_, err2 := cache.Get(context.Background(), "conn-2", testConn("conn-2"))
 	require.NoError(t, err1)
 	require.NoError(t, err2)
 
@@ -90,7 +91,7 @@ func TestClientCache_FactoryError(t *testing.T) {
 	})
 	defer cache.Stop()
 
-	_, err := cache.Get("conn-1", testConn("conn-1"))
+	_, err := cache.Get(context.Background(), "conn-1", testConn("conn-1"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "connection failed")
 
@@ -106,7 +107,7 @@ func TestClientCache_Evict(t *testing.T) {
 	})
 	defer cache.Stop()
 
-	cache.Get("conn-1", testConn("conn-1"))
+	cache.Get(context.Background(), "conn-1", testConn("conn-1"))
 	assert.Equal(t, 1, cache.Len())
 
 	cache.Evict("conn-1")
@@ -135,7 +136,7 @@ func TestClientCache_TTLExpiration(t *testing.T) {
 	conn := testConn("conn-1")
 
 	// Populate cache.
-	cache.Get("conn-1", conn)
+	cache.Get(context.Background(), "conn-1", conn)
 	assert.Equal(t, int64(1), count.Load())
 
 	// Advance time past TTL.
@@ -149,7 +150,7 @@ func TestClientCache_TTLExpiration(t *testing.T) {
 	assert.Equal(t, 0, cache.Len(), "entry should be reaped after TTL")
 
 	// Re-fetching should call factory again.
-	cache.Get("conn-1", conn)
+	cache.Get(context.Background(), "conn-1", conn)
 	assert.Equal(t, int64(2), count.Load(), "factory should be called again after expiration")
 }
 
@@ -172,13 +173,13 @@ func TestClientCache_AccessRefreshesTTL(t *testing.T) {
 	conn := testConn("conn-1")
 
 	// Populate at t=0.
-	cache.Get("conn-1", conn)
+	cache.Get(context.Background(), "conn-1", conn)
 
 	// Access at t=3min (within TTL of 5min).
 	mu.Lock()
 	now = now.Add(3 * time.Minute)
 	mu.Unlock()
-	cache.Get("conn-1", conn) // refreshes lastAccess to t=3min
+	cache.Get(context.Background(), "conn-1", conn) // refreshes lastAccess to t=3min
 
 	// Reap at t=7min. Since last access was t=3min, age = 4min < 5min TTL.
 	mu.Lock()
@@ -210,7 +211,7 @@ func TestClientCache_ConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func(connID string) {
 			defer wg.Done()
-			_, err := cache.Get(connID, testConn(connID))
+			_, err := cache.Get(context.Background(), connID, testConn(connID))
 			assert.NoError(t, err)
 		}(fmt.Sprintf("conn-%d", i%5)) // 5 unique connections, 50 goroutines
 	}
@@ -231,7 +232,7 @@ func TestClientCache_StopClearsEntries(t *testing.T) {
 		Factory: factory,
 	})
 
-	cache.Get("conn-1", testConn("conn-1"))
+	cache.Get(context.Background(), "conn-1", testConn("conn-1"))
 
 	cache.Stop()
 
@@ -255,13 +256,13 @@ func TestClientCache_ReapOnlyExpiredEntries(t *testing.T) {
 	defer cache.Stop()
 
 	// Add two entries at different times.
-	cache.Get("conn-1", testConn("conn-1"))
+	cache.Get(context.Background(), "conn-1", testConn("conn-1"))
 
 	mu.Lock()
 	now = now.Add(3 * time.Minute)
 	mu.Unlock()
 
-	cache.Get("conn-2", testConn("conn-2"))
+	cache.Get(context.Background(), "conn-2", testConn("conn-2"))
 
 	// At t=6min: conn-1 age=6min (expired), conn-2 age=3min (alive)
 	mu.Lock()
@@ -272,7 +273,7 @@ func TestClientCache_ReapOnlyExpiredEntries(t *testing.T) {
 
 	assert.Equal(t, 1, cache.Len(), "only expired entry should be reaped")
 	// Verify conn-2 is still there.
-	c, err := cache.Get("conn-2", testConn("conn-2"))
+	c, err := cache.Get(context.Background(), "conn-2", testConn("conn-2"))
 	require.NoError(t, err)
 	assert.NotNil(t, c)
 }
@@ -286,14 +287,14 @@ func TestClientCache_GetAfterEvictRebuilds(t *testing.T) {
 	defer cache.Stop()
 
 	conn := testConn("conn-1")
-	cache.Get("conn-1", conn)
+	cache.Get(context.Background(), "conn-1", conn)
 	assert.Equal(t, int64(1), count.Load())
 
 	cache.Evict("conn-1")
 	assert.Equal(t, 0, cache.Len())
 
 	// Getting after eviction should rebuild.
-	_, err := cache.Get("conn-1", conn)
+	_, err := cache.Get(context.Background(), "conn-1", conn)
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), count.Load(), "factory should be called again after eviction")
 	assert.Equal(t, 1, cache.Len())

@@ -1,157 +1,49 @@
+// Package helm adapts native Helm operations to the canonical resource boundary.
+// Release identity uses exact namespace scope. Repository and chart identity use
+// the local Helm client domain. Type and ID tokens stay opaque outside this adapter.
+// Source cursors belong to native acquisition and provide best-effort paging,
+// never host query continuation or atomic update continuity.
+// Type actions use exact query scope and take the new resource name in input;
+// they never construct an instance reference to authorize creation.
 package helm
 
 import (
+	"context"
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"go.uber.org/zap"
 )
 
-var (
-	// ReleaseMeta is the resource meta for helm::v1::Release.
-	ReleaseMeta = resource.ResourceMeta{
-		Group:       "helm",
-		Version:     "v1",
-		Kind:        "Release",
-		Description: "Installed Helm releases",
-	}
-
-	// RepoMeta is the resource meta for helm::v1::Repository.
-	RepoMeta = resource.ResourceMeta{
-		Group:       "helm",
-		Version:     "v1",
-		Kind:        "Repository",
-		Description: "Helm chart repositories",
-	}
-
-	// ChartMeta is the resource meta for helm::v1::Chart.
-	ChartMeta = resource.ResourceMeta{
-		Group:       "helm",
-		Version:     "v1",
-		Kind:        "Chart",
-		Description: "Available Helm charts from configured repositories",
-	}
+const (
+	ReleaseType        = "helm:releases"
+	RepositoryType     = "helm:repositories"
+	ChartType          = "helm:charts"
+	helmRepresentation = "helm-native-v1"
+	helmLocalDomain    = "helm-client"
 )
 
-// HelmResourceGroup returns the resource group for Helm resources.
-func HelmResourceGroup() resource.ResourceGroup {
-	return resource.ResourceGroup{
-		ID:   "helm",
-		Name: "Helm",
-		Icon: "SiHelm",
-	}
+type HelmAncillary struct {
+	release    *ReleaseResourcer
+	repository *RepoResourcerWithActions
+	chart      *ChartResourcerWithActions
 }
 
-// HelmResourceDefinitions returns the resource definitions for Helm resources.
-func HelmResourceDefinitions() map[string]resource.ResourceDefinition {
-	return map[string]resource.ResourceDefinition{
-		ReleaseMeta.String(): {
-			IDAccessor:        "name",
-			NamespaceAccessor: "namespace",
-			MemoizerAccessor:  "name",
-			ColumnDefs: []resource.ColumnDefinition{
-				{
-					ID:        "name",
-					Header:    "Name",
-					Accessors: "name",
-				},
-				{
-					ID:        "namespace",
-					Header:    "Namespace",
-					Accessors: "namespace",
-				},
-				{
-					ID:        "chart",
-					Header:    "Chart",
-					Accessors: "chart.metadata.name",
-				},
-				{
-					ID:        "app_version",
-					Header:    "App Version",
-					Accessors: "chart.metadata.appVersion",
-				},
-				{
-					ID:        "revision",
-					Header:    "Revision",
-					Accessors: "version",
-				},
-				{
-					ID:        "status",
-					Header:    "Status",
-					Accessors: "info.status",
-					ColorMap: map[string]string{
-						"deployed":         "success",
-						"failed":           "danger",
-						"pending-install":  "warning",
-						"pending-upgrade":  "warning",
-						"pending-rollback": "warning",
-						"superseded":       "neutral",
-						"uninstalling":     "warning",
-						"uninstalled":      "neutral",
-					},
-				},
-				{
-					ID:        "updated",
-					Header:    "Updated",
-					Accessors: "info.last_deployed",
-					Formatter: "AGE",
-				},
-			},
-		},
-		RepoMeta.String(): {
-			IDAccessor:       "name",
-			MemoizerAccessor: "name",
-			ColumnDefs: []resource.ColumnDefinition{
-				{
-					ID:        "name",
-					Header:    "Name",
-					Accessors: "name",
-				},
-				{
-					ID:        "url",
-					Header:    "URL",
-					Accessors: "url",
-				},
-			},
-		},
-		ChartMeta.String(): {
-			IDAccessor:       "id",
-			MemoizerAccessor: "id",
-			ColumnDefs: []resource.ColumnDefinition{
-				{
-					ID:        "name",
-					Header:    "Name",
-					Accessors: "name",
-				},
-				{
-					ID:        "description",
-					Header:    "Description",
-					Accessors: "description",
-				},
-				{
-					ID:        "version",
-					Header:    "Version",
-					Accessors: "version",
-				},
-				{
-					ID:        "appVersion",
-					Header:    "App Version",
-					Accessors: "appVersion",
-				},
-				{
-					ID:        "repository",
-					Header:    "Repository",
-					Accessors: "repository",
-				},
-			},
-		},
-	}
+func NewHelmAncillary(log *zap.SugaredLogger) *HelmAncillary {
+	return &HelmAncillary{NewReleaseResourcer(log), NewRepoResourcerWithActions(log), NewChartResourcerWithActions(log)}
 }
-
-// HelmResourcers returns the resourcer implementations for Helm resources.
-func HelmResourcers(logger *zap.SugaredLogger, svc *HelmService) map[resource.ResourceMeta]resource.Resourcer[clients.ClientSet] {
-	return map[resource.ResourceMeta]resource.Resourcer[clients.ClientSet]{
-		ReleaseMeta: NewReleaseResourcer(logger, svc),
-		RepoMeta:    NewRepoResourcerWithActions(logger),
-		ChartMeta:   NewChartResourcerWithActions(logger),
+func (h *HelmAncillary) Registrations() []resource.Registration[clients.ClientSet] {
+	out := make([]resource.Registration[clients.ClientSet], 0, 3)
+	boundedReleases := supportsBoundedReleaseEnumeration()
+	for _, t := range []string{ReleaseType, RepositoryType, ChartType} {
+		registration := resource.Registration[clients.ClientSet]{Type: t, Get: h.Get, Enumerate: h.Enumerate, Action: h.Action}
+		registration.Actions, _ = h.GetActions(context.Background(), nil, t)
+		if t == ReleaseType && !boundedReleases {
+			registration.Enumerate = nil
+		}
+		if t != ChartType {
+			registration.Mutate = h.Mutate
+		}
+		out = append(out, registration)
 	}
+	return out
 }

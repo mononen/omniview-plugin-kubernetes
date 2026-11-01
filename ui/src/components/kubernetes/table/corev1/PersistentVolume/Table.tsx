@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -5,7 +6,7 @@ import { ColumnDef, FilterFn } from '@tanstack/react-table';
 import { PersistentVolume } from 'kubernetes-types/core/v1';
 import React from 'react';
 import { LuBox } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -17,13 +18,13 @@ import { inclusionFilter } from '../../shared/filters';
 import { drawerActions } from './actions';
 import PersistentVolumeSidebar from './Sidebar';
 
-const resourceKey = 'core::v1::PersistentVolume';
+const resourceKey = 'k8s:/persistentvolumes';
 
 const PersistentVolumeTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<PersistentVolume>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, PersistentVolume>>>(
     () =>
       withClusterResourceColumns(
         [
@@ -52,7 +53,7 @@ const PersistentVolumeTable: React.FC = () => {
             id: 'storageClass',
             header: 'Storage Class',
             accessorFn: (row) => row.spec?.storageClassName ?? '—',
-            filterFn: inclusionFilter as FilterFn<PersistentVolume>,
+            filterFn: inclusionFilter as FilterFn<DataTableFeatures, PersistentVolume>,
             size: 150,
             cell: CopyableCell,
           },
@@ -67,7 +68,7 @@ const PersistentVolumeTable: React.FC = () => {
                 <ResourceLinkCell
                   connectionId={id}
                   resourceId={claimRef.name}
-                  resourceKey="core::v1::PersistentVolumeClaim"
+                  resourceKey="k8s:/persistentvolumeclaims"
                   resourceName={claimRef.name}
                   namespace={claimRef.namespace}
                 />
@@ -84,7 +85,7 @@ const PersistentVolumeTable: React.FC = () => {
             id: 'phase',
             header: 'Status',
             accessorFn: (row) => row.status?.phase ?? 'Unknown',
-            filterFn: inclusionFilter as FilterFn<PersistentVolume>,
+            filterFn: inclusionFilter as FilterFn<DataTableFeatures, PersistentVolume>,
             size: 100,
           },
           {
@@ -119,7 +120,6 @@ const PersistentVolumeTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
       toolbarFilters={[
         {

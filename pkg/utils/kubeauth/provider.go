@@ -2,32 +2,35 @@ package kubeauth
 
 import (
 	"context"
+	"errors"
 	"log"
-	"time"
+	"net/http"
 
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
-const (
-	DefaultResyncPeriod = 30 * time.Minute
-)
-
 type KubeClientBundle struct {
-	Clientset       *kubernetes.Clientset
-	Discovery       discovery.DiscoveryInterface
-	Dynamic         dynamic.Interface
-	InformerFactory dynamicinformer.DynamicSharedInformerFactory
-	RestConfig      *rest.Config
+	Clientset  *kubernetes.Clientset
+	Discovery  discovery.DiscoveryInterface
+	Dynamic    dynamic.Interface
+	RestConfig *rest.Config
+	// HTTPClient is the auth-aware bounded client for resource-only bundles.
+	// Use it with RestConfig when constructing additional finite resource clients.
+	HTTPClient *http.Client
 }
 
 // LoadKubeClients loads the various clients necessary to interact with the api, given a kubeconfig path and
 // and active kubeconfig context to use
-func LoadKubeClients(kubeconfigPath string, kubeContext string) (*KubeClientBundle, error) {
-	ctx := context.Background()
+func LoadKubeClients(ctx context.Context, kubeconfigPath string, kubeContext string) (*KubeClientBundle, error) {
+	if ctx == nil {
+		return nil, errors.New("native client construction requires a context")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	// log.Printf("loading kube clients at path %s for context %s", kubeconfigPath, kubeContext)
 
 	strategy, err := DetectAuthStrategy(kubeconfigPath, kubeContext)
@@ -64,13 +67,10 @@ func LoadKubeClients(kubeconfigPath string, kubeContext string) (*KubeClientBund
 		return nil, err
 	}
 
-	informerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dyn, DefaultResyncPeriod)
-
 	return &KubeClientBundle{
-		Clientset:       clientset,
-		Discovery:       disco,
-		Dynamic:         dyn,
-		InformerFactory: informerFactory,
-		RestConfig:      restConfig,
+		Clientset:  clientset,
+		Discovery:  disco,
+		Dynamic:    dyn,
+		RestConfig: restConfig,
 	}, nil
 }

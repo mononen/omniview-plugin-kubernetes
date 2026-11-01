@@ -1,5 +1,5 @@
-import { DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
 import { Stack } from '@omniviewdev/base-ui';
+import { DrawerContext, useResourceMetrics } from '@omniviewdev/runtime';
 import { Node } from 'kubernetes-types/core/v1';
 import React from 'react';
 
@@ -22,15 +22,18 @@ interface Props {
 
 export const NodeSidebar: React.FC<Props> = ({ ctx }) => {
   const node = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
-  const resourceID = ctx.resource?.id || '';
+  const connectionID = ctx.resource?.route.connection || '';
+  const resourceID = ctx.resource?.reference.address.id || '';
 
   // Fetch live CPU/memory metrics for this node.
   const { data: metricsData } = useResourceMetrics({
     pluginID: PLUGIN_ID,
     connectionID,
-    resourceKey: 'core::v1::Node',
+    resourceKey: 'k8s:/nodes',
     resourceID,
+    resourceData: ctx.resource?.record?.record.body,
+    reference: ctx.resource?.reference,
+    route: ctx.resource?.route,
     metricIDs: [
       'cpu_usage',
       'cpu_capacity',

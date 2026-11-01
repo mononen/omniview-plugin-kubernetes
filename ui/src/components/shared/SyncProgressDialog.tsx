@@ -1,11 +1,11 @@
 import { Button, Dialog, IconButton, Progress, Spinner, Text } from '@omniviewdev/base-ui';
-import { useWatchState, WatchState } from '@omniviewdev/runtime';
+import { useWatchState, useResourceTypes, useResourceGroups, WatchState } from '@omniviewdev/runtime';
+import type { Count } from '@omniviewdev/runtime/models';
 import { ResourceClient } from '@omniviewdev/runtime/api';
 import React from 'react';
 import { LuCircleCheck, LuCircleAlert, LuCircleSlash, LuShieldAlert, LuX } from 'react-icons/lu';
 
 import { useStableObject } from '../../hooks/useStableRef';
-import { parseResourceKey, formatGroup } from '../../utils/resourceKey';
 
 import styles from './SyncProgressDialog.module.css';
 
@@ -91,7 +91,7 @@ interface SyncProgressDialogProps {
   connectionID: string;
 }
 
-type ResourceItem = { key: string; kind: string; state: WatchState; count: number };
+type ResourceItem = { key: string; kind: string; state: WatchState; count?: Count };
 
 /** Whether a state is terminal (done — won't change further) */
 const isTerminal = (s: WatchState) =>
@@ -164,7 +164,10 @@ function SyncProgressDialogInner({
   pluginID,
   connectionID,
 }: SyncProgressDialogProps) {
-  const { summary } = useWatchState({ pluginID, connectionID });
+  const route = { connection: connectionID };
+  const { summary } = useWatchState({ pluginID, route });
+  const { resourceTypes } = useResourceTypes({ pluginID, route });
+  const { groups: resourceGroups } = useResourceGroups({ pluginID, route });
 
   const resources = useStableObject(summary.data?.resources ?? {});
   const resourceCounts = useStableObject(summary.data?.resourceCounts ?? {});
@@ -187,15 +190,15 @@ function SyncProgressDialogInner({
     return { watchedTotal: watched, watchedDone: done, skippedCount: skipped };
   }, [resources]);
 
-  // Group resources by API group, sorted with Core first
+  // Group opaque types using the provider's presentation catalog.
   const grouped = React.useMemo(() => {
     const groups: Record<string, ResourceItem[]> = {};
 
     for (const [key, state] of Object.entries(resources)) {
-      const { group, kind } = parseResourceKey(key);
-      const label = formatGroup(group);
+      const kind = resourceTypes.data?.find((type) => type.type === key)?.displayName ?? key;
+      const label = resourceGroups.data?.find((group) => group.resources.includes(key))?.name ?? 'Resources';
       if (!groups[label]) groups[label] = [];
-      groups[label].push({ key, kind, state, count: resourceCounts[key] ?? 0 });
+      groups[label].push({ key, kind, state, count: resourceCounts[key] });
     }
 
     // Sort items within each group
@@ -209,7 +212,7 @@ function SyncProgressDialogInner({
       if (b === 'Core') return 1;
       return a.localeCompare(b);
     });
-  }, [resources, resourceCounts]);
+  }, [resources, resourceCounts, resourceTypes.data, resourceGroups.data]);
 
   const watchedAllDone = watchedTotal > 0 && watchedDone === watchedTotal;
   const percent = watchedTotal > 0 ? Math.round((watchedDone / watchedTotal) * 100) : 0;
@@ -217,7 +220,8 @@ function SyncProgressDialogInner({
   const handleRetry = React.useCallback(
     async (resourceKey: string) => {
       try {
-        await ResourceClient.EnsureResourceWatch(pluginID, connectionID, resourceKey);
+        const resolved = await ResourceClient.ResolveTarget(pluginID, { route: { connection: connectionID }, type: resourceKey });
+        await ResourceClient.EnsureResourceWatch(pluginID, resolved.target);
       } catch (err) {
         console.error('Failed to retry watch:', err);
       }
@@ -295,9 +299,9 @@ function SyncProgressDialogInner({
                     Skipped
                   </Text>
                 )}
-                {state === WatchState.WatchStateSynced && count > 0 && (
+                {state === WatchState.WatchStateSynced && (
                   <Text size="xs" tone="subtle" style={countTextStyle}>
-                    {count}
+                    {count?.kind === 'exact' ? count.value : count?.kind === 'estimate' ? `~${count.value}` : 'Unknown'}
                   </Text>
                 )}
                 {(state === WatchState.WatchStateError || state === WatchState.WatchStateFailed) && (

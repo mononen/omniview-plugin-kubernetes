@@ -27,7 +27,7 @@ export const Primary: Story = {
 Primary.decorators = [
   (Story, c) => (
     <ResourceDrawerContainer
-      type="core::v1::Secret"
+      type="k8s:/secrets"
       icon="LuFileKey"
       // @ts-expect-error - arbitrary json
       title={c.args.ctx.data.metadata.name}

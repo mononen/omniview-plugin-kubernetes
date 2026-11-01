@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -5,7 +6,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { ClusterRoleBinding, RoleRef, Subject } from 'kubernetes-types/rbac/v1';
 import React from 'react';
 import { LuLink } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -18,19 +19,19 @@ import ClusterRoleBindingSidebar from './Sidebar';
 
 const scrollRowStyle = { gap: 2 } as const;
 
-const resourceKey = 'rbac::v1::ClusterRoleBinding';
+const resourceKey = 'k8s:rbac.authorization.k8s.io/clusterrolebindings';
 
 const ownerRefKeyMap: Record<string, string> = {
-  ServiceAccount: 'core::v1::ServiceAccount',
-  ClusterRole: 'rbac::v1::ClusterRole',
-  Role: 'rbac::v1::Role',
+  ServiceAccount: 'k8s:/serviceaccounts',
+  ClusterRole: 'k8s:rbac.authorization.k8s.io/clusterroles',
+  Role: 'k8s:rbac.authorization.k8s.io/roles',
 };
 
 const ClusterRoleBindingTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<ClusterRoleBinding>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, ClusterRoleBinding>>>(
     () =>
       withClusterResourceColumns(
         [
@@ -104,7 +105,6 @@ const ClusterRoleBindingTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );

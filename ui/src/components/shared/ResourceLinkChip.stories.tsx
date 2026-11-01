@@ -16,7 +16,7 @@ export const PodLink: Story = {
     connectionID: 'ctx-1',
     namespace: 'default',
     resourceID: 'nginx-abc123',
-    resourceKey: 'core::v1::Pod',
+    resourceKey: 'k8s:/pods',
     resourceName: 'nginx-abc123',
   },
 };
@@ -26,7 +26,7 @@ export const ServiceLink: Story = {
     connectionID: 'ctx-1',
     namespace: 'production',
     resourceID: 'frontend',
-    resourceKey: 'core::v1::Service',
+    resourceKey: 'k8s:/services',
     resourceName: 'frontend',
   },
 };
@@ -36,7 +36,7 @@ export const SecretLink: Story = {
     connectionID: 'ctx-1',
     namespace: 'default',
     resourceID: 'my-tls-secret',
-    resourceKey: 'core::v1::Secret',
+    resourceKey: 'k8s:/secrets',
     resourceName: 'my-tls-secret',
   },
 };

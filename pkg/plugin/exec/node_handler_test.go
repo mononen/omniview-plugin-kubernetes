@@ -15,8 +15,8 @@ import (
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/resourcers"
 	"github.com/omniview/kubernetes/pkg/utils/kubeauth"
-	"github.com/omniviewdev/plugin-sdk/pkg/v1/exec"
 	"github.com/omniviewdev/plugin-sdk/pkg/types"
+	"github.com/omniviewdev/plugin-sdk/pkg/v1/exec"
 )
 
 // TestDebugPodSpec verifies that the debug pod created by NodeHandler has the
@@ -257,11 +257,11 @@ func TestNodeHandler_MissingMetadata(t *testing.T) {
 	}
 
 	opts := exec.SessionOptions{
-		ResourceData: map[string]interface{}{},
+		ResourceData: execResourceData(t, map[string]interface{}{}),
 	}
 	err := nodeHandlerWithProvider(provider, testPluginContext(), opts, nil, nil, nil)
 	require.Error(t, err)
-	assert.Equal(t, "metadata is required", err.Error())
+	assert.ErrorContains(t, err, "metadata is required")
 }
 
 func TestNodeHandler_MissingNodeName(t *testing.T) {
@@ -270,13 +270,13 @@ func TestNodeHandler_MissingNodeName(t *testing.T) {
 	}
 
 	opts := exec.SessionOptions{
-		ResourceData: map[string]interface{}{
+		ResourceData: execResourceData(t, map[string]interface{}{
 			"metadata": map[string]interface{}{},
-		},
+		}),
 	}
 	err := nodeHandlerWithProvider(provider, testPluginContext(), opts, nil, nil, nil)
 	require.Error(t, err)
-	assert.Equal(t, "node name is required", err.Error())
+	assert.ErrorContains(t, err, "node name is required")
 }
 
 func TestNodeHandler_CustomImage(t *testing.T) {

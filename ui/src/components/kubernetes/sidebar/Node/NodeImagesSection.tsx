@@ -2,7 +2,7 @@ import { Button, Chip, Separator, Stack, Text } from '@omniviewdev/base-ui';
 import type { Node } from 'kubernetes-types/core/v1';
 import React from 'react';
 
-import { convertKubernetesByteUnits } from '../../../../utils/convert';
+import { formatObservedBytes, sumIntegerValues } from '../../../../utils/convert';
 import { roundedChipStyle, sectionBorderStyle } from '../shared/sectionStyles';
 
 const headerStyle: React.CSSProperties = {
@@ -33,7 +33,7 @@ const NodeImagesSection: React.FC<Props> = ({ node }) => {
 
   if (!images || images.length === 0) return null;
 
-  const totalSize = images.reduce((sum, img) => sum + (img.sizeBytes ?? 0), 0);
+  const totalSize = sumIntegerValues(images.map((image) => image.sizeBytes));
   const displayed = expanded ? images : images.slice(0, 5);
 
   return (
@@ -60,7 +60,7 @@ const NodeImagesSection: React.FC<Props> = ({ node }) => {
           </Chip>
         </Stack>
         <Chip size="xs" variant="soft" style={roundedChipStyle}>
-          {convertKubernetesByteUnits({ from: `${totalSize}B`, to: 'GB' })}
+          {formatObservedBytes(totalSize, 'GB')}
         </Chip>
       </div>
       <Separator />
@@ -71,7 +71,7 @@ const NodeImagesSection: React.FC<Props> = ({ node }) => {
             ? [...image.names].sort((a, b) => a.length - b.length)[0]
             : `image-${idx}`;
           const sizeStr = image.sizeBytes
-            ? convertKubernetesByteUnits({ from: `${image.sizeBytes}B`, to: 'MB' })
+            ? formatObservedBytes(image.sizeBytes, 'MB')
             : '';
 
           return (

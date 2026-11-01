@@ -1,5 +1,5 @@
 import { IconButton, Menu } from '@omniviewdev/base-ui';
-import { usePluginRouter } from '@omniviewdev/runtime';
+import { usePluginContext, usePluginRouter, useWindowActions } from '@omniviewdev/runtime';
 import React from 'react';
 import {
   LuPencil,
@@ -12,6 +12,8 @@ import {
   LuFolderPlus,
   LuCheck,
   LuEllipsisVertical,
+  LuAppWindow,
+  LuSquarePlus,
 } from 'react-icons/lu';
 
 import type { ConnectionGroup } from '../../types/clusters';
@@ -51,6 +53,10 @@ const ConnectionContextMenu: React.FC<Props> = ({
   onDelete,
 }) => {
   const { navigate } = usePluginRouter();
+  const { pluginId } = usePluginContext();
+  const { openInNewTab, openInNewWindow } = useWindowActions();
+  // Same page a click on the connection opens, as a host route.
+  const resourcesPath = `/_plugin/${pluginId}/cluster/${encodeURIComponent(connectionId)}/resources`;
 
   const deleteName =
     connectionName.length > 30 ? `${connectionName.slice(0, 30)}...` : connectionName;
@@ -58,7 +64,7 @@ const ConnectionContextMenu: React.FC<Props> = ({
   const hasFolders = customGroups.length > 0 || !!onCreateFolder;
 
   return (
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+    // eslint-disable-next-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-static-element-interactions
     <span onClick={(e) => e.stopPropagation()}>
       <Menu.Root size="xs">
         <Menu.Trigger
@@ -80,6 +86,20 @@ const ConnectionContextMenu: React.FC<Props> = ({
                   Connect
                 </Menu.Item>
               )}
+              <Menu.Separator />
+
+              <Menu.Item
+                startDecorator={<LuSquarePlus size={ICON_SIZE} />}
+                onClick={() => openInNewTab(resourcesPath)}
+              >
+                Open in new tab
+              </Menu.Item>
+              <Menu.Item
+                startDecorator={<LuAppWindow size={ICON_SIZE} />}
+                onClick={() => openInNewWindow(resourcesPath)}
+              >
+                Open in new window
+              </Menu.Item>
               <Menu.Separator />
 
               <Menu.Item

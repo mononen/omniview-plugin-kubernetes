@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -69,6 +70,7 @@ users:
 	require.NoError(t, os.WriteFile(tmpFile, []byte(kubeconfigContent), 0644))
 
 	pc := &types.PluginContext{
+		Context: context.Background(),
 		Connection: &types.Connection{
 			ID:   "test",
 			Data: map[string]any{"kubeconfig": tmpFile},

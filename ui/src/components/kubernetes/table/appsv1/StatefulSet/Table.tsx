@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -6,7 +7,7 @@ import { StatefulSet } from 'kubernetes-types/apps/v1';
 import { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuClipboardList } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -17,14 +18,14 @@ import { withNamespacedResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import StatefulSetSidebar from './Sidebar';
 
-const resourceKey = 'apps::v1::StatefulSet';
+const resourceKey = 'k8s:apps/statefulsets';
 
 const StatefulSetTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
 
-  const columns = React.useMemo<Array<ColumnDef<StatefulSet>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, StatefulSet>>>(
     () =>
       withNamespacedResourceColumns(
         [
@@ -70,7 +71,7 @@ const StatefulSetTable: React.FC = () => {
               <ResourceLinkCell
                 connectionId={id}
                 resourceId={getValue() as string}
-                resourceKey="core::v1::Service"
+                resourceKey="k8s:/services"
                 resourceName={getValue() as string}
               />
             ),
@@ -142,7 +143,6 @@ const StatefulSetTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

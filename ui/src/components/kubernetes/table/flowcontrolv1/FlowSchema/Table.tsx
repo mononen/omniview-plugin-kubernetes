@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -6,7 +7,7 @@ import { FlowSchema } from 'kubernetes-types/flowcontrol/v1';
 import { Condition } from 'kubernetes-types/meta/v1';
 import React from 'react';
 import { LuAlignVerticalJustifyStart } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -17,13 +18,13 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import FlowSchemaSidebar from './Sidebar';
 
-const resourceKey = 'flowcontrol::v1beta3::FlowSchema';
+const resourceKey = 'k8s:flowcontrol.apiserver.k8s.io/flowschemas';
 
 const FlowSchemaTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<FlowSchema>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, FlowSchema>>>(
     () =>
       withClusterResourceColumns(
         [
@@ -93,7 +94,6 @@ const FlowSchemaTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

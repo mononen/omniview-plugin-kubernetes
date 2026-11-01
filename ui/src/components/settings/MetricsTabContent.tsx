@@ -7,6 +7,7 @@ import { LuActivity, LuCheck, LuCircle, LuInfo, LuPlugZap, LuRefreshCw, LuX } fr
 
 import { useClusterPreferences } from '../../hooks/useClusterPreferences';
 import type { MetricConfig } from '../../types/clusters';
+import { metricQueryParams } from '../../utils/metricParams';
 
 interface Props {
   pluginID: string;
@@ -124,7 +125,11 @@ const autoDetectionSubtitleStyle: React.CSSProperties = { marginBottom: 10, opac
 
 type TestState = 'idle' | 'testing' | 'success' | 'failure';
 
-const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected }) => {
+const MetricsTabContent: React.FC<Props> = (props) => (
+  <MetricsForm key={JSON.stringify([props.pluginID, props.connectionID])} {...props} />
+);
+
+const MetricsForm: React.FC<Props> = ({ pluginID, connectionID, connected }) => {
   const queryClient = useQueryClient();
   const { connectionOverrides, updateOverride } = useClusterPreferences(pluginID);
   const existing = React.useMemo(
@@ -134,30 +139,28 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
   const metricConfig = existing.metricConfig ?? {};
 
   const { data: providers, isLoading: providersLoading } =
-    useMetricProvidersForResource('core::v1::Pod');
+    useMetricProvidersForResource('k8s:/pods');
 
   // Invalidate provider cache on mount so we don't show stale 0-provider results
   React.useEffect(() => {
     void queryClient.invalidateQueries({ queryKey: ['metric', 'providers'] });
   }, [queryClient]);
 
-  const [service, setService] = React.useState(metricConfig.prometheusService ?? '');
-  const [namespace, setNamespace] = React.useState(metricConfig.prometheusNamespace ?? '');
-  const [port, setPort] = React.useState(metricConfig.prometheusPort?.toString() ?? '');
+  // Remote preferences fill untouched fields without replacing user drafts.
+  const [serviceDraft, setService] = React.useState<string>();
+  const [namespaceDraft, setNamespace] = React.useState<string>();
+  const [portDraft, setPort] = React.useState<string>();
+  const service = serviceDraft ?? metricConfig.prometheusService ?? '';
+  const namespace = namespaceDraft ?? metricConfig.prometheusNamespace ?? '';
+  const port = portDraft ?? metricConfig.prometheusPort?.toString() ?? '';
 
   const [testState, setTestState] = React.useState<TestState>('idle');
   const [testError, setTestError] = React.useState('');
-  const abortRef = useRef(false);
+  const testRequestRef = useRef(0);
 
-  // Sync when overrides load async
-  React.useEffect(() => {
-    const cfg = connectionOverrides[connectionID]?.metricConfig;
-    if (cfg) {
-      setService((prev) => prev || cfg.prometheusService || '');
-      setNamespace((prev) => prev || cfg.prometheusNamespace || '');
-      setPort((prev) => prev || cfg.prometheusPort?.toString() || '');
-    }
-  }, [connectionOverrides, connectionID]);
+  React.useEffect(() => () => {
+    testRequestRef.current += 1;
+  }, []);
 
   const saveConfig = useCallback(async () => {
     const mc: MetricConfig = {};
@@ -180,52 +183,38 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
   };
 
   const handleTest = useCallback(async () => {
-    // Save current form values first
-    await saveConfig();
-
-    const providerCount = providers?.length ?? 0;
-    if (providerCount === 0) {
-      setTestState('failure');
-      setTestError(
-        'No metric providers registered. The plugin may need to be rebuilt, ' +
-          'or try disconnecting and reconnecting the cluster.',
-      );
-      return;
-    }
-
+    const request = ++testRequestRef.current;
     setTestState('testing');
     setTestError('');
-    abortRef.current = false;
-
-    // Build resourceData with per-connection config
-    const resourceData: Record<string, unknown> = {};
-    if (service || namespace || port) {
-      resourceData.__metric_config__ = {
-        service: service || '',
-        namespace: namespace || '',
-        port: parseInt(port, 10) || 0,
-      };
-    }
-
     try {
-      // Call QueryAll via the MetricClient binding — bypasses the
+      await saveConfig();
+      if (request !== testRequestRef.current) return;
+      if (!providers?.length) {
+        setTestState('failure');
+        setTestError('No metric providers registered. Try disconnecting and reconnecting the cluster.');
+        return;
+      }
+      const params = metricQueryParams({
+        prometheusService: service,
+        prometheusNamespace: namespace,
+        prometheusPort: parseInt(port, 10) || undefined,
+      });
+      // Call QueryAll via the canonical runtime client — bypasses the
       // useResourceMetrics hook's provider-count guard so we get a real
       // backend round-trip even when the provider cache is stale.
-      // QueryAll requires Record<string, any> per the Wails binding signature
-      const results = await MetricClient.QueryAll(
-        connectionID,
-        'cluster::metrics',
-        '_test',
-        '',
-        resourceData as Record<string, string | number | Record<string, string | number>>,
-        ['prom_cluster_node_count'],
-        0, // ShapeCurrent
-        new Date(0).toISOString(),
-        new Date(0).toISOString(),
-        0, // step
-      );
+      const results = await MetricClient.QueryAll(connectionID, {
+        resource_key: 'cluster::metrics',
+        resource_id: '_test',
+        resource_namespace: '',
+        params,
+        metric_ids: ['prom_cluster_node_count'],
+        shape: 0, // ShapeCurrent
+        start_time: new Date(0).toISOString(),
+        end_time: new Date(0).toISOString(),
+        step: 0,
+      });
 
-      if (abortRef.current) return;
+      if (request !== testRequestRef.current) return;
 
       // Check if any provider returned successful results
       const hasResults =
@@ -245,14 +234,14 @@ const MetricsTabContent: React.FC<Props> = ({ pluginID, connectionID, connected 
         );
       }
     } catch (err: unknown) {
-      if (abortRef.current) return;
+      if (request !== testRequestRef.current) return;
       setTestState('failure');
       setTestError(err instanceof Error ? err.message : 'Connection test failed');
     }
   }, [saveConfig, providers, connectionID, service, namespace, port]);
 
   const handleCancel = () => {
-    abortRef.current = true;
+    testRequestRef.current += 1;
     setTestState('idle');
     setTestError('');
   };

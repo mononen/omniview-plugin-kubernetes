@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ReplicaSet } from 'kubernetes-types/apps/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="apps::v1::ReplicaSet"
+        type="k8s:apps/replicasets"
         icon="LuCopy"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const Primary: Story = {
   args: {
-    ctx: {
-      data: data as unknown as ReplicaSet,
-      resource: { connectionID: 'ctx-1', id: 'frontend-7c6b4f9d8', key: 'apps::v1::ReplicaSet' },
-    },
+    ctx: { data: data as unknown as ReplicaSet, resource: fixtureResource('k8s:apps/replicasets', data, 'ctx-1', 'frontend-7c6b4f9d8') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -74,10 +72,7 @@ const scalingData: ReplicaSet = {
 
 export const Scaling: Story = {
   args: {
-    ctx: {
-      data: scalingData,
-      resource: { connectionID: 'ctx-1', id: 'frontend-7c6b4f9d8', key: 'apps::v1::ReplicaSet' },
-    },
+    ctx: { data: scalingData, resource: fixtureResource('k8s:apps/replicasets', scalingData, 'ctx-1', 'frontend-7c6b4f9d8') },
   },
   decorators: withDrawer('frontend-7c6b4f9d8'),
 };

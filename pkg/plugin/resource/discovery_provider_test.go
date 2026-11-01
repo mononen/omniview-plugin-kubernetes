@@ -2,234 +2,100 @@ package resource
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
-	fakeclientset "k8s.io/client-go/kubernetes/fake"
-
-	"github.com/omniviewdev/plugin-sdk/pkg/types"
+	clienttesting "k8s.io/client-go/testing"
 )
 
-// newFakeDiscoveryConn wires a fake discovery client into a Connection so that
-// kubeDiscoveryProvider.Discover can call utils.KubeClientsFromConnection.
-// Since that function needs a real kubeconfig, we instead test the discovery
-// parsing logic by calling the internal function's equivalent inline.
+// catalogDiscovery overrides only the discovery response. All parsing runs in
+// discoverNativeTypes, not in a test copy of its implementation.
+type catalogDiscovery struct {
+	*fakediscovery.FakeDiscovery
+	groups []*metav1.APIGroup
+	lists  []*metav1.APIResourceList
+	err    error
+}
 
-// testDiscovery tests the parsing logic of Discover by simulating what
-// ServerGroupsAndResources returns.
-func testDiscoveryParse(t *testing.T, resourceLists []*metav1.APIResourceList, want []struct {
-	group, version, kind string
-}, wantLen int) {
-	t.Helper()
+func (d catalogDiscovery) ServerGroupsAndResources() ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {
+	return d.groups, d.lists, d.err
+}
 
-	// Simulate the parsing logic from kubeDiscoveryProvider.Discover
-	var metas []struct{ Group, Version, Kind string }
-	for _, rl := range resourceLists {
-		gv := rl.GroupVersion
-		group, version := "", gv
-		if i := lastIndex(gv, '/'); i >= 0 {
-			group, version = gv[:i], gv[i+1:]
-		}
-		if group == "" {
-			group = "core"
-		}
-		for _, r := range rl.APIResources {
-			if containsSlash(r.Name) {
-				continue
+func discoveryFixture(lists ...*metav1.APIResourceList) catalogDiscovery {
+	return catalogDiscovery{FakeDiscovery: &fakediscovery.FakeDiscovery{Fake: &clienttesting.Fake{}}, lists: lists}
+}
+
+func TestNativeDiscoveryMergesVersionsUsingPreferredRepresentation(t *testing.T) {
+	for _, reverse := range []bool{false, true} {
+		t.Run(map[bool]string{false: "preferred-last", true: "preferred-first"}[reverse], func(t *testing.T) {
+			old := &metav1.APIResourceList{GroupVersion: "apps/v1beta1", APIResources: []metav1.APIResource{{Name: "deployments", Kind: "Deployment", Namespaced: true, Verbs: metav1.Verbs{"get"}}}}
+			preferred := &metav1.APIResourceList{GroupVersion: "apps/v1", APIResources: []metav1.APIResource{{Name: "deployments", Kind: "Deployment", Namespaced: true, Verbs: metav1.Verbs{"get", "list"}}}}
+			d := discoveryFixture(old, preferred)
+			if reverse {
+				d.lists = []*metav1.APIResourceList{preferred, old}
 			}
-			metas = append(metas, struct{ Group, Version, Kind string }{group, version, r.Kind})
-		}
-	}
-
-	require.Len(t, metas, wantLen)
-	for i, w := range want {
-		assert.Equal(t, w.group, metas[i].Group, "group mismatch at index %d", i)
-		assert.Equal(t, w.version, metas[i].Version, "version mismatch at index %d", i)
-		assert.Equal(t, w.kind, metas[i].Kind, "kind mismatch at index %d", i)
-	}
-}
-
-func lastIndex(s string, sep byte) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == sep {
-			return i
-		}
-	}
-	return -1
-}
-
-func containsSlash(s string) bool {
-	for _, c := range s {
-		if c == '/' {
-			return true
-		}
-	}
-	return false
-}
-
-func TestDiscovery_ParsesGroupVersion(t *testing.T) {
-	rls := []*metav1.APIResourceList{
-		{
-			GroupVersion: "apps/v1",
-			APIResources: []metav1.APIResource{
-				{Name: "deployments", Kind: "Deployment"},
-			},
-		},
-	}
-	testDiscoveryParse(t, rls, []struct{ group, version, kind string }{
-		{"apps", "v1", "Deployment"},
-	}, 1)
-}
-
-func TestDiscovery_CoreGroup(t *testing.T) {
-	rls := []*metav1.APIResourceList{
-		{
-			GroupVersion: "v1",
-			APIResources: []metav1.APIResource{
-				{Name: "pods", Kind: "Pod"},
-			},
-		},
-	}
-	testDiscoveryParse(t, rls, []struct{ group, version, kind string }{
-		{"core", "v1", "Pod"},
-	}, 1)
-}
-
-func TestDiscovery_SkipsSubresources(t *testing.T) {
-	rls := []*metav1.APIResourceList{
-		{
-			GroupVersion: "v1",
-			APIResources: []metav1.APIResource{
-				{Name: "pods", Kind: "Pod"},
-				{Name: "pods/log", Kind: "Pod"},
-				{Name: "pods/exec", Kind: "Pod"},
-			},
-		},
-	}
-	testDiscoveryParse(t, rls, []struct{ group, version, kind string }{
-		{"core", "v1", "Pod"},
-	}, 1)
-}
-
-func TestDiscovery_OnConnectionRemoved(t *testing.T) {
-	dp := &kubeDiscoveryProvider{logger: zap.NewNop().Sugar()}
-	err := dp.OnConnectionRemoved(context.Background(), &types.Connection{})
-	assert.NoError(t, err)
-}
-
-// TestDiscovery_FakeDiscoveryClient verifies the real Discover method logic
-// using k8s.io/client-go's fake discovery client.
-func TestDiscovery_FakeDiscoveryClient(t *testing.T) {
-	fakeCS := fakeclientset.NewSimpleClientset()
-	fd := fakeCS.Discovery().(*fakediscovery.FakeDiscovery)
-
-	fd.Resources = []*metav1.APIResourceList{
-		{
-			GroupVersion: "v1",
-			APIResources: []metav1.APIResource{
-				{Name: "pods", Kind: "Pod"},
-				{Name: "pods/log", Kind: "Pod"},
-				{Name: "services", Kind: "Service"},
-			},
-		},
-		{
-			GroupVersion: "apps/v1",
-			APIResources: []metav1.APIResource{
-				{Name: "deployments", Kind: "Deployment"},
-				{Name: "deployments/scale", Kind: "Scale"},
-			},
-		},
-	}
-
-	// Call the internal discovery parsing logic directly (the Discover method
-	// needs utils.KubeClientsFromConnection which requires a real kubeconfig).
-	// We extract the same logic here.
-	metas := parseDiscoveryResources(fd)
-
-	// Should have: Pod, Service, Deployment (subresources skipped)
-	require.Len(t, metas, 3)
-
-	metaMap := make(map[string]bool)
-	for _, m := range metas {
-		metaMap[m.group+"::"+m.version+"::"+m.kind] = true
-	}
-	assert.True(t, metaMap["core::v1::Pod"])
-	assert.True(t, metaMap["core::v1::Service"])
-	assert.True(t, metaMap["apps::v1::Deployment"])
-}
-
-type simpleMeta struct {
-	group, version, kind string
-}
-
-// --- normalizeGroup tests ---
-
-func TestNormalizeGroup(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
-		// Standard K8s FQDN groups → short name
-		{"admissionregistration.k8s.io", "admissionregistration"},
-		{"networking.k8s.io", "networking"},
-		{"rbac.authorization.k8s.io", "rbac"},
-		{"storage.k8s.io", "storage"},
-		{"apiextensions.k8s.io", "apiextensions"},
-		{"flowcontrol.apiserver.k8s.io", "flowcontrol"},
-		{"coordination.k8s.io", "coordination"},
-		{"scheduling.k8s.io", "scheduling"},
-		{"policy.k8s.io", "policy"},
-		{"autoscaling.k8s.io", "autoscaling"},
-
-		// .kubernetes.io suffix
-		{"metrics.kubernetes.io", "metrics"},
-		{"node.kubernetes.io", "node"},
-
-		// CRD groups — left untouched
-		{"stable.example.com", "stable.example.com"},
-		{"acme.cert-manager.io", "acme.cert-manager.io"},
-		{"argoproj.io", "argoproj.io"},
-
-		// Already short names — pass through
-		{"apps", "apps"},
-		{"core", "core"},
-		{"batch", "batch"},
-
-		// Empty → "core"
-		{"", "core"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := normalizeGroup(tt.input)
-			assert.Equal(t, tt.want, got)
+			d.groups = []*metav1.APIGroup{{Name: "apps", PreferredVersion: metav1.GroupVersionForDiscovery{GroupVersion: "apps/v1", Version: "v1"}}}
+			bindings, coverage, err := discoverNativeTypes(context.Background(), d)
+			require.NoError(t, err)
+			require.Equal(t, "complete", coverage.Kind)
+			require.Len(t, bindings, 1)
+			binding := bindings["k8s:apps/deployments"]
+			require.Equal(t, schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}, binding.GVR)
+			require.Equal(t, "k8s:apps/deployments", binding.Descriptor.Type)
+			require.Len(t, binding.Descriptor.Capabilities, 3)
 		})
 	}
 }
 
-func parseDiscoveryResources(dc discovery.DiscoveryInterface) []simpleMeta {
-	_, resourceLists, _ := dc.ServerGroupsAndResources()
-	var metas []simpleMeta
-	for _, rl := range resourceLists {
-		gv := rl.GroupVersion
-		group, version := "", gv
-		if i := lastIndex(gv, '/'); i >= 0 {
-			group, version = gv[:i], gv[i+1:]
-		}
-		if group == "" {
-			group = "core"
-		}
-		for _, r := range rl.APIResources {
-			if containsSlash(r.Name) {
-				continue
-			}
-			metas = append(metas, simpleMeta{group, version, r.Kind})
-		}
+func TestNativeDiscoveryRejectsConflictingIdentityDimensions(t *testing.T) {
+	d := discoveryFixture(
+		&metav1.APIResourceList{GroupVersion: "example.com/v1", APIResources: []metav1.APIResource{{Name: "things", Kind: "Thing", Namespaced: true}}},
+		&metav1.APIResourceList{GroupVersion: "example.com/v2", APIResources: []metav1.APIResource{{Name: "things", Kind: "Thing", Namespaced: false}}},
+	)
+	_, _, err := discoverNativeTypes(context.Background(), d)
+	require.ErrorContains(t, err, "inconsistent native identity dimensions")
+}
+
+func TestNativeDiscoveryPartialCoverage(t *testing.T) {
+	d := discoveryFixture(&metav1.APIResourceList{GroupVersion: "v1", APIResources: []metav1.APIResource{{Name: "pods", Kind: "Pod", Namespaced: true, Verbs: metav1.Verbs{"list"}}}})
+	d.err = &discovery.ErrGroupDiscoveryFailed{Groups: map[schema.GroupVersion]error{{Group: "unavailable.example", Version: "v1"}: errors.New("unavailable")}}
+	bindings, coverage, err := discoverNativeTypes(context.Background(), d)
+	require.NoError(t, err)
+	require.Contains(t, bindings, "k8s:/pods")
+	require.Equal(t, "partial", coverage.Kind)
+	require.NotEmpty(t, coverage.Reason)
+	d.lists = nil
+	_, _, err = discoverNativeTypes(context.Background(), d)
+	require.ErrorIs(t, err, d.err)
+}
+
+func TestNativeDiscoveryPreservesActualGroupsAndSkipsSubresources(t *testing.T) {
+	d := discoveryFixture(
+		&metav1.APIResourceList{GroupVersion: "v1", APIResources: []metav1.APIResource{{Name: "pods", Kind: "Pod"}, {Name: "pods/log", Kind: "Pod"}, {Name: "pods/exec", Kind: "Pod"}}},
+		&metav1.APIResourceList{GroupVersion: "core/v1", APIResources: []metav1.APIResource{{Name: "pods", Kind: "Pod"}}},
+		&metav1.APIResourceList{GroupVersion: "networking.k8s.io/v1", APIResources: []metav1.APIResource{{Name: "ingresses", Kind: "Ingress"}}},
+	)
+	bindings, _, err := discoverNativeTypes(context.Background(), d)
+	require.NoError(t, err)
+	require.Len(t, bindings, 3)
+	require.Equal(t, "", bindings["k8s:/pods"].GVR.Group)
+	require.Equal(t, "core", bindings["k8s:core/pods"].GVR.Group)
+	require.Equal(t, "networking.k8s.io", bindings["k8s:networking.k8s.io/ingresses"].GVR.Group)
+}
+
+func TestNativeDiscoveryRejectsMalformedEntries(t *testing.T) {
+	for _, list := range []*metav1.APIResourceList{
+		{GroupVersion: "bad/group/version"},
+		{GroupVersion: "v1", APIResources: []metav1.APIResource{{Kind: "Pod"}}},
+		{GroupVersion: "v1", APIResources: []metav1.APIResource{{Name: "pods"}}},
+		{GroupVersion: "v1", APIResources: []metav1.APIResource{{Name: "pods", Kind: "Pod"}, {Name: "pods", Kind: "Pod"}}},
+	} {
+		_, _, err := discoverNativeTypes(context.Background(), discoveryFixture(list))
+		require.Error(t, err)
 	}
-	return metas
 }

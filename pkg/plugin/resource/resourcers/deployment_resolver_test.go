@@ -2,9 +2,12 @@ package resourcers
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	resource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	resource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
+	k8stesting "k8s.io/client-go/testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -12,21 +15,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/omniview/kubernetes/pkg/plugin/resource/clients"
 )
-
-func deployMeta() resource.ResourceMeta {
-	return resource.ResourceMeta{
-		Group:   "apps",
-		Version: "v1",
-		Kind:    "Deployment",
-	}
-}
 
 func TestDeploymentResourcer_ResolveRelationships(t *testing.T) {
 	replicas := int32(1)
@@ -75,44 +68,56 @@ func TestDeploymentResourcer_ResolveRelationships(t *testing.T) {
 	_ = corev1.AddToScheme(scheme)
 	_ = appsv1.AddToScheme(scheme)
 
-	fakeKube := fake.NewSimpleClientset(dep, rs)
+	staleRS := rs.DeepCopy()
+	staleRS.Name = "my-deploy-stale"
+	staleRS.OwnerReferences[0].UID = "previous-deploy-uid"
+	fakeKube := fake.NewSimpleClientset(dep, rs, staleRS)
 	fakeDynamic := dynamicfake.NewSimpleDynamicClient(scheme, dep)
-	factory := dynamicinformer.NewDynamicSharedInformerFactory(fakeDynamic, 0)
 
 	cs := &clients.ClientSet{
-		KubeClient:             fakeKube,
-		DynamicClient:          fakeDynamic,
-		DynamicInformerFactory: factory,
+		KubeClient:    fakeKube,
+		DynamicClient: fakeDynamic,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
-	factory.ForResource(gvr).Informer()
-	factory.Start(ctx.Done())
-	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
-	resourcer := NewDeploymentResourcer(logger, WithRelationships(RelationshipTable()["apps::v1::Deployment"]))
+	resourcer := NewDeploymentResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/deployments"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, deployMeta(), "my-deploy", "default")
+	request := relationshipRequest(workloadGetRequest("my-deploy", "default"), "k8s:apps/replicasets", "k8s:/configmaps", "k8s:/secrets")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, request)
 	require.NoError(t, err)
 	require.Len(t, rels, 3)
 
 	// ReplicaSet
-	assert.Equal(t, "apps::v1::ReplicaSet", rels[0].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:apps/replicasets", rels[0].Descriptor.TargetType)
 	require.Len(t, rels[0].Targets, 1)
-	assert.Equal(t, "my-deploy-abc123", rels[0].Targets[0].ID)
+	assert.Equal(t, "my-deploy-abc123", rels[0].Targets[0].Reference.Address.ID)
+	assert.Equal(t, request.Targets[0].Authority, rels[0].Targets[0].Reference.Address.Authority)
+	assert.NotEqual(t, request.Source.Reference.Address.Authority, rels[0].Targets[0].Reference.Address.Authority)
 
 	// ConfigMap
-	assert.Equal(t, "core::v1::ConfigMap", rels[1].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/configmaps", rels[1].Descriptor.TargetType)
 	require.Len(t, rels[1].Targets, 1)
-	assert.Equal(t, "my-config", rels[1].Targets[0].ID)
+	assert.Equal(t, "my-config", rels[1].Targets[0].Reference.Address.ID)
 
 	// Secret
-	assert.Equal(t, "core::v1::Secret", rels[2].Descriptor.TargetResourceKey)
+	assert.Equal(t, "k8s:/secrets", rels[2].Descriptor.TargetType)
 	require.Len(t, rels[2].Targets, 1)
-	assert.Equal(t, "my-secret", rels[2].Targets[0].ID)
+	assert.Equal(t, "my-secret", rels[2].Targets[0].Reference.Address.ID)
+
+	request.Targets = nil
+	rels, err = resourcer.ResolveRelationships(ctx, cs, request)
+	assert.Empty(t, rels)
+	assert.Equal(t, "UNSUPPORTED", resource.ErrorCode(err))
+
+	fakeKube.PrependReactor("list", "replicasets", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("replicaset list denied")
+	})
+	rels, err = resourcer.ResolveRelationships(ctx, cs, request)
+	assert.Empty(t, rels)
+	require.ErrorContains(t, err, "replicaset list denied")
 }
 
 func TestDeploymentResourcer_ResolveRelationships_NoVolumes(t *testing.T) {
@@ -142,25 +147,19 @@ func TestDeploymentResourcer_ResolveRelationships_NoVolumes(t *testing.T) {
 
 	fakeKube := fake.NewSimpleClientset(dep)
 	fakeDynamic := dynamicfake.NewSimpleDynamicClient(scheme, dep)
-	factory := dynamicinformer.NewDynamicSharedInformerFactory(fakeDynamic, 0)
 
 	cs := &clients.ClientSet{
-		KubeClient:             fakeKube,
-		DynamicClient:          fakeDynamic,
-		DynamicInformerFactory: factory,
+		KubeClient:    fakeKube,
+		DynamicClient: fakeDynamic,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
-	factory.ForResource(gvr).Informer()
-	factory.Start(ctx.Done())
-	factory.WaitForCacheSync(ctx.Done())
 
 	logger := zap.NewNop().Sugar()
-	resourcer := NewDeploymentResourcer(logger, WithRelationships(RelationshipTable()["apps::v1::Deployment"]))
+	resourcer := NewDeploymentResourcer(logger, WithRelationships(RelationshipTable()["k8s:apps/deployments"]))
 
-	rels, err := resourcer.ResolveRelationships(ctx, cs, deployMeta(), "bare-deploy", "default")
+	rels, err := resourcer.ResolveRelationships(ctx, cs, relationshipRequest(workloadGetRequest("bare-deploy", "default"), "k8s:apps/replicasets"))
 	require.NoError(t, err)
 	// No ReplicaSets, no volumes → empty
 	assert.Empty(t, rels)

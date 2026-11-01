@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import type React from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import React from 'react';
+import { MemoryRouter } from 'react-router';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 import type { ConnectionOverride } from '../../types/clusters';
@@ -26,19 +26,27 @@ interface MockConnectionData {
 
 const mockNavigate = vi.fn();
 let mockConnectionData: MockConnectionData | null = null;
+let mockConnectionID = 'test-cluster';
 let mockConnectionOverrides: Record<string, ConnectionOverride> = {};
 let mockAvailableTags: string[] = [];
 const mockUpdateOverride = vi.fn().mockResolvedValue(undefined);
+const mockPreferenceListeners = new Set<() => void>();
+const mockSubscribePreferences = (listener: () => void) => {
+  mockPreferenceListeners.add(listener);
+  return () => {
+    mockPreferenceListeners.delete(listener);
+  };
+};
 
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
 
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+vi.mock('react-router', async () => {
+  const actual = await vi.importActual<typeof import('react-router')>('react-router');
   return {
     ...actual,
-    useParams: () => ({ id: 'test-cluster' }),
+    useParams: () => ({ id: mockConnectionID }),
     useNavigate: () => mockNavigate,
   };
 });
@@ -46,11 +54,23 @@ vi.mock('react-router-dom', async () => {
 vi.mock('@omniviewdev/runtime', () => ({
   usePluginContext: () => ({ meta: { id: 'kubernetes' } }),
   useConnection: () => ({ connection: { data: mockConnectionData } }),
+  useConnectionMetadata: () => ({
+    transportAvailable: true, supported: true, isLoading: false,
+    snapshot: { active: true, entries: {
+      'kubernetes.provider': { state: 'current', value: 'kind', observedAt: '2026-10-31T10:00:00Z' },
+      'kubernetes.provider_source': { state: 'current', value: 'connection_config', observedAt: '2026-10-31T10:00:00Z' },
+    } },
+  }),
 }));
 
 vi.mock('../../hooks/useClusterPreferences', () => ({
   useClusterPreferences: () => ({
-    connectionOverrides: mockConnectionOverrides,
+    // Preference updates must reach the subscribing form even when the compiler
+    // reuses its parent's unchanged JSX. Each published map is immutable.
+    connectionOverrides: React.useSyncExternalStore(
+      mockSubscribePreferences,
+      () => mockConnectionOverrides,
+    ),
     availableTags: mockAvailableTags,
     updateOverride: mockUpdateOverride,
   }),
@@ -188,6 +208,7 @@ function makeConnection(overrides: Partial<MockConnectionData> = {}): MockConnec
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockConnectionID = 'test-cluster';
   mockConnectionData = makeConnection();
   mockConnectionOverrides = {};
   mockAvailableTags = [];
@@ -257,10 +278,9 @@ describe('Deep linking via search params', () => {
 
   it('renders cluster-info section for ?section=cluster-info', () => {
     renderPage('cluster-info');
-    expect(
-      screen.getByText('Read-only information discovered from the cluster.'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('v1.28.3')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Server identity' })).toBeInTheDocument();
+    expect(screen.getByText('kind')).toBeInTheDocument();
+    expect(screen.queryByTestId('avatar-editor')).not.toBeInTheDocument();
   });
 
   it('renders connection section for ?section=connection', () => {
@@ -382,6 +402,54 @@ describe('Save / Cancel / Dirty state', () => {
     expect(getSaveBtn(container)).toBeNull();
     expect(getCancelBtn(container)).toBeNull();
   });
+
+  it('loads untouched fields without creating a draft', () => {
+    const { container } = renderPage('identity');
+    act(() => {
+      mockConnectionOverrides = {
+        'test-cluster': { displayName: 'Loaded name', description: 'Loaded description' },
+      };
+      mockPreferenceListeners.forEach((listener) => listener());
+    });
+    expect(screen.getByRole('textbox', { name: 'Display name' })).toHaveValue('Loaded name');
+    expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue('Loaded description');
+    expect(getSaveBtn(container)).toBeNull();
+  });
+
+  it('keeps explicit empty edits through preference loads and discards to the latest values', () => {
+    mockConnectionOverrides = { 'test-cluster': { displayName: 'Old name' } };
+    const { container } = renderPage('identity');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Display name' }), {
+      target: { value: '' },
+    });
+    act(() => {
+      mockConnectionOverrides = {
+        'test-cluster': { displayName: 'Loaded name', description: 'Loaded description' },
+      };
+      mockPreferenceListeners.forEach((listener) => listener());
+    });
+    expect(screen.getByRole('textbox', { name: 'Display name' })).toHaveValue('');
+    expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue('Loaded description');
+    fireEvent.click(getCancelBtn(container)!);
+    expect(screen.getByRole('textbox', { name: 'Display name' })).toHaveValue('Loaded name');
+    expect(getSaveBtn(container)).toBeNull();
+  });
+
+  it('starts a fresh identity draft when the route connection changes', () => {
+    const { container, rerender } = renderPage('identity');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Display name' }), {
+      target: { value: 'Unsaved name' },
+    });
+    mockConnectionID = 'other-cluster';
+    mockConnectionOverrides = { 'other-cluster': { displayName: 'Other cluster' } };
+    rerender(
+      <MemoryRouter initialEntries={['/?section=identity']}>
+        <ClusterEditPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('textbox', { name: 'Display name' })).toHaveValue('Other cluster');
+    expect(getSaveBtn(container)).toBeNull();
+  });
 });
 
 // ---- 7. Identity section content ----
@@ -443,30 +511,14 @@ describe('Tags section', () => {
 // ---- 9. Cluster Info section ----
 
 describe('Cluster Info section', () => {
-  it('displays all label/value rows', () => {
+  it('never displays legacy observed facts from connection configuration', () => {
     renderPage('cluster-info');
-    expect(screen.getByText('Server')).toBeInTheDocument();
-    expect(screen.getByText('https://10.0.0.1:6443')).toBeInTheDocument();
-    expect(screen.getByText('Kubernetes Version')).toBeInTheDocument();
-    expect(screen.getByText('v1.28.3')).toBeInTheDocument();
-    expect(screen.getByText('Platform')).toBeInTheDocument();
-    expect(screen.getByText('linux/amd64')).toBeInTheDocument();
-    expect(screen.getByText('Nodes')).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('API Groups')).toBeInTheDocument();
-    expect(screen.getByText('42')).toBeInTheDocument();
-    expect(screen.getByText('Last Checked')).toBeInTheDocument();
+    expect(screen.queryByText('https://10.0.0.1:6443')).not.toBeInTheDocument();
+    expect(screen.queryByText('v1.28.3')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nodes')).not.toBeInTheDocument();
+    expect(screen.queryByText('API Groups')).not.toBeInTheDocument();
   });
 
-  it('shows "Not discovered" for missing values', () => {
-    mockConnectionData = makeConnection({
-      data: {},
-      labels: {},
-    });
-    renderPage('cluster-info');
-    const notDiscovered = screen.getAllByText('Not discovered');
-    expect(notDiscovered.length).toBeGreaterThanOrEqual(1);
-  });
 });
 
 // ---- 10. Connection section ----
@@ -495,10 +547,7 @@ describe('Edge cases', () => {
   it('conn is null — cluster-info section does not render content', () => {
     mockConnectionData = null;
     renderPage('cluster-info');
-    // ClusterInfoSection is guarded by `conn &&`, so the section header won't render
-    expect(
-      screen.queryByText('Read-only information discovered from the cluster.'),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Server identity' })).not.toBeInTheDocument();
   });
 
   it('conn is null — connection section does not render content', () => {

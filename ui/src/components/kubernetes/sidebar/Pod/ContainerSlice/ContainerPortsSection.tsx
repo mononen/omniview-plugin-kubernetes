@@ -1,5 +1,6 @@
+import type { DrawerContext } from '@omniviewdev/runtime';
 import { Grid } from '@omniviewdev/base-ui';
-import type { Container, Pod } from 'kubernetes-types/core/v1';
+import type { Container } from 'kubernetes-types/core/v1';
 import React from 'react';
 
 import PortDetailsCard from '../PortDetailsCard';
@@ -8,14 +9,14 @@ export interface ContainerPortsSectionProps {
   resourceID: string;
   connectionID: string;
   container: Container;
-  pod?: Pod;
+  resource?: DrawerContext['resource'];
 }
 
 const ContainerPortsSection: React.FC<ContainerPortsSectionProps> = ({
   resourceID,
   connectionID,
   container,
-  pod,
+  resource,
 }) => {
   if (!container.ports || container.ports.length === 0) return null;
 
@@ -28,7 +29,7 @@ const ContainerPortsSection: React.FC<ContainerPortsSectionProps> = ({
         icon="LuNetwork"
         titleSize="sm"
         data={container.ports}
-        podData={pod}
+        resource={resource}
       />
     </Grid.Item>
   );

@@ -1,9 +1,9 @@
 //nolint:gochecknoglobals,gomnd // column definitions are global
 package appsv1
 
-import "github.com/omniviewdev/plugin-sdk/pkg/resource/types"
+import types "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 
-var DeploymentCols = []types.ColumnDef{
+var DeploymentCols = []types.ColumnDefinition{
 	{
 		ID:        "availableReplicas",
 		Header:    "Available",
@@ -52,7 +52,7 @@ var DeploymentCols = []types.ColumnDef{
 }
 
 var (
-	StatefulSetCols = []types.ColumnDef{
+	StatefulSetCols = []types.ColumnDefinition{
 		{
 			ID:        "podManagementPolicy",
 			Header:    "Pod Management Policy",
@@ -112,7 +112,7 @@ var (
 			Hidden:    true,
 		},
 	}
-	DaemonSetCols = []types.ColumnDef{
+	DaemonSetCols = []types.ColumnDefinition{
 		{
 			ID:        "desiredNumberScheduled",
 			Header:    "Desired",
@@ -153,7 +153,7 @@ var (
 			Width:     120,
 		},
 	}
-	ReplicaSetCols = []types.ColumnDef{
+	ReplicaSetCols = []types.ColumnDefinition{
 		{
 			ID:        "availableReplicas",
 			Header:    "Available",
@@ -185,19 +185,14 @@ var (
 			Accessors: "$.metadata.ownerReferences[0]",
 			Width:     150,
 			ResourceLink: &types.ResourceLink{
-				IDAccessor:  "name",
-				KeyAccessor: "kind",
-				Namespaced:  true,
-				KeyMap: map[string]string{
-					"Deployment": "apps::v1::Deployment",
-				},
-				DetailExtractors: map[string]string{
-					"Name": "name",
-				},
+				IDAccessor:     "name",
+				TypeAccessor:   "kind",
+				TypeMap:        map[string]string{"Deployment": "k8s:apps/deployments"},
+				ScopeAccessors: []types.ScopeExtractor{{Dimension: "namespace", FieldPath: "$.metadata.namespace"}},
 			},
 		},
 	}
-	ControllerRevisionCols = []types.ColumnDef{
+	ControllerRevisionCols = []types.ColumnDefinition{
 		{
 			ID:        "revision",
 			Header:    "Revision",
@@ -210,21 +205,18 @@ var (
 			Accessors: "$.metadata.ownerReferences[0]",
 			Width:     150,
 			ResourceLink: &types.ResourceLink{
-				IDAccessor:  "name",
-				KeyAccessor: "kind",
-				Namespaced:  true,
-				KeyMap: map[string]string{
-					"ReplicaSet":            "apps::v1::ReplicaSet",
-					"ReplicationController": "core::v1::ReplicationController",
-					"StatefulSet":           "apps::v1::StatefulSet",
-					"Deployment":            "apps::v1::Deployment",
-					"DaemonSet":             "apps::v1::DaemonSet",
-					"Job":                   "batch::v1::Job",
-					"CronJob":               "batch::v1::CronJob",
+				IDAccessor:   "name",
+				TypeAccessor: "kind",
+				TypeMap: map[string]string{
+					"ReplicaSet":            "k8s:apps/replicasets",
+					"ReplicationController": "k8s:/replicationcontrollers",
+					"StatefulSet":           "k8s:apps/statefulsets",
+					"Deployment":            "k8s:apps/deployments",
+					"DaemonSet":             "k8s:apps/daemonsets",
+					"Job":                   "k8s:batch/jobs",
+					"CronJob":               "k8s:batch/cronjobs",
 				},
-				DetailExtractors: map[string]string{
-					"Name": "name",
-				},
+				ScopeAccessors: []types.ScopeExtractor{{Dimension: "namespace", FieldPath: "$.metadata.namespace"}},
 			},
 		},
 	}

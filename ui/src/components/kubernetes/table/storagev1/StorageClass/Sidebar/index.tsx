@@ -18,12 +18,12 @@ export const StorageClassSidebar: React.FC<Props> = ({ ctx }) => {
   if (!ctx.data) return null;
 
   const sc = ctx.data;
-  const params = sc.parameters as Record<string, string> | undefined;
+  const params = sc.parameters;
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={sc.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={sc.metadata} connectionID={ctx.resource?.route.connection} />
 
         <SidebarSection title="Configuration">
             <LabeledEntry label="Provisioner" value={sc.provisioner} />

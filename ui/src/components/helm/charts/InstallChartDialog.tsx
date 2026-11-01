@@ -1,5 +1,6 @@
 import { Button, Dialog, Input, Stack, Text } from '@omniviewdev/base-ui';
-import { useExecuteAction } from '@omniviewdev/runtime';
+import { jsonToValue, useExecuteAction } from '@omniviewdev/runtime';
+import { ResourceClient } from '@omniviewdev/runtime/api';
 import React from 'react';
 import { SiHelm } from 'react-icons/si';
 
@@ -8,6 +9,7 @@ import { PLUGIN_ID } from '@/pluginId';
 import SimpleSelect from '../../connections/SimpleSelect';
 import CodeEditor from '../../shared/CodeEditor';
 import NamespaceSelect from '../../shared/NamespaceSelect';
+import { helmActionData, helmValues } from '../values';
 
 const dialogStyle: React.CSSProperties = { width: '90%', maxWidth: 900, maxHeight: '90vh' };
 const fieldLabelStyle: React.CSSProperties = { fontWeight: 500 };
@@ -51,7 +53,11 @@ interface DryRunInstallData {
   manifest?: string;
 }
 
-const InstallChartDialog: React.FC<Props> = ({
+const InstallChartDialog: React.FC<Props> = (props) => (
+  <InstallChartForm key={JSON.stringify([props.connectionID, props.chartID])} {...props} />
+);
+
+const InstallChartForm: React.FC<Props> = ({
   open,
   onClose,
   chartID,
@@ -61,112 +67,121 @@ const InstallChartDialog: React.FC<Props> = ({
 }) => {
   const [releaseName, setReleaseName] = React.useState('');
   const [namespace, setNamespace] = React.useState('default');
-  const [version, setVersion] = React.useState(initialVersion ?? '');
-  const [values, setValues] = React.useState('');
-  const [versions, setVersions] = React.useState<Array<{ version: string; appVersion: string }>>(
-    [],
-  );
+  const [versionDraft, setVersion] = React.useState<string>();
+  const [valuesDraft, setValues] = React.useState<string>();
+  const [versionResult, setVersions] = React.useState<Array<{ version: string; appVersion: string }> | null>(null);
+  const versions = versionResult ?? [];
+  const versionsPending = versionResult === null;
+  const version = versionDraft ?? (initialVersion || versions[0]?.version || '');
+  const [defaultValues, setDefaultValues] = React.useState<{ version: string; values: string } | null>(null);
+  const values = valuesDraft ?? (defaultValues?.version === version ? defaultValues.values : '');
   const [dryRunManifest, setDryRunManifest] = React.useState<string | null>(null);
+  const [wasOpen, setWasOpen] = React.useState(open);
+  const actionEpochRef = React.useRef(0);
 
-  const { executeAction: executeChartAction, isExecuting: isChartExecuting } = useExecuteAction({
-    pluginID: PLUGIN_ID,
-    connectionID,
-    resourceKey: 'helm::v1::Chart',
-  });
+  React.useEffect(() => () => {
+    actionEpochRef.current += 1;
+  }, [open, version]);
 
-  const { executeAction: executeReleaseAction, isExecuting: isReleaseExecuting } = useExecuteAction(
-    {
-      pluginID: PLUGIN_ID,
-      connectionID,
-      resourceKey: 'helm::v1::Release',
-    },
-  );
-
-  const isExecuting = isChartExecuting || isReleaseExecuting;
-
-  // Load default values and versions on open
-  React.useEffect(() => {
-    if (!open || !chartID) return;
-
-    // Set initial version if provided
-    if (initialVersion) {
-      setVersion(initialVersion);
+  // Name and namespace survive close/reopen within a chart. Reopening restores
+  // a supplied initial version and reloads defaults without replacing later edits.
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (open) {
+      if (initialVersion) setVersion(undefined);
+      setValues(undefined);
+      setVersions(null);
+      setDefaultValues(null);
+      setDryRunManifest(null);
     }
+  }
 
-    // Load default values
-    void executeChartAction({
-      actionID: 'get-values',
-      id: chartID,
-      params: initialVersion ? { version: initialVersion } : undefined,
-    })
-      .then((result) => {
-        const valuesData = result?.data as ChartValuesData | undefined;
-        setValues(valuesData?.values ?? '');
-      })
-      .catch(() => {});
+  const { executeAction, isExecuting } = useExecuteAction({ pluginID: PLUGIN_ID });
+  const executeChartAction = async (action: string, input = jsonToValue({})) => {
+    const resolved = await ResourceClient.ResolveReference(PLUGIN_ID, {
+      route: { connection: connectionID }, type: 'helm:charts', id: chartID,
+      scope: [{ dimension: 'domain', value: 'helm-client' }],
+    });
+    return executeAction({ route: resolved.route, reference: resolved.reference, action, input });
+  };
+  const executeReleaseAction = async (action: string) => {
+    const resolved = await ResourceClient.ResolveTarget(PLUGIN_ID, {
+      route: { connection: connectionID }, type: 'helm:releases',
+      scope: [{ dimension: 'namespace', match: 'oneOf', values: [namespace] }],
+    });
+    const { provider, authority, type, scope, route } = resolved.target;
+    return executeAction({
+      route, typeTarget: { provider, authority, type, scope }, action,
+      input: jsonToValue({ name: releaseName, chart: chartID, version, values: helmValues(values) }),
+    });
+  };
 
-    // Load versions
-    void executeChartAction({
-      actionID: 'get-versions',
-      id: chartID,
-    })
+  const executeChartRead = React.useEffectEvent(executeChartAction);
+
+  React.useEffect(() => {
+    if (!open || !chartID || !connectionID) return;
+    let cancelled = false;
+    void executeChartRead('get-versions')
       .then((result) => {
-        const versionsData = result?.data as ChartVersionsData | undefined;
-        const versionList = versionsData?.versions ?? [];
-        setVersions(versionList);
-        if (versionList.length > 0 && !version && !initialVersion) {
-          setVersion(versionList[0].version);
-        }
+        if (cancelled) return;
+        const versionsData = helmActionData(result) as ChartVersionsData | undefined;
+        setVersions(versionsData?.versions ?? []);
       })
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, chartID]);
+      .catch(() => {
+        if (!cancelled) setVersions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, chartID, connectionID]);
+
+  React.useEffect(() => {
+    if (!open || !chartID || !connectionID || (!version && versionsPending)) return;
+    let cancelled = false;
+    void executeChartRead('get-values', jsonToValue(version ? { version } : {}))
+      .then((result) => {
+        if (cancelled) return;
+        const valuesData = helmActionData(result) as ChartValuesData | undefined;
+        setDefaultValues({ version, values: valuesData?.values ?? '' });
+      })
+      .catch(() => {
+        // The runtime reports action failures. Keep any edited values intact.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, chartID, connectionID, version, versionsPending]);
 
   const handleNamespaceChange = React.useCallback((ns: string) => {
     setNamespace(ns);
   }, []);
 
   const handleDryRun = async () => {
+    const epoch = actionEpochRef.current;
     try {
-      const result = await executeReleaseAction({
-        actionID: 'dry-run-install',
-        id: '',
-        namespace,
-        params: {
-          chart: chartID,
-          name: releaseName,
-          namespace,
-          version,
-        },
-      });
-      const dryRunData = result?.data as DryRunInstallData | undefined;
+      const result = await executeReleaseAction('dry-run-install');
+      if (epoch !== actionEpochRef.current) return;
+      const dryRunData = helmActionData(result) as DryRunInstallData | undefined;
       setDryRunManifest(dryRunData?.manifest ?? 'No manifest generated');
     } catch (err: unknown) {
+      if (epoch !== actionEpochRef.current) return;
       const message = err instanceof Error ? err.message : 'Dry run failed';
       setDryRunManifest(`Error: ${message}`);
     }
   };
 
   const handleInstall = async () => {
+    const epoch = actionEpochRef.current;
     try {
-      await executeReleaseAction({
-        actionID: 'install',
-        id: '',
-        namespace,
-        params: {
-          chart: chartID,
-          name: releaseName,
-          namespace,
-          version,
-        },
-      });
-      onClose();
+      await executeReleaseAction('install');
+      if (epoch === actionEpochRef.current) onClose();
     } catch {
-      // Error handling is done by the runtime
+      // Error handling is done by the runtime.
     }
   };
 
   const handleClose = () => {
+    actionEpochRef.current += 1;
     setDryRunManifest(null);
     onClose();
   };

@@ -27,14 +27,6 @@ const subLabelStyle: React.CSSProperties = { color: 'var(--ov-color-fg-muted)', 
 const contentStyle: React.CSSProperties = { paddingBlock: 4, paddingInline: 8 };
 const addrValueStyle: React.CSSProperties = { fontWeight: 600, fontSize: 11 };
 
-/** Build a resourceKey from an ObjectReference's apiVersion + kind */
-function refToResourceKey(apiVersion?: string, kind?: string): string {
-  if (!apiVersion || !kind) return '';
-  const group = apiVersion.includes('/')
-    ? apiVersion.replace('/', '::')
-    : `core::${apiVersion}`;
-  return `${group}::${kind}`;
-}
 
 const ConditionChips: React.FC<{ ep: Endpoint }> = ({ ep }) => {
   const conds = ep.conditions;
@@ -109,26 +101,37 @@ const SliceEndpointsSection: React.FC<Props> = ({ endpoints, connectionID }) => 
             {ep.nodeName && connectionID ? (
               <ResourceLinkChip
                 connectionID={connectionID}
-                resourceKey="core::v1::Node"
+                resourceKey="k8s:/nodes"
                 resourceID={ep.nodeName}
                 resourceName={ep.nodeName}
               />
             ) : ep.nodeName ? (
               <Chip size="xs" color="neutral" style={smallChipStyle} variant="outline">{`node: ${ep.nodeName}`}</Chip>
             ) : null}
-            {ep.targetRef && connectionID && ep.targetRef.name ? (
+            {/* Kubernetes endpoint controllers omit apiVersion from their observed Pod references. */}
+            {ep.targetRef?.kind === 'Pod' && (ep.targetRef.apiVersion === 'v1' || (!ep.targetRef.apiVersion && ep.targetRef.uid)) && connectionID && ep.targetRef.name ? (
               <ResourceLinkChip
                 connectionID={connectionID}
-                resourceKey={
-                  refToResourceKey(ep.targetRef.apiVersion, ep.targetRef.kind) ||
-                  `core::v1::${ep.targetRef.kind || 'Pod'}`
-                }
+                resourceKey="k8s:/pods"
                 resourceID={ep.targetRef.name}
+                resourceName={ep.targetRef.name}
+                namespace={ep.targetRef.namespace}
+                incarnation={ep.targetRef.uid}
+              />
+            ) : ep.targetRef?.apiVersion && ep.targetRef.kind && connectionID && ep.targetRef.name ? (
+              <ResourceLinkChip
+                connectionID={connectionID}
+                ownerReference={{
+                  apiVersion: ep.targetRef.apiVersion,
+                  kind: ep.targetRef.kind,
+                  name: ep.targetRef.name,
+                  uid: ep.targetRef.uid ?? '',
+                }}
                 resourceName={ep.targetRef.name}
                 namespace={ep.targetRef.namespace}
               />
             ) : ep.targetRef && ep.targetRef.name ? (
-              <Chip size="xs" color="brand" style={smallChipStyle} variant="outline">{`${ep.targetRef.kind}/${ep.targetRef.name}`}</Chip>
+              <Chip size="xs" color="brand" style={smallChipStyle} variant="outline">{`${ep.targetRef.kind || 'Resource'}/${ep.targetRef.name}`}</Chip>
             ) : null}
           </Stack>
         </div>

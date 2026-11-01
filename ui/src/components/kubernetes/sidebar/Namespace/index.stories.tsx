@@ -29,7 +29,7 @@ Primary.decorators = [
   (Story, c) => (
     <ResourceDrawerContainer
       icon="LuFileCog"
-      type="core::v1::Namespace"
+      type="k8s:/namespaces"
       // @ts-expect-error - arbitrary json
       title={c.args.ctx.data.metadata.name}
       open

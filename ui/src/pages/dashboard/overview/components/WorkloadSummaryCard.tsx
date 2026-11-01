@@ -18,6 +18,7 @@ type Props = {
   statuses: StatusEntry[];
   loading?: boolean;
   onClick?: () => void;
+  footer?: React.ReactNode;
 };
 
 /** Map status breakdown to a single accent colour token for the card value. */
@@ -43,8 +44,9 @@ const WorkloadSummaryCard: React.FC<Props> = ({
   statuses,
   loading,
   onClick,
+  footer,
 }) => {
-  if (loading) {
+  if (loading && !footer) {
     return <Skeleton variant="rounded" style={skeletonStyle} />;
   }
 
@@ -67,12 +69,15 @@ const WorkloadSummaryCard: React.FC<Props> = ({
     </>
   );
 
-  if (!onClick) return <div className={styles.card}>{content}</div>;
-
   return (
-    <button type="button" onClick={onClick} className={`${styles.card} ${styles.clickable}`}>
-      {content}
-    </button>
+    <div className={styles.card}>
+      {loading ? <Skeleton variant="rounded" style={{ minHeight: 88 }} /> : onClick ? (
+        <button type="button" onClick={onClick} className={styles.clickable}>
+          {content}
+        </button>
+      ) : content}
+      {footer}
+    </div>
   );
 };
 

@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { PersistentVolume } from 'kubernetes-types/core/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="core::v1::PersistentVolume"
+        type="k8s:/persistentvolumes"
         icon="LuHardDrive"
         title={title}
         open
@@ -36,10 +37,7 @@ function withDrawer(title: string) {
 
 export const Bound: Story = {
   args: {
-    ctx: {
-      data: data as unknown as PersistentVolume,
-      resource: { connectionID: 'ctx-1', id: 'pv-nfs-data', key: 'core::v1::PersistentVolume' },
-    },
+    ctx: { data: data as unknown as PersistentVolume, resource: fixtureResource('k8s:/persistentvolumes', data, 'ctx-1', 'pv-nfs-data') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -58,10 +56,7 @@ const availableData: PersistentVolume = {
 
 export const Available: Story = {
   args: {
-    ctx: {
-      data: availableData,
-      resource: { connectionID: 'ctx-1', id: 'pv-available', key: 'core::v1::PersistentVolume' },
-    },
+    ctx: { data: availableData, resource: fixtureResource('k8s:/persistentvolumes', availableData, 'ctx-1', 'pv-available') },
   },
   decorators: withDrawer('pv-available'),
 };
@@ -76,10 +71,7 @@ const releasedData: PersistentVolume = {
 
 export const Released: Story = {
   args: {
-    ctx: {
-      data: releasedData,
-      resource: { connectionID: 'ctx-1', id: 'pv-released', key: 'core::v1::PersistentVolume' },
-    },
+    ctx: { data: releasedData, resource: fixtureResource('k8s:/persistentvolumes', releasedData, 'ctx-1', 'pv-released') },
   },
   decorators: withDrawer('pv-released'),
 };

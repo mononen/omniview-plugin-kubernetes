@@ -4,7 +4,7 @@ import { ObjectMeta } from 'kubernetes-types/meta/v1';
 import React from 'react';
 
 import ExpandableSections from './ExpandableSections';
-import ResourceLinkChip, { ownerRefToResourceKey } from './ResourceLinkChip';
+import ResourceLinkChip from './ResourceLinkChip';
 
 const entryGridStyle: React.CSSProperties = {
   display: 'grid',
@@ -96,8 +96,7 @@ const OwnersEntry: React.FC<{ data: ObjectMeta; connectionID?: string }> = ({
             <ResourceLinkChip
               key={ref.uid}
               connectionID={connectionID}
-              resourceKey={ownerRefToResourceKey(ref)}
-              resourceID={ref.name}
+              ownerReference={ref}
               resourceName={ref.kind}
               namespace={data.namespace}
             />

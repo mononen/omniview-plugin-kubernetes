@@ -24,14 +24,14 @@ import (
 func Register(plugin *sdk.Plugin) {
 	wf := &WorkloadResourceForwarder{}
 	portForwarders := map[string]networker.ResourceForwarder{
-		"core::v1::Pod":                   &PodResourceForwarder{},
-		"core::v1::Service":               wf,
-		"core::v1::ReplicationController": wf,
-		"apps::v1::Deployment":            wf,
-		"apps::v1::ReplicaSet":            wf,
-		"apps::v1::StatefulSet":           wf,
-		"apps::v1::DaemonSet":             wf,
-		"batch::v1::Job":                  wf,
+		"k8s:/pods":                   &PodResourceForwarder{},
+		"k8s:/services":               wf,
+		"k8s:/replicationcontrollers": wf,
+		"k8s:apps/deployments":        wf,
+		"k8s:apps/replicasets":        wf,
+		"k8s:apps/statefulsets":       wf,
+		"k8s:apps/daemonsets":         wf,
+		"k8s:batch/jobs":              wf,
 	}
 
 	// Register the capabilities
@@ -65,22 +65,12 @@ func (f *PodResourceForwarder) ForwardResource(
 		return nil, err
 	}
 
-	// extract name and namespace
-	metadata, ok := opts.Resource.ResourceData["metadata"].(map[string]any)
-	if !ok {
-		log.Error(ctx, "pod port-forward: metadata missing from resource data",
-			logging.Any("resource_data_keys", mapKeys(opts.Resource.ResourceData)))
-		return nil, errors.New("metadata is required")
+	if opts.Resource.ResourceKey != "k8s:/pods" {
+		return nil, fmt.Errorf("pod port-forward requires k8s:/pods")
 	}
-	name, ok := metadata["name"].(string)
-	if !ok {
-		log.Error(ctx, "pod port-forward: pod name missing from metadata")
-		return nil, errors.New("pod is required")
-	}
-	namespace, ok := metadata["namespace"].(string)
-	if !ok {
-		log.Error(ctx, "pod port-forward: namespace missing from metadata")
-		return nil, errors.New("namespace is required")
+	name, namespace, err := nativeForwardTarget(pctx, opts.Resource, "k8s:/pods")
+	if err != nil {
+		return nil, err
 	}
 
 	log.Info(ctx, "pod port-forward: resolved target",
@@ -198,15 +188,9 @@ func (f *WorkloadResourceForwarder) ForwardResource(
 		return nil, err
 	}
 
-	metadata, ok := opts.Resource.ResourceData["metadata"].(map[string]any)
-	if !ok {
-		log.Error(ctx, "workload port-forward: metadata missing from resource data")
-		return nil, errors.New("metadata is required")
-	}
-	namespace, ok := metadata["namespace"].(string)
-	if !ok {
-		log.Error(ctx, "workload port-forward: namespace missing from metadata")
-		return nil, errors.New("namespace is required")
+	_, namespace, err := nativeForwardTarget(pctx, opts.Resource, opts.Resource.ResourceKey)
+	if err != nil {
+		return nil, err
 	}
 
 	resourceKey := opts.Resource.ResourceKey
@@ -224,10 +208,10 @@ func (f *WorkloadResourceForwarder) ForwardResource(
 
 	// For Services, resolve the target port through spec.ports[].targetPort.
 	remotePort := opts.Options.RemotePort
-	if resourceKey == "core::v1::Service" {
-		if spec, ok := opts.Resource.ResourceData["spec"].(map[string]any); ok {
-			if ports, ok := spec["ports"].([]any); ok {
-				resolved := resolveServiceTargetPort(ports, remotePort)
+	if resourceKey == "k8s:/services" {
+		if spec, ok := utils.TaggedField(opts.Resource.ResourceData, "spec"); ok && spec.Kind == "map" {
+			if ports, ok := spec.Map["ports"]; ok && ports.Kind == "list" {
+				resolved := resolveServiceTargetPort(ports.List, remotePort)
 				if resolved != remotePort {
 					log.Info(ctx, "workload port-forward: resolved service targetPort",
 						logging.Int("service_port", int(remotePort)),
@@ -436,11 +420,12 @@ func loggerFromCtx(pctx *types.PluginContext) logging.Logger {
 	return logging.NewNop()
 }
 
-// mapKeys returns the keys of a map as a slice (for diagnostic logging).
-func mapKeys(m map[string]any) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
+func nativeForwardTarget(ctx *types.PluginContext, target networker.PortForwardResourceConnection, resourceType string) (string, string, error) {
+	if target.PluginID != "" && target.PluginID != "kubernetes" {
+		return "", "", fmt.Errorf("port-forward resource belongs to another provider")
 	}
-	return keys
+	if target.ConnectionID != "" && (ctx == nil || ctx.Connection == nil || target.ConnectionID != ctx.Connection.ID) {
+		return "", "", fmt.Errorf("port-forward connection does not match the selected connection")
+	}
+	return utils.NativeResourceTarget(ctx, target.ResourceData, target.Reference, target.Route, resourceType, true)
 }

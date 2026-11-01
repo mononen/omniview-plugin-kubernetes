@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import { Chip } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
@@ -6,7 +7,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Namespace } from 'kubernetes-types/core/v1';
 import React from 'react';
 import { LuLayoutTemplate } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 // import ConditionsCell from '../../shared/cells/ConditionsCell'
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
@@ -19,13 +20,13 @@ import ContainerPhaseCell from '../Pod/cells/ContainerPhaseCell';
 import { drawerActions } from './actions';
 import NamespaceSidebar from './Sidebar';
 
-const resourceKey = 'core::v1::Namespace';
+const resourceKey = 'k8s:/namespaces';
 
 const NamespaceTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<Namespace>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, Namespace>>>(
     () =>
       withClusterResourceColumns(
         [
@@ -87,7 +88,6 @@ const NamespaceTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

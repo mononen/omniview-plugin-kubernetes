@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { CronJob } from 'kubernetes-types/batch/v1';
 
@@ -21,7 +22,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="batch::v1::CronJob"
+        type="k8s:batch/cronjobs"
         icon="LuClock"
         title={title}
         open
@@ -37,10 +38,7 @@ function withDrawer(title: string) {
 
 export const Active: Story = {
   args: {
-    ctx: {
-      data: data as unknown as CronJob,
-      resource: { connectionID: 'ctx-1', id: 'daily-backup', key: 'batch::v1::CronJob' },
-    },
+    ctx: { data: data as unknown as CronJob, resource: fixtureResource('k8s:batch/cronjobs', data, 'ctx-1', 'daily-backup') },
   },
   decorators: withDrawer(data.metadata.name),
 };
@@ -61,10 +59,7 @@ const suspendedData = {
 
 export const Suspended: Story = {
   args: {
-    ctx: {
-      data: suspendedData,
-      resource: { connectionID: 'ctx-1', id: 'daily-backup', key: 'batch::v1::CronJob' },
-    },
+    ctx: { data: suspendedData, resource: fixtureResource('k8s:batch/cronjobs', suspendedData, 'ctx-1', 'daily-backup') },
   },
   decorators: withDrawer(data.metadata.name),
 };

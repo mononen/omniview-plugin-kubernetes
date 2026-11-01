@@ -13,7 +13,7 @@ import (
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
-	sdkresource "github.com/omniviewdev/plugin-sdk/pkg/v1/resource"
+	sdkresource "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 )
 
 // helper to create a Kubernetes StatusError with a given code and message.
@@ -36,7 +36,7 @@ func TestClassifyResourceError_Forbidden(t *testing.T) {
 	require.True(t, errors.As(result, &opErr))
 	assert.Equal(t, "FORBIDDEN", opErr.Code)
 	assert.Equal(t, "Access denied", opErr.Title)
-	assert.Contains(t, opErr.Message, "pods is forbidden")
+	assert.NotEmpty(t, opErr.Message)
 	assert.NotEmpty(t, opErr.Suggestions)
 }
 
@@ -99,8 +99,8 @@ func TestClassifyResourceError_Conflict(t *testing.T) {
 }
 
 func TestClassifyResourceError_UnhandledStatusCode(t *testing.T) {
-	// 422 Unprocessable Entity — not in our switch
-	err := k8sStatusError(422, "Unprocessable Entity")
+	// Unclassified native server failures retain the transport INTERNAL fallback.
+	err := k8sStatusError(500, "Internal Server Error")
 
 	result := classifyResourceError(err)
 	assert.Nil(t, result, "unhandled K8s status codes should return nil for INTERNAL fallback")
@@ -124,7 +124,7 @@ func TestClassifyResourceError_ConnectionError(t *testing.T) {
 	require.True(t, errors.As(result, &opErr))
 	assert.Equal(t, "CONNECTION_ERROR", opErr.Code)
 	assert.Equal(t, "Connection error", opErr.Title)
-	assert.Contains(t, opErr.Message, "connection refused")
+	assert.NotEmpty(t, opErr.Message)
 }
 
 func TestClassifyResourceError_WrappedConnectionError(t *testing.T) {
@@ -202,7 +202,7 @@ func TestClassifyResourceError_PreservesOriginalError(t *testing.T) {
 func TestClassifyResourceError_StatusCodePriority(t *testing.T) {
 	// A K8s error that also happens to be wrapped in net.OpError shouldn't
 	// be classified as CONNECTION_ERROR — the K8s StatusError check runs first.
-	err := k8sStatusError(403, "forbidden")
+	err := &net.OpError{Op: "dial", Net: "tcp", Err: k8sStatusError(403, "forbidden")}
 
 	result := classifyResourceError(err)
 	require.NotNil(t, result)
@@ -224,4 +224,124 @@ func TestClassifyResourceError_JSONRoundTrip(t *testing.T) {
 	assert.Contains(t, jsonStr, `"code":"FORBIDDEN"`)
 	assert.Contains(t, jsonStr, `"title":"Access denied"`)
 	assert.Contains(t, jsonStr, `"suggestions"`)
+}
+
+func TestClassifyResourceErrorFiniteSourceFailures(t *testing.T) {
+	for _, test := range []struct {
+		status int32
+		code   string
+	}{
+		{400, "INVALID_REQUEST"},
+		{422, "INVALID_REQUEST"},
+		{405, "UNSUPPORTED"},
+		{410, "CONTINUATION_EXPIRED"},
+		{413, "RESOURCE_LIMIT"},
+		{429, "RESOURCE_LIMIT"},
+		{503, "UNAVAILABLE"},
+	} {
+		t.Run(fmt.Sprint(test.status), func(t *testing.T) {
+			cause := k8sStatusError(test.status, "native source failure")
+			classified := classifyResourceError(cause)
+			var operationError *sdkresource.ResourceOperationError
+			require.ErrorAs(t, classified, &operationError)
+			require.Equal(t, test.code, operationError.Code)
+			require.ErrorIs(t, classified, cause)
+		})
+	}
+}
+
+func TestClassifyResourceError_PublicTextExcludesNativeDiagnostics(t *testing.T) {
+	const diagnostic = `native-secret-token /private/kubeconfig https://private-cluster.example:6443`
+	tests := []struct {
+		name  string
+		cause error
+		code  string
+	}{
+		{
+			name: "connection",
+			cause: &net.OpError{
+				Op:     "dial",
+				Net:    "tcp",
+				Source: &net.TCPAddr{IP: net.ParseIP("192.0.2.17"), Port: 54321},
+				Addr:   &net.TCPAddr{IP: net.ParseIP("192.0.2.18"), Port: 6443},
+				Err:    errors.New(diagnostic),
+			},
+			code: "CONNECTION_ERROR",
+		},
+		{
+			name:  "invalid certificate",
+			cause: x509.CertificateInvalidError{Reason: x509.Expired, Detail: diagnostic},
+			code:  "CERTIFICATE_ERROR",
+		},
+		{
+			name:  "unknown authority",
+			cause: x509.UnknownAuthorityError{},
+			code:  "CERTIFICATE_ERROR",
+		},
+	}
+	for _, status := range []struct {
+		status int32
+		code   string
+	}{
+		{400, "INVALID_REQUEST"},
+		{401, "UNAUTHORIZED"},
+		{403, "FORBIDDEN"},
+		{404, "NOT_FOUND"},
+		{405, "UNSUPPORTED"},
+		{408, "TIMEOUT"},
+		{409, "CONFLICT"},
+		{410, "CONTINUATION_EXPIRED"},
+		{413, "RESOURCE_LIMIT"},
+		{422, "INVALID_REQUEST"},
+		{429, "RESOURCE_LIMIT"},
+		{503, "UNAVAILABLE"},
+		{504, "TIMEOUT"},
+	} {
+		tests = append(tests, struct {
+			name  string
+			cause error
+			code  string
+		}{fmt.Sprint(status.status), k8sStatusError(status.status, diagnostic), status.code})
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			wrapped := fmt.Errorf("request to %s: %w", diagnostic, test.cause)
+			classified := classifyResourceError(wrapped)
+			var operationError *sdkresource.ResourceOperationError
+			require.ErrorAs(t, classified, &operationError)
+			assert.Equal(t, test.code, operationError.Code)
+			assert.Same(t, wrapped, operationError.Err)
+			assert.ErrorIs(t, classified, wrapped)
+			assert.ErrorIs(t, classified, test.cause)
+			switch test.cause.(type) {
+			case *k8serrors.StatusError:
+				var native *k8serrors.StatusError
+				require.ErrorAs(t, classified, &native)
+				assert.Same(t, test.cause, native)
+			case *net.OpError:
+				var native *net.OpError
+				require.ErrorAs(t, classified, &native)
+				assert.Same(t, test.cause, native)
+			case x509.CertificateInvalidError:
+				var native x509.CertificateInvalidError
+				require.ErrorAs(t, classified, &native)
+				assert.Equal(t, test.cause, native)
+			case x509.UnknownAuthorityError:
+				var native x509.UnknownAuthorityError
+				require.ErrorAs(t, classified, &native)
+				assert.Equal(t, test.cause, native)
+			}
+			assert.NotEmpty(t, operationError.Message)
+			fields := []string{operationError.Code, operationError.Title, operationError.Message, classified.Error()}
+			fields = append(fields, operationError.Suggestions...)
+			for _, field := range fields {
+				for _, secret := range []string{
+					"native-secret-token", "/private/kubeconfig", "private-cluster.example",
+					"192.0.2.17", "192.0.2.18", "54321", "6443",
+				} {
+					assert.NotContains(t, field, secret)
+				}
+			}
+		})
+	}
 }

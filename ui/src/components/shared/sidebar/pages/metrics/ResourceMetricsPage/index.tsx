@@ -6,6 +6,8 @@ import { LuActivity } from 'react-icons/lu';
 import { PLUGIN_ID } from '@/pluginId';
 
 import { useClusterPreferences } from '../../../../../../hooks/useClusterPreferences';
+import { metricQueryParams } from '../../../../../../utils/metricParams';
+
 import { MetricsPanel, TimeRangePicker } from '../../../../charts';
 import type { TimeSeriesDef, ChartTimeRange } from '../../../../charts';
 
@@ -46,33 +48,15 @@ interface Props {
 }
 
 const ResourceMetricsPage: React.FC<Props> = ({ ctx }) => {
-  const resourceKey = ctx.resource?.key || '';
-  const connectionID = ctx.resource?.connectionID || '';
-  const resourceID = ctx.resource?.id || '';
+  const resourceKey = ctx.resource?.reference.address.type || '';
+  const connectionID = ctx.resource?.route.connection || '';
+  const resourceID = ctx.resource?.reference.address.id || '';
   const metadata = (ctx.data)?.metadata as Record<string, unknown> | undefined;
   const resourceNamespace = (metadata?.namespace as string) ?? '';
-
   const { connectionOverrides } = useClusterPreferences(PLUGIN_ID);
   const metricConfig = connectionOverrides[connectionID]?.metricConfig;
+  const params = useMemo(() => metricQueryParams(metricConfig), [metricConfig]);
 
-  const enrichedData = useMemo(() => {
-    const base = (ctx.data ?? {});
-    if (
-      !metricConfig?.prometheusService &&
-      !metricConfig?.prometheusNamespace &&
-      !metricConfig?.prometheusPort
-    ) {
-      return base;
-    }
-    return {
-      ...base,
-      __metric_config__: {
-        service: metricConfig.prometheusService || '',
-        namespace: metricConfig.prometheusNamespace || '',
-        port: metricConfig.prometheusPort || 0,
-      },
-    };
-  }, [ctx.data, metricConfig]);
 
   // Time range state for charts (shared across all panels)
   const [timeRange, setTimeRange] = useState<ChartTimeRange>(() => ({
@@ -92,7 +76,10 @@ const ResourceMetricsPage: React.FC<Props> = ({ ctx }) => {
     resourceKey,
     resourceID,
     resourceNamespace,
-    resourceData: enrichedData,
+    resourceData: ctx.resource?.record?.record.body,
+    reference: ctx.resource?.reference,
+    route: ctx.resource?.route,
+    params,
     refreshInterval: 30000,
   });
 
@@ -107,7 +94,10 @@ const ResourceMetricsPage: React.FC<Props> = ({ ctx }) => {
     resourceKey,
     resourceID,
     resourceNamespace,
-    resourceData: enrichedData,
+    resourceData: ctx.resource?.record?.record.body,
+    reference: ctx.resource?.reference,
+    route: ctx.resource?.route,
+    params,
     shape: 1,
     timeRange: {
       start: timeRange.from,

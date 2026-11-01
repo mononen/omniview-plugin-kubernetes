@@ -1,17 +1,18 @@
 package metric
 
 import (
-	"github.com/omniviewdev/plugin-sdk/pkg/v1/metric"
+	"fmt"
 	"github.com/omniviewdev/plugin-sdk/pkg/sdk"
+	"github.com/omniviewdev/plugin-sdk/pkg/v1/metric"
 )
 
 // Register registers the metric capability with the Kubernetes plugin.
 // It creates a composite QueryFunc that routes to metrics-server for built-in
 // metrics and to Prometheus for prom_* prefixed metrics.
-func Register(plugin *sdk.Plugin) {
+func Register(plugin *sdk.Plugin) func(string) {
 	promClient := newPrometheusClient(plugin.SettingsProvider)
 
-	metric.RegisterPlugin(plugin, metric.PluginOpts{
+	if err := metric.RegisterPlugin(plugin, metric.PluginOpts{
 		ProviderInfo: metric.ProviderInfo{
 			ID:          "k8s-metrics",
 			Name:        "Kubernetes Metrics",
@@ -20,8 +21,8 @@ func Register(plugin *sdk.Plugin) {
 		},
 		Handlers: map[string]metric.Handler{
 			// --- Pod metrics (metrics-server + Prometheus) ---
-			"core::v1::Pod": {
-				Resource: "core::v1::Pod",
+			"k8s:/pods": {
+				Resource: "k8s:/pods",
 				Metrics: []metric.MetricDescriptor{
 					// ── metrics-server (instant only) ──
 					{
@@ -283,8 +284,8 @@ func Register(plugin *sdk.Plugin) {
 				},
 			},
 			// --- Node metrics (metrics-server + Prometheus) ---
-			"core::v1::Node": {
-				Resource: "core::v1::Node",
+			"k8s:/nodes": {
+				Resource: "k8s:/nodes",
 				Metrics: []metric.MetricDescriptor{
 					// metrics-server (instant only)
 					{
@@ -677,5 +678,8 @@ func Register(plugin *sdk.Plugin) {
 			return compositeQuery(promClient, qctx, req)
 		},
 		StreamFunc: nil, // SDK will poll QueryFunc
-	})
+	}); err != nil {
+		panic(fmt.Sprintf("failed to register native metrics: %v", err))
+	}
+	return promClient.retireConnection
 }

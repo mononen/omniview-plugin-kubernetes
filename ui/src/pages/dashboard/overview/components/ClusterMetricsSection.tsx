@@ -1,15 +1,6 @@
 import { useResourceMetrics } from '@omniviewdev/runtime';
 import type { metric } from '@omniviewdev/runtime/models';
-import { PLUGIN_ID } from '@/pluginId';
-
-import { MetricsPanel } from '../../../../components/shared/charts';
-import type {
-  TimeSeriesDef,
-  ChartTimeRange,
-  MetricFormat,
-  ChartAnnotation,
-} from '../../../../components/shared/charts';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   LuCpu,
   LuMemoryStick,
@@ -18,6 +9,18 @@ import {
   LuActivity,
   LuRotateCcw,
 } from 'react-icons/lu';
+import { metricQueryParams } from '../../../../utils/metricParams';
+
+import { MetricsPanel } from '../../../../components/shared/charts';
+import type {
+  TimeSeriesDef,
+  ChartTimeRange,
+  MetricFormat,
+  ChartAnnotation,
+} from '../../../../components/shared/charts';
+
+import { PLUGIN_ID } from '@/pluginId';
+import { useDocumentVisibility } from '@/hooks/useDocumentVisibility';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,7 +103,7 @@ function toTimeSeriesDef(
     id: ts.metric_id,
     label,
     data: (ts.data_points ?? []).map((dp) => ({
-      timestamp: new Date(dp.timestamp as unknown as string).getTime(),
+      timestamp: new Date(dp.timestamp).getTime(),
       value: dp.value,
     })),
     color,
@@ -262,12 +265,25 @@ const NAMESPACE_CHARTS: ChartDef[] = [
 // Component
 // ---------------------------------------------------------------------------
 
-const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
+type ClusterMetricsSnapshot = {
+  tsData: Record<string, metric.QueryResponse> | undefined;
+  instantData: Record<string, metric.QueryResponse> | undefined;
+  hasProviders: boolean;
+  isLoading: boolean;
+};
+
+const INITIAL_METRICS: ClusterMetricsSnapshot = {
+  tsData: undefined, instantData: undefined, hasProviders: false, isLoading: true,
+};
+
+const ClusterMetricsObserver: React.FC<ClusterMetricsSectionProps & {
+  onSnapshot: (snapshot: ClusterMetricsSnapshot) => void;
+}> = ({
   connectionID,
   namespace,
   timeRange,
-  onTimeRangeChange,
   metricConfig,
+  onSnapshot,
 }) => {
   const charts = namespace ? NAMESPACE_CHARTS : CLUSTER_CHARTS;
 
@@ -291,23 +307,7 @@ const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
     return [...ids];
   }, [charts]);
 
-  // Build resourceData with optional Prometheus config override
-  const resourceData = useMemo(() => {
-    if (
-      !metricConfig?.prometheusService &&
-      !metricConfig?.prometheusNamespace &&
-      !metricConfig?.prometheusPort
-    ) {
-      return {};
-    }
-    return {
-      __metric_config__: {
-        service: metricConfig.prometheusService || '',
-        namespace: metricConfig.prometheusNamespace || '',
-        port: metricConfig.prometheusPort || 0,
-      },
-    };
-  }, [metricConfig]);
+  const params = useMemo(() => metricQueryParams(metricConfig), [metricConfig]);
 
   // Time-series query (shape=1)
   const {
@@ -320,7 +320,7 @@ const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
     resourceKey: 'cluster::metrics',
     resourceID: '',
     resourceNamespace: namespace,
-    resourceData,
+    params,
     shape: 1,
     timeRange: {
       start: timeRange.from,
@@ -338,18 +338,29 @@ const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
     resourceKey: 'cluster::metrics',
     resourceID: '',
     resourceNamespace: namespace,
-    resourceData,
+    params,
     shape: 0,
     metricIDs: annotationMetricIDs,
     refreshInterval: 30000,
     enabled: annotationMetricIDs.length > 0,
   });
+  const hasProviders = providers.length > 0;
+  const snapshot = useMemo(() => ({ tsData, instantData, hasProviders, isLoading }),
+    [tsData, instantData, hasProviders, isLoading]);
+  useEffect(() => { onSnapshot(snapshot); }, [snapshot, onSnapshot]);
+  return null;
+};
+
+const ClusterMetricsSectionView: React.FC<ClusterMetricsSectionProps & {
+  snapshot: ClusterMetricsSnapshot;
+}> = ({ namespace, timeRange, onTimeRangeChange, snapshot: { tsData, instantData, hasProviders, isLoading } }) => {
+  const charts = namespace ? NAMESPACE_CHARTS : CLUSTER_CHARTS;
 
   const tsSeries = useMemo(() => extractTimeSeries(tsData), [tsData]);
   const instantValues = useMemo(() => extractCurrentValues(instantData), [instantData]);
 
   // Don't render anything if no providers or no data available
-  if (providers.length === 0 && !isLoading) return null;
+  if (!hasProviders && !isLoading) return null;
 
   // Only show charts that have data
   const activeCharts = charts.filter((def) => def.metricIDs.some((id) => tsSeries.has(id)));
@@ -412,5 +423,18 @@ const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = ({
     </div>
   );
 };
+
+const ClusterMetricsSectionController: React.FC<ClusterMetricsSectionProps> = (props) => {
+  const visible = useDocumentVisibility();
+  const [snapshot, setSnapshot] = useState(INITIAL_METRICS);
+  return <>
+    <ClusterMetricsSectionView {...props} snapshot={snapshot} />
+    {visible && <ClusterMetricsObserver {...props} onSnapshot={setSnapshot} />}
+  </>;
+};
+
+const ClusterMetricsSection: React.FC<ClusterMetricsSectionProps> = (props) => (
+  <ClusterMetricsSectionController key={`${props.connectionID}:${props.namespace}`} {...props} />
+);
 
 export default ClusterMetricsSection;

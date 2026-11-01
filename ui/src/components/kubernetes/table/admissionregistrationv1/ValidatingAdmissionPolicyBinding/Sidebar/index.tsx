@@ -21,14 +21,14 @@ export const ValidatingAdmissionPolicyBindingSidebar: React.FC<Props> = ({ ctx }
   if (!ctx.data) return null;
 
   const vapb = ctx.data;
-  const connectionID = ctx.resource?.connectionID || '';
+  const connectionID = ctx.resource?.route.connection || '';
   const spec = vapb.spec;
   const validationActions = spec?.validationActions;
 
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={vapb.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={vapb.metadata} connectionID={ctx.resource?.route.connection} />
 
         <SidebarSection title="Binding">
             {spec?.policyName && (
@@ -38,7 +38,7 @@ export const ValidatingAdmissionPolicyBindingSidebar: React.FC<Props> = ({ ctx }
                   <ResourceLinkChip
                     connectionID={connectionID}
                     resourceID={spec.policyName}
-                    resourceKey="admissionregistration::v1::ValidatingAdmissionPolicy"
+                    resourceKey="k8s:admissionregistration.k8s.io/validatingadmissionpolicies"
                     resourceName={spec.policyName}
                   />
                 }

@@ -29,8 +29,8 @@ export const ServiceSidebar: React.FC<Props> = ({ ctx }) => {
 
   const svc = ctx.data;
   const spec = svc.spec;
-  const connectionID = ctx.resource?.connectionID || '';
-  const selector = spec?.selector as Record<string, string> | undefined;
+  const connectionID = ctx.resource?.route.connection || '';
+  const selector = spec?.selector;
 
   const hasConfig =
     spec?.sessionAffinity ||
@@ -42,7 +42,7 @@ export const ServiceSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={svc.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={svc.metadata} connectionID={ctx.resource?.route.connection} />
         <ServiceStatusSection service={svc} connectionID={connectionID} />
 
         {hasConfig && (
@@ -82,7 +82,8 @@ export const ServiceSidebar: React.FC<Props> = ({ ctx }) => {
       <ServicePortsSection
         service={svc}
         connectionID={connectionID}
-        resourceID={ctx.resource?.id || ''}
+        resourceID={ctx.resource?.reference.address.id || ''}
+        resource={ctx.resource}
       />
     </Stack>
   );

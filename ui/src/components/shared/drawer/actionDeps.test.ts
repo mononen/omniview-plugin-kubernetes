@@ -8,8 +8,7 @@ import { bindDrawerActionDeps, type DrawerActionDeps, drawerActionDeps, register
 function fakeDeps(): DrawerActionDeps {
   return {
     show: vi.fn(),
-    remove: vi.fn().mockResolvedValue(undefined),
-    update: vi.fn().mockResolvedValue(undefined),
+    mutate: vi.fn().mockResolvedValue(undefined),
     createLogSession: vi.fn().mockResolvedValue(undefined),
     createExecSession: vi.fn().mockResolvedValue(undefined),
     executeAction: vi.fn().mockResolvedValue(undefined),
@@ -21,7 +20,19 @@ function fakeDeps(): DrawerActionDeps {
 
 const rsCtx: DrawerContext = {
   data: { metadata: { name: 'web-7d4b9c', namespace: 'prod' } },
-  resource: { id: 'web-7d4b9c', key: 'apps::v1::ReplicaSet', connectionID: 'conn-1', pluginID: 'kubernetes' },
+  resource: {
+    pluginID: 'kubernetes',
+    route: { connection: 'conn-1' },
+    reference: {
+      address: {
+        provider: 'kubernetes', authority: 'test-cluster', type: 'k8s:apps/replicasets',
+        scope: [{ dimension: 'namespace', value: 'prod' }], id: 'web-7d4b9c',
+      },
+      incarnation: 'native-uid',
+    },
+    representation: 'native-json-test',
+    targetId: 'table-membership',
+  },
 };
 
 describe('drawerActionDeps', () => {
@@ -29,18 +40,18 @@ describe('drawerActionDeps', () => {
     const bound = fakeDeps();
     const mounted = fakeDeps();
     const ctx = bindDrawerActionDeps({ ...rsCtx }, bound);
-    const unregister = registerDrawerActionDeps(registryKey('conn-1', 'apps::v1::ReplicaSet'), mounted);
+    const unregister = registerDrawerActionDeps(registryKey('conn-1', 'k8s:apps/replicasets'), mounted);
     expect(drawerActionDeps(ctx)).toBe(bound);
     unregister();
     expect(drawerActionDeps(ctx)).toBe(bound);
   });
 
   it('throws when nothing is mounted for the resource', () => {
-    expect(() => drawerActionDeps(rsCtx)).toThrow(/apps::v1::ReplicaSet/);
+    expect(() => drawerActionDeps(rsCtx)).toThrow('k8s:apps/replicasets');
   });
 
   it('returns the most recently mounted handlers and falls back on unmount', () => {
-    const key = registryKey('conn-1', 'apps::v1::ReplicaSet');
+    const key = registryKey('conn-1', 'k8s:apps/replicasets');
     const table = fakeDeps();
     const drawer = fakeDeps();
     const unregisterTable = registerDrawerActionDeps(key, table);
@@ -54,7 +65,7 @@ describe('drawerActionDeps', () => {
   });
 
   it('does not mix up connections', () => {
-    const unregister = registerDrawerActionDeps(registryKey('conn-2', 'apps::v1::ReplicaSet'), fakeDeps());
+    const unregister = registerDrawerActionDeps(registryKey('conn-2', 'k8s:apps/replicasets'), fakeDeps());
     expect(() => drawerActionDeps(rsCtx)).toThrow();
     unregister();
   });
@@ -63,26 +74,27 @@ describe('drawerActionDeps', () => {
 describe('resourceDrawerActions', () => {
   it('gives linked ReplicaSet and Deployment drawers their actions', () => {
     const titles = (key: string) => resourceDrawerActions[key]?.actions.map((a) => a.title);
-    expect(titles('apps::v1::ReplicaSet')).toEqual(['Delete', 'Logs']);
-    expect(titles('apps::v1::Deployment')).toEqual([
+    expect(titles('k8s:apps/replicasets')).toEqual(['Delete', 'Logs']);
+    expect(titles('k8s:apps/deployments')).toEqual([
       'Restart', 'Scale', 'Pause Rollout', 'Resume Rollout', 'Delete', 'Logs',
     ]);
-    expect(resourceDrawerActions['apps::v1::Deployment'].editorSubmit).toBeTypeOf('function');
   });
 
   it('runs a linked delete through the mounted handlers', async () => {
     const deps = fakeDeps();
-    const unregister = registerDrawerActionDeps(registryKey('conn-1', 'apps::v1::ReplicaSet'), deps);
+    const unregister = registerDrawerActionDeps(registryKey('conn-1', 'k8s:apps/replicasets'), deps);
 
-    const del = resourceDrawerActions['apps::v1::ReplicaSet'].actions.find((a) => a.title === 'Delete');
+    const del = resourceDrawerActions['k8s:apps/replicasets'].actions.find((a) => a.title === 'Delete');
     del?.action?.(rsCtx);
     expect(deps.show).toHaveBeenCalledTimes(1);
 
     const { onConfirm } = vi.mocked(deps.show).mock.calls[0][0] as { onConfirm: () => Promise<void> };
     await onConfirm();
-    expect(deps.remove).toHaveBeenCalledWith({
-      opts: { connectionID: 'conn-1', resourceKey: 'apps::v1::ReplicaSet', resourceID: 'web-7d4b9c', namespace: 'prod' },
-      input: {},
+    expect(deps.mutate).toHaveBeenCalledWith({
+      route: rsCtx.resource!.route,
+      reference: rsCtx.resource!.reference,
+      operation: 'delete',
+      input: { kind: 'map', value: {} },
     });
     expect(deps.closeDrawer).toHaveBeenCalled();
     unregister();

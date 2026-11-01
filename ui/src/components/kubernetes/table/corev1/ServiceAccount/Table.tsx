@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -5,7 +6,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { LocalObjectReference, ObjectReference, ServiceAccount } from 'kubernetes-types/core/v1';
 import React from 'react';
 import { LuUserCheck, LuCircleCheck } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -18,13 +19,13 @@ import ServiceAccountSidebar from './Sidebar';
 
 const scrollRowStyle = { gap: 2 } as const;
 
-const resourceKey = 'core::v1::ServiceAccount';
+const resourceKey = 'k8s:/serviceaccounts';
 
 const ServiceAccountTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<ServiceAccount>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, ServiceAccount>>>(
     () =>
       withNamespacedResourceColumns(
         [
@@ -46,7 +47,7 @@ const ServiceAccountTable: React.FC = () => {
                       key={v.name || ''}
                       connectionId={id}
                       resourceId={v.name || ''}
-                      resourceKey={'core::v1::Secret'}
+                      resourceKey={'k8s:/secrets'}
                       resourceName={v.namespace ? `${v.name}/${v.namespace}` : v.name}
                       namespace={v.namespace}
                     />
@@ -80,7 +81,7 @@ const ServiceAccountTable: React.FC = () => {
                       key={v.name || ''}
                       connectionId={id}
                       resourceId={v.name || ''}
-                      resourceKey={'core::v1::Secret'}
+                      resourceKey={'k8s:/secrets'}
                       resourceName={v.name || ''}
                       namespace={row.original.metadata?.namespace}
                     />
@@ -110,7 +111,6 @@ const ServiceAccountTable: React.FC = () => {
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.uid"
       drawer={drawer}
     />
   );

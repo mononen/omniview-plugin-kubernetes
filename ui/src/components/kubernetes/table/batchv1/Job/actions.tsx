@@ -4,7 +4,7 @@ import { LuLogs, LuTrash } from 'react-icons/lu';
 
 import { drawerActionDeps } from '../../../../shared/drawer/actionDeps';
 
-const resourceKey = 'batch::v1::Job';
+const resourceKey = 'k8s:batch/jobs';
 
 /** Drawer header and row menu actions for Jobs. Handlers come from `drawerActionDeps`. */
 export const drawerActions: Array<DrawerComponentAction<Job>> = [
@@ -27,15 +27,7 @@ export const drawerActions: Array<DrawerComponentAction<Job>> = [
         confirmLabel: 'Delete',
         cancelLabel: 'Cancel',
         onConfirm: async () => {
-          await drawerActionDeps(ctx).remove({
-            opts: {
-              connectionID: ctx.resource?.connectionID ?? '',
-              resourceKey,
-              resourceID: ctx.data?.metadata?.name as string,
-              namespace: ctx.data?.metadata?.namespace as string,
-            },
-            input: {},
-          });
+          await drawerActionDeps(ctx).mutate({ route: ctx.resource!.route, reference: ctx.resource!.reference, operation: 'delete', input: { kind: 'map', value: {} } });
           drawerActionDeps(ctx).closeDrawer();
         },
       });
@@ -54,10 +46,12 @@ export const drawerActions: Array<DrawerComponentAction<Job>> = [
         title: 'All Containers',
         action: () => {
           return drawerActionDeps(ctx).createLogSession({
-            connectionID: ctx.resource?.connectionID ?? '',
+            connectionID: ctx.resource?.route.connection ?? '',
             resourceKey,
             resourceID: ctx.data?.metadata?.name as string,
-            resourceData: ctx.data as Record<string, never>,
+            resourceData: ctx.resource!.record!.record.body,
+            reference: ctx.resource!.reference,
+            route: ctx.resource!.route,
             target: '',
             label: `Job ${ctx.data?.metadata?.name}`,
             icon: 'LuLogs',
@@ -71,10 +65,12 @@ export const drawerActions: Array<DrawerComponentAction<Job>> = [
           title: container.name,
           action: () => {
             return drawerActionDeps(ctx).createLogSession({
-              connectionID: ctx.resource?.connectionID ?? '',
+              connectionID: ctx.resource?.route.connection ?? '',
               resourceKey,
               resourceID: ctx.data?.metadata?.name as string,
-              resourceData: ctx.data as Record<string, never>,
+              resourceData: ctx.resource!.record!.record.body,
+              reference: ctx.resource!.reference,
+              route: ctx.resource!.route,
               target: container.name,
               label: `Job ${ctx.data?.metadata?.name}`,
               icon: 'LuLogs',

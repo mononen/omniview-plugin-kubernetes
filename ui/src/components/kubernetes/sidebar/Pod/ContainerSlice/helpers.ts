@@ -1,3 +1,4 @@
+import type { DrawerContext } from '@omniviewdev/runtime';
 import type {
   Container,
   ContainerStatus,
@@ -7,7 +8,6 @@ import type {
 } from 'kubernetes-types/core/v1';
 
 import type { DetailsCardEntry } from '../../../../shared/DetailsCard';
-
 import { getStatus } from '../utils';
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -23,6 +23,7 @@ export interface ContainerSliceProps {
   status?: ContainerStatus;
   type: ContainerType;
   pod?: Pod;
+  resource?: DrawerContext['resource'];
   volumes?: Volume[];
   /** Pod-level CPU usage in millicores (from metrics-server) */
   podCpuUsage?: number;
@@ -171,7 +172,7 @@ export function resolveFieldRef(pod: Pod, fieldPath: string): string | undefined
       }
       if (current == null) return undefined;
     }
-    return typeof current === 'object' ? JSON.stringify(current) : String(current as string | number | boolean);
+    return typeof current === 'string' ? current : JSON.stringify(current);
   } catch {
     return undefined;
   }
@@ -219,13 +220,13 @@ export function getVolumeResourceRef(
   const vol = volumes?.find((v) => v.name === name);
   if (!vol) return undefined;
   if (vol.configMap?.name)
-    return { resourceName: vol.configMap.name, resourceKey: 'core::v1::ConfigMap' };
+    return { resourceName: vol.configMap.name, resourceKey: 'k8s:/configmaps' };
   if (vol.secret?.secretName)
-    return { resourceName: vol.secret.secretName, resourceKey: 'core::v1::Secret' };
+    return { resourceName: vol.secret.secretName, resourceKey: 'k8s:/secrets' };
   if (vol.persistentVolumeClaim?.claimName)
     return {
       resourceName: vol.persistentVolumeClaim.claimName,
-      resourceKey: 'core::v1::PersistentVolumeClaim',
+      resourceKey: 'k8s:/persistentvolumeclaims',
     };
   return undefined;
 }

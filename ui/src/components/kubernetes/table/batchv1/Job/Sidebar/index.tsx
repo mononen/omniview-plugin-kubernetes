@@ -27,7 +27,7 @@ export const JobSidebar: React.FC<Props> = ({ ctx }) => {
   return (
     <Stack direction="column" spacing={4} style={fullWidthStyle}>
       <Stack direction="column" spacing={1}>
-        <ObjectMetaSection data={job.metadata} connectionID={ctx.resource?.connectionID} />
+        <ObjectMetaSection data={job.metadata} connectionID={ctx.resource?.route.connection} />
 
         <JobStatusSection status={status} conditions={conditions} />
 
@@ -47,10 +47,10 @@ export const JobSidebar: React.FC<Props> = ({ ctx }) => {
       {job.spec?.template?.spec && (
         <WorkloadPortsCard
           podSpec={job.spec.template.spec}
-          resourceKey="batch::v1::Job"
-          resourceData={job}
-          resourceID={ctx.resource?.id || ''}
-          connectionID={ctx.resource?.connectionID || ''}
+          resourceKey="k8s:batch/jobs"
+          resource={ctx.resource}
+          resourceID={ctx.resource?.reference.address.id || ''}
+          connectionID={ctx.resource?.route.connection || ''}
         />
       )}
     </Stack>

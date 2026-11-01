@@ -1,3 +1,4 @@
+import { fixtureResource } from '@/stories/resourceFixture';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { CSIDriver } from 'kubernetes-types/storage/v1';
 
@@ -20,7 +21,7 @@ function withDrawer(title: string) {
   return [
     (Story: React.FC) => (
       <ResourceDrawerContainer
-        type="storage::v1::CSIDriver"
+        type="k8s:storage.k8s.io/csidrivers"
         icon="LuHardDrive"
         title={title}
         open
@@ -34,10 +35,7 @@ function withDrawer(title: string) {
 
 export const Default: Story = {
   args: {
-    ctx: {
-      data: data as unknown as CSIDriver,
-      resource: { connectionID: 'ctx-1', id: 'ebs.csi.aws.com', key: 'storage::v1::CSIDriver' },
-    },
+    ctx: { data: data as unknown as CSIDriver, resource: fixtureResource('k8s:storage.k8s.io/csidrivers', data, 'ctx-1', 'ebs.csi.aws.com') },
   },
   decorators: withDrawer(data.metadata.name),
 };

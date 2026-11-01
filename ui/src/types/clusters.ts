@@ -42,6 +42,7 @@ export interface FilterState {
 export type RuleField =
   | 'name' | 'id' | 'provider' | 'tag' | 'isConnected'
   | `label:${string}`
+  | `metadata:${string}`
   | `data:${string}`;
 
 export type RuleOperator =
@@ -95,6 +96,8 @@ export interface ConnectionOverride {
   tags?: string[];
   metricConfig?: MetricConfig;
   nodeShellConfig?: NodeShellConfig;
+  /** Null or absent inherits the plugin-wide debug default. */
+  debugDefaultTemplateId?: string | null;
 }
 
 export interface ClusterPreferences {
@@ -110,6 +113,7 @@ export interface RecentEntry {
 
 export interface EnrichedConnection {
   connection: types.Connection;
+  metadata?: Readonly<Record<string, string>>;
   provider: string;
   isFavorite: boolean;
   isConnected: boolean;

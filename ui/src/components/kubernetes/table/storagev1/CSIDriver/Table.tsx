@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from '@omniviewdev/base-ui';
 import {
   DrawerComponent,
 } from '@omniviewdev/runtime';
@@ -5,7 +6,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { CSIDriver } from 'kubernetes-types/storage/v1';
 import React from 'react';
 import { LuHardDriveDownload, LuCircleCheck } from 'react-icons/lu';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router'
 
 import { createStandardViews } from '../../../../shared/sidebar/createDrawerViews';
 import ResourceTable from '../../../../shared/table/ResourceTable';
@@ -16,13 +17,13 @@ import { withClusterResourceColumns } from '../../shared/columns';
 import { drawerActions } from './actions';
 import CSIDriverSidebar from './Sidebar';
 
-const resourceKey = 'storage::v1::CSIDriver';
+const resourceKey = 'k8s:storage.k8s.io/csidrivers';
 
 const CSIDriverTable: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
 
 
-  const columns = React.useMemo<Array<ColumnDef<CSIDriver>>>(
+  const columns = React.useMemo<Array<ColumnDef<DataTableFeatures, CSIDriver>>>(
     () =>
       withClusterResourceColumns(
         [
@@ -127,7 +128,6 @@ Note: Audience in each TokenRequest should be different and at most one token is
       columns={columns}
       connectionID={id}
       resourceKey={resourceKey}
-      idAccessor="metadata.name"
       drawer={drawer}
     />
   );

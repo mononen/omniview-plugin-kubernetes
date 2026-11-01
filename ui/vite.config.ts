@@ -11,19 +11,11 @@ const pluginId = resolvePluginId();
 // modules the host loads from the dev server.
 process.env.VITE_OMNIVIEW_PLUGIN_ID = pluginId;
 
-const reactCompilerConfig = {
-  target: "19",
-};
-
 // https://vitejs.dev/config/
 export default defineConfig({
   cacheDir: process.env.OMNIVIEW_VITE_CACHE_DIRECTORY,
   plugins: [
-    react({
-      babel: {
-        plugins: [["babel-plugin-react-compiler", reactCompilerConfig]],
-      },
-    }),
+    react({ babel: { plugins: [["babel-plugin-react-compiler", { target: "19" }]] } }),
     omniviewExternals(),
     injectCssIntoEntry(pluginId),
   ],

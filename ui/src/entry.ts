@@ -8,9 +8,9 @@ import {
   type HomepageCardMeta,
   type SearchRouteHandleV1,
 } from '@omniviewdev/runtime';
-import { SiKubernetes } from 'react-icons/si';
 import React from 'react';
-import { RouteObject } from 'react-router-dom';
+import { SiKubernetes } from 'react-icons/si';
+import { RouteObject } from 'react-router';
 
 import { PLUGIN_ID } from '@/pluginId';
 
@@ -20,6 +20,7 @@ import ReleaseSidebar from './components/helm/releases/ReleaseSidebar';
 import HelmReleaseTable from './components/helm/releases/Table';
 import RepoSidebar from './components/helm/repos/RepoSidebar';
 import HelmRepoTable from './components/helm/repos/Table';
+import KubernetesHomepageCard from './components/homepage/KubernetesHomepageCard';
 import { resourceDrawerActions } from './components/kubernetes/drawerActions';
 import NodeSidebar from './components/kubernetes/sidebar/NodeSidebar';
 import PodSidebar from './components/kubernetes/sidebar/Pod';
@@ -114,18 +115,17 @@ import VolumeAttachmentSidebar from './components/kubernetes/table/storagev1/Vol
 import VolumeAttachmentTable from './components/kubernetes/table/storagev1/VolumeAttachment/Table';
 import { createStandardViews } from './components/shared/sidebar/createDrawerViews';
 import GenericResourceSidebar from './components/shared/sidebar/GenericResourceSidebar';
-import KubernetesHomepageCard from './components/homepage/KubernetesHomepageCard';
+import { kubernetesResourceIconSet } from './icons/resourceIcons';
 import ClusterEditPage from './pages/ClusterEditPage';
-import ClusterResourcesPage from './pages/ClusterResourcesPage';
+import ClusterResourcesRoute from './pages/ClusterResourcesRoute';
 import ClustersPage from './pages/ClustersPage';
-import ClusterExtensionPage, { CLUSTER_PAGE_EXTENSION_POINT_ID } from './pages/extension';
 import ClusterDashboardPage from './pages/dashboard';
 import ClusterDashboardBenchmarksPage from './pages/dashboard/benchmarks';
 import ClusterDashboardExtensionPage from './pages/dashboard/extension';
 import ClusterDashboardMetricsPage from './pages/dashboard/metrics';
 import ClusterDashboardOverviewPage from './pages/dashboard/overview';
+import ClusterExtensionPage, { CLUSTER_PAGE_EXTENSION_POINT_ID } from './pages/extension';
 import { kubernetesSearchProvider } from './search/provider';
-import { kubernetesResourceIconSet } from './icons/resourceIcons';
 
 const connectionSearchHandle: SearchRouteHandleV1 = {
   searchScope: ({ params }) => params.id
@@ -136,106 +136,76 @@ const connectionSearchHandle: SearchRouteHandleV1 = {
 // @ts-expect-error Expose React to the plugin host window
 window.PluginReact = React;
 
-// ── Sidebar components ──────────────────────────────────────────────
-
-// core.v1
-
-// apps.v1
-
-// batch.v1
-
-// autoscaling.v1
-
-// policy.v1
-
-// flowcontrol.v1
-
-// rbac.v1
-
-// networking.v1
-
-// discovery.v1
-
-// node.v1
-
-// storage.v1
-
-// helm.v1
-
-// admissionregistration.v1
-
 /**
- * Sidebar components keyed by resource key (group::version::Kind).
- * Registered with the host's sidebar registry at plugin load time so that
- * linked-resource chip clicks render the same rich sidebar as table row clicks.
+ * Sidebar components keyed by opaque logical Type.
+ * Canonical contributions give linked resources the same rich sidebar as tables.
  */
-export const sidebars: Record<string, React.FC<{ ctx: DrawerContext }>> = {
+const sidebars: Record<string, React.FC<{ ctx: DrawerContext }>> = {
   // core.v1
-  'core::v1::Pod': PodSidebar,
-  'core::v1::Node': NodeSidebar,
-  'core::v1::Secret': SecretSidebar,
-  'core::v1::ConfigMap': ConfigMapSidebar,
-  'core::v1::Namespace': NamespaceSidebar,
-  'core::v1::Service': ServiceSidebar,
-  'core::v1::ServiceAccount': ServiceAccountSidebar,
-  'core::v1::Endpoints': EndpointsSidebar,
-  'core::v1::ReplicationController': ReplicationControllerSidebar,
-  'core::v1::PersistentVolume': PersistentVolumeSidebar,
-  'core::v1::PersistentVolumeClaim': PersistentVolumeClaimSidebar,
-  'core::v1::LimitRange': LimitRangeSidebar,
-  'core::v1::ResourceQuota': ResourceQuotaSidebar,
-  'core::v1::ComponentStatus': ComponentStatusSidebar,
-  'core::v1::Event': EventSidebar,
+  'k8s:/pods': PodSidebar,
+  'k8s:/nodes': NodeSidebar,
+  'k8s:/secrets': SecretSidebar,
+  'k8s:/configmaps': ConfigMapSidebar,
+  'k8s:/namespaces': NamespaceSidebar,
+  'k8s:/services': ServiceSidebar,
+  'k8s:/serviceaccounts': ServiceAccountSidebar,
+  'k8s:/endpoints': EndpointsSidebar,
+  'k8s:/replicationcontrollers': ReplicationControllerSidebar,
+  'k8s:/persistentvolumes': PersistentVolumeSidebar,
+  'k8s:/persistentvolumeclaims': PersistentVolumeClaimSidebar,
+  'k8s:/limitranges': LimitRangeSidebar,
+  'k8s:/resourcequotas': ResourceQuotaSidebar,
+  'k8s:/componentstatuses': ComponentStatusSidebar,
+  'k8s:/events': EventSidebar,
   // apps.v1
-  'apps::v1::ReplicaSet': ReplicaSetSidebar,
-  'apps::v1::DaemonSet': DaemonSetSidebar,
-  'apps::v1::Deployment': DeploymentSidebar,
-  'apps::v1::StatefulSet': StatefulSetSidebar,
+  'k8s:apps/replicasets': ReplicaSetSidebar,
+  'k8s:apps/daemonsets': DaemonSetSidebar,
+  'k8s:apps/deployments': DeploymentSidebar,
+  'k8s:apps/statefulsets': StatefulSetSidebar,
   // batch.v1
-  'batch::v1::Job': JobSidebar,
-  'batch::v1::CronJob': CronJobSidebar,
+  'k8s:batch/jobs': JobSidebar,
+  'k8s:batch/cronjobs': CronJobSidebar,
   // autoscaling.v1
-  'autoscaling::v1::HorizontalPodAutoscaler': HorizontalPodAutoscalerSidebar,
-  'autoscaling::v2::HorizontalPodAutoscaler': HorizontalPodAutoscalerSidebar,
+  'k8s:autoscaling/horizontalpodautoscalers': HorizontalPodAutoscalerSidebar,
   // policy.v1
-  'policy::v1::PodDisruptionBudget': PodDisruptionBudgetSidebar,
+  'k8s:policy/poddisruptionbudgets': PodDisruptionBudgetSidebar,
   // coordination.v1
-  'coordination::v1::Lease': LeaseSidebar,
+  'k8s:coordination.k8s.io/leases': LeaseSidebar,
   // flowcontrol.v1
-  'flowcontrol::v1::FlowSchema': FlowSchemaSidebar,
-  'flowcontrol::v1::PriorityLevelConfiguration': PriorityLevelConfigurationSidebar,
+  'k8s:flowcontrol.apiserver.k8s.io/flowschemas': FlowSchemaSidebar,
+  'k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations': PriorityLevelConfigurationSidebar,
   // rbac.v1
-  'rbac::v1::ClusterRole': ClusterRoleSidebar,
-  'rbac::v1::ClusterRoleBinding': ClusterRoleBindingSidebar,
-  'rbac::v1::Role': RoleSidebar,
-  'rbac::v1::RoleBinding': RoleBindingSidebar,
+  'k8s:rbac.authorization.k8s.io/clusterroles': ClusterRoleSidebar,
+  'k8s:rbac.authorization.k8s.io/clusterrolebindings': ClusterRoleBindingSidebar,
+  'k8s:rbac.authorization.k8s.io/roles': RoleSidebar,
+  'k8s:rbac.authorization.k8s.io/rolebindings': RoleBindingSidebar,
   // networking.v1
-  'networking::v1::NetworkPolicy': NetworkPolicySidebar,
-  'networking::v1::IngressClass': IngressClassSidebar,
-  'networking::v1::Ingress': IngressSidebar,
+  'k8s:networking.k8s.io/networkpolicies': NetworkPolicySidebar,
+  'k8s:networking.k8s.io/ingressclasses': IngressClassSidebar,
+  'k8s:networking.k8s.io/ingresses': IngressSidebar,
   // discovery.v1
-  'discovery::v1::EndpointSlice': EndpointSliceSidebar,
+  'k8s:discovery.k8s.io/endpointslices': EndpointSliceSidebar,
   // scheduling.v1
-  'scheduling::v1::PriorityClass': PriorityClassSidebar,
+  'k8s:scheduling.k8s.io/priorityclasses': PriorityClassSidebar,
   // node.v1
-  'node::v1::RuntimeClass': RuntimeClassSidebar,
+  'k8s:node.k8s.io/runtimeclasses': RuntimeClassSidebar,
   // storage.v1
-  'storage::v1::CSIDriver': CSIDriverSidebar,
-  'storage::v1::CSINode': CSINodeSidebar,
-  'storage::v1::StorageClass': StorageClassSidebar,
-  'storage::v1::VolumeAttachment': VolumeAttachmentSidebar,
-  'storage::v1::CSIStorageCapacity': CSIStorageCapacitySidebar,
+  'k8s:storage.k8s.io/csidrivers': CSIDriverSidebar,
+  'k8s:storage.k8s.io/csinodes': CSINodeSidebar,
+  'k8s:storage.k8s.io/storageclasses': StorageClassSidebar,
+  'k8s:storage.k8s.io/volumeattachments': VolumeAttachmentSidebar,
+  'k8s:storage.k8s.io/csistoragecapacities': CSIStorageCapacitySidebar,
   // admissionregistration.v1
-  'admissionregistration::v1::MutatingWebhookConfiguration': MutatingWebhookConfigurationSidebar,
-  'admissionregistration::v1::ValidatingAdmissionPolicy': ValidatingAdmissionPolicySidebar,
-  'admissionregistration::v1::ValidatingAdmissionPolicyBinding':
+  'k8s:admissionregistration.k8s.io/mutatingwebhookconfigurations': MutatingWebhookConfigurationSidebar,
+  'k8s:admissionregistration.k8s.io/validatingadmissionpolicies': ValidatingAdmissionPolicySidebar,
+  'k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings':
     ValidatingAdmissionPolicyBindingSidebar,
-  'admissionregistration::v1::ValidatingWebhookConfiguration':
+  'k8s:admissionregistration.k8s.io/validatingwebhookconfigurations':
     ValidatingWebhookConfigurationSidebar,
   // helm.v1
-  'helm::v1::Release': ReleaseSidebar,
-  'helm::v1::Repository': RepoSidebar,
-  'helm::v1::Chart': ChartSidebar,
+  'helm:releases': ReleaseSidebar,
+  'helm:repositories': RepoSidebar,
+  'helm:charts': ChartSidebar,
 };
 
 /**
@@ -251,17 +221,16 @@ function createResourceDrawerFactory(
   const shared = resourceDrawerActions[resourceKey];
   return (_closeDrawer: () => void): DrawerComponent => ({
     title: resourceKey,
-    views: createStandardViews({ SidebarComponent, onEditorSubmit: shared?.editorSubmit }),
+    views: createStandardViews({ SidebarComponent }),
     actions: shared?.actions ?? [],
   });
 }
 
 /**
- * Drawer factories keyed by resource key. Registered with the host's
- * drawer registry at plugin load time so that linked-resource chip clicks
- * and showResourceSidebar() render the full sidebar experience.
+ * Drawer factories keyed by opaque logical Type, contributed alongside sidebars
+ * so linked-resource clicks render the full standard view set.
  */
-export const drawers: Record<string, DrawerFactory> = Object.fromEntries(
+const drawers: Record<string, DrawerFactory> = Object.fromEntries(
   Object.entries(sidebars).map(([key, Component]) => [
     key,
     createResourceDrawerFactory(key, Component),
@@ -276,7 +245,9 @@ export const drawers: Record<string, DrawerFactory> = Object.fromEntries(
 export const defaultDrawerFactory: DrawerFactory =
   createResourceDrawerFactory('__default__', GenericResourceSidebar);
 
-const routes: Array<RouteObject> = [
+// React Router decodes incoming segments before matching, except encoded slashes.
+// Static logical Types therefore retain ':' while protecting '/' as '%2F'.
+export const routes: Array<RouteObject> = [
   {
     path: '/',
     Component: ClustersPage,
@@ -295,7 +266,7 @@ const routes: Array<RouteObject> = [
       },
       {
         path: 'resources',
-        Component: ClusterResourcesPage,
+        Component: ClusterResourcesRoute,
         handle: connectionSearchHandle,
         children: [
           {
@@ -313,105 +284,100 @@ const routes: Array<RouteObject> = [
           { path: 'page/:pagePath/:subPath', Component: ClusterExtensionPage },
           // admissionregistration.v1
           {
-            path: 'admissionregistration_v1_MutatingWebhookConfiguration',
+            path: 'k8s:admissionregistration.k8s.io/mutatingwebhookconfigurations'.replaceAll('/', '%2F'),
             Component: MutatingWebhookConfigurationTable,
           },
           {
-            path: 'admissionregistration_v1_ValidatingAdmissionPolicy',
+            path: 'k8s:admissionregistration.k8s.io/validatingadmissionpolicies'.replaceAll('/', '%2F'),
             Component: ValidatingAdmissionPolicyTable,
           },
           {
-            path: 'admissionregistration_v1_ValidatingAdmissionPolicyBinding',
+            path: 'k8s:admissionregistration.k8s.io/validatingadmissionpolicybindings'.replaceAll('/', '%2F'),
             Component: ValidatingAdmissionPolicyBindingTable,
           },
           {
-            path: 'admissionregistration_v1_ValidatingWebhookConfiguration',
+            path: 'k8s:admissionregistration.k8s.io/validatingwebhookconfigurations'.replaceAll('/', '%2F'),
             Component: ValidatingWebhookConfigurationTable,
           },
 
           // apps.v1
-          { path: 'apps_v1_DaemonSet', Component: DaemonSetTable },
-          { path: 'apps_v1_Deployment', Component: DeploymentTable },
-          { path: 'apps_v1_ReplicaSet', Component: ReplicaSetTable },
-          { path: 'apps_v1_StatefulSet', Component: StatefulSetTable },
+          { path: 'k8s:apps/daemonsets'.replaceAll('/', '%2F'), Component: DaemonSetTable },
+          { path: 'k8s:apps/deployments'.replaceAll('/', '%2F'), Component: DeploymentTable },
+          { path: 'k8s:apps/replicasets'.replaceAll('/', '%2F'), Component: ReplicaSetTable },
+          { path: 'k8s:apps/statefulsets'.replaceAll('/', '%2F'), Component: StatefulSetTable },
 
           // autoscaling.v1
           {
-            path: 'autoscaling_v1_HorizontalPodAutoscaler',
+            path: 'k8s:autoscaling/horizontalpodautoscalers'.replaceAll('/', '%2F'),
             Component: HorizontalPodAutoscalerTable,
           },
 
-          // autoscaling.v2
-          {
-            path: 'autoscaling_v2_HorizontalPodAutoscaler',
-            Component: HorizontalPodAutoscalerTable,
-          },
 
           // batch.v1
-          { path: 'batch_v1_CronJob', Component: CronJobTable },
-          { path: 'batch_v1_Job', Component: JobTable },
+          { path: 'k8s:batch/cronjobs'.replaceAll('/', '%2F'), Component: CronJobTable },
+          { path: 'k8s:batch/jobs'.replaceAll('/', '%2F'), Component: JobTable },
 
           // core.v1
-          { path: 'core_v1_ComponentStatus', Component: ComponentStatusTable },
-          { path: 'core_v1_ConfigMap', Component: ConfigMapTable },
-          { path: 'core_v1_Endpoints', Component: EndpointsTable },
-          { path: 'core_v1_Event', Component: EventTable },
-          { path: 'core_v1_LimitRange', Component: LimitRangeTable },
-          { path: 'core_v1_Namespace', Component: NamespaceTable },
-          { path: 'core_v1_Node', Component: NodeTable },
-          { path: 'core_v1_PersistentVolume', Component: PersistentVolumeTable },
-          { path: 'core_v1_PersistentVolumeClaim', Component: PersistentVolumeClaimTable },
-          { path: 'core_v1_Pod', Component: PodTable },
-          { path: 'core_v1_ResourceQuota', Component: ResourceQuotaTable },
-          { path: 'core_v1_Secret', Component: SecretTable },
-          { path: 'core_v1_Service', Component: ServiceTable },
-          { path: 'core_v1_ServiceAccount', Component: ServiceAccountTable },
-          { path: 'core_v1_ReplicationController', Component: ReplicationControllerTable },
+          { path: 'k8s:/componentstatuses'.replaceAll('/', '%2F'), Component: ComponentStatusTable },
+          { path: 'k8s:/configmaps'.replaceAll('/', '%2F'), Component: ConfigMapTable },
+          { path: 'k8s:/endpoints'.replaceAll('/', '%2F'), Component: EndpointsTable },
+          { path: 'k8s:/events'.replaceAll('/', '%2F'), Component: EventTable },
+          { path: 'k8s:/limitranges'.replaceAll('/', '%2F'), Component: LimitRangeTable },
+          { path: 'k8s:/namespaces'.replaceAll('/', '%2F'), Component: NamespaceTable },
+          { path: 'k8s:/nodes'.replaceAll('/', '%2F'), Component: NodeTable },
+          { path: 'k8s:/persistentvolumes'.replaceAll('/', '%2F'), Component: PersistentVolumeTable },
+          { path: 'k8s:/persistentvolumeclaims'.replaceAll('/', '%2F'), Component: PersistentVolumeClaimTable },
+          { path: 'k8s:/pods'.replaceAll('/', '%2F'), Component: PodTable },
+          { path: 'k8s:/resourcequotas'.replaceAll('/', '%2F'), Component: ResourceQuotaTable },
+          { path: 'k8s:/secrets'.replaceAll('/', '%2F'), Component: SecretTable },
+          { path: 'k8s:/services'.replaceAll('/', '%2F'), Component: ServiceTable },
+          { path: 'k8s:/serviceaccounts'.replaceAll('/', '%2F'), Component: ServiceAccountTable },
+          { path: 'k8s:/replicationcontrollers'.replaceAll('/', '%2F'), Component: ReplicationControllerTable },
 
           // coordination.v1
-          { path: 'coordination_v1_Lease', Component: LeaseTable },
+          { path: 'k8s:coordination.k8s.io/leases'.replaceAll('/', '%2F'), Component: LeaseTable },
 
           // discovery.v1
-          { path: 'discovery_v1_EndpointSlice', Component: EndpointSliceTable },
+          { path: 'k8s:discovery.k8s.io/endpointslices'.replaceAll('/', '%2F'), Component: EndpointSliceTable },
 
           // flowcontrol.v1
           {
-            path: 'flowcontrol_v1_PriorityLevelConfiguration',
+            path: 'k8s:flowcontrol.apiserver.k8s.io/prioritylevelconfigurations'.replaceAll('/', '%2F'),
             Component: PriorityLevelConfigurationTable,
           },
-          { path: 'flowcontrol_v1_FlowSchema', Component: FlowSchemaTable },
+          { path: 'k8s:flowcontrol.apiserver.k8s.io/flowschemas'.replaceAll('/', '%2F'), Component: FlowSchemaTable },
 
           // networking.v1
-          { path: 'networking_v1_Ingress', Component: IngressTable },
-          { path: 'networking_v1_IngressClass', Component: IngressClassTable },
-          { path: 'networking_v1_NetworkPolicy', Component: NetworkPolicyTable },
+          { path: 'k8s:networking.k8s.io/ingresses'.replaceAll('/', '%2F'), Component: IngressTable },
+          { path: 'k8s:networking.k8s.io/ingressclasses'.replaceAll('/', '%2F'), Component: IngressClassTable },
+          { path: 'k8s:networking.k8s.io/networkpolicies'.replaceAll('/', '%2F'), Component: NetworkPolicyTable },
 
           // node.v1
-          { path: 'node_v1_RuntimeClass', Component: RuntimeClassTable },
+          { path: 'k8s:node.k8s.io/runtimeclasses'.replaceAll('/', '%2F'), Component: RuntimeClassTable },
 
           // policy.v1
-          { path: 'policy_v1_PodDisruptionBudget', Component: PodDisruptionBudgetTable },
+          { path: 'k8s:policy/poddisruptionbudgets'.replaceAll('/', '%2F'), Component: PodDisruptionBudgetTable },
 
           // rbac.v1
-          { path: 'rbac_v1_ClusterRole', Component: ClusterRoleTable },
-          { path: 'rbac_v1_ClusterRoleBinding', Component: ClusterRoleBindingTable },
-          { path: 'rbac_v1_Role', Component: RoleTable },
-          { path: 'rbac_v1_RoleBinding', Component: RoleBindingTable },
+          { path: 'k8s:rbac.authorization.k8s.io/clusterroles'.replaceAll('/', '%2F'), Component: ClusterRoleTable },
+          { path: 'k8s:rbac.authorization.k8s.io/clusterrolebindings'.replaceAll('/', '%2F'), Component: ClusterRoleBindingTable },
+          { path: 'k8s:rbac.authorization.k8s.io/roles'.replaceAll('/', '%2F'), Component: RoleTable },
+          { path: 'k8s:rbac.authorization.k8s.io/rolebindings'.replaceAll('/', '%2F'), Component: RoleBindingTable },
 
           // scheduling.v1
-          { path: 'scheduling_v1_PriorityClass', Component: PriorityClassTable },
+          { path: 'k8s:scheduling.k8s.io/priorityclasses'.replaceAll('/', '%2F'), Component: PriorityClassTable },
 
           // storage.v1
-          { path: 'storage_v1_CSIDriver', Component: CSIDriverTable },
-          { path: 'storage_v1_CSINode', Component: CSINodeTable },
-          { path: 'storage_v1_CSIStorageCapacity', Component: CSIStorageCapacityTable },
-          { path: 'storage_v1_StorageClass', Component: StorageClassTable },
-          { path: 'storage_v1_VolumeAttachment', Component: VolumeAttachmentTable },
+          { path: 'k8s:storage.k8s.io/csidrivers'.replaceAll('/', '%2F'), Component: CSIDriverTable },
+          { path: 'k8s:storage.k8s.io/csinodes'.replaceAll('/', '%2F'), Component: CSINodeTable },
+          { path: 'k8s:storage.k8s.io/csistoragecapacities'.replaceAll('/', '%2F'), Component: CSIStorageCapacityTable },
+          { path: 'k8s:storage.k8s.io/storageclasses'.replaceAll('/', '%2F'), Component: StorageClassTable },
+          { path: 'k8s:storage.k8s.io/volumeattachments'.replaceAll('/', '%2F'), Component: VolumeAttachmentTable },
 
           // helm.v1
-          { path: 'helm_v1_Release', Component: HelmReleaseTable },
-          { path: 'helm_v1_Repository', Component: HelmRepoTable },
-          { path: 'helm_v1_Chart', Component: HelmChartTable },
+          { path: 'helm:releases'.replaceAll('/', '%2F'), Component: HelmReleaseTable },
+          { path: 'helm:repositories'.replaceAll('/', '%2F'), Component: HelmRepoTable },
+          { path: 'helm:charts'.replaceAll('/', '%2F'), Component: HelmChartTable },
 
           // Custom Resource Definitions / breaking api versions
           { path: ':resourceKey', Component: DefaultTable },
@@ -422,6 +388,26 @@ const routes: Array<RouteObject> = [
 ];
 
 export const extensionRegistrations: ExtensionRegistration[] = [
+  ...Object.entries(sidebars).map(([resourceKey, Component]): ExtensionRegistration => ({
+    extensionPointId: 'omniview/resource/sidebar/infopanel',
+    registration: {
+      id: `sidebar/${resourceKey}`,
+      plugin: PLUGIN_ID,
+      label: `Kubernetes sidebar for ${resourceKey}`,
+      value: Component,
+      meta: { pluginId: PLUGIN_ID, resourceKey },
+    },
+  })),
+  ...Object.entries(drawers).map(([resourceKey, factory]): ExtensionRegistration => ({
+    extensionPointId: 'omniview/resource/drawer',
+    registration: {
+      id: `drawer/${resourceKey}`,
+      plugin: PLUGIN_ID,
+      label: `Kubernetes drawer for ${resourceKey}`,
+      value: factory,
+      meta: { pluginId: PLUGIN_ID, resourceKey },
+    },
+  })),
   {
     extensionPointId: 'omniview/resource/icons',
     registration: {

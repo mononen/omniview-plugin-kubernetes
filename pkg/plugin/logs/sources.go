@@ -3,6 +3,8 @@ package logs
 import (
 	"fmt"
 
+	"github.com/omniview/kubernetes/pkg/utils"
+	resourcev2 "github.com/omniviewdev/plugin-sdk/pkg/resource/v2"
 	"github.com/omniviewdev/plugin-sdk/pkg/v1/logs"
 
 	corev1 "k8s.io/api/core/v1"
@@ -51,24 +53,40 @@ func allContainers(pod corev1.Pod) []corev1.Container {
 }
 
 // PodSourceBuilder is a SourceBuilderFunc that extracts per-container sources
-// from raw pod resource data (map[string]interface{}) so the manager can fan
+// from tagged pod resource data so the manager can fan
 // out to one handler call per container. Without this, "all containers" mode
 // sends a single request with an empty container name, which the K8s API
 // rejects for multi-container pods.
 func PodSourceBuilder(
 	resourceID string,
-	resourceData map[string]interface{},
+	resourceData *resourcev2.Value,
 	opts logs.LogSessionOptions,
 ) []logs.LogSource {
-	name, namespace := extractNameAndNamespace(resourceData)
-	if name == "" {
+	// The builder has no selected client context. The stream handler validates
+	// the route against that context before opening the native log stream.
+	if opts.Reference != nil && opts.Route == nil {
 		return nil
+	}
+	if opts.Route != nil && opts.Route.Connection == "" {
+		return nil
+	}
+	name, namespace, err := utils.NativeResourceIdentity(resourceData, opts.Reference, "k8s:/pods", true)
+	if err != nil {
+		return nil
+	}
+	// A finite canonical read delegates optional container selection to the
+	// native API. It needs no Pod Get or fabricated container observation.
+	if opts.Reference != nil && !opts.Follow {
+		return []logs.LogSource{{
+			ID:     name + "/" + opts.Target,
+			Labels: map[string]string{"pod": name, "namespace": namespace, "container": opts.Target},
+		}}
 	}
 
 	// Gather container names from spec.containers, spec.initContainers,
 	// and spec.ephemeralContainers in the raw resource data.
-	spec, _ := resourceData["spec"].(map[string]interface{})
-	if spec == nil {
+	spec, present := utils.TaggedField(resourceData, "spec")
+	if !present || spec.Kind != "map" {
 		return nil
 	}
 
@@ -77,11 +95,16 @@ func PodSourceBuilder(
 	}
 	var containers []containerInfo
 	for _, key := range []string{"initContainers", "containers", "ephemeralContainers"} {
-		arr, _ := spec[key].([]interface{})
-		for _, item := range arr {
-			c, _ := item.(map[string]interface{})
-			if cName, _ := c["name"].(string); cName != "" {
-				containers = append(containers, containerInfo{name: cName})
+		arr := spec.Map[key]
+		if arr.Kind != "list" {
+			continue
+		}
+		for _, item := range arr.List {
+			if item.Kind != "map" {
+				continue
+			}
+			if cName := item.Map["name"]; cName.Kind == "string" && cName.String != "" {
+				containers = append(containers, containerInfo{name: cName.String})
 			}
 		}
 	}
@@ -108,25 +131,21 @@ func PodSourceBuilder(
 }
 
 // extractNodeName reads spec.nodeName from raw resource data.
-func extractNodeName(data map[string]interface{}) (string, bool) {
-	spec, ok := data["spec"].(map[string]interface{})
-	if !ok {
-		return "", false
-	}
-	node, ok := spec["nodeName"].(string)
-	return node, ok
+func extractNodeName(data *resourcev2.Value) (string, bool) {
+	node, ok := utils.TaggedField(data, "spec", "nodeName")
+	return node.String, ok && node.Kind == "string"
 }
 
 // extractNameAndNamespace extracts the name and namespace from resource data.
-func extractNameAndNamespace(data map[string]interface{}) (string, string) {
-	var name, namespace string
-	if metadata, ok := data["metadata"].(map[string]interface{}); ok {
-		if n, ok := metadata["name"].(string); ok {
-			name = n
-		}
-		if ns, ok := metadata["namespace"].(string); ok {
-			namespace = ns
-		}
+func extractNameAndNamespace(data *resourcev2.Value) (string, string) {
+	name, _ := utils.TaggedField(data, "metadata", "name")
+	namespace, _ := utils.TaggedField(data, "metadata", "namespace")
+	var n, ns string
+	if name.Kind == "string" {
+		n = name.String
 	}
-	return name, namespace
+	if namespace.Kind == "string" {
+		ns = namespace.String
+	}
+	return n, ns
 }
